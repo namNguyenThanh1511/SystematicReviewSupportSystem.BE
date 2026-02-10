@@ -1,0 +1,70 @@
+## Migrated to Postgres
+
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: srss-iam-db
+#   namespace: amayakuro
+# data:
+#   MSSQL_SA_PASSWORD: U0VDUkVUX1BBLMAOU1NXT1JE
+
+# ---
+# apiVersion: apps/v1
+# kind: StatefulSet
+# metadata:
+#   name: srss-iam-db
+#   namespace: amayakuro
+# spec:
+#   serviceName: "srss-iam-db"
+#   selector:
+#     matchLabels:
+#       srss: iam-db
+#   replicas: 1
+#   template:
+#     metadata:
+#       labels:
+#         srss: iam-db
+#     spec:
+#       containers:
+#         - name: mssql # container name within the pod.
+#           image: mcr.microsoft.com/mssql/server:2022-latest
+#           resources:
+#             limits:
+#               memory: "2Gi"
+#               cpu: "2"
+#           ports:
+#           - containerPort: 1433
+#             name: tcpsql
+#           env:
+#             - name: ACCEPT_EULA
+#               value: "Y"
+#             - name: MSSQL_ENABLE_HADR
+#               value: "1"
+#             - name: MSSQL_AGENT_ENABLED
+#               value: "1"
+#             - name: MSSQL_SA_PASSWORD
+#               valueFrom:
+#                 configMapKeyRef:
+#                   name: srss-iam-db
+#                   key: MSSQL_SA_PASSWORD
+#             # volumeMounts:
+#             # - name: srss
+#             #   mountPath: "/var/opt/mssql"
+
+#       topologySpreadConstraints:
+#         - maxSkew: 2
+#           topologyKey: kubernetes.io/hostname
+#           whenUnsatisfiable: ScheduleAnyway
+#           labelSelector:
+#             matchLabels:
+#               topology.kubernetes.io/zone: sgmy
+
+#       affinity:
+#         nodeAffinity:
+#           requiredDuringSchedulingIgnoredDuringExecution:
+#             nodeSelectorTerms:
+#             - matchExpressions:
+#               - key: topology.kubernetes.io/zone
+#                 operator: In
+#                 values:
+#                 - sgmy

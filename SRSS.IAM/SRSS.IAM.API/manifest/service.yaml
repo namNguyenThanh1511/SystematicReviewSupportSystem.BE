@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: srss-iam-service
+  namespace: amayakuro
+
+spec:
+  type: ClusterIP
+  ipFamilyPolicy: RequireDualStack
+  selector:
+    srss: iam
+  ports:
+    - port: 80 
+      targetPort: 8080
+      name: srss-iam

@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srss-iam
+  namespace: amayakuro
+spec:
+  selector:
+    matchLabels:
+      srss: iam
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        srss: iam
+    spec:
+      containers:
+        - name: srss-iam
+          image: ghcr.io/namnguyenthanh1511/srss-iam-api:latest
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "2"
+            limits:
+              memory: "2Gi"
+              cpu: "6"
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DOTNET_USE_POLLING_FILE_WATCHER
+              value: "true"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/appsettings.Production.json
+              subPath: appsettings.Production.json
+      volumes:
+        - name: config-volume
+          configMap:
+            name: srss-iam
+            items:
+              - key: appsettings.Production.json
+                path: appsettings.Production.json
+
+      topologySpreadConstraints:
+        - maxSkew: 2
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              topology.kubernetes.io/zone: sgmy
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 50
+              preference:
+                matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - sgmy
+            - weight: 10
+              preference:
+                matchExpressions:
+                  - key: k8s.badaimweeb.me/zone-tier1
+                    operator: In
+                    values:
+                      - asia-se

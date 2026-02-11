@@ -9,7 +9,9 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.AuthService;
 using SRSS.IAM.Services.Configurations;
 using SRSS.IAM.Services.JWTService;
+using SRSS.IAM.Services.ProtocolService;
 using SRSS.IAM.Services.RefreshTokenService;
+using SRSS.IAM.Services.ResearchQuestionService;
 using SRSS.IAM.Services.UserService;
 using System.Text;
 
@@ -31,7 +33,11 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-            services.AddScoped<IAuthService, AuthService>();
+            // Planning Phase
+			services.AddScoped<IProtocolService, ProtocolService>();
+			services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
+
+			services.AddScoped<IAuthService, AuthService>();
 
         }
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260211100916_AddSystematicReviewProjectAndReviewProcess")]
+    partial class AddSystematicReviewProjectAndReviewProcess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -59,8 +62,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("status");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ReviewProcessId");
 
                     b.ToTable("identification_processes", (string)null);
                 });
@@ -345,10 +346,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<int>("CurrentPhase")
-                        .HasColumnType("integer")
-                        .HasColumnName("current_phase");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -357,6 +354,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("notes");
+
+                    b.Property<int>("ProcessType")
+                        .HasColumnType("integer")
+                        .HasColumnName("process_type");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid")
@@ -377,6 +378,10 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_review_process_status");
+
+                    b.HasIndex("ProjectId", "ProcessType")
+                        .IsUnique()
+                        .HasDatabaseName("idx_review_process_project_type_unique");
 
                     b.ToTable("review_processes", (string)null);
                 });
@@ -462,9 +467,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("StartDate")
                         .HasColumnType("timestamp with time zone")
@@ -571,17 +573,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcess", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany("IdentificationProcesses")
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReviewProcess");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.SearchExecution", "SearchExecution")
@@ -632,11 +623,6 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
                 {
                     b.Navigation("Papers");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
-                {
-                    b.Navigation("IdentificationProcesses");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>

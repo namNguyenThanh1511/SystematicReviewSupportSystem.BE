@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260211023533_initial-paper")]
+    partial class initialpaper
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -60,67 +63,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReviewProcessId");
-
                     b.ToTable("identification_processes", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("FileName")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("file_name");
-
-                    b.Property<string>("FileType")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("file_type");
-
-                    b.Property<DateTimeOffset>("ImportedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("imported_at");
-
-                    b.Property<string>("ImportedBy")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("imported_by");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid?>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<Guid?>("SearchExecutionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("search_execution_id");
-
-                    b.Property<string>("Source")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("source");
-
-                    b.Property<int>("TotalRecords")
-                        .HasColumnType("integer")
-                        .HasColumnName("total_records");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SearchExecutionId");
-
-                    b.ToTable("import_batches", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
@@ -295,6 +238,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
 
+                    b.Property<Guid?>("SearchExecutionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("search_execution_id");
+
                     b.Property<string>("Source")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -325,60 +272,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("DOI");
 
-                    b.HasIndex("ImportBatchId");
+                    b.HasIndex("SearchExecutionId");
 
                     b.ToTable("papers", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<int>("CurrentPhase")
-                        .HasColumnType("integer")
-                        .HasColumnName("current_phase");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("notes");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("started_at");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId")
-                        .HasDatabaseName("idx_review_process_project_id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("idx_review_process_status");
-
-                    b.ToTable("review_processes", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
@@ -432,63 +328,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("IdentificationProcessId");
 
                     b.ToTable("search_executions", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SystematicReviewProject", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Domain")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("domain");
-
-                    b.Property<DateTimeOffset?>("EndDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("end_date");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("StartDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("start_date");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("title");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("idx_project_status");
-
-                    b.HasIndex("Title")
-                        .HasDatabaseName("idx_project_title");
-
-                    b.ToTable("systematic_review_projects", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.User", b =>
@@ -571,46 +410,14 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcess", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany("IdentificationProcesses")
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReviewProcess");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.SearchExecution", "SearchExecution")
-                        .WithMany("ImportBatches")
+                        .WithMany("Papers")
                         .HasForeignKey("SearchExecutionId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("SearchExecution");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ImportBatch", "ImportBatch")
-                        .WithMany("Papers")
-                        .HasForeignKey("ImportBatchId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("ImportBatch");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
-                        .WithMany("ReviewProcesses")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
@@ -629,24 +436,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("SearchExecutions");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
-                {
-                    b.Navigation("Papers");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
-                {
-                    b.Navigation("IdentificationProcesses");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
                 {
-                    b.Navigation("ImportBatches");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SystematicReviewProject", b =>
-                {
-                    b.Navigation("ReviewProcesses");
+                    b.Navigation("Papers");
                 });
 #pragma warning restore 612, 618
         }

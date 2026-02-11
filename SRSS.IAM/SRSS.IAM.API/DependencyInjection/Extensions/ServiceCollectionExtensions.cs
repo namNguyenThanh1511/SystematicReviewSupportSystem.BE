@@ -8,9 +8,12 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.AuthService;
 using SRSS.IAM.Services.Configurations;
+using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.JWTService;
 using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.SystematicReviewProjectService;
+using SRSS.IAM.Services.ReviewProcessService;
 using System.Text;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -30,8 +33,14 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+            
 
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IIdentificationService, IdentificationService>();
+            services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
+            services.AddScoped<IReviewProcessService, ReviewProcessService>();
+
+
 
         }
 

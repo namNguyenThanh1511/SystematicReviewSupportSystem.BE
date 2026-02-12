@@ -9,5 +9,12 @@ namespace SRSS.IAM.Repositories.IdentificationProcessRepo
         public IdentificationProcessRepository(AppDbContext context) : base(context)
         {
         }
+
+        public async Task<IdentificationProcess> GetByIdWithProjectAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.IdentificationProcesses
+                .Include(ip => ip.ReviewProcess)
+                .FirstOrDefaultAsync(ip => ip.Id == id, cancellationToken);
+        }
     }
 }

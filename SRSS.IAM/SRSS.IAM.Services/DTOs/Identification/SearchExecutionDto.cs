@@ -11,6 +11,15 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public string? Notes { get; set; }
     }
 
+    public class UpdateSearchExecutionRequest
+    {
+        public Guid Id { get; set; }
+        public string? SearchSource { get; set; }
+        public string? SearchQuery { get; set; }
+        public SearchExecutionType? Type { get; set; }
+        public string? Notes { get; set; }
+    }
+
     public class SearchExecutionResponse
     {
         public Guid Id { get; set; }
@@ -20,6 +29,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public DateTimeOffset ExecutedAt { get; set; }
         public int ResultCount { get; set; }
         public SearchExecutionType Type { get; set; }
+        public string TypeText { get; set; } = string.Empty;
         public string? Notes { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }

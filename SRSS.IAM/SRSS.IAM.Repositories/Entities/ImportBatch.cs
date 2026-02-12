@@ -11,7 +11,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string? ImportedBy { get; set; }
         public DateTimeOffset ImportedAt { get; set; }
 
-        public Guid? ProjectId { get; set; }
         public Guid? SearchExecutionId { get; set; } //nullable to allow for manual imports not linked to a search execution
 
         public SearchExecution? SearchExecution { get; set; }

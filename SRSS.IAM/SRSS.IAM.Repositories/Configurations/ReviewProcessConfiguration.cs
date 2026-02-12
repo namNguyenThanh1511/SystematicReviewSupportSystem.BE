@@ -23,12 +23,12 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(rp => rp.Status)
                 .HasColumnName("status")
-                .HasConversion<int>()
+                .HasConversion<string>()
                 .IsRequired();
 
             builder.Property(rp => rp.CurrentPhase)
                 .HasColumnName("current_phase")
-                .HasConversion<int>()
+                .HasConversion<string>()
                 .IsRequired();
 
             builder.Property(rp => rp.StartedAt)

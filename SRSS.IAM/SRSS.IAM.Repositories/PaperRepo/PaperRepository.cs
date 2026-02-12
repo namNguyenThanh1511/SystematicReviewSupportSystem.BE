@@ -10,10 +10,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
         }
 
-        public async Task<Paper?> GetByDoiAsync(string doi, CancellationToken cancellationToken = default)
+        public async Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Papers
-                .FirstOrDefaultAsync(p => p.DOI == doi, cancellationToken);
+                .FirstOrDefaultAsync(p => p.DOI == doi && p.ProjectId == projectId, cancellationToken);
         }
     }
 }

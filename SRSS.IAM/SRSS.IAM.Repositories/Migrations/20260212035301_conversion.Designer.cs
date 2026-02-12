@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260212035301_conversion")]
+    partial class conversion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -98,6 +101,10 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
+
+                    b.Property<Guid?>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
 
                     b.Property<Guid?>("SearchExecutionId")
                         .HasColumnType("uuid")
@@ -264,10 +271,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("pdf_url");
 
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
                     b.Property<DateTimeOffset?>("PublicationDate")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("publication_date");
@@ -326,8 +329,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("DOI");
 
                     b.HasIndex("ImportBatchId");
-
-                    b.HasIndex("ProjectId");
 
                     b.ToTable("papers", (string)null);
                 });
@@ -603,15 +604,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("ImportBatchId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
-                        .WithMany("Papers")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("ImportBatch");
-
-                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
@@ -658,8 +651,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SystematicReviewProject", b =>
                 {
-                    b.Navigation("Papers");
-
                     b.Navigation("ReviewProcesses");
                 });
 #pragma warning restore 612, 618

@@ -30,9 +30,24 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             try
             {
+                // Create ReviewProcess
                 var reviewProcess = project.AddReviewProcess(request.Notes);
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // Auto-create IdentificationProcess for the new ReviewProcess
+                var identificationProcess = new Repositories.Entities.IdentificationProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Notes = "Auto-created identification process",
+                    Status = Repositories.Entities.IdentificationStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);

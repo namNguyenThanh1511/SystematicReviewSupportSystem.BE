@@ -40,9 +40,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("imported_at")
                 .IsRequired();
 
-            builder.Property(ib => ib.ProjectId)
-                .HasColumnName("project_id");
-
             builder.Property(ib => ib.SearchExecutionId)
                 .HasColumnName("search_execution_id");
 

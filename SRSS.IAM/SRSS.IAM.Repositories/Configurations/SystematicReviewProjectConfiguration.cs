@@ -53,6 +53,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .WithOne(rp => rp.Project)
                 .HasForeignKey(rp => rp.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // One-to-Many Relationship: SystematicReviewProject ? Papers
+            builder.HasMany(p => p.Papers)
+                .WithOne(pr => pr.Project)
+                .HasForeignKey(pr => pr.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes
             builder.HasIndex(p => p.Status)

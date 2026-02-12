@@ -184,6 +184,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
 
+            //project
+            builder.Property(p => p.ProjectId)
+                .HasColumnName("project_id")
+                .IsRequired();
+
             // ============================================
             // BASE ENTITY FIELDS
             // ============================================

@@ -16,6 +16,8 @@ namespace SRSS.IAM.Repositories.Entities
         // Navigation Properties
         public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
 
+        public ICollection<Paper> Papers { get; set; } = new List<Paper>();
+
         // Domain Methods
         public void Activate()
         {

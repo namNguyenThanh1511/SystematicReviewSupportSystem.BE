@@ -71,6 +71,9 @@ namespace SRSS.IAM.Repositories.Entities
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }
+
+        public Guid ProjectId { get; set; }
+        public SystematicReviewProject? Project { get; set; }
     }
 
     public enum SelectionStatus

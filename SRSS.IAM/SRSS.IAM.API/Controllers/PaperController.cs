@@ -32,6 +32,7 @@ namespace SRSS.IAM.API.Controllers
             [FromForm] string? source,
             [FromForm] string? importedBy,
             [FromForm] Guid? searchExecutionId,
+            [FromForm] Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
             // Validate file presence
@@ -63,6 +64,7 @@ namespace SRSS.IAM.API.Controllers
                     source,
                     importedBy,
                     searchExecutionId,
+                    identificationProcessId,
                     cancellationToken);
 
                 // Check if import was successful

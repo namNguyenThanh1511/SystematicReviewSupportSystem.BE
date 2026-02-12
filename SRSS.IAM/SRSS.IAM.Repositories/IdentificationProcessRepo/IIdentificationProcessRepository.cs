@@ -6,5 +6,6 @@ namespace SRSS.IAM.Repositories.IdentificationProcessRepo
 {
     public interface IIdentificationProcessRepository : IGenericRepository<IdentificationProcess, Guid, AppDbContext>
     {
+        Task<IdentificationProcess> GetByIdWithProjectAsync(Guid id, CancellationToken cancellationToken = default);
     }
 }

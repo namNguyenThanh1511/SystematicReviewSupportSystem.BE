@@ -1,28 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SRSS.IAM.Repositories;
-using SRSS.IAM.Repositories.Entities;
-using SRSS.IAM.Services.DTOs.Protocol;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using AutoMapper;
 using System.Text.Json;
-using System.Threading.Tasks;
+using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.UnitOfWork;
+using SRSS.IAM.Services.DTOs.Protocol;
 
 namespace SRSS.IAM.Services.ProtocolService
 {
 	public class ProtocolService : IProtocolService
 	{
-		private readonly AppDbContext _context;
+		private readonly IUnitOfWork _unitOfWork;
+		private readonly IMapper _mapper;
 
-		public ProtocolService(AppDbContext context)
+		public ProtocolService(IUnitOfWork unitOfWork, IMapper mapper)
 		{
-			_context = context;
+			_unitOfWork = unitOfWork;
+			_mapper = mapper;
 		}
+
 		public async Task ApproveProtocolAsync(Guid protocolId, Guid reviewerId)
 		{
-			var protocol = await _context.ReviewProtocols
-				.FirstOrDefaultAsync(p => p.Id == protocolId)
+			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
 			if (protocol.Status == "Approved")
@@ -30,7 +27,8 @@ namespace SRSS.IAM.Services.ProtocolService
 
 			protocol.Status = "Approved";
 			protocol.ApprovedAt = DateTimeOffset.UtcNow;
-			protocol.ModifiedAt = DateTimeOffset.UtcNow;
+
+			await _unitOfWork.Protocols.UpdateAsync(protocol);
 
 			// Create evaluation record
 			var evaluation = new ProtocolEvaluation
@@ -41,8 +39,8 @@ namespace SRSS.IAM.Services.ProtocolService
 				EvaluatedAt = DateTimeOffset.UtcNow
 			};
 
-			_context.ProtocolEvaluations.Add(evaluation);
-			await _context.SaveChangesAsync();
+			await _unitOfWork.ProtocolEvaluations.AddAsync(evaluation);
+			await _unitOfWork.SaveChangesAsync();
 		}
 
 		public async Task<ProtocolDetailResponse> CreateProtocolAsync(CreateProtocolRequest request)
@@ -51,22 +49,18 @@ namespace SRSS.IAM.Services.ProtocolService
 			{
 				ProjectId = request.ProjectId,
 				ProtocolVersion = request.ProtocolVersion,
-				Status = "Draft",
-				CreatedAt = DateTimeOffset.UtcNow,
-				ModifiedAt = DateTimeOffset.UtcNow
+				Status = "Draft"
 			};
 
-			_context.ReviewProtocols.Add(protocol);
-			await _context.SaveChangesAsync();
+			await _unitOfWork.Protocols.AddAsync(protocol);
+			await _unitOfWork.SaveChangesAsync();
 
 			return await GetProtocolByIdAsync(protocol.Id);
 		}
 
 		public async Task<ProtocolDetailResponse> GetProtocolByIdAsync(Guid protocolId)
 		{
-			var protocol = await _context.ReviewProtocols
-				.Include(p => p.Versions)
-				.FirstOrDefaultAsync(p => p.Id == protocolId)
+			var protocol = await _unitOfWork.Protocols.GetByIdWithVersionsAsync(protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
 			return new ProtocolDetailResponse
@@ -89,9 +83,7 @@ namespace SRSS.IAM.Services.ProtocolService
 
 		public async Task<ProtocolDetailResponse> UpdateProtocolAsync(UpdateProtocolRequest request)
 		{
-			var protocol = await _context.ReviewProtocols
-				.Include(p => p.Versions)
-				.FirstOrDefaultAsync(p => p.Id == request.ProtocolId)
+			var protocol = await _unitOfWork.Protocols.GetByIdWithVersionsAsync(request.ProtocolId)
 				?? throw new KeyNotFoundException($"Protocol {request.ProtocolId} không tồn tại");
 
 			// If protocol is approved, create version history before updating
@@ -105,8 +97,8 @@ namespace SRSS.IAM.Services.ProtocolService
 				protocol.Status = "Draft"; // Reset to draft after major change
 			}
 
-			protocol.ModifiedAt = DateTimeOffset.UtcNow;
-			await _context.SaveChangesAsync();
+			await _unitOfWork.Protocols.UpdateAsync(protocol);
+			await _unitOfWork.SaveChangesAsync();
 
 			return await GetProtocolByIdAsync(protocol.Id);
 		}
@@ -128,11 +120,10 @@ namespace SRSS.IAM.Services.ProtocolService
 				ProtocolId = protocol.Id,
 				VersionNumber = protocol.ProtocolVersion,
 				ChangeSummary = changeSummary ?? "Protocol updated after approval",
-				SnapshotData = snapshotData,
-				CreatedAt = DateTimeOffset.UtcNow
+				SnapshotData = snapshotData
 			};
 
-			_context.ProtocolVersions.Add(version);
+			await _unitOfWork.ProtocolVersions.AddAsync(version);
 		}
 	}
 }

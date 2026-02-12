@@ -9,7 +9,7 @@ namespace SRSS.IAM.API.Controllers
 {
 	[ApiController]
 	[Route("api/research-questions")]
-	[Authorize]
+	//[Authorize]
 	public class ResearchQuestionController : BaseController
 	{
 		private readonly IResearchQuestionService _researchQuestionService;

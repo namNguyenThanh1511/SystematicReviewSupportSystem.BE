@@ -9,7 +9,7 @@ namespace SRSS.IAM.API.Controllers
 {
 	[ApiController]
 	[Route("api/protocols")]
-	[Authorize]
+	//[Authorize]
 	public class ProtocolController : BaseController
 	{
 		private readonly IProtocolService _protocolService;

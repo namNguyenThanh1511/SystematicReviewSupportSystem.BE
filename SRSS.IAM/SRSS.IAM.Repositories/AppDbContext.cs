@@ -10,7 +10,7 @@ namespace SRSS.IAM.Repositories
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
-			// ✅ ENABLE UUID EXTENSION TRƯỚC KHI TẠO BẢNG
+			// ENABLE UUID EXTENSION TRƯỚC KHI TẠO BẢNG
 			builder.HasPostgresExtension("uuid-ossp");
 
 			builder.ApplyConfigurationsFromAssembly(typeof(PicocElementConfiguration).Assembly);
@@ -62,6 +62,16 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ReviewNeed> ReviewNeeds { get; set; } = default!;
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;
-
+		public DbSet<StudySelectionProcedure> StudySelectionProcedures { get; set; } = default!;
+		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
+		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
+		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
+		public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
+		public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
+		public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
+		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
+		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
+		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;
 	}
 }
+	

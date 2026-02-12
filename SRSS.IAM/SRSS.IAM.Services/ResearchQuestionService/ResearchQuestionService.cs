@@ -1,25 +1,21 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SRSS.IAM.Repositories;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.ResearchQuestion;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SRSS.IAM.Services.ResearchQuestionService
 {
 	public class ResearchQuestionService : IResearchQuestionService
 	{
-		private readonly AppDbContext _context;
-		public ResearchQuestionService(AppDbContext context)
+		private readonly IUnitOfWork _unitOfWork;
+
+		public ResearchQuestionService(IUnitOfWork unitOfWork)
 		{
-			_context = context;
+			_unitOfWork = unitOfWork;
 		}
+
 		public async Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request)
 		{
-			using var transaction = await _context.Database.BeginTransactionAsync();
+			await _unitOfWork.BeginTransactionAsync();
 
 			try
 			{
@@ -28,13 +24,11 @@ namespace SRSS.IAM.Services.ResearchQuestionService
 					ProjectId = request.ProjectId,
 					QuestionTypeId = request.QuestionTypeId,
 					QuestionText = request.QuestionText,
-					Rationale = request.Rationale,
-					CreatedAt = DateTimeOffset.UtcNow,
-					ModifiedAt = DateTimeOffset.UtcNow
+					Rationale = request.Rationale
 				};
 
-				_context.ResearchQuestions.Add(researchQuestion);
-				await _context.SaveChangesAsync();
+				await _unitOfWork.ResearchQuestions.AddAsync(researchQuestion);
+				await _unitOfWork.SaveChangesAsync();
 
 				// Process PICOC elements
 				foreach (var picocRequest in request.PicocElements)
@@ -46,90 +40,28 @@ namespace SRSS.IAM.Services.ResearchQuestionService
 						Description = picocRequest.Description
 					};
 
-					_context.PicocElements.Add(picocElement);
-					await _context.SaveChangesAsync();
+					await _unitOfWork.PicocElements.AddAsync(picocElement);
+					await _unitOfWork.SaveChangesAsync();
 
 					// Create specific element based on type
-					switch (picocRequest.ElementType)
-					{
-						case "Population":
-							if (picocRequest.PopulationDetail != null)
-							{
-								_context.Populations.Add(new Population
-								{
-									PicocId = picocElement.Id,
-									Description = picocRequest.PopulationDetail.Description
-								});
-							}
-							break;
-
-						case "Intervention":
-							if (picocRequest.InterventionDetail != null)
-							{
-								_context.Interventions.Add(new Intervention
-								{
-									PicocId = picocElement.Id,
-									Description = picocRequest.InterventionDetail.Description
-								});
-							}
-							break;
-
-						case "Comparison":
-							if (picocRequest.ComparisonDetail != null)
-							{
-								_context.Comparisons.Add(new Comparison
-								{
-									PicocId = picocElement.Id,
-									Description = picocRequest.ComparisonDetail.Description
-								});
-							}
-							break;
-						case "Outcome":
-							if (picocRequest.OutcomeDetail != null)
-							{
-								_context.Outcomes.Add(new Outcome
-								{
-									PicocId = picocElement.Id,
-									Metric = picocRequest.OutcomeDetail.Metric,
-									Description = picocRequest.OutcomeDetail.Description
-								});
-							}
-							break;
-
-						case "Context":
-							if (picocRequest.ContextDetail != null)
-							{
-								_context.Contexts.Add(new Context
-								{
-									PicocId = picocElement.Id,
-									Environment = picocRequest.ContextDetail.Environment,
-									Description = picocRequest.ContextDetail.Description
-								});
-							}
-							break;
-					}
+					await CreateSpecificPicocElementAsync(picocElement.Id, picocRequest);
 				}
 
-				await _context.SaveChangesAsync();
-				await transaction.CommitAsync();
+				await _unitOfWork.SaveChangesAsync();
+				await _unitOfWork.CommitTransactionAsync();
 
 				return await GetResearchQuestionDetailAsync(researchQuestion.Id);
 			}
 			catch
 			{
-				await transaction.RollbackAsync();
+				await _unitOfWork.RollbackTransactionAsync();
 				throw;
 			}
 		}
 
 		public async Task<List<ResearchQuestionDetailResponse>> GetResearchQuestionsByProjectIdAsync(Guid projectId)
 		{
-			var questions = await _context.ResearchQuestions
-				.Include(q => q.QuestionType)
-				.Include(q => q.PicocElements)
-				.Where(q => q.ProjectId == projectId)
-				.ToListAsync();
-
+			var questions = await _unitOfWork.ResearchQuestions.GetByProjectIdWithDetailsAsync(projectId);
 			var responses = new List<ResearchQuestionDetailResponse>();
 
 			foreach (var question in questions)
@@ -140,12 +72,72 @@ namespace SRSS.IAM.Services.ResearchQuestionService
 			return responses;
 		}
 
+		private async Task CreateSpecificPicocElementAsync(Guid picocId, CreatePicocElementRequest request)
+		{
+			switch (request.ElementType)
+			{
+				case "Population":
+					if (request.PopulationDetail != null)
+					{
+						await _unitOfWork.Populations.AddAsync(new Population
+						{
+							PicocId = picocId,
+							Description = request.PopulationDetail.Description
+						});
+					}
+					break;
+
+				case "Intervention":
+					if (request.InterventionDetail != null)
+					{
+						await _unitOfWork.Interventions.AddAsync(new Intervention
+						{
+							PicocId = picocId,
+							Description = request.InterventionDetail.Description
+						});
+					}
+					break;
+
+				case "Comparison":
+					if (request.ComparisonDetail != null)
+					{
+						await _unitOfWork.Comparisons.AddAsync(new Comparison
+						{
+							PicocId = picocId,
+							Description = request.ComparisonDetail.Description
+						});
+					}
+					break;
+
+				case "Outcome":
+					if (request.OutcomeDetail != null)
+					{
+						await _unitOfWork.Outcomes.AddAsync(new Outcome
+						{
+							PicocId = picocId,
+							Metric = request.OutcomeDetail.Metric,
+							Description = request.OutcomeDetail.Description
+						});
+					}
+					break;
+
+				case "Context":
+					if (request.ContextDetail != null)
+					{
+						await _unitOfWork.Contexts.AddAsync(new Context
+						{
+							PicocId = picocId,
+							Environment = request.ContextDetail.Environment,
+							Description = request.ContextDetail.Description
+						});
+					}
+					break;
+			}
+		}
+
 		private async Task<ResearchQuestionDetailResponse> GetResearchQuestionDetailAsync(Guid questionId)
 		{
-			var question = await _context.ResearchQuestions
-				.Include(q => q.QuestionType)
-				.Include(q => q.PicocElements)
-				.FirstOrDefaultAsync(q => q.Id == questionId)
+			var question = await _unitOfWork.ResearchQuestions.GetByIdWithDetailsAsync(questionId)
 				?? throw new KeyNotFoundException($"Research question {questionId} không tồn tại");
 
 			var picocElements = new List<PicocElementDto>();
@@ -160,38 +152,7 @@ namespace SRSS.IAM.Services.ResearchQuestionService
 				};
 
 				// Load specific details based on type
-				switch (picoc.ElementType)
-				{
-					case "Population":
-						var population = await _context.Populations.FirstOrDefaultAsync(p => p.PicocId == picoc.Id);
-						if (population != null)
-							dto.SpecificDetail = new { population.Description };
-						break;
-
-					case "Intervention":
-						var intervention = await _context.Interventions.FirstOrDefaultAsync(i => i.PicocId == picoc.Id);
-						if (intervention != null)
-							dto.SpecificDetail = new { intervention.Description };
-						break;
-
-					case "Comparison":
-						var comparison = await _context.Comparisons.FirstOrDefaultAsync(c => c.PicocId == picoc.Id);
-						if (comparison != null)
-							dto.SpecificDetail = new { comparison.Description };
-						break;
-					case "Outcome":
-						var outcome = await _context.Outcomes.FirstOrDefaultAsync(o => o.PicocId == picoc.Id);
-						if (outcome != null)
-							dto.SpecificDetail = new { outcome.Metric, outcome.Description };
-						break;
-
-					case "Context":
-						var context = await _context.Contexts.FirstOrDefaultAsync(c => c.PicocId == picoc.Id);
-						if (context != null)
-							dto.SpecificDetail = new { context.Environment, context.Description };
-						break;
-				}
-
+				dto.SpecificDetail = await GetPicocSpecificDetailAsync(picoc);
 				picocElements.Add(dto);
 			}
 
@@ -204,6 +165,24 @@ namespace SRSS.IAM.Services.ResearchQuestionService
 				Rationale = question.Rationale,
 				PicocElements = picocElements,
 				CreatedAt = question.CreatedAt
+			};
+		}
+
+		private async Task<object?> GetPicocSpecificDetailAsync(PicocElement picoc)
+		{
+			return picoc.ElementType switch
+			{
+				"Population" => await _unitOfWork.Populations.GetByPicocIdAsync(picoc.Id) is var p && p != null
+					? new { p.Description } : null,
+				"Intervention" => await _unitOfWork.Interventions.GetByPicocIdAsync(picoc.Id) is var i && i != null
+					? new { i.Description } : null,
+				"Comparison" => await _unitOfWork.Comparisons.GetByPicocIdAsync(picoc.Id) is var c && c != null
+					? new { c.Description } : null,
+				"Outcome" => await _unitOfWork.Outcomes.GetByPicocIdAsync(picoc.Id) is var o && o != null
+					? new { o.Metric, o.Description } : null,
+				"Context" => await _unitOfWork.Contexts.GetByPicocIdAsync(picoc.Id) is var ctx && ctx != null
+					? new { ctx.Environment, ctx.Description } : null,
+				_ => null
 			};
 		}
 	}

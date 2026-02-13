@@ -30,8 +30,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private ISearchExecutionRepository _searchExecutions;
         private IPaperRepository _papers;
         private IImportBatchRepository _importBatches;
-
-		private IUserRepository? _users;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -55,7 +53,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IStudySelectionCriteriaRepository? _selectionCriterias;
 		private IInclusionCriterionRepository? _inclusionCriteria;
 		private IExclusionCriterionRepository? _exclusionCriteria;
-		private IStudySelectionProcedureRepository _selectionProcedures;
+		private IStudySelectionProcedureRepository? _selectionProcedures;
 		private IQualityAssessmentStrategyRepository? _qualityStrategies;
 		private IQualityChecklistRepository? _qualityChecklists;
 		private IQualityCriterionRepository? _qualityCriteria;
@@ -182,10 +180,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IProjectTimetableRepository Timetables =>
 			_timetables ??= new ProjectTimetableRepository(_dbContext);
-
-	}
-        public IUserRepository Users
-            => _users ??= new UserRepository(_dbContext);
 
         public ISystematicReviewProjectRepository SystematicReviewProjects
             => _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);

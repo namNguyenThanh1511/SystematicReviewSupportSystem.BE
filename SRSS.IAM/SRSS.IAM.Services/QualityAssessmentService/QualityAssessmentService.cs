@@ -1,19 +1,17 @@
-﻿using AutoMapper;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
 	public class QualityAssessmentService : IQualityAssessmentService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
 
-		public QualityAssessmentService(IUnitOfWork unitOfWork, IMapper mapper)
+		public QualityAssessmentService(IUnitOfWork unitOfWork)
 		{
 			_unitOfWork = unitOfWork;
-			_mapper = mapper;
 		}
 
 		// ==================== Quality Assessment Strategies ====================
@@ -26,23 +24,23 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 				entity = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == dto.QaStrategyId.Value)
 					?? throw new KeyNotFoundException($"Strategy {dto.QaStrategyId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.QualityStrategies.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<QualityAssessmentStrategy>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.QualityStrategies.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<QualityAssessmentStrategyDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<QualityAssessmentStrategyDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteStrategyAsync(Guid strategyId)
@@ -70,18 +68,18 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.QualityChecklists.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<QualityChecklist>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.QualityChecklists.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<QualityChecklist>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.QualityChecklists.AddAsync(entity);
 				}
 
@@ -89,13 +87,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<QualityChecklistDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<QualityChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId)
 		{
 			var entities = await _unitOfWork.QualityChecklists.GetByStrategyIdAsync(strategyId);
-			return _mapper.Map<List<QualityChecklistDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		// ==================== Quality Criteria ====================
@@ -113,18 +111,18 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.QualityCriteria.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<QualityCriterion>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.QualityCriteria.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<QualityCriterion>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.QualityCriteria.AddAsync(entity);
 				}
 
@@ -132,13 +130,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<QualityCriterionDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<QualityCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId)
 		{
 			var entities = await _unitOfWork.QualityCriteria.GetByChecklistIdAsync(checklistId);
-			return _mapper.Map<List<QualityCriterionDto>>(entities);
+			return entities.ToDtoList();  
 		}
 	}
 }

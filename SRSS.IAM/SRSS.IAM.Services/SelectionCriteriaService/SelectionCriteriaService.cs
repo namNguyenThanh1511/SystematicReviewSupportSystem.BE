@@ -1,19 +1,17 @@
-﻿using AutoMapper;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.SelectionCriteriaService
 {
 	public class SelectionCriteriaService : ISelectionCriteriaService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
 
-		public SelectionCriteriaService(IUnitOfWork unitOfWork, IMapper mapper)
+		public SelectionCriteriaService(IUnitOfWork unitOfWork)
 		{
 			_unitOfWork = unitOfWork;
-			_mapper = mapper;
 		}
 
 		// ==================== Study Selection Criteria ====================
@@ -26,23 +24,23 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 				entity = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == dto.CriteriaId.Value)
 					?? throw new KeyNotFoundException($"Criteria {dto.CriteriaId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.SelectionCriterias.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<StudySelectionCriteria>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.SelectionCriterias.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<StudySelectionCriteriaDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<StudySelectionCriteriaDto>> GetAllByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.SelectionCriterias.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<StudySelectionCriteriaDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteCriteriaAsync(Guid criteriaId)
@@ -70,18 +68,18 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.InclusionCriteria.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<InclusionCriterion>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.InclusionCriteria.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<InclusionCriterion>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.InclusionCriteria.AddAsync(entity);
 				}
 
@@ -89,13 +87,13 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<InclusionCriterionDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<InclusionCriterionDto>> GetInclusionByCriteriaIdAsync(Guid criteriaId)
 		{
 			var entities = await _unitOfWork.InclusionCriteria.GetByCriteriaIdAsync(criteriaId);
-			return _mapper.Map<List<InclusionCriterionDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		// ==================== Exclusion Criteria ====================
@@ -113,18 +111,18 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.ExclusionCriteria.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<ExclusionCriterion>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.ExclusionCriteria.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<ExclusionCriterion>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.ExclusionCriteria.AddAsync(entity);
 				}
 
@@ -132,13 +130,13 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<ExclusionCriterionDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<ExclusionCriterionDto>> GetExclusionByCriteriaIdAsync(Guid criteriaId)
 		{
 			var entities = await _unitOfWork.ExclusionCriteria.GetByCriteriaIdAsync(criteriaId);
-			return _mapper.Map<List<ExclusionCriterionDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		// ==================== Selection Procedures ====================
@@ -151,23 +149,23 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 				entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == dto.ProcedureId.Value)
 					?? throw new KeyNotFoundException($"Procedure {dto.ProcedureId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.SelectionProcedures.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<StudySelectionProcedure>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.SelectionProcedures.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<StudySelectionProcedureDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<StudySelectionProcedureDto>> GetProceduresByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.SelectionProcedures.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<StudySelectionProcedureDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteProcedureAsync(Guid procedureId)

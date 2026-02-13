@@ -1,18 +1,38 @@
-﻿using AutoMapper;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Protocol;
 
 namespace SRSS.IAM.Services.Mappers
 {
-	public class ProtocolMappingProfile : Profile
+	public static class ProtocolMappingExtension
 	{
-		public ProtocolMappingProfile()
+		public static ProtocolDetailResponse ToDetailResponse(this ReviewProtocol entity)
 		{
-			CreateMap<ReviewProtocol, ProtocolDetailResponse>()
-				.ForMember(dest => dest.ProtocolId, opt => opt.MapFrom(src => src.Id));
+			return new ProtocolDetailResponse
+			{
+				ProtocolId = entity.Id,
+				ProjectId = entity.ProjectId,
+				ProtocolVersion = entity.ProtocolVersion,
+				Status = entity.Status,
+				CreatedAt = entity.CreatedAt,
+				ApprovedAt = entity.ApprovedAt,
+				Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>()
+			};
+		}
 
-			CreateMap<ProtocolVersion, VersionHistoryDto>()
-				.ForMember(dest => dest.VersionId, opt => opt.MapFrom(src => src.Id));
+		public static VersionHistoryDto ToDto(this ProtocolVersion entity)
+		{
+			return new VersionHistoryDto
+			{
+				VersionId = entity.Id,
+				VersionNumber = entity.VersionNumber,
+				ChangeSummary = entity.ChangeSummary,
+				CreatedAt = entity.CreatedAt
+			};
+		}
+
+		public static List<VersionHistoryDto> ToDtoList(this IEnumerable<ProtocolVersion> entities)
+		{
+			return entities.Select(e => e.ToDto()).ToList();
 		}
 	}
 }

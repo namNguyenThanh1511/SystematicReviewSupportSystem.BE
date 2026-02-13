@@ -67,7 +67,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IDataSynthesisStrategyRepository SynthesisStrategies { get; }
 		IDisseminationStrategyRepository DisseminationStrategies { get; }
 		IProjectTimetableRepository Timetables { get; }
-	}
         ISystematicReviewProjectRepository SystematicReviewProjects { get; }
         IReviewProcessRepository ReviewProcesses { get; }
         IIdentificationProcessRepository IdentificationProcesses { get; }

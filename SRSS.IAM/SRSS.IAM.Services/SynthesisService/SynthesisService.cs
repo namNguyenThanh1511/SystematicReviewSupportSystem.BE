@@ -1,19 +1,17 @@
-﻿using AutoMapper;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Synthesis;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.SynthesisService
 {
 	public class SynthesisService : ISynthesisService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
 
-		public SynthesisService(IUnitOfWork unitOfWork, IMapper mapper)
+		public SynthesisService(IUnitOfWork unitOfWork)
 		{
 			_unitOfWork = unitOfWork;
-			_mapper = mapper;
 		}
 
 		// ==================== Data Synthesis Strategies ====================
@@ -26,23 +24,23 @@ namespace SRSS.IAM.Services.SynthesisService
 				entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == dto.SynthesisStrategyId.Value)
 					?? throw new KeyNotFoundException($"Strategy {dto.SynthesisStrategyId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.SynthesisStrategies.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<DataSynthesisStrategy>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.SynthesisStrategies.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<DataSynthesisStrategyDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.SynthesisStrategies.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<DataSynthesisStrategyDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteSynthesisStrategyAsync(Guid strategyId)
@@ -65,23 +63,23 @@ namespace SRSS.IAM.Services.SynthesisService
 				entity = await _unitOfWork.DisseminationStrategies.FindSingleAsync(s => s.Id == dto.DisseminationId.Value)
 					?? throw new KeyNotFoundException($"Strategy {dto.DisseminationId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.DisseminationStrategies.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<DisseminationStrategy>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.DisseminationStrategies.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<DisseminationStrategyDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<DisseminationStrategyDto>> GetDisseminationStrategiesByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.DisseminationStrategies.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<DisseminationStrategyDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteDisseminationStrategyAsync(Guid strategyId)
@@ -109,18 +107,18 @@ namespace SRSS.IAM.Services.SynthesisService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.Timetables.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<ProjectTimetable>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.Timetables.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<ProjectTimetable>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.Timetables.AddAsync(entity);
 				}
 
@@ -128,13 +126,13 @@ namespace SRSS.IAM.Services.SynthesisService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<ProjectTimetableDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<ProjectTimetableDto>> GetTimetableByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.Timetables.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<ProjectTimetableDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteTimetableEntryAsync(Guid timetableId)

@@ -1,19 +1,17 @@
-﻿using AutoMapper;
-using SRSS.IAM.Repositories.Entities;
+﻿using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
 	public class DataExtractionService : IDataExtractionService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
 
-		public DataExtractionService(IUnitOfWork unitOfWork, IMapper mapper)
+		public DataExtractionService(IUnitOfWork unitOfWork)
 		{
 			_unitOfWork = unitOfWork;
-			_mapper = mapper;
 		}
 
 		// ==================== Extraction Strategies ====================
@@ -26,23 +24,23 @@ namespace SRSS.IAM.Services.DataExtractionService
 				entity = await _unitOfWork.ExtractionStrategies.FindSingleAsync(s => s.Id == dto.ExtractionStrategyId.Value)
 					?? throw new KeyNotFoundException($"Strategy {dto.ExtractionStrategyId.Value} không tồn tại");
 
-				_mapper.Map(dto, entity);
+				dto.UpdateEntity(entity);  
 				await _unitOfWork.ExtractionStrategies.UpdateAsync(entity);
 			}
 			else
 			{
-				entity = _mapper.Map<DataExtractionStrategy>(dto);
+				entity = dto.ToEntity();  
 				await _unitOfWork.ExtractionStrategies.AddAsync(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<DataExtractionStrategyDto>(entity);
+			return entity.ToDto();  
 		}
 
 		public async Task<List<DataExtractionStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
 		{
 			var entities = await _unitOfWork.ExtractionStrategies.GetByProtocolIdAsync(protocolId);
-			return _mapper.Map<List<DataExtractionStrategyDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteStrategyAsync(Guid strategyId)
@@ -70,18 +68,18 @@ namespace SRSS.IAM.Services.DataExtractionService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity);  
 						await _unitOfWork.ExtractionForms.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<DataExtractionForm>(dto);
+						entity = dto.ToEntity();  
 						await _unitOfWork.ExtractionForms.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<DataExtractionForm>(dto);
+					entity = dto.ToEntity();  
 					await _unitOfWork.ExtractionForms.AddAsync(entity);
 				}
 
@@ -89,13 +87,13 @@ namespace SRSS.IAM.Services.DataExtractionService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<DataExtractionFormDto>>(results);
+			return results.ToDtoList();  
 		}
 
 		public async Task<List<DataExtractionFormDto>> GetFormsByStrategyIdAsync(Guid strategyId)
 		{
 			var entities = await _unitOfWork.ExtractionForms.GetByStrategyIdAsync(strategyId);
-			return _mapper.Map<List<DataExtractionFormDto>>(entities);
+			return entities.ToDtoList();  
 		}
 
 		// ==================== Data Items ====================
@@ -113,18 +111,18 @@ namespace SRSS.IAM.Services.DataExtractionService
 
 					if (entity != null)
 					{
-						_mapper.Map(dto, entity);
+						dto.UpdateEntity(entity); 
 						await _unitOfWork.DataItems.UpdateAsync(entity);
 					}
 					else
 					{
-						entity = _mapper.Map<DataItemDefinition>(dto);
+						entity = dto.ToEntity(); 
 						await _unitOfWork.DataItems.AddAsync(entity);
 					}
 				}
 				else
 				{
-					entity = _mapper.Map<DataItemDefinition>(dto);
+					entity = dto.ToEntity(); 
 					await _unitOfWork.DataItems.AddAsync(entity);
 				}
 
@@ -132,13 +130,13 @@ namespace SRSS.IAM.Services.DataExtractionService
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return _mapper.Map<List<DataItemDefinitionDto>>(results);
+			return results.ToDtoList();
 		}
 
 		public async Task<List<DataItemDefinitionDto>> GetDataItemsByFormIdAsync(Guid formId)
 		{
 			var entities = await _unitOfWork.DataItems.GetByFormIdAsync(formId);
-			return _mapper.Map<List<DataItemDefinitionDto>>(entities);
+			return entities.ToDtoList(); 
 		}
 	}
 }

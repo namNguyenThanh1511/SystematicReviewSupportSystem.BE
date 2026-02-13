@@ -1,20 +1,18 @@
-﻿using AutoMapper;
-using System.Text.Json;
+﻿using System.Text.Json;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Protocol;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.ProtocolService
 {
 	public class ProtocolService : IProtocolService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IMapper _mapper;
 
-		public ProtocolService(IUnitOfWork unitOfWork, IMapper mapper)
+		public ProtocolService(IUnitOfWork unitOfWork)
 		{
 			_unitOfWork = unitOfWork;
-			_mapper = mapper;
 		}
 
 		public async Task ApproveProtocolAsync(Guid protocolId, Guid reviewerId)
@@ -63,22 +61,7 @@ namespace SRSS.IAM.Services.ProtocolService
 			var protocol = await _unitOfWork.Protocols.GetByIdWithVersionsAsync(protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
-			return new ProtocolDetailResponse
-			{
-				ProtocolId = protocol.Id,
-				ProjectId = protocol.ProjectId,
-				ProtocolVersion = protocol.ProtocolVersion,
-				Status = protocol.Status,
-				CreatedAt = protocol.CreatedAt,
-				ApprovedAt = protocol.ApprovedAt,
-				Versions = protocol.Versions.Select(v => new VersionHistoryDto
-				{
-					VersionId = v.Id,
-					VersionNumber = v.VersionNumber,
-					ChangeSummary = v.ChangeSummary,
-					CreatedAt = v.CreatedAt
-				}).ToList()
-			};
+			return protocol.ToDetailResponse();  
 		}
 
 		public async Task<ProtocolDetailResponse> UpdateProtocolAsync(UpdateProtocolRequest request)
@@ -94,7 +77,7 @@ namespace SRSS.IAM.Services.ProtocolService
 				// Increment version number
 				var currentVersion = double.Parse(protocol.ProtocolVersion);
 				protocol.ProtocolVersion = (currentVersion + 0.1).ToString("F1");
-				protocol.Status = "Draft"; // Reset to draft after major change
+				protocol.Status = "Draft";
 			}
 
 			await _unitOfWork.Protocols.UpdateAsync(protocol);

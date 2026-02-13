@@ -24,6 +24,7 @@ using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Services.PaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
+using SRSS.IAM.Services.DataExtractionService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -34,7 +35,6 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
 
             services.AddSignalR();
-			services.AddAutoMapper(typeof(SelectionCriteriaMappingProfile).Assembly);
 			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
             services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
             services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();

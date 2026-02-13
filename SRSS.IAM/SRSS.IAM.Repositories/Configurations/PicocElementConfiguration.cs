@@ -18,7 +18,7 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.HasKey(x => x.Id);
 			builder.Property(x => x.Id)
 				.HasColumnName("picoc_id")
-				.HasDefaultValueSql("uuid_generate_v4()");
+				.IsRequired();
 
 			builder.Property(x => x.ResearchQuestionId)
 				.HasColumnName("research_question_id")

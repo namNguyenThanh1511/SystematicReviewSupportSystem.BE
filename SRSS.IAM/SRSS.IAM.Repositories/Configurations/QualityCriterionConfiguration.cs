@@ -13,7 +13,7 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.HasKey(x => x.Id);
 			builder.Property(x => x.Id)
 				.HasColumnName("quality_criterion_id")
-				.HasDefaultValueSql("uuid_generate_v4()");
+				.IsRequired();
 
 			builder.Property(x => x.ChecklistId)
 				.HasColumnName("checklist_id")

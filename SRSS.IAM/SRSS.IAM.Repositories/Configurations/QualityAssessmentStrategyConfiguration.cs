@@ -13,7 +13,7 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.HasKey(x => x.Id);
 			builder.Property(x => x.Id)
 				.HasColumnName("qa_strategy_id")
-				.HasDefaultValueSql("uuid_generate_v4()");
+				.IsRequired();
 
 			builder.Property(x => x.ProtocolId)
 				.HasColumnName("protocol_id")

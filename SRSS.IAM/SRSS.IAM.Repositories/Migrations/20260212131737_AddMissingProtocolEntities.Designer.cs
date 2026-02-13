@@ -89,7 +89,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("comparison_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -143,7 +143,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("context_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -178,7 +178,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("form_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -208,7 +208,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("extraction_strategy_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -237,7 +237,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("data_item_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -276,7 +276,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("synthesis_strategy_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -336,7 +336,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("dissemination_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<string>("Channel")
                         .IsRequired()
@@ -422,7 +422,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("intervention_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -476,7 +476,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("outcome_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -511,7 +511,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("picoc_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -546,7 +546,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("population_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -577,7 +577,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("timetable_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -708,7 +708,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("qa_strategy_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -737,7 +737,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("checklist_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -767,7 +767,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("quality_criterion_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<Guid>("ChecklistId")
                         .HasColumnType("uuid")
@@ -825,7 +825,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("research_question_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -926,7 +926,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("protocol_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset?>("ApprovedAt")
                         .HasColumnType("timestamp with time zone")
@@ -998,7 +998,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("strategy_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1119,7 +1119,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("procedure_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1149,7 +1149,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("project_id")
-                        .HasDefaultValueSql("uuid_generate_v4()");
+                        .IsRequired();
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()

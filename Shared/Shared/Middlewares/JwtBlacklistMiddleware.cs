@@ -13,18 +13,18 @@ namespace Shared.Middlewares
         }
         public async Task InvokeAsync(HttpContext context, IRedisCacheService redisService)
         {
-            //var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
+            var token = context.Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
 
-            //if (!string.IsNullOrEmpty(token))
-            //{
-            //    var isBlacklisted = await redisService.ExistsAsync($"iam:blacklist:{token}");
-            //    if (isBlacklisted)
-            //    {
-            //        context.Response.StatusCode = 401;
-            //        await context.Response.WriteAsJsonAsync(new { message = "Token has been revoked" });
-            //        return;
-            //    }
-            //}
+            if (!string.IsNullOrEmpty(token))
+            {
+                var isBlacklisted = await redisService.ExistsAsync($"iam:blacklist:{token}");
+                if (isBlacklisted)
+                {
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsJsonAsync(new { message = "Token has been revoked" });
+                    return;
+                }
+            }
 
             await _next(context);
         }

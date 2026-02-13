@@ -9,14 +9,7 @@ namespace SRSS.IAM.Repositories
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
-		{
-			// ENABLE UUID EXTENSION TRƯỚC KHI TẠO BẢNG
-			builder.HasPostgresExtension("uuid-ossp");
-
-			builder.ApplyConfigurationsFromAssembly(typeof(PicocElementConfiguration).Assembly);
-
-			base.OnModelCreating(builder);
-		}
+			   => builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
 		/*
          Mục đích của việc sử dụng Assembly ở đây là:
             Tự động hóa cấu hình (Automation): Thay vì phải viết thủ công từng dòng builder.Entity<MyEntity>().Has... cho mọi thực thể (entity) trong dự án, bạn có thể tạo các lớp cấu hình riêng biệt (implementing IEntityTypeConfiguration<T>).

@@ -33,19 +33,8 @@ namespace SRSS.IAM.API.Controllers
             [FromBody] CreateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.CreateProjectAsync(request, cancellationToken);
-                return Created(result, "Project created successfully.");
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest<SystematicReviewProjectResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectResponse>(ex.Message));
-            }
+            var result = await _projectService.CreateProjectAsync(request, cancellationToken);
+            return Created(result, "Project created successfully.");
         }
 
         /// <summary>
@@ -59,21 +48,10 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.GetProjectByIdAsync(id, cancellationToken);
+            var result = await _projectService.GetProjectByIdAsync(id, cancellationToken);
 
-                if (result == null)
-                {
-                    return NotFound(ResponseBuilder.NotFound<SystematicReviewProjectDetailResponse>($"Project with ID {id} not found."));
-                }
 
-                return Ok(result, "Project retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectDetailResponse>(ex.Message));
-            }
+            return Ok(result, "Project retrieved successfully.");
         }
 
         /// <summary>
@@ -91,15 +69,8 @@ namespace SRSS.IAM.API.Controllers
             [FromQuery] int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
-            try
-            {
-                var result = await _projectService.GetProjectsAsync(status, pageNumber, pageSize, cancellationToken);
-                return Ok(result, "Projects retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<PaginatedResponse<SystematicReviewProjectResponse>>(ex.Message));
-            }
+            var result = await _projectService.GetProjectsAsync(status, pageNumber, pageSize, cancellationToken);
+            return Ok(result, "Projects retrieved successfully.");
         }
 
         /// <summary>
@@ -120,23 +91,12 @@ namespace SRSS.IAM.API.Controllers
                 return BadRequest<SystematicReviewProjectResponse>("ID in route does not match ID in request body.");
             }
 
-            try
-            {
-                var result = await _projectService.UpdateProjectAsync(request, cancellationToken);
-                return Ok(result, "Project updated successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ResponseBuilder.NotFound<SystematicReviewProjectResponse>(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectResponse>(ex.Message));
-            }
+            var result = await _projectService.UpdateProjectAsync(request, cancellationToken);
+            return Ok(result, "Project updated successfully.");
         }
 
         /// <summary>
-        /// Activate a project (Draft ? Active)
+        /// Activate a project (Draft → Active)
         /// </summary>
         /// <param name="id">Project ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -146,23 +106,12 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.ActivateProjectAsync(id, cancellationToken);
-                return Ok(result, "Project activated successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<SystematicReviewProjectResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectResponse>(ex.Message));
-            }
+            var result = await _projectService.ActivateProjectAsync(id, cancellationToken);
+            return Ok(result, "Project activated successfully.");
         }
 
         /// <summary>
-        /// Complete a project (Active ? Completed). All processes must be completed first.
+        /// Complete a project (Active → Completed). All processes must be completed first.
         /// </summary>
         /// <param name="id">Project ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -172,23 +121,12 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.CompleteProjectAsync(id, cancellationToken);
-                return Ok(result, "Project completed successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<SystematicReviewProjectResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectResponse>(ex.Message));
-            }
+            var result = await _projectService.CompleteProjectAsync(id, cancellationToken);
+            return Ok(result, "Project completed successfully.");
         }
 
         /// <summary>
-        /// Archive a project (Active/Completed ? Archived)
+        /// Archive a project (Active/Completed → Archived)
         /// </summary>
         /// <param name="id">Project ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -198,19 +136,8 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.ArchiveProjectAsync(id, cancellationToken);
-                return Ok(result, "Project archived successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<SystematicReviewProjectResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SystematicReviewProjectResponse>(ex.Message));
-            }
+            var result = await _projectService.ArchiveProjectAsync(id, cancellationToken);
+            return Ok(result, "Project archived successfully.");
         }
 
         /// <summary>
@@ -224,21 +151,10 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _projectService.DeleteProjectAsync(id, cancellationToken);
+            var result = await _projectService.DeleteProjectAsync(id, cancellationToken);
 
-                if (!result)
-                {
-                    return NotFound(ResponseBuilder.NotFound($"Project with ID {id} not found."));
-                }
 
-                return Ok("Project deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError(ex.Message));
-            }
+            return Ok("Project deleted successfully.");
         }
     }
 }

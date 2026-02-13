@@ -25,6 +25,8 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="source">Source database (e.g., Scopus, IEEE, PubMed)</param>
         /// <param name="importedBy">User who performed the import</param>
         /// <param name="searchExecutionId">Optional SearchExecution ID to associate papers with</param>
+        /// <param name="identificationProcessId">IdentificationProcess ID to associate the import with</param>
+        /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Import summary with counts and any errors</returns>
         [HttpPost("import/ris")]
         public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportRisFile(
@@ -55,35 +57,28 @@ namespace SRSS.IAM.API.Controllers
                 return BadRequest<RisImportResultDto>("File size exceeds the maximum allowed size of 10MB.");
             }
 
-            try
+            using var stream = file.OpenReadStream();
+            var result = await _identificationService.ImportRisFileAsync(
+                stream,
+                file.FileName,
+                source,
+                importedBy,
+                searchExecutionId,
+                identificationProcessId,
+                cancellationToken);
+
+            // Check if import was successful
+            if (result.TotalRecords == 0 && result.Errors.Any())
             {
-                using var stream = file.OpenReadStream();
-                var result = await _identificationService.ImportRisFileAsync(
-                    stream,
-                    file.FileName,
-                    source,
-                    importedBy,
-                    searchExecutionId,
-                    identificationProcessId,
-                    cancellationToken);
-
-                // Check if import was successful
-                if (result.TotalRecords == 0 && result.Errors.Any())
-                {
-                    return BadRequest<RisImportResultDto>("Failed to import RIS file.");
-                }
-
-                if (result.ImportedRecords == 0 && result.UpdatedRecords == 0)
-                {
-                    return Ok(result, "No new records imported. All records were duplicates or skipped.");
-                }
-
-                return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
+                return BadRequest<RisImportResultDto>("Failed to import RIS file.");
             }
-            catch (Exception ex)
+
+            if (result.ImportedRecords == 0 && result.UpdatedRecords == 0)
             {
-                return BadRequest<RisImportResultDto>($"An error occurred while importing the RIS file: {ex.Message}");
+                return Ok(result, "No new records imported. All records were duplicates or skipped.");
             }
+
+            return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
         }
 
         /// <summary>
@@ -94,23 +89,8 @@ namespace SRSS.IAM.API.Controllers
             [FromBody] ImportPaperRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _identificationService.ImportPaperAsync(request, cancellationToken);
-                return Ok(result, $"Successfully imported {result.TotalImported} papers.");
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest<ImportPaperResponse>(ex.Message);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<ImportPaperResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest<ImportPaperResponse>($"An error occurred while importing papers: {ex.Message}");
-            }
+            var result = await _identificationService.ImportPaperAsync(request, cancellationToken);
+            return Ok(result, $"Successfully imported {result.TotalImported} papers.");
         }
     }
 }

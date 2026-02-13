@@ -57,9 +57,9 @@ namespace Shared.Builder
             return Error(message, errors);
         }
 
-        public static ApiResponse<T> NotFound<T>(string message = "Không tìm thấy dữ liệu", List<ApiError>? errors = null)
+        public static ApiResponse<T> NotFound<T>(string message = "Không tìm thấy dữ liệu")
         {
-            return NotFound<T>(message, errors);
+            return NotFound<T>(message);
         }
 
         public static ApiResponse NotFound(string message = "Không tìm thấy dữ liệu")

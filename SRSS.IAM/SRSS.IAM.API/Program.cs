@@ -90,8 +90,7 @@ namespace SRSS.IAM.API
                     logger.LogInformation("✅ No pending migrations found.");
                 }
             }
-
-            //app.Seed();
+            app.Seed();
             app.UseSwagger(c =>
             {
                 c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>

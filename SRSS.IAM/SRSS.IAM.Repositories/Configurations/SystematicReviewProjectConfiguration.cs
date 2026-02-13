@@ -36,7 +36,7 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(p => p.Status)
                 .HasColumnName("status")
-                .HasConversion<int>()
+                .HasConversion<string>()
                 .IsRequired();
 
             builder.Property(p => p.StartDate)

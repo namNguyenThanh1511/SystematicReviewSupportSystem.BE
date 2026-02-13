@@ -3,6 +3,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
@@ -41,7 +42,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             return MapToResponse(project);
         }
 
-        public async Task<SystematicReviewProjectDetailResponse?> GetProjectByIdAsync(
+        public async Task<SystematicReviewProjectDetailResponse> GetProjectByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
@@ -50,7 +51,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
 
             if (project == null)
             {
-                return null;
+                throw new NotFoundException("Project not found.");
             }
 
             return MapToDetailResponse(project);
@@ -195,7 +196,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
 
             if (project == null)
             {
-                return false;
+                throw new NotFoundException("Project not found.");
             }
 
             await _unitOfWork.SystematicReviewProjects.RemoveAsync(project, cancellationToken);

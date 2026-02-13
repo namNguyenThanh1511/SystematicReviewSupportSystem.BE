@@ -21,7 +21,9 @@ using SRSS.IAM.Services.SynthesisService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
 using SRSS.IAM.Services.ReviewProcessService;
+using SRSS.IAM.Services.PaperService;
 using System.Text;
+using SRSS.IAM.API.Data;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -59,6 +61,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IIdentificationService, IdentificationService>();
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
+            services.AddScoped<IPaperService, PaperService>();
 
 
 
@@ -114,12 +117,12 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddProblemDetails();
             services.AddExceptionHandler<GlobalExceptionMiddleware>();
         }
-        //public async static void Seed(this IApplicationBuilder builder)
-        //{
-        //    using (var scope = builder.ApplicationServices.CreateScope())
-        //    {
-        //        await DbInitializer.SeedAsync(scope.ServiceProvider);
-        //    }
-        //}
+        public async static void Seed(this IApplicationBuilder builder)
+        {
+            using (var scope = builder.ApplicationServices.CreateScope())
+            {
+                await DbInitializer.SeedAsync(scope.ServiceProvider);
+            }
+        }
     }
 }

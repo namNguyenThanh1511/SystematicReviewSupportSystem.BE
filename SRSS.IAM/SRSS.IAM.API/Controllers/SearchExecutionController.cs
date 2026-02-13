@@ -38,19 +38,8 @@ namespace SRSS.IAM.API.Controllers
                 return BadRequest<SearchExecutionResponse>("IdentificationProcess ID in route does not match ID in request body.");
             }
 
-            try
-            {
-                var result = await _identificationService.CreateSearchExecutionAsync(request, cancellationToken);
-                return Created(result, "Search execution created successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<SearchExecutionResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SearchExecutionResponse>(ex.Message));
-            }
+            var result = await _identificationService.CreateSearchExecutionAsync(request, cancellationToken);
+            return Created(result, "Search execution created successfully.");
         }
 
         /// <summary>
@@ -64,21 +53,10 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _identificationService.GetSearchExecutionByIdAsync(id, cancellationToken);
+            var result = await _identificationService.GetSearchExecutionByIdAsync(id, cancellationToken);
 
-                if (result == null)
-                {
-                    return NotFound(ResponseBuilder.NotFound<SearchExecutionResponse>($"Search execution with ID {id} not found."));
-                }
 
-                return Ok(result, "Search execution retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SearchExecutionResponse>(ex.Message));
-            }
+            return Ok(result, "Search execution retrieved successfully.");
         }
 
         /// <summary>
@@ -92,15 +70,8 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _identificationService.GetSearchExecutionsByIdentificationProcessIdAsync(identificationProcessId, cancellationToken);
-                return Ok(result, "Search executions retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<List<SearchExecutionResponse>>(ex.Message));
-            }
+            var result = await _identificationService.GetSearchExecutionsByIdentificationProcessIdAsync(identificationProcessId, cancellationToken);
+            return Ok(result, "Search executions retrieved successfully.");
         }
 
         /// <summary>
@@ -121,19 +92,8 @@ namespace SRSS.IAM.API.Controllers
                 return BadRequest<SearchExecutionResponse>("ID in route does not match ID in request body.");
             }
 
-            try
-            {
-                var result = await _identificationService.UpdateSearchExecutionAsync(request, cancellationToken);
-                return Ok(result, "Search execution updated successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ResponseBuilder.NotFound<SearchExecutionResponse>(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<SearchExecutionResponse>(ex.Message));
-            }
+            var result = await _identificationService.UpdateSearchExecutionAsync(request, cancellationToken);
+            return Ok(result, "Search execution updated successfully.");
         }
 
         /// <summary>
@@ -147,21 +107,10 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _identificationService.DeleteSearchExecutionAsync(id, cancellationToken);
+            var result = await _identificationService.DeleteSearchExecutionAsync(id, cancellationToken);
 
-                if (!result)
-                {
-                    return NotFound(ResponseBuilder.NotFound($"Search execution with ID {id} not found."));
-                }
 
-                return Ok("Search execution deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError(ex.Message));
-            }
+            return Ok("Search execution deleted successfully.");
         }
     }
 }

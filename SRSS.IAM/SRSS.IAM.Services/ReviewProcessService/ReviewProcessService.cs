@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 
@@ -61,19 +62,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
             }
         }
 
-        public async Task<ReviewProcessResponse?> GetReviewProcessByIdAsync(
+        public async Task<ReviewProcessResponse> GetReviewProcessByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
             var reviewProcess = await _unitOfWork.ReviewProcesses
                 .FindSingleAsync(rp => rp.Id == id, cancellationToken: cancellationToken);
 
-            if (reviewProcess == null)
-            {
-                return null;
-            }
-
-            return MapToResponse(reviewProcess);
+            return reviewProcess == null ? throw new NotFoundException($"ReviewProcess with ID {id} not found.") : MapToResponse(reviewProcess);
         }
 
         public async Task<List<ReviewProcessResponse>> GetReviewProcessesByProjectIdAsync(
@@ -216,7 +212,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             if (reviewProcess == null)
             {
-                return false;
+                throw new NotFoundException("ReviewProcess not found.");
             }
 
             await _unitOfWork.ReviewProcesses.RemoveAsync(reviewProcess, cancellationToken);

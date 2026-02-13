@@ -1,4 +1,5 @@
-﻿using SRSS.IAM.Repositories.Entities;
+﻿using Shared.Exceptions;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.Utils;
@@ -78,7 +79,7 @@ namespace SRSS.IAM.Services.IdentificationService
             return MapToSearchExecutionResponse(searchExecution);
         }
 
-        public async Task<SearchExecutionResponse?> GetSearchExecutionByIdAsync(
+        public async Task<SearchExecutionResponse> GetSearchExecutionByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
@@ -88,7 +89,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
             if (searchExecution == null)
             {
-                return null;
+                throw new NotFoundException("SearchExecution not found.");
             }
 
             return MapToSearchExecutionResponse(searchExecution);
@@ -157,7 +158,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
             if (searchExecution == null)
             {
-                return false;
+                throw new NotFoundException("SearchExecution not found.");
             }
 
             await _unitOfWork.SearchExecutions.RemoveAsync(searchExecution, cancellationToken);

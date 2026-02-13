@@ -14,6 +14,7 @@ using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
 using SRSS.IAM.Services.ReviewProcessService;
+using SRSS.IAM.Services.PaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
 
@@ -34,12 +35,13 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
-            
+
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IIdentificationService, IdentificationService>();
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
+            services.AddScoped<IPaperService, PaperService>();
 
 
 

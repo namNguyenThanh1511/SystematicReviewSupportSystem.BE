@@ -50,11 +50,6 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _prismaReportService.GetReportByIdAsync(id, cancellationToken);
 
-            if (result == null)
-            {
-                return StatusCode(404, ResponseBuilder.NotFound<PrismaReportResponse>($"PRISMA report with ID {id} not found."));
-            }
-
             return Ok(result, "PRISMA report retrieved successfully.");
         }
 

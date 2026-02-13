@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Shared.Exceptions;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.PrismaReport;
@@ -74,16 +75,16 @@ namespace SRSS.IAM.Services.PrismaReportService
             }
         }
 
-        public async Task<PrismaReportResponse?> GetReportByIdAsync(
+        public async Task<PrismaReportResponse> GetReportByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            var reports = await _unitOfWork.PrismaReports.GetReportsByProjectAsync(Guid.Empty, cancellationToken);
+            var reports = await _unitOfWork.PrismaReports.GetReportsByIdAsync(id, cancellationToken);
             var report = reports.FirstOrDefault(r => r.Id == id);
 
             if (report == null)
             {
-                return null;
+                throw new NotFoundException("Prisma report not found.");
             }
 
             return MapToResponse(report);

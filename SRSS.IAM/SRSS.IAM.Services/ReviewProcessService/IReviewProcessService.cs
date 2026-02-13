@@ -9,7 +9,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             CreateReviewProcessRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<ReviewProcessResponse?> GetReviewProcessByIdAsync(
+        Task<ReviewProcessResponse> GetReviewProcessByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);
 

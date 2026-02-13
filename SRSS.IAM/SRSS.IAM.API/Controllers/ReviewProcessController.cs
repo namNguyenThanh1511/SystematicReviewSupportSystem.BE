@@ -33,19 +33,8 @@ namespace SRSS.IAM.API.Controllers
             [FromBody] CreateReviewProcessRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.CreateReviewProcessAsync(projectId, request, cancellationToken);
-                return Created(result, "Review process created successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<ReviewProcessResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            var result = await _reviewProcessService.CreateReviewProcessAsync(projectId, request, cancellationToken);
+            return Created(result, "Review process created successfully.");
         }
 
         /// <summary>
@@ -59,21 +48,10 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.GetReviewProcessByIdAsync(id, cancellationToken);
+            var result = await _reviewProcessService.GetReviewProcessByIdAsync(id, cancellationToken);
 
-                if (result == null)
-                {
-                    return NotFound(ResponseBuilder.NotFound<ReviewProcessResponse>($"Review process with ID {id} not found."));
-                }
 
-                return Ok(result, "Review process retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            return Ok(result, "Review process retrieved successfully.");
         }
 
         /// <summary>
@@ -87,15 +65,8 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid projectId,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.GetReviewProcessesByProjectIdAsync(projectId, cancellationToken);
-                return Ok(result, "Review processes retrieved successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<List<ReviewProcessResponse>>(ex.Message));
-            }
+            var result = await _reviewProcessService.GetReviewProcessesByProjectIdAsync(projectId, cancellationToken);
+            return Ok(result, "Review processes retrieved successfully.");
         }
 
         /// <summary>
@@ -116,23 +87,12 @@ namespace SRSS.IAM.API.Controllers
                 return BadRequest<ReviewProcessResponse>("ID in route does not match ID in request body.");
             }
 
-            try
-            {
-                var result = await _reviewProcessService.UpdateReviewProcessAsync(request, cancellationToken);
-                return Ok(result, "Review process updated successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return NotFound(ResponseBuilder.NotFound<ReviewProcessResponse>(ex.Message));
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            var result = await _reviewProcessService.UpdateReviewProcessAsync(request, cancellationToken);
+            return Ok(result, "Review process updated successfully.");
         }
 
         /// <summary>
-        /// Start a review process (Pending ? InProgress). Only one process can be in progress at a time.
+        /// Start a review process (Pending → InProgress). Only one process can be in progress at a time.
         /// </summary>
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -142,23 +102,12 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.StartReviewProcessAsync(id, cancellationToken);
-                return Ok(result, "Review process started successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<ReviewProcessResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            var result = await _reviewProcessService.StartReviewProcessAsync(id, cancellationToken);
+            return Ok(result, "Review process started successfully.");
         }
 
         /// <summary>
-        /// Complete a review process (InProgress ? Completed)
+        /// Complete a review process (InProgress → Completed)
         /// </summary>
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -168,23 +117,12 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.CompleteReviewProcessAsync(id, cancellationToken);
-                return Ok(result, "Review process completed successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<ReviewProcessResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            var result = await _reviewProcessService.CompleteReviewProcessAsync(id, cancellationToken);
+            return Ok(result, "Review process completed successfully.");
         }
 
         /// <summary>
-        /// Cancel a review process (Pending/InProgress ? Cancelled)
+        /// Cancel a review process (Pending/InProgress → Cancelled)
         /// </summary>
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
@@ -194,19 +132,8 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.CancelReviewProcessAsync(id, cancellationToken);
-                return Ok(result, "Review process cancelled successfully.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest<ReviewProcessResponse>(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError<ReviewProcessResponse>(ex.Message));
-            }
+            var result = await _reviewProcessService.CancelReviewProcessAsync(id, cancellationToken);
+            return Ok(result, "Review process cancelled successfully.");
         }
 
         /// <summary>
@@ -220,21 +147,9 @@ namespace SRSS.IAM.API.Controllers
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _reviewProcessService.DeleteReviewProcessAsync(id, cancellationToken);
+            var result = await _reviewProcessService.DeleteReviewProcessAsync(id, cancellationToken);
 
-                if (!result)
-                {
-                    return NotFound(ResponseBuilder.NotFound($"Review process with ID {id} not found."));
-                }
-
-                return Ok("Review process deleted successfully.");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseBuilder.InternalServerError(ex.Message));
-            }
+            return Ok("Review process deleted successfully.");
         }
     }
 }

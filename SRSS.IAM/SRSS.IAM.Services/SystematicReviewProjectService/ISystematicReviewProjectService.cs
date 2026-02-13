@@ -10,7 +10,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             CreateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<SystematicReviewProjectDetailResponse?> GetProjectByIdAsync(
+        Task<SystematicReviewProjectDetailResponse> GetProjectByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);
 

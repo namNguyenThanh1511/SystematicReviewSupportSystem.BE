@@ -67,6 +67,15 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? LastDecisionAt { get; set; }
         public string? InternalNotes { get; set; }
 
+        public bool IsDuplicate { get; set; } = false;
+
+        //Duplicate
+        public Guid? DuplicateOfId { get; set; }
+        public Paper? DuplicateOf { get; set; }
+        public ICollection<Paper> Duplicates { get; set; } = new List<Paper>();
+
+
+
         // ============================================
         // NAVIGATION PROPERTIES
         // ============================================

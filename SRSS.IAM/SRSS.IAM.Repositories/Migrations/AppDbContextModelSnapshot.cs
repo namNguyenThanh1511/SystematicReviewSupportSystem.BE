@@ -1354,6 +1354,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("doi");
 
+                    b.Property<Guid?>("DuplicateOfId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("duplicate_of_id");
+
                     b.Property<bool?>("FullTextAvailable")
                         .HasColumnType("boolean")
                         .HasColumnName("full_text_available");
@@ -1374,6 +1378,12 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("InternalNotes")
                         .HasColumnType("text")
                         .HasColumnName("internal_notes");
+
+                    b.Property<bool>("IsDuplicate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_duplicate");
 
                     b.Property<bool>("IsIncludedFinal")
                         .ValueGeneratedOnAdd()
@@ -1494,11 +1504,111 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("DOI");
 
+                    b.HasIndex("DuplicateOfId");
+
                     b.HasIndex("ImportBatchId");
 
                     b.HasIndex("ProjectId");
 
                     b.ToTable("papers", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaFlowRecord", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Count")
+                        .HasColumnType("integer")
+                        .HasColumnName("count");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("label");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PrismaReportId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("prisma_report_id");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("stage");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrismaReportId");
+
+                    b.HasIndex("Stage");
+
+                    b.ToTable("prisma_flow_records", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<string>("GeneratedBy")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("generated_by");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GeneratedAt");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("prisma_reports", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
@@ -2285,6 +2395,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "DuplicateOf")
+                        .WithMany("Duplicates")
+                        .HasForeignKey("DuplicateOfId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.ImportBatch", "ImportBatch")
                         .WithMany("Papers")
                         .HasForeignKey("ImportBatchId")
@@ -2296,7 +2411,31 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("DuplicateOf");
+
                     b.Navigation("ImportBatch");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaFlowRecord", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.PrismaReport", "PrismaReport")
+                        .WithMany("FlowRecords")
+                        .HasForeignKey("PrismaReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PrismaReport");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaReport", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Project");
                 });
@@ -2331,6 +2470,16 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
                 {
                     b.Navigation("Papers");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
+                {
+                    b.Navigation("Duplicates");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaReport", b =>
+                {
+                    b.Navigation("FlowRecords");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>

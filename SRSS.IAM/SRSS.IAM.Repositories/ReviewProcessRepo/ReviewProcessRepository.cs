@@ -10,6 +10,14 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
         {
         }
 
+        public Task<ReviewProcess?> GetByIdWithProcessesAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return _context.ReviewProcesses
+                .Include(rp => rp.IdentificationProcesses)
+                .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
+
+        }
+
         public async Task<ReviewProcess?> GetByIdWithProjectAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _context.ReviewProcesses
@@ -17,6 +25,8 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
                     .ThenInclude(p => p.ReviewProcesses)
                 .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
         }
+
+
 
         public async Task<IEnumerable<ReviewProcess>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
@@ -30,5 +40,7 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
             return await _context.ReviewProcesses
                 .FirstOrDefaultAsync(rp => rp.ProjectId == projectId && rp.Status == ProcessStatus.InProgress, cancellationToken);
         }
+
+
     }
 }

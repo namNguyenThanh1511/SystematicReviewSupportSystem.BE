@@ -1,0 +1,6 @@
+@SRSS.IAM.API_HostAddress = http://localhost:5137
+
+GET {{SRSS.IAM.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

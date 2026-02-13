@@ -16,5 +16,13 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
     }
 }

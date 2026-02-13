@@ -415,53 +415,78 @@ namespace SRSS.IAM.Services.IdentificationService
                                     continue;
                                 }
 
-                                // Check for duplicate by DOI
+                                // Check for duplicate by DOI (case-insensitive, scoped to project)
                                 Paper? existingPaper = null;
                                 if (!string.IsNullOrWhiteSpace(risPaper.DOI))
                                 {
-                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndProjectAsync(risPaper.DOI, identificationProcess.ReviewProcess.ProjectId, cancellationToken);
+                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndProjectAsync(
+                                        risPaper.DOI, 
+                                        identificationProcess.ReviewProcess.ProjectId, 
+                                        cancellationToken);
+                                }
+
+                                // Parse PublicationYear to int
+                                int? publicationYearInt = null;
+                                if (!string.IsNullOrWhiteSpace(risPaper.PublicationYear) &&
+                                    int.TryParse(risPaper.PublicationYear, out var year))
+                                {
+                                    publicationYearInt = year;
                                 }
 
                                 if (existingPaper != null)
                                 {
-                                    // Handle duplicate: Update if needed
-                                    bool needsUpdate = false;
+                                    // PRISMA Compliance: Insert duplicate record, do NOT update existing
+                                    var duplicatePaper = new Paper
+                                    {
+                                        Id = Guid.NewGuid(),
+                                        Title = risPaper.Title,
+                                        Authors = risPaper.Authors,
+                                        Abstract = risPaper.Abstract,
+                                        DOI = risPaper.DOI,
+                                        PublicationType = risPaper.PublicationType,
+                                        PublicationYear = risPaper.PublicationYear,
+                                        PublicationYearInt = publicationYearInt,
+                                        PublicationDate = risPaper.PublicationDate,
+                                        Volume = risPaper.Volume,
+                                        Issue = risPaper.Issue,
+                                        Pages = risPaper.Pages,
+                                        Publisher = risPaper.Publisher,
+                                        ConferenceLocation = risPaper.ConferenceLocation,
+                                        ConferenceName = risPaper.ConferenceName,
+                                        Journal = risPaper.Journal,
+                                        JournalIssn = risPaper.JournalIssn,
+                                        Url = risPaper.Url,
+                                        Keywords = risPaper.Keywords,
+                                        RawReference = risPaper.RawReference,
 
-                                    if (string.IsNullOrWhiteSpace(existingPaper.RawReference) && !string.IsNullOrWhiteSpace(risPaper.RawReference))
-                                    {
-                                        existingPaper.RawReference = risPaper.RawReference;
-                                        needsUpdate = true;
-                                    }
+                                        // Link to Project
+                                        ProjectId = identificationProcess.ReviewProcess.ProjectId,
 
-                                    // Link to current import batch if not already linked
-                                    if (existingPaper.ImportBatchId == null)
-                                    {
-                                        existingPaper.ImportBatchId = importBatch.Id;
-                                        needsUpdate = true;
-                                    }
+                                        // Import tracking
+                                        Source = "RIS",
+                                        ImportBatchId = importBatch.Id,
+                                        ImportedAt = importBatch.ImportedAt,
+                                        ImportedBy = importBatch.ImportedBy,
 
-                                    if (needsUpdate)
-                                    {
-                                        existingPaper.ModifiedAt = DateTimeOffset.UtcNow;
-                                        await _unitOfWork.Papers.UpdateAsync(existingPaper, cancellationToken);
-                                        result.UpdatedRecords++;
-                                    }
-                                    else
-                                    {
-                                        result.DuplicateRecords++;
-                                    }
+                                        // PRISMA workflow - Mark as duplicate
+                                        IsDuplicate = true,
+                                        DuplicateOfId = existingPaper.Id,
+                                        CurrentSelectionStatus = SelectionStatus.Duplicate,
+                                        IsIncludedFinal = false,
+
+                                        // Audit fields
+                                        CreatedAt = DateTimeOffset.UtcNow,
+                                        ModifiedAt = DateTimeOffset.UtcNow
+                                    };
+
+                                    await _unitOfWork.Papers.AddAsync(duplicatePaper, cancellationToken);
+                                    result.ImportedRecords++;
+                                    result.DuplicateRecords++;
+                                    result.ImportedPaperIds.Add(duplicatePaper.Id);
                                 }
                                 else
                                 {
-                                    // Parse PublicationYear to int
-                                    int? publicationYearInt = null;
-                                    if (!string.IsNullOrWhiteSpace(risPaper.PublicationYear) &&
-                                        int.TryParse(risPaper.PublicationYear, out var year))
-                                    {
-                                        publicationYearInt = year;
-                                    }
-
-                                    // Insert new paper
+                                    // Insert new paper (not a duplicate)
                                     var newPaper = new Paper
                                     {
                                         Id = Guid.NewGuid(),
@@ -487,14 +512,15 @@ namespace SRSS.IAM.Services.IdentificationService
 
                                         // Link to Project
                                         ProjectId = identificationProcess.ReviewProcess.ProjectId,
-                                        
-                                        // Import tracking - Link to ImportBatch only
+
+                                        // Import tracking
                                         Source = "RIS",
                                         ImportBatchId = importBatch.Id,
                                         ImportedAt = importBatch.ImportedAt,
                                         ImportedBy = importBatch.ImportedBy,
 
-                                        // PRISMA workflow
+                                        // PRISMA workflow - New paper, pending screening
+                                        IsDuplicate = false,
                                         CurrentSelectionStatus = SelectionStatus.Pending,
                                         IsIncludedFinal = false,
 

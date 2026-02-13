@@ -68,6 +68,83 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
+        public async Task<PaginatedResponse<PaperResponse>> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
+            DuplicatePapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // Validate project exists
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            // Validate pagination parameters
+            if (request.PageNumber < 1)
+            {
+                request.PageNumber = 1;
+            }
+
+            if (request.PageSize < 1)
+            {
+                request.PageSize = 20;
+            }
+
+            if (request.PageSize > 100)
+            {
+                request.PageSize = 100;
+            }
+
+            // Get duplicate papers with filtering and pagination
+            var (papers, totalCount) = await _unitOfWork.Papers.GetDuplicatePapersByProjectAsync(
+                projectId,
+                request.Search,
+                request.Year,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            // Map to response DTOs
+            var paperResponses = papers.Select(MapToPaperResponse).ToList();
+
+            return new PaginatedResponse<PaperResponse>
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+        }
+
+        public async Task<PaperResponse> GetPaperByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == id,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {id} not found.");
+            }
+
+            return MapToPaperResponse(paper);
+        }
+
+        public async Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(
+            Guid projectId,
+            PaperSearchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // TODO: Implement advanced search
+            throw new NotImplementedException("SearchPapersAsync not yet implemented.");
+        }
+
         private static PaperResponse MapToPaperResponse(Paper paper)
         {
             return new PaperResponse
@@ -101,6 +178,8 @@ namespace SRSS.IAM.Services.PaperService
                 CurrentSelectionStatusText = paper.CurrentSelectionStatus.ToString(),
                 IsIncludedFinal = paper.IsIncludedFinal,
                 LastDecisionAt = paper.LastDecisionAt,
+                IsDuplicate = paper.IsDuplicate,
+                DuplicateOfId = paper.DuplicateOfId,
                 PdfUrl = paper.PdfUrl,
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,

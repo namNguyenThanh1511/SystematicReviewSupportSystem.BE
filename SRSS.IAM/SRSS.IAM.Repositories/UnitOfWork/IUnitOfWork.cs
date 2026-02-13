@@ -7,6 +7,7 @@ using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
 using SRSS.IAM.Repositories.ReviewProcessRepo;
+using SRSS.IAM.Repositories.PrismaReportRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -23,8 +24,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IIdentificationProcessRepository IdentificationProcesses { get; }
         ISearchExecutionRepository SearchExecutions { get; }
         IPaperRepository Papers { get; }
-
         IImportBatchRepository ImportBatches { get; }
-
-        }
+        IPrismaReportRepository PrismaReports { get; }
+    }
 }

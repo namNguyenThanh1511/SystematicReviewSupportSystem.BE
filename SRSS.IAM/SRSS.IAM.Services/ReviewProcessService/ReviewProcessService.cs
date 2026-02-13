@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
+using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 
 namespace SRSS.IAM.Services.ReviewProcessService
@@ -66,8 +67,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            var reviewProcess = await _unitOfWork.ReviewProcesses
-                .FindSingleAsync(rp => rp.Id == id, cancellationToken: cancellationToken);
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProcessesAsync(id, cancellationToken);
 
             return reviewProcess == null ? throw new NotFoundException($"ReviewProcess with ID {id} not found.") : MapToResponse(reviewProcess);
         }
@@ -235,7 +235,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 CompletedAt = reviewProcess.CompletedAt,
                 Notes = reviewProcess.Notes,
                 CreatedAt = reviewProcess.CreatedAt,
-                ModifiedAt = reviewProcess.ModifiedAt
+                ModifiedAt = reviewProcess.ModifiedAt,
+                IdentificationProcesses = reviewProcess.IdentificationProcesses?
+                    .Select(ip => new IdentificationProcessResponse
+                    {
+                        Id = ip.Id,
+                        ReviewProcessId = ip.ReviewProcessId,
+                        Status = ip.Status,
+                        StatusText = ip.Status.ToString(),
+                        Notes = ip.Notes,
+                        CreatedAt = ip.CreatedAt,
+                        ModifiedAt = ip.ModifiedAt
+                    })
+                    .ToList() ?? new List<IdentificationProcessResponse>()
             };
         }
     }

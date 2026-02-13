@@ -9,6 +9,7 @@ using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
 using SRSS.IAM.Repositories.ReviewProcessRepo;
+using SRSS.IAM.Repositories.PrismaReportRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -23,6 +24,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private ISearchExecutionRepository _searchExecutions;
         private IPaperRepository _papers;
         private IImportBatchRepository _importBatches;
+        private IPrismaReportRepository _prismaReports;
 
         public UnitOfWork(AppDbContext dbContext)
         {
@@ -98,7 +100,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IPaperRepository Papers
             => _papers ??= new PaperRepository(_dbContext);
 
-        public IImportBatchRepository ImportBatches => _importBatches ??= new ImportBatchRepository(_dbContext);
+        public IImportBatchRepository ImportBatches 
+            => _importBatches ??= new ImportBatchRepository(_dbContext);
+
+        public IPrismaReportRepository PrismaReports 
+            => _prismaReports ??= new PrismaReportRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

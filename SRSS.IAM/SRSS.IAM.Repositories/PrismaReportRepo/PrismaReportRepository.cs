@@ -20,6 +20,8 @@ namespace SRSS.IAM.Repositories.PrismaReportRepo
                 .ToListAsync(cancellationToken);
         }
 
+
+
         public async Task<PrismaReport?> GetLatestReportByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.PrismaReports
@@ -28,6 +30,17 @@ namespace SRSS.IAM.Repositories.PrismaReportRepo
                 .Where(pr => pr.ProjectId == projectId)
                 .OrderByDescending(pr => pr.GeneratedAt)
                 .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public Task<List<PrismaReport>> GetReportsByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return _context.PrismaReports
+                .AsNoTracking()
+                .Include(pr => pr.FlowRecords.OrderBy(fr => fr.DisplayOrder))
+                .Where(pr => pr.Id == id)
+                .OrderByDescending(pr => pr.GeneratedAt)
+                .ToListAsync(cancellationToken);
+
         }
     }
 }

@@ -9,9 +9,10 @@ namespace SRSS.IAM.Services.PrismaReportService
             GeneratePrismaReportRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<PrismaReportResponse?> GetReportByIdAsync(
+        Task<PrismaReportResponse> GetReportByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);
+       
 
         Task<List<PrismaReportListResponse>> GetReportsByProjectAsync(
             Guid projectId,

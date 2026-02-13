@@ -73,5 +73,12 @@ namespace SRSS.IAM.Repositories
 		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
 		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;
 	}
+        public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
+        public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
+        public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
+        public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
+        public DbSet<Paper> Papers { get; set; } = default!;
+        public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
+    }
 }
 	

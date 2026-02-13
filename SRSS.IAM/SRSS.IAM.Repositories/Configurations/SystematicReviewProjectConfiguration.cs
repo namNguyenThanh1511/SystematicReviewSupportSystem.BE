@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 using System;
 using System.Collections.Generic;
@@ -8,44 +9,67 @@ using System.Threading.Tasks;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
-	public class SystematicReviewProjectConfiguration : IEntityTypeConfiguration<SystematicReviewProject>
-	{
-		public void Configure(EntityTypeBuilder<SystematicReviewProject> builder)
-		{
-			builder.ToTable("systematic_review_project");
+    public class SystematicReviewProjectConfiguration : IEntityTypeConfiguration<SystematicReviewProject>
+    {
+        public void Configure(EntityTypeBuilder<SystematicReviewProject> builder)
+        {
+            builder.ToTable("systematic_review_projects");
 
-			builder.HasKey(x => x.Id);
-			builder.Property(x => x.Id)
-				.HasColumnName("project_id")
-				.HasDefaultValueSql("uuid_generate_v4()");
+            builder.HasKey(p => p.Id);
 
-			builder.Property(x => x.Title)
-				.HasColumnName("title")
-				.IsRequired();
+            builder.Property(p => p.Id)
+                .HasColumnName("id")
+                .IsRequired();
 
-			builder.Property(x => x.Domain)
-				.HasColumnName("domain");
+            builder.Property(p => p.Title)
+                .HasColumnName("title")
+                .HasMaxLength(500)
+                .IsRequired();
 
-			builder.Property(x => x.Description)
-				.HasColumnName("description");
+            builder.Property(p => p.Domain)
+                .HasColumnName("domain")
+                .HasMaxLength(255);
 
-			builder.Property(x => x.Status)
-				.HasColumnName("status")
-				.IsRequired();
+            builder.Property(p => p.Description)
+                .HasColumnName("description")
+                .HasMaxLength(2000);
 
-			builder.Property(x => x.StartDate)
-				.HasColumnName("start_date");
+            builder.Property(p => p.Status)
+                .HasColumnName("status")
+                .HasConversion<int>()
+                .IsRequired();
 
-			builder.Property(x => x.EndDate)
-				.HasColumnName("end_date");
+            builder.Property(p => p.StartDate)
+                .HasColumnName("start_date");
 
-			builder.Property(x => x.CreatedAt)
-				.HasColumnName("created_at")
-				.HasDefaultValueSql("CURRENT_TIMESTAMP");
+            builder.Property(p => p.EndDate)
+                .HasColumnName("end_date");
 
-			builder.Property(x => x.ModifiedAt)
-				.HasColumnName("modified_at")
-				.HasDefaultValueSql("CURRENT_TIMESTAMP");
-		}
-	}
+            builder.Property(p => p.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            builder.Property(p => p.ModifiedAt)
+                .HasColumnName("modified_at")
+                .IsRequired();
+
+            // One-to-Many Relationship: SystematicReviewProject ? ReviewProcesses
+            builder.HasMany(p => p.ReviewProcesses)
+                .WithOne(rp => rp.Project)
+                .HasForeignKey(rp => rp.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // One-to-Many Relationship: SystematicReviewProject ? Papers
+            builder.HasMany(p => p.Papers)
+                .WithOne(pr => pr.Project)
+                .HasForeignKey(pr => pr.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Indexes
+            builder.HasIndex(p => p.Status)
+                .HasDatabaseName("idx_project_status");
+
+            builder.HasIndex(p => p.Title)
+                .HasDatabaseName("idx_project_title");
+        }
+    }
 }

@@ -37,8 +37,7 @@ namespace SRSS.IAM.API
             // Database connection
             var connectionString = config.GetConnectionString("SRSS_IAM_DB");
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(connectionString,
-                npgsqlOptions => npgsqlOptions.EnableRetryOnFailure()));
+                options.UseNpgsql(connectionString));
 
             // Redis connection
             builder.Services.AddRedisCacheWithHealthCheck(config);

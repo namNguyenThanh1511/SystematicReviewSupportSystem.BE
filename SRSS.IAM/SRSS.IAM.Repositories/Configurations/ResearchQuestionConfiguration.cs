@@ -38,6 +38,9 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("created_at")
 				.HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.HasOne(x => x.Project)
 				.WithMany(x => x.ResearchQuestions)
 				.HasForeignKey(x => x.ProjectId)

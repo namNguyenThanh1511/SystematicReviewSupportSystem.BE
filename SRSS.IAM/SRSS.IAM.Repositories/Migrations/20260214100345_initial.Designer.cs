@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260214100345_initial")]
+    partial class initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -292,67 +295,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ProtocolId");
 
                     b.ToTable("data_synthesis_strategy", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DeduplicationResult", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<decimal?>("ConfidenceScore")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)")
-                        .HasColumnName("confidence_score");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("DuplicateOfPaperId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("duplicate_of_paper_id");
-
-                    b.Property<Guid>("IdentificationProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("identification_process_id");
-
-                    b.Property<string>("Method")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("method");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("paper_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DuplicateOfPaperId");
-
-                    b.HasIndex("IdentificationProcessId");
-
-                    b.HasIndex("Method");
-
-                    b.HasIndex("PaperId");
-
-                    b.HasIndex("IdentificationProcessId", "PaperId")
-                        .IsUnique()
-                        .HasDatabaseName("uq_deduplication_process_paper");
-
-                    b.ToTable("deduplication_results", null, t =>
-                        {
-                            t.HasCheckConstraint("ck_deduplication_no_self_duplicate", "paper_id != duplicate_of_paper_id");
-                        });
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DigitalLibrary", b =>
@@ -706,10 +648,19 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CurrentSelectionStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("current_selection_status");
+
                     b.Property<string>("DOI")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("doi");
+
+                    b.Property<Guid?>("DuplicateOfId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("duplicate_of_id");
 
                     b.Property<bool?>("FullTextAvailable")
                         .HasColumnType("boolean")
@@ -731,6 +682,12 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("InternalNotes")
                         .HasColumnType("text")
                         .HasColumnName("internal_notes");
+
+                    b.Property<bool>("IsDuplicate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_duplicate");
 
                     b.Property<string>("Issue")
                         .HasMaxLength(50)
@@ -765,6 +722,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("language");
+
+                    b.Property<DateTimeOffset?>("LastDecisionAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_decision_at");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -840,6 +801,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DOI");
+
+                    b.HasIndex("DuplicateOfId");
 
                     b.HasIndex("ImportBatchId");
 
@@ -2074,33 +2037,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Protocol");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DeduplicationResult", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "DuplicateOfPaper")
-                        .WithMany("OriginalOfDuplicates")
-                        .HasForeignKey("DuplicateOfPaperId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.IdentificationProcess", "IdentificationProcess")
-                        .WithMany("DeduplicationResults")
-                        .HasForeignKey("IdentificationProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithMany("DuplicateResults")
-                        .HasForeignKey("PaperId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("DuplicateOfPaper");
-
-                    b.Navigation("IdentificationProcess");
-
-                    b.Navigation("Paper");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DigitalLibrary", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.SearchSource", "Source")
@@ -2201,6 +2137,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "DuplicateOf")
+                        .WithMany("Duplicates")
+                        .HasForeignKey("DuplicateOfId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.ImportBatch", "ImportBatch")
                         .WithMany("Papers")
                         .HasForeignKey("ImportBatchId")
@@ -2211,6 +2152,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("DuplicateOf");
 
                     b.Navigation("ImportBatch");
 
@@ -2544,8 +2487,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcess", b =>
                 {
-                    b.Navigation("DeduplicationResults");
-
                     b.Navigation("SearchExecutions");
                 });
 
@@ -2556,9 +2497,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
                 {
-                    b.Navigation("DuplicateResults");
-
-                    b.Navigation("OriginalOfDuplicates");
+                    b.Navigation("Duplicates");
 
                     b.Navigation("ScreeningDecisions");
 

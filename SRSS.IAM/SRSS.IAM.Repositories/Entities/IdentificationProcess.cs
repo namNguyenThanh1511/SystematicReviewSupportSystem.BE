@@ -11,6 +11,7 @@ namespace SRSS.IAM.Repositories.Entities
         public IdentificationStatus Status { get; set; }
 
         public ICollection<SearchExecution> SearchExecutions { get; set; } = new List<SearchExecution>();
+        public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
         public ReviewProcess ReviewProcess { get; set; } = null!;
     }
 

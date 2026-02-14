@@ -75,6 +75,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<StudySelectionProcess> StudySelectionProcesses { get; set; } = default!;
 		public DbSet<ScreeningDecision> ScreeningDecisions { get; set; } = default!;
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
+		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 	}
 }
 	

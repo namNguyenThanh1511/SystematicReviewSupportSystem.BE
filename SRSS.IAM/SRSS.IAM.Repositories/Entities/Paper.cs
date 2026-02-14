@@ -60,20 +60,9 @@ namespace SRSS.IAM.Repositories.Entities
         public AccessType? AccessType { get; set; }
 
         // ============================================
-        // DERIVED & AUDIT FIELDS (NO LOGIC)
+        // AUDIT FIELDS (NO WORKFLOW STATE)
         // ============================================
-        public SelectionStatus CurrentSelectionStatus { get; set; } = SelectionStatus.Pending;
-        public DateTimeOffset? LastDecisionAt { get; set; }
         public string? InternalNotes { get; set; }
-
-        public bool IsDuplicate { get; set; } = false;
-
-        //Duplicate
-        public Guid? DuplicateOfId { get; set; }
-        public Paper? DuplicateOf { get; set; }
-        public ICollection<Paper> Duplicates { get; set; } = new List<Paper>();
-
-
 
         // ============================================
         // NAVIGATION PROPERTIES
@@ -85,14 +74,12 @@ namespace SRSS.IAM.Repositories.Entities
 
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
-    }
 
-    public enum SelectionStatus
-    {
-        Pending = 0,
-        Included = 1,
-        Excluded = 2,
-        Duplicate = 3
+        // Deduplication results where this paper IS the duplicate
+        public ICollection<DeduplicationResult> DuplicateResults { get; set; } = new List<DeduplicationResult>();
+
+        // Deduplication results where this paper is the ORIGINAL
+        public ICollection<DeduplicationResult> OriginalOfDuplicates { get; set; } = new List<DeduplicationResult>();
     }
 
     public enum AccessType

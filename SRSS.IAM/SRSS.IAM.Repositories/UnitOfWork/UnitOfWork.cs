@@ -17,20 +17,25 @@ using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
 using SRSS.IAM.Repositories.ReviewProcessRepo;
 using SRSS.IAM.Repositories.PrismaReportRepo;
+using SRSS.IAM.Repositories.DeduplicationResultRepo;
+using SRSS.IAM.Repositories.ScreeningResolutionRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
-    public class UnitOfWork : IUnitOfWork
-    {
-        private readonly AppDbContext _dbContext;
-        private IDbContextTransaction? _currentTransaction;
-        private IUserRepository _users;
-        private ISystematicReviewProjectRepository _systematicReviewProjects;
-        private IReviewProcessRepository _reviewProcesses;
-        private IIdentificationProcessRepository _identificationProcesses;
-        private ISearchExecutionRepository _searchExecutions;
-        private IPaperRepository _papers;
-        private IImportBatchRepository _importBatches;
+	public class UnitOfWork : IUnitOfWork
+	{
+		private readonly AppDbContext _dbContext;
+		private IDbContextTransaction? _currentTransaction;
+		private IUserRepository _users;
+		private ISystematicReviewProjectRepository _systematicReviewProjects;
+		private IReviewProcessRepository _reviewProcesses;
+		private IIdentificationProcessRepository _identificationProcesses;
+		private ISearchExecutionRepository _searchExecutions;
+		private IPaperRepository _papers;
+		private IImportBatchRepository _importBatches;
+		private IPrismaReportRepository _prismaReports;
+		private IDeduplicationResultRepository _deduplicationResults;
+		private IScreeningResolutionRepository _screeningResolutions;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -65,11 +70,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IDisseminationStrategyRepository? _disseminationStrategies;
 		private IProjectTimetableRepository? _timetables;
 
-        private IPrismaReportRepository _prismaReports;
-
-
-        public UnitOfWork(AppDbContext dbContext)
-        {
+		public UnitOfWork(AppDbContext dbContext)
+		{
             _dbContext = dbContext;
         }
         public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
@@ -201,14 +203,20 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IPaperRepository Papers
             => _papers ??= new PaperRepository(_dbContext);
 
-        public IImportBatchRepository ImportBatches 
-            => _importBatches ??= new ImportBatchRepository(_dbContext);
+		public IImportBatchRepository ImportBatches 
+			=> _importBatches ??= new ImportBatchRepository(_dbContext);
 
-        public IPrismaReportRepository PrismaReports 
-            => _prismaReports ??= new PrismaReportRepository(_dbContext);
+		public IPrismaReportRepository PrismaReports 
+			=> _prismaReports ??= new PrismaReportRepository(_dbContext);
 
-        public void Dispose() => _dbContext.Dispose();
-    }
+		public IDeduplicationResultRepository DeduplicationResults
+			=> _deduplicationResults ??= new DeduplicationResultRepository(_dbContext);
+
+		public IScreeningResolutionRepository ScreeningResolutions
+			=> _screeningResolutions ??= new ScreeningResolutionRepository(_dbContext);
+
+		public void Dispose() => _dbContext.Dispose();
+	}
     public static class Extensions
     {
         public static bool HasChangedOwnedEntities(this EntityEntry entry) =>

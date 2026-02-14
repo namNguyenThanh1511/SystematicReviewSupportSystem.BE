@@ -23,6 +23,7 @@ using SRSS.IAM.Services.SystematicReviewProjectService;
 using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.PrismaReportService;
+using SRSS.IAM.Services.SelectionStatusService;
 using System.Text;
 using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.DataExtractionService;
@@ -64,6 +65,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
+            services.AddScoped<ISelectionStatusService, SelectionStatusService>();
 
 
 

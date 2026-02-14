@@ -39,11 +39,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
             }
 
-            // Apply status filter
-            if (status.HasValue)
-            {
-                query = query.Where(p => p.CurrentSelectionStatus == status.Value);
-            }
+            // Status filtering removed - status is process-scoped, not paper-scoped
+            // Use ScreeningResolution table for status queries
 
             // Apply year filter
             if (year.HasValue)
@@ -64,45 +61,55 @@ namespace SRSS.IAM.Repositories.PaperRepo
             return (papers, totalCount);
         }
 
-        public async Task<(List<Paper> Papers, int TotalCount)> GetDuplicatePapersByProjectAsync(
-            Guid projectId,
+        /// <summary>
+        /// Get duplicate papers for a specific identification process
+        /// Queries DeduplicationResult table for process-scoped duplicates
+        /// </summary>
+        public async Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
             string? search,
             int? year,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
-            var query = _context.Papers
+            // Query deduplication results for this identification process
+            var query = _context.DeduplicationResults
                 .AsNoTracking()
-                .Where(p => p.ProjectId == projectId && p.IsDuplicate == true);
+                .Include(dr => dr.Paper)
+                .Include(dr => dr.DuplicateOfPaper)
+                .Where(dr => dr.IdentificationProcessId == identificationProcessId);
 
-            // Apply search filter
+            // Apply search filter on paper metadata
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var searchLower = search.ToLower();
-                query = query.Where(p =>
-                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
-                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
-                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+                query = query.Where(dr =>
+                    (dr.Paper.Title != null && dr.Paper.Title.ToLower().Contains(searchLower)) ||
+                    (dr.Paper.DOI != null && dr.Paper.DOI.ToLower().Contains(searchLower)) ||
+                    (dr.Paper.Authors != null && dr.Paper.Authors.ToLower().Contains(searchLower)));
             }
 
             // Apply year filter
             if (year.HasValue)
             {
-                query = query.Where(p => p.PublicationYearInt == year.Value);
+                query = query.Where(dr => dr.Paper.PublicationYearInt == year.Value);
             }
 
             // Get total count
             var totalCount = await query.CountAsync(cancellationToken);
 
             // Apply ordering and pagination
-            var papers = await query
-                .OrderByDescending(p => p.CreatedAt)
+            var deduplicationResults = await query
+                .OrderByDescending(dr => dr.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
-            return (papers, totalCount);
+            // Extract papers from results
+            var papers = deduplicationResults.Select(dr => dr.Paper).ToList();
+
+            return (papers, deduplicationResults, totalCount);
         }
     }
 }

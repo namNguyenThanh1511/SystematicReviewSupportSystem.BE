@@ -99,7 +99,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             return reports.Select(MapToListResponse).ToList();
         }
 
-        public async Task<PrismaReportResponse?> GetLatestReportByReviewProcessAsync(
+        public async Task<PrismaReportResponse> GetLatestReportByReviewProcessAsync(
             Guid reviewProcessId,
             CancellationToken cancellationToken = default)
         {
@@ -107,7 +107,7 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             if (report == null)
             {
-                return null;
+                throw new NotFoundException("No PRISMA report found for the specified review process.");
             }
 
             return MapToResponse(report);
@@ -122,14 +122,31 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             var papersList = papers.ToList();
 
+            // Duplicates are tracked in DeduplicationResult table
+            // Count papers that appear in DeduplicationResult
+            var duplicateCount = 0;
+            foreach (var paper in papersList)
+            {
+                var isDuplicate = await _unitOfWork.DeduplicationResults.FindSingleAsync(
+                    dr => dr.PaperId == paper.Id,
+                    cancellationToken: cancellationToken);
+
+                if (isDuplicate != null)
+                {
+                    duplicateCount++;
+                }
+            }
+
+            // TODO: Selection status should be calculated from ScreeningResolution, not Paper
+            // This requires knowing the StudySelectionProcessId
+            // For now, return basic counts
             return new PrismaCounts
             {
                 RecordsIdentified = papersList.Count,
-                DuplicateRecordsRemoved = papersList.Count(p => p.IsDuplicate),
-                RecordsScreened = papersList.Count(p => !p.IsDuplicate),
-                RecordsExcluded = papersList.Count(p => p.CurrentSelectionStatus == SelectionStatus.Excluded && !p.IsDuplicate),
-                // TODO: Calculate StudiesIncluded from ScreeningResolution table instead
-                StudiesIncluded = papersList.Count(p => p.CurrentSelectionStatus == SelectionStatus.Included && !p.IsDuplicate)
+                DuplicateRecordsRemoved = duplicateCount,
+                RecordsScreened = papersList.Count - duplicateCount,
+                RecordsExcluded = 0, // TODO: Query ScreeningResolution with FinalDecision = Exclude
+                StudiesIncluded = 0  // TODO: Query ScreeningResolution with FinalDecision = Include
             };
         }
 

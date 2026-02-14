@@ -90,11 +90,6 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.RawReference)
                 .HasColumnName("raw_reference");
 
-            builder.Property(p => p.CurrentSelectionStatus)
-                .HasColumnName("current_selection_status")
-                .HasConversion<string>()
-                .IsRequired();
-
             // ============================================
             // NEW FIELDS - LANGUAGE & METADATA
             // ============================================
@@ -172,32 +167,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasConversion<string>();
 
             // ============================================
-            // NEW FIELDS - SELECTION WORKFLOW
+            // AUDIT FIELDS
             // ============================================
-            builder.Property(p => p.LastDecisionAt)
-                .HasColumnName("last_decision_at");
-
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
-
-            // ============================================
-            // DUPLICATE TRACKING (PRISMA COMPLIANCE)
-            // ============================================
-            builder.Property(p => p.IsDuplicate)
-                .HasColumnName("is_duplicate")
-                .HasDefaultValue(false)
-                .IsRequired();
-
-            builder.Property(p => p.DuplicateOfId)
-                .HasColumnName("duplicate_of_id");
-
-            // Self-referencing relationship for duplicates
-            builder.HasOne(p => p.DuplicateOf)
-                .WithMany(p => p.Duplicates)
-                .HasForeignKey(p => p.DuplicateOfId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            builder.HasIndex(p => p.DuplicateOfId);
 
             //project
             builder.Property(p => p.ProjectId)

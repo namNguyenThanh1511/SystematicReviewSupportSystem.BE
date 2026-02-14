@@ -15,6 +15,8 @@ using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
 using SRSS.IAM.Repositories.ReviewProcessRepo;
 using SRSS.IAM.Repositories.PrismaReportRepo;
+using SRSS.IAM.Repositories.DeduplicationResultRepo;
+using SRSS.IAM.Repositories.ScreeningResolutionRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -68,12 +70,14 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IDataSynthesisStrategyRepository SynthesisStrategies { get; }
 		IDisseminationStrategyRepository DisseminationStrategies { get; }
 		IProjectTimetableRepository Timetables { get; }
-        ISystematicReviewProjectRepository SystematicReviewProjects { get; }
-        IReviewProcessRepository ReviewProcesses { get; }
-        IIdentificationProcessRepository IdentificationProcesses { get; }
-        ISearchExecutionRepository SearchExecutions { get; }
-        IPaperRepository Papers { get; }
-        IImportBatchRepository ImportBatches { get; }
-        IPrismaReportRepository PrismaReports { get; }
-    }
+		ISystematicReviewProjectRepository SystematicReviewProjects { get; }
+		IReviewProcessRepository ReviewProcesses { get; }
+		IIdentificationProcessRepository IdentificationProcesses { get; }
+		ISearchExecutionRepository SearchExecutions { get; }
+		IPaperRepository Papers { get; }
+		IImportBatchRepository ImportBatches { get; }
+		IPrismaReportRepository PrismaReports { get; }
+		IDeduplicationResultRepository DeduplicationResults { get; }
+		IScreeningResolutionRepository ScreeningResolutions { get; }
+	}
 }

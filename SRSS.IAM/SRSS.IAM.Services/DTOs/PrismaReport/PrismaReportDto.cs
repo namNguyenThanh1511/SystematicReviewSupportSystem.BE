@@ -5,7 +5,7 @@ namespace SRSS.IAM.Services.DTOs.PrismaReport
     public class PrismaReportResponse
     {
         public Guid Id { get; set; }
-        public Guid ProjectId { get; set; }
+        public Guid ReviewProcessId { get; set; }
         public string Version { get; set; } = string.Empty;
         public DateTimeOffset GeneratedAt { get; set; }
         public string? Notes { get; set; }
@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.DTOs.PrismaReport
     public class PrismaReportListResponse
     {
         public Guid Id { get; set; }
-        public Guid ProjectId { get; set; }
+        public Guid ReviewProcessId { get; set; }
         public string Version { get; set; } = string.Empty;
         public DateTimeOffset GeneratedAt { get; set; }
         public string? GeneratedBy { get; set; }

@@ -16,18 +16,18 @@ namespace SRSS.IAM.Services.PrismaReportService
         }
 
         public async Task<PrismaReportResponse> GenerateReportAsync(
-            Guid projectId,
+            Guid reviewProcessId,
             GeneratePrismaReportRequest request,
             CancellationToken cancellationToken = default)
         {
-            // Validate project exists
-            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
-                p => p.Id == projectId,
+            // Validate review process exists
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == reviewProcessId,
                 cancellationToken: cancellationToken);
 
-            if (project == null)
+            if (reviewProcess == null)
             {
-                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+                throw new InvalidOperationException($"ReviewProcess with ID {reviewProcessId} not found.");
             }
 
             // Begin transaction to ensure atomicity
@@ -35,14 +35,14 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             try
             {
-                // Calculate PRISMA counts from Paper table
-                var counts = await CalculatePrismaCounts(projectId, cancellationToken);
+                // Calculate PRISMA counts from Paper table (using project context)
+                var counts = await CalculatePrismaCounts(reviewProcess.ProjectId, cancellationToken);
 
                 // Create PRISMA Report
                 var prismaReport = new PrismaReport
                 {
                     Id = Guid.NewGuid(),
-                    ProjectId = projectId,
+                    ReviewProcessId = reviewProcessId,
                     Version = request.Version,
                     GeneratedAt = DateTimeOffset.UtcNow,
                     Notes = request.Notes,
@@ -90,20 +90,20 @@ namespace SRSS.IAM.Services.PrismaReportService
             return MapToResponse(report);
         }
 
-        public async Task<List<PrismaReportListResponse>> GetReportsByProjectAsync(
-            Guid projectId,
+        public async Task<List<PrismaReportListResponse>> GetReportsByReviewProcessAsync(
+            Guid reviewProcessId,
             CancellationToken cancellationToken = default)
         {
-            var reports = await _unitOfWork.PrismaReports.GetReportsByProjectAsync(projectId, cancellationToken);
+            var reports = await _unitOfWork.PrismaReports.GetReportsByReviewProcessAsync(reviewProcessId, cancellationToken);
 
             return reports.Select(MapToListResponse).ToList();
         }
 
-        public async Task<PrismaReportResponse?> GetLatestReportByProjectAsync(
-            Guid projectId,
+        public async Task<PrismaReportResponse?> GetLatestReportByReviewProcessAsync(
+            Guid reviewProcessId,
             CancellationToken cancellationToken = default)
         {
-            var report = await _unitOfWork.PrismaReports.GetLatestReportByProjectAsync(projectId, cancellationToken);
+            var report = await _unitOfWork.PrismaReports.GetLatestReportByReviewProcessAsync(reviewProcessId, cancellationToken);
 
             if (report == null)
             {
@@ -112,7 +112,6 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             return MapToResponse(report);
         }
-
         private async Task<PrismaCounts> CalculatePrismaCounts(
             Guid projectId,
             CancellationToken cancellationToken)
@@ -129,7 +128,8 @@ namespace SRSS.IAM.Services.PrismaReportService
                 DuplicateRecordsRemoved = papersList.Count(p => p.IsDuplicate),
                 RecordsScreened = papersList.Count(p => !p.IsDuplicate),
                 RecordsExcluded = papersList.Count(p => p.CurrentSelectionStatus == SelectionStatus.Excluded && !p.IsDuplicate),
-                StudiesIncluded = papersList.Count(p => p.IsIncludedFinal && !p.IsDuplicate)
+                // TODO: Calculate StudiesIncluded from ScreeningResolution table instead
+                StudiesIncluded = papersList.Count(p => p.CurrentSelectionStatus == SelectionStatus.Included && !p.IsDuplicate)
             };
         }
 
@@ -205,7 +205,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             return new PrismaReportResponse
             {
                 Id = report.Id,
-                ProjectId = report.ProjectId,
+                ReviewProcessId = report.ReviewProcessId,
                 Version = report.Version,
                 GeneratedAt = report.GeneratedAt,
                 Notes = report.Notes,
@@ -233,7 +233,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             return new PrismaReportListResponse
             {
                 Id = report.Id,
-                ProjectId = report.ProjectId,
+                ReviewProcessId = report.ReviewProcessId,
                 Version = report.Version,
                 GeneratedAt = report.GeneratedAt,
                 GeneratedBy = report.GeneratedBy,

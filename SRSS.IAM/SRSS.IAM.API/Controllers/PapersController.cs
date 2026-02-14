@@ -62,18 +62,19 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
-        /// Get all duplicate papers for a specific project with optional filtering and pagination
+        /// Get all duplicate papers for a specific identification process
+        /// Uses process-scoped deduplication results (not project-wide)
         /// </summary>
-        /// <param name="projectId">Project ID</param>
+        /// <param name="identificationProcessId">Identification Process ID</param>
         /// <param name="search">Search in Title, DOI, or Authors</param>
         /// <param name="year">Filter by publication year</param>
         /// <param name="pageNumber">Page number (default: 1)</param>
         /// <param name="pageSize">Page size (default: 20, max: 100)</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Paginated list of duplicate papers</returns>
-        [HttpGet("projects/{projectId}/papers/duplicates")]
-        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetDuplicatePapersByProject(
-            [FromRoute] Guid projectId,
+        /// <returns>Paginated list of duplicate papers with deduplication metadata</returns>
+        [HttpGet("identification-processes/{identificationProcessId}/duplicates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePaperResponse>>>> GetDuplicatePapersByIdentificationProcess(
+            [FromRoute] Guid identificationProcessId,
             [FromQuery] string? search,
             [FromQuery] int? year,
             [FromQuery] int pageNumber = 1,
@@ -88,10 +89,13 @@ namespace SRSS.IAM.API.Controllers
                 PageSize = pageSize
             };
 
-            var result = await _paperService.GetDuplicatePapersByProjectAsync(projectId, request, cancellationToken);
+            var result = await _paperService.GetDuplicatePapersByIdentificationProcessAsync(
+                identificationProcessId, 
+                request, 
+                cancellationToken);
 
             var message = result.TotalCount == 0
-                ? "No duplicate papers found for this project."
+                ? "No duplicate papers found for this identification process."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} duplicate papers.";
 
             return Ok(result, message);

@@ -10,8 +10,12 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<PaginatedResponse<PaperResponse>> GetDuplicatePapersByProjectAsync(
-            Guid projectId,
+        /// <summary>
+        /// Get duplicate papers for a specific identification process
+        /// Returns papers identified as duplicates in that process with deduplication metadata
+        /// </summary>
+        Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default);
 

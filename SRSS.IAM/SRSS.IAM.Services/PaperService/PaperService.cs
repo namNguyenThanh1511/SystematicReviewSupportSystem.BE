@@ -68,19 +68,23 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
-        public async Task<PaginatedResponse<PaperResponse>> GetDuplicatePapersByProjectAsync(
-            Guid projectId,
+        /// <summary>
+        /// Get duplicate papers for a specific identification process
+        /// Queries DeduplicationResult table for process-scoped results
+        /// </summary>
+        public async Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default)
         {
-            // Validate project exists
-            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
-                p => p.Id == projectId,
+            // Validate identification process exists
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
                 cancellationToken: cancellationToken);
 
-            if (project == null)
+            if (identificationProcess == null)
             {
-                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
             // Validate pagination parameters
@@ -99,21 +103,74 @@ namespace SRSS.IAM.Services.PaperService
                 request.PageSize = 100;
             }
 
-            // Get duplicate papers with filtering and pagination
-            var (papers, totalCount) = await _unitOfWork.Papers.GetDuplicatePapersByProjectAsync(
-                projectId,
+            // Get duplicate papers with deduplication metadata
+            var (papers, deduplicationResults, totalCount) = await _unitOfWork.Papers.GetDuplicatePapersByIdentificationProcessAsync(
+                identificationProcessId,
                 request.Search,
                 request.Year,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
 
-            // Map to response DTOs
-            var paperResponses = papers.Select(MapToPaperResponse).ToList();
-
-            return new PaginatedResponse<PaperResponse>
+            // Map to response DTOs with deduplication metadata
+            var duplicateResponses = new List<DuplicatePaperResponse>();
+            for (int i = 0; i < papers.Count; i++)
             {
-                Items = paperResponses,
+                var paper = papers[i];
+                var deduplicationResult = deduplicationResults[i];
+
+                duplicateResponses.Add(new DuplicatePaperResponse
+                {
+                    // Paper metadata
+                    Id = paper.Id,
+                    Title = paper.Title,
+                    Authors = paper.Authors,
+                    Abstract = paper.Abstract,
+                    DOI = paper.DOI,
+                    PublicationType = paper.PublicationType,
+                    PublicationYear = paper.PublicationYear,
+                    PublicationYearInt = paper.PublicationYearInt,
+                    PublicationDate = paper.PublicationDate,
+                    Volume = paper.Volume,
+                    Issue = paper.Issue,
+                    Pages = paper.Pages,
+                    Publisher = paper.Publisher,
+                    Language = paper.Language,
+                    Keywords = paper.Keywords,
+                    Url = paper.Url,
+                    ConferenceName = paper.ConferenceName,
+                    ConferenceLocation = paper.ConferenceLocation,
+                    ConferenceCountry = paper.ConferenceCountry,
+                    ConferenceYear = paper.ConferenceYear,
+                    Journal = paper.Journal,
+                    JournalIssn = paper.JournalIssn,
+                    Source = paper.Source,
+                    ImportedAt = paper.ImportedAt,
+                    ImportedBy = paper.ImportedBy,
+                    // Selection status NOT stored in Paper - must query from ScreeningResolution
+                    SelectionStatus = null,
+                    SelectionStatusText = null,
+                    PdfUrl = paper.PdfUrl,
+                    FullTextAvailable = paper.FullTextAvailable,
+                    AccessType = paper.AccessType,
+                    AccessTypeText = paper.AccessType?.ToString(),
+                    CreatedAt = paper.CreatedAt,
+                    ModifiedAt = paper.ModifiedAt,
+
+                    // Deduplication metadata
+                    DuplicateOfPaperId = deduplicationResult.DuplicateOfPaperId,
+                    DuplicateOfTitle = deduplicationResult.DuplicateOfPaper?.Title,
+                    Method = deduplicationResult.Method,
+                    MethodText = deduplicationResult.Method.ToString(),
+                    ConfidenceScore = deduplicationResult.ConfidenceScore,
+                    DeduplicationNotes = deduplicationResult.Notes,
+                    DetectedAt = deduplicationResult.CreatedAt
+                });
+            }
+
+            return new PaginatedResponse<DuplicatePaperResponse>
+            {
+                Items = duplicateResponses,
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
@@ -174,11 +231,9 @@ namespace SRSS.IAM.Services.PaperService
                 Source = paper.Source,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
-                CurrentSelectionStatus = paper.CurrentSelectionStatus,
-                CurrentSelectionStatusText = paper.CurrentSelectionStatus.ToString(),
-                LastDecisionAt = paper.LastDecisionAt,
-                IsDuplicate = paper.IsDuplicate,
-                DuplicateOfId = paper.DuplicateOfId,
+                // SelectionStatus is NOT stored in Paper - must be queried from ScreeningResolution
+                SelectionStatus = null,
+                SelectionStatusText = null,
                 PdfUrl = paper.PdfUrl,
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,

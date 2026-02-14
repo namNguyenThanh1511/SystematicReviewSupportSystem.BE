@@ -38,14 +38,9 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 
-        // Selection Status
-        public SelectionStatus CurrentSelectionStatus { get; set; }
-        public string CurrentSelectionStatusText { get; set; } = string.Empty;
-        public DateTimeOffset? LastDecisionAt { get; set; }
-
-        // Duplicate Tracking
-        public bool IsDuplicate { get; set; }
-        public Guid? DuplicateOfId { get; set; }
+        // Selection Status (derived dynamically from ScreeningResolution)
+        public SelectionStatus? SelectionStatus { get; set; }
+        public string? SelectionStatusText { get; set; }
 
         // Access
         public string? PdfUrl { get; set; }
@@ -73,5 +68,20 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public int? Year { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
+    }
+
+    /// <summary>
+    /// Response that includes deduplication metadata
+    /// </summary>
+    public class DuplicatePaperResponse : PaperResponse
+    {
+        // Deduplication metadata
+        public Guid DuplicateOfPaperId { get; set; }
+        public string? DuplicateOfTitle { get; set; }
+        public DeduplicationMethod Method { get; set; }
+        public string MethodText { get; set; } = string.Empty;
+        public decimal? ConfidenceScore { get; set; }
+        public string? DeduplicationNotes { get; set; }
+        public DateTimeOffset DetectedAt { get; set; }
     }
 }

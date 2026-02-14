@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             Guid reviewProcessId,
             CancellationToken cancellationToken = default);
 
-        Task<PrismaReportResponse?> GetLatestReportByReviewProcessAsync(
+        Task<PrismaReportResponse> GetLatestReportByReviewProcessAsync(
             Guid reviewProcessId,
             CancellationToken cancellationToken = default);
     }

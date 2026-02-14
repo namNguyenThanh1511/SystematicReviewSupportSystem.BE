@@ -200,7 +200,6 @@ namespace SRSS.IAM.API.Data
                     Source = "RIS",
                     ImportedAt = DateTimeOffset.UtcNow,
                     ImportedBy = "demo_user",
-                    CurrentSelectionStatus = SelectionStatus.Pending,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
@@ -224,7 +223,6 @@ namespace SRSS.IAM.API.Data
                     Source = "RIS",
                     ImportedAt = DateTimeOffset.UtcNow,
                     ImportedBy = "demo_user",
-                    CurrentSelectionStatus = SelectionStatus.Pending,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
@@ -252,7 +250,6 @@ namespace SRSS.IAM.API.Data
                     Source = "RIS",
                     ImportedAt = DateTimeOffset.UtcNow,
                     ImportedBy = "demo_user",
-                    CurrentSelectionStatus = SelectionStatus.Pending,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 }

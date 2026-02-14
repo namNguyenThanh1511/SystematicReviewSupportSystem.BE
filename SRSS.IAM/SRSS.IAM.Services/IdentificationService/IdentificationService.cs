@@ -249,16 +249,16 @@ namespace SRSS.IAM.Services.IdentificationService
                         Journal = paperDto.Journal,
                         Url = paperDto.Url,
                         Keywords = paperDto.Keywords,
-                        
+
                         // Import tracking - Link to ImportBatch only
                         ImportBatchId = importBatch.Id,
                         Source = "Manual",
                         ImportedAt = importBatch.ImportedAt,
                         ImportedBy = importBatch.ImportedBy,
+                        // TODO: Add ProjectId to ImportPaperRequest
+                        // ProjectId = request.ProjectId,
 
-                        // PRISMA workflow
-                        CurrentSelectionStatus = SelectionStatus.Pending,
-
+                        // Paper is immutable bibliographic record - no workflow state
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
@@ -267,7 +267,6 @@ namespace SRSS.IAM.Services.IdentificationService
                 }
 
                 await _unitOfWork.Papers.AddRangeAsync(papers, cancellationToken);
-
                 // Update SearchExecution result count if provided
                 if (searchExecution != null)
                 {
@@ -432,103 +431,69 @@ namespace SRSS.IAM.Services.IdentificationService
                                     publicationYearInt = year;
                                 }
 
+                                // Create new paper regardless of duplication
+                                // Duplication is tracked separately in DeduplicationResult table
+                                var newPaper = new Paper
+                                {
+                                    Id = Guid.NewGuid(),
+                                    Title = risPaper.Title,
+                                    Authors = risPaper.Authors,
+                                    Abstract = risPaper.Abstract,
+                                    DOI = risPaper.DOI,
+                                    PublicationType = risPaper.PublicationType,
+                                    PublicationYear = risPaper.PublicationYear,
+                                    PublicationYearInt = publicationYearInt,
+                                    PublicationDate = risPaper.PublicationDate,
+                                    Volume = risPaper.Volume,
+                                    Issue = risPaper.Issue,
+                                    Pages = risPaper.Pages,
+                                    Publisher = risPaper.Publisher,
+                                    ConferenceLocation = risPaper.ConferenceLocation,
+                                    ConferenceName = risPaper.ConferenceName,
+                                    Journal = risPaper.Journal,
+                                    JournalIssn = risPaper.JournalIssn,
+                                    Url = risPaper.Url,
+                                    Keywords = risPaper.Keywords,
+                                    RawReference = risPaper.RawReference,
+
+                                    // Link to Project
+                                    ProjectId = identificationProcess.ReviewProcess.ProjectId,
+
+                                    // Import tracking
+                                    Source = "RIS",
+                                    ImportBatchId = importBatch.Id,
+                                    ImportedAt = importBatch.ImportedAt,
+                                    ImportedBy = importBatch.ImportedBy,
+
+                                    // Paper is immutable bibliographic record - no workflow state
+                                    // Audit fields
+                                    CreatedAt = DateTimeOffset.UtcNow,
+                                    ModifiedAt = DateTimeOffset.UtcNow
+                                };
+
+                                await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+                                result.ImportedRecords++;
+                                result.ImportedPaperIds.Add(newPaper.Id);
+
+                                // If duplicate detected, create deduplication result
                                 if (existingPaper != null)
                                 {
-                                    // PRISMA Compliance: Insert duplicate record, do NOT update existing
-                                    var duplicatePaper = new Paper
+                                    var deduplicationResult = new DeduplicationResult
                                     {
                                         Id = Guid.NewGuid(),
-                                        Title = risPaper.Title,
-                                        Authors = risPaper.Authors,
-                                        Abstract = risPaper.Abstract,
-                                        DOI = risPaper.DOI,
-                                        PublicationType = risPaper.PublicationType,
-                                        PublicationYear = risPaper.PublicationYear,
-                                        PublicationYearInt = publicationYearInt,
-                                        PublicationDate = risPaper.PublicationDate,
-                                        Volume = risPaper.Volume,
-                                        Issue = risPaper.Issue,
-                                        Pages = risPaper.Pages,
-                                        Publisher = risPaper.Publisher,
-                                        ConferenceLocation = risPaper.ConferenceLocation,
-                                        ConferenceName = risPaper.ConferenceName,
-                                        Journal = risPaper.Journal,
-                                        JournalIssn = risPaper.JournalIssn,
-                                        Url = risPaper.Url,
-                                        Keywords = risPaper.Keywords,
-                                        RawReference = risPaper.RawReference,
-
-                                        // Link to Project
-                                        ProjectId = identificationProcess.ReviewProcess.ProjectId,
-
-                                        // Import tracking
-                                        Source = "RIS",
-                                        ImportBatchId = importBatch.Id,
-                                        ImportedAt = importBatch.ImportedAt,
-                                        ImportedBy = importBatch.ImportedBy,
-
-                                        // PRISMA workflow - Mark as duplicate
-                                        IsDuplicate = true,
-                                        DuplicateOfId = existingPaper.Id,
-                                        CurrentSelectionStatus = SelectionStatus.Duplicate,
-
-                                        // Audit fields
+                                        IdentificationProcessId = identificationProcessId,
+                                        PaperId = newPaper.Id,
+                                        DuplicateOfPaperId = existingPaper.Id,
+                                        Method = DeduplicationMethod.DOI_MATCH,
+                                        ConfidenceScore = 1.0m, // DOI match = 100% confidence
+                                        Notes = $"Duplicate detected by DOI: {risPaper.DOI}",
                                         CreatedAt = DateTimeOffset.UtcNow,
                                         ModifiedAt = DateTimeOffset.UtcNow
                                     };
 
-                                    await _unitOfWork.Papers.AddAsync(duplicatePaper, cancellationToken);
-                                    result.ImportedRecords++;
+                                    await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
                                     result.DuplicateRecords++;
-                                    result.ImportedPaperIds.Add(duplicatePaper.Id);
-                                }
-                                else
-                                {
-                                    // Insert new paper (not a duplicate)
-                                    var newPaper = new Paper
-                                    {
-                                        Id = Guid.NewGuid(),
-                                        Title = risPaper.Title,
-                                        Authors = risPaper.Authors,
-                                        Abstract = risPaper.Abstract,
-                                        DOI = risPaper.DOI,
-                                        PublicationType = risPaper.PublicationType,
-                                        PublicationYear = risPaper.PublicationYear,
-                                        PublicationYearInt = publicationYearInt,
-                                        PublicationDate = risPaper.PublicationDate,
-                                        Volume = risPaper.Volume,
-                                        Issue = risPaper.Issue,
-                                        Pages = risPaper.Pages,
-                                        Publisher = risPaper.Publisher,
-                                        ConferenceLocation = risPaper.ConferenceLocation,
-                                        ConferenceName = risPaper.ConferenceName,
-                                        Journal = risPaper.Journal,
-                                        JournalIssn = risPaper.JournalIssn,
-                                        Url = risPaper.Url,
-                                        Keywords = risPaper.Keywords,
-                                        RawReference = risPaper.RawReference,
-
-                                        // Link to Project
-                                        ProjectId = identificationProcess.ReviewProcess.ProjectId,
-
-                                        // Import tracking
-                                        Source = "RIS",
-                                        ImportBatchId = importBatch.Id,
-                                        ImportedAt = importBatch.ImportedAt,
-                                        ImportedBy = importBatch.ImportedBy,
-
-                                        // PRISMA workflow - New paper, pending screening
-                                        IsDuplicate = false,
-                                        CurrentSelectionStatus = SelectionStatus.Pending,
-
-                                        // Audit fields
-                                        CreatedAt = DateTimeOffset.UtcNow,
-                                        ModifiedAt = DateTimeOffset.UtcNow
-                                    };
-
-                                    await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                                    result.ImportedRecords++;
-                                    result.ImportedPaperIds.Add(newPaper.Id);
+                                    // Status NOT stored in Paper - it's queried from DeduplicationResult
                                 }
                             }
                             catch (Exception ex)

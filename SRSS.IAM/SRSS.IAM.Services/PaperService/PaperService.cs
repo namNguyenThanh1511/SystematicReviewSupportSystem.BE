@@ -176,7 +176,6 @@ namespace SRSS.IAM.Services.PaperService
                 ImportedBy = paper.ImportedBy,
                 CurrentSelectionStatus = paper.CurrentSelectionStatus,
                 CurrentSelectionStatusText = paper.CurrentSelectionStatus.ToString(),
-                IsIncludedFinal = paper.IsIncludedFinal,
                 LastDecisionAt = paper.LastDecisionAt,
                 IsDuplicate = paper.IsDuplicate,
                 DuplicateOfId = paper.DuplicateOfId,

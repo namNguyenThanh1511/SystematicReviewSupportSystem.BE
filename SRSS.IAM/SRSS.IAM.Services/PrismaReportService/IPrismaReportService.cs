@@ -5,21 +5,21 @@ namespace SRSS.IAM.Services.PrismaReportService
     public interface IPrismaReportService
     {
         Task<PrismaReportResponse> GenerateReportAsync(
-            Guid projectId,
+            Guid reviewProcessId,
             GeneratePrismaReportRequest request,
             CancellationToken cancellationToken = default);
 
         Task<PrismaReportResponse> GetReportByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);
-       
 
-        Task<List<PrismaReportListResponse>> GetReportsByProjectAsync(
-            Guid projectId,
+
+        Task<List<PrismaReportListResponse>> GetReportsByReviewProcessAsync(
+            Guid reviewProcessId,
             CancellationToken cancellationToken = default);
 
-        Task<PrismaReportResponse?> GetLatestReportByProjectAsync(
-            Guid projectId,
+        Task<PrismaReportResponse?> GetLatestReportByReviewProcessAsync(
+            Guid reviewProcessId,
             CancellationToken cancellationToken = default);
     }
 }

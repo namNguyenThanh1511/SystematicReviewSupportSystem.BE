@@ -255,11 +255,10 @@ namespace SRSS.IAM.Services.IdentificationService
                         Source = "Manual",
                         ImportedAt = importBatch.ImportedAt,
                         ImportedBy = importBatch.ImportedBy,
-                        
+
                         // PRISMA workflow
                         CurrentSelectionStatus = SelectionStatus.Pending,
-                        IsIncludedFinal = false,
-                        
+
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
@@ -472,7 +471,6 @@ namespace SRSS.IAM.Services.IdentificationService
                                         IsDuplicate = true,
                                         DuplicateOfId = existingPaper.Id,
                                         CurrentSelectionStatus = SelectionStatus.Duplicate,
-                                        IsIncludedFinal = false,
 
                                         // Audit fields
                                         CreatedAt = DateTimeOffset.UtcNow,
@@ -522,7 +520,6 @@ namespace SRSS.IAM.Services.IdentificationService
                                         // PRISMA workflow - New paper, pending screening
                                         IsDuplicate = false,
                                         CurrentSelectionStatus = SelectionStatus.Pending,
-                                        IsIncludedFinal = false,
 
                                         // Audit fields
                                         CreatedAt = DateTimeOffset.UtcNow,

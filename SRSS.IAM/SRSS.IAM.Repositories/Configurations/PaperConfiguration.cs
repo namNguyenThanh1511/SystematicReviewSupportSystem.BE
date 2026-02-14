@@ -95,10 +95,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasConversion<string>()
                 .IsRequired();
 
-            builder.Property(p => p.IsIncludedFinal)
-                .HasColumnName("is_included_final")
-                .HasDefaultValue(false)
-                .IsRequired();
             // ============================================
             // NEW FIELDS - LANGUAGE & METADATA
             // ============================================

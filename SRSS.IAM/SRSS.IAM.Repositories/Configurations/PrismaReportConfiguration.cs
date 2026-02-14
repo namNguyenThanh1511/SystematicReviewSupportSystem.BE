@@ -16,8 +16,8 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("id")
                 .IsRequired();
 
-            builder.Property(pr => pr.ProjectId)
-                .HasColumnName("project_id")
+            builder.Property(pr => pr.ReviewProcessId)
+                .HasColumnName("review_process_id")
                 .IsRequired();
 
             builder.Property(pr => pr.Version)
@@ -44,10 +44,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("modified_at")
                 .IsRequired();
 
-            // Relationship with Project
-            builder.HasOne(pr => pr.Project)
-                .WithMany()
-                .HasForeignKey(pr => pr.ProjectId)
+            // Relationship with ReviewProcess
+            builder.HasOne(pr => pr.ReviewProcess)
+                .WithMany(rp => rp.PrismaReports)
+                .HasForeignKey(pr => pr.ReviewProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Relationship with FlowRecords
@@ -57,7 +57,7 @@ namespace SRSS.IAM.Repositories.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes
-            builder.HasIndex(pr => pr.ProjectId);
+            builder.HasIndex(pr => pr.ReviewProcessId);
             builder.HasIndex(pr => pr.GeneratedAt);
         }
     }

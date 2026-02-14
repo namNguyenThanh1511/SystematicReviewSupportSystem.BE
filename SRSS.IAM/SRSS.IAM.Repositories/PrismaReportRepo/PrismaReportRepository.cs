@@ -10,24 +10,24 @@ namespace SRSS.IAM.Repositories.PrismaReportRepo
         {
         }
 
-        public async Task<List<PrismaReport>> GetReportsByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<List<PrismaReport>> GetReportsByReviewProcessAsync(Guid reviewProcessId, CancellationToken cancellationToken = default)
         {
             return await _context.PrismaReports
                 .AsNoTracking()
                 .Include(pr => pr.FlowRecords.OrderBy(fr => fr.DisplayOrder))
-                .Where(pr => pr.ProjectId == projectId)
+                .Where(pr => pr.ReviewProcessId == reviewProcessId)
                 .OrderByDescending(pr => pr.GeneratedAt)
                 .ToListAsync(cancellationToken);
         }
 
 
 
-        public async Task<PrismaReport?> GetLatestReportByProjectAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<PrismaReport?> GetLatestReportByReviewProcessAsync(Guid reviewProcessId, CancellationToken cancellationToken = default)
         {
             return await _context.PrismaReports
                 .AsNoTracking()
                 .Include(pr => pr.FlowRecords.OrderBy(fr => fr.DisplayOrder))
-                .Where(pr => pr.ProjectId == projectId)
+                .Where(pr => pr.ReviewProcessId == reviewProcessId)
                 .OrderByDescending(pr => pr.GeneratedAt)
                 .FirstOrDefaultAsync(cancellationToken);
         }

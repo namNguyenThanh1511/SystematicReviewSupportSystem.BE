@@ -15,6 +15,8 @@ namespace SRSS.IAM.Repositories.Entities
         public SystematicReviewProject Project { get; set; } = null!;
 
         public ICollection<IdentificationProcess> IdentificationProcesses { get; set; } = new List<IdentificationProcess>();
+        public ICollection<StudySelectionProcess> StudySelectionProcesses { get; set; } = new List<StudySelectionProcess>();
+        public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods
         public void Start()

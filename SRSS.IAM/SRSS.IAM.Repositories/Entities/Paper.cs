@@ -63,7 +63,6 @@ namespace SRSS.IAM.Repositories.Entities
         // DERIVED & AUDIT FIELDS (NO LOGIC)
         // ============================================
         public SelectionStatus CurrentSelectionStatus { get; set; } = SelectionStatus.Pending;
-        public bool IsIncludedFinal { get; set; } = false;
         public DateTimeOffset? LastDecisionAt { get; set; }
         public string? InternalNotes { get; set; }
 
@@ -83,6 +82,9 @@ namespace SRSS.IAM.Repositories.Entities
 
         public Guid ProjectId { get; set; }
         public SystematicReviewProject? Project { get; set; }
+
+        public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
+        public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
     }
 
     public enum SelectionStatus

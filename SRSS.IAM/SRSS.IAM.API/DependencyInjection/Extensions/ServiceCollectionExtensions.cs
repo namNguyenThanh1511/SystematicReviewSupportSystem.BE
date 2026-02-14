@@ -41,7 +41,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-			services.AddScoped<IUnitOfWork, SRSS.IAM.Repositories.UnitOfWork.UnitOfWork>();
+
 
 			services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -55,7 +55,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 			services.AddScoped<IDataExtractionService, DataExtractionService>();
 			services.AddScoped<ISynthesisService, SynthesisService>();
 
-			services.AddScoped<IAuthService, AuthService>();
+
             
 
             services.AddScoped<IAuthService, AuthService>();

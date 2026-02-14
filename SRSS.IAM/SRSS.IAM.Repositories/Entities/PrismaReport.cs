@@ -3,14 +3,14 @@ using Shared.Entities.BaseEntity;
 namespace SRSS.IAM.Repositories.Entities
 {
     /// <summary>
-    /// Represents a snapshot of PRISMA 2020 flow diagram data for a project
+    /// Represents a snapshot of PRISMA 2020 flow diagram data for a review process
     /// </summary>
     public class PrismaReport : BaseEntity<Guid>
     {
         /// <summary>
-        /// Project this report belongs to
+        /// Review process this report belongs to
         /// </summary>
-        public Guid ProjectId { get; set; }
+        public Guid ReviewProcessId { get; set; }
 
         /// <summary>
         /// Report version (e.g., "1.0", "1.1")
@@ -33,7 +33,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? GeneratedBy { get; set; }
 
         // Navigation Properties
-        public SystematicReviewProject Project { get; set; } = null!;
+        public ReviewProcess ReviewProcess { get; set; } = null!;
         public ICollection<PrismaFlowRecord> FlowRecords { get; set; } = new List<PrismaFlowRecord>();
     }
 }

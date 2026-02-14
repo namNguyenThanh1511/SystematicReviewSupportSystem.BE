@@ -41,7 +41,6 @@ namespace SRSS.IAM.Services.DTOs.Paper
         // Selection Status
         public SelectionStatus CurrentSelectionStatus { get; set; }
         public string CurrentSelectionStatusText { get; set; } = string.Empty;
-        public bool IsIncludedFinal { get; set; }
         public DateTimeOffset? LastDecisionAt { get; set; }
 
         // Duplicate Tracking

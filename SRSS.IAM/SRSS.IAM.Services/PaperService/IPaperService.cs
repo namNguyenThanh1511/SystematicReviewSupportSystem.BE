@@ -9,5 +9,19 @@ namespace SRSS.IAM.Services.PaperService
             Guid projectId,
             PaperListRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperResponse>> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
+            DuplicatePapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperResponse> GetPaperByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(
+            Guid projectId,
+            PaperSearchRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

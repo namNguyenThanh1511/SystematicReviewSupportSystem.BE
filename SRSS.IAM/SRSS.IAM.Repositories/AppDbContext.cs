@@ -70,6 +70,8 @@ namespace SRSS.IAM.Repositories
         public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
         public DbSet<Paper> Papers { get; set; } = default!;
         public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
+        public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
+        public DbSet<PrismaFlowRecord> PrismaFlowRecords { get; set; } = default!;
     }
 }
 	

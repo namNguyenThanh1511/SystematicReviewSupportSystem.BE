@@ -16,6 +16,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public IdentificationStatus Status { get; set; }
+        public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
     }

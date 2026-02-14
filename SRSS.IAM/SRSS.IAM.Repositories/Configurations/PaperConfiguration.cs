@@ -184,6 +184,25 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
 
+            // ============================================
+            // DUPLICATE TRACKING (PRISMA COMPLIANCE)
+            // ============================================
+            builder.Property(p => p.IsDuplicate)
+                .HasColumnName("is_duplicate")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            builder.Property(p => p.DuplicateOfId)
+                .HasColumnName("duplicate_of_id");
+
+            // Self-referencing relationship for duplicates
+            builder.HasOne(p => p.DuplicateOf)
+                .WithMany(p => p.Duplicates)
+                .HasForeignKey(p => p.DuplicateOfId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasIndex(p => p.DuplicateOfId);
+
             //project
             builder.Property(p => p.ProjectId)
                 .HasColumnName("project_id")

@@ -1,5 +1,6 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.DTOs.ReviewProcess
 {
@@ -28,6 +29,7 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
 
-        public List<IdentificationProcessResponse> IdentificationProcesses { get; set; } 
+        public IdentificationProcessResponse? IdentificationProcess { get; set; }
+        public StudySelectionProcessResponse? StudySelectionProcess { get; set; }
     }
 }

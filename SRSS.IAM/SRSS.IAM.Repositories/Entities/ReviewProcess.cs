@@ -14,8 +14,8 @@ namespace SRSS.IAM.Repositories.Entities
         // Navigation Properties
         public SystematicReviewProject Project { get; set; } = null!;
 
-        public ICollection<IdentificationProcess> IdentificationProcesses { get; set; } = new List<IdentificationProcess>();
-        public ICollection<StudySelectionProcess> StudySelectionProcesses { get; set; } = new List<StudySelectionProcess>();
+        public IdentificationProcess? IdentificationProcess { get; set; }
+        public StudySelectionProcess? StudySelectionProcess { get; set; }
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods
@@ -43,6 +43,8 @@ namespace SRSS.IAM.Repositories.Entities
                 throw new InvalidOperationException($"Cannot complete process from {Status} status.");
             }
 
+            EnsureCanComplete();
+
             Status = ProcessStatus.Completed;
             CompletedAt = DateTimeOffset.UtcNow;
             ModifiedAt = DateTimeOffset.UtcNow;
@@ -67,6 +69,50 @@ namespace SRSS.IAM.Repositories.Entities
             }
 
             return !Project.ReviewProcesses.Any(rp => rp.Id != Id && rp.Status == ProcessStatus.InProgress);
+        }
+
+        public void EnsureCanCreateIdentificationProcess()
+        {
+            if (Status != ProcessStatus.InProgress && Status != ProcessStatus.Pending)
+            {
+                throw new InvalidOperationException($"Cannot create identification process when review process status is {Status}.");
+            }
+
+            if (IdentificationProcess != null)
+            {
+                throw new InvalidOperationException("IdentificationProcess already exists for this ReviewProcess.");
+            }
+        }
+
+        public void EnsureCanCreateStudySelectionProcess()
+        {
+            if (Status != ProcessStatus.InProgress)
+            {
+                throw new InvalidOperationException($"Cannot create study selection process when review process status is {Status}.");
+            }
+
+            if (IdentificationProcess == null)
+            {
+                throw new InvalidOperationException("Cannot create StudySelectionProcess before IdentificationProcess exists.");
+            }
+
+            if (IdentificationProcess.Status != IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot create StudySelectionProcess before IdentificationProcess is completed.");
+            }
+
+            if (StudySelectionProcess != null)
+            {
+                throw new InvalidOperationException("StudySelectionProcess already exists for this ReviewProcess.");
+            }
+        }
+
+        public void EnsureCanComplete()
+        {
+            if (StudySelectionProcess == null || StudySelectionProcess.Status != SelectionProcessStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot complete ReviewProcess before StudySelectionProcess is completed.");
+            }
         }
     }
 

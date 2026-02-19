@@ -44,8 +44,8 @@ namespace SRSS.IAM.Repositories.Configurations
 
             // Relationships
             builder.HasOne(ssp => ssp.ReviewProcess)
-                .WithMany(rp => rp.StudySelectionProcesses)
-                .HasForeignKey(ssp => ssp.ReviewProcessId)
+                .WithOne(rp => rp.StudySelectionProcess)
+                .HasForeignKey<StudySelectionProcess>(ssp => ssp.ReviewProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasMany(ssp => ssp.ScreeningDecisions)
@@ -58,8 +58,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(sr => sr.StudySelectionProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Indexes
-            builder.HasIndex(ssp => ssp.ReviewProcessId);
+            // Enforce 1:1 relationship at database level
+            builder.HasIndex(ssp => ssp.ReviewProcessId)
+                .IsUnique()
+                .HasDatabaseName("idx_study_selection_process_review_process_id_unique");
         }
     }
 }

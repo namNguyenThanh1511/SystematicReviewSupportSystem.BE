@@ -17,6 +17,41 @@ namespace SRSS.IAM.Repositories.Entities
         public ReviewProcess ReviewProcess { get; set; } = null!;
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
+
+        // Domain Methods
+        public void Start()
+        {
+            if (Status != SelectionProcessStatus.NotStarted)
+            {
+                throw new InvalidOperationException($"Cannot start selection process from {Status} status.");
+            }
+
+            if (ReviewProcess.IdentificationProcess == null)
+            {
+                throw new InvalidOperationException("Cannot start study selection before identification process exists.");
+            }
+
+            if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
+            }
+
+            Status = SelectionProcessStatus.InProgress;
+            StartedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void Complete()
+        {
+            if (Status != SelectionProcessStatus.InProgress)
+            {
+                throw new InvalidOperationException($"Cannot complete selection process from {Status} status.");
+            }
+
+            Status = SelectionProcessStatus.Completed;
+            CompletedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum SelectionProcessStatus

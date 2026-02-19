@@ -6,55 +6,55 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class initial : Migration
+    public partial class refactoroneone : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "ProtocolReviewers",
+                name: "protocol_reviewer",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    Role = table.Column<string>(type: "text", nullable: true),
-                    Affiliation = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    reviewer_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    role = table.Column<string>(type: "text", nullable: true),
+                    affiliation = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProtocolReviewers", x => x.Id);
+                    table.PrimaryKey("PK_protocol_reviewer", x => x.reviewer_id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "QuestionTypes",
+                name: "question_type",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    question_type_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_QuestionTypes", x => x.Id);
+                    table.PrimaryKey("PK_question_type", x => x.question_type_id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "SearchTerms",
+                name: "search_term",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Keyword = table.Column<string>(type: "text", nullable: false),
-                    Source = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    term_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    keyword = table.Column<string>(type: "text", nullable: false),
+                    source = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SearchTerms", x => x.Id);
+                    table.PrimaryKey("PK_search_term", x => x.term_id);
                 });
 
             migrationBuilder.CreateTable(
@@ -100,24 +100,24 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CommissioningDocuments",
+                name: "commissioning_document",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Sponsor = table.Column<string>(type: "text", nullable: true),
-                    Scope = table.Column<string>(type: "text", nullable: true),
-                    Budget = table.Column<decimal>(type: "numeric", nullable: true),
-                    DocumentUrl = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    document_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    sponsor = table.Column<string>(type: "text", nullable: true),
+                    scope = table.Column<string>(type: "text", nullable: true),
+                    budget = table.Column<decimal>(type: "numeric", nullable: true),
+                    document_url = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CommissioningDocuments", x => x.Id);
+                    table.PrimaryKey("PK_commissioning_document", x => x.document_id);
                     table.ForeignKey(
-                        name: "FK_CommissioningDocuments_systematic_review_projects_ProjectId",
-                        column: x => x.ProjectId,
+                        name: "FK_commissioning_document_systematic_review_projects_project_id",
+                        column: x => x.project_id,
                         principalTable: "systematic_review_projects",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -133,19 +133,63 @@ namespace SRSS.IAM.Repositories.Migrations
                     question_text = table.Column<string>(type: "text", nullable: false),
                     rationale = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_research_question", x => x.research_question_id);
                     table.ForeignKey(
-                        name: "FK_research_question_QuestionTypes_question_type_id",
+                        name: "FK_research_question_question_type_question_type_id",
                         column: x => x.question_type_id,
-                        principalTable: "QuestionTypes",
-                        principalColumn: "Id",
+                        principalTable: "question_type",
+                        principalColumn: "question_type_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_research_question_systematic_review_projects_project_id",
+                        column: x => x.project_id,
+                        principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "review_need",
+                columns: table => new
+                {
+                    need_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    description = table.Column<string>(type: "text", nullable: false),
+                    justification = table.Column<string>(type: "text", nullable: true),
+                    identified_by = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_review_need", x => x.need_id);
+                    table.ForeignKey(
+                        name: "FK_review_need_systematic_review_projects_project_id",
+                        column: x => x.project_id,
+                        principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "review_objective",
+                columns: table => new
+                {
+                    objective_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    objective_statement = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_review_objective", x => x.objective_id);
+                    table.ForeignKey(
+                        name: "FK_review_objective_systematic_review_projects_project_id",
                         column: x => x.project_id,
                         principalTable: "systematic_review_projects",
                         principalColumn: "id",
@@ -195,50 +239,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     table.ForeignKey(
                         name: "FK_review_protocol_systematic_review_projects_project_id",
                         column: x => x.project_id,
-                        principalTable: "systematic_review_projects",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ReviewNeeds",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: false),
-                    Justification = table.Column<string>(type: "text", nullable: true),
-                    IdentifiedBy = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ReviewNeeds", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ReviewNeeds_systematic_review_projects_ProjectId",
-                        column: x => x.ProjectId,
-                        principalTable: "systematic_review_projects",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ReviewObjectives",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProjectId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ObjectiveStatement = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ReviewObjectives", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ReviewObjectives_systematic_review_projects_ProjectId",
-                        column: x => x.ProjectId,
                         principalTable: "systematic_review_projects",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
@@ -426,53 +426,59 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ProtocolEvaluations",
+                name: "protocol_evaluation",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProtocolId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ReviewerId = table.Column<Guid>(type: "uuid", nullable: false),
-                    EvaluationResult = table.Column<string>(type: "text", nullable: false),
-                    Comment = table.Column<string>(type: "text", nullable: true),
-                    EvaluatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    evaluation_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    reviewer_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    evaluation_result = table.Column<string>(type: "text", nullable: false),
+                    comment = table.Column<string>(type: "text", nullable: true),
+                    evaluated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ProtocolReviewerId = table.Column<Guid>(type: "uuid", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProtocolEvaluations", x => x.Id);
+                    table.PrimaryKey("PK_protocol_evaluation", x => x.evaluation_id);
                     table.ForeignKey(
-                        name: "FK_ProtocolEvaluations_ProtocolReviewers_ReviewerId",
-                        column: x => x.ReviewerId,
-                        principalTable: "ProtocolReviewers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        name: "FK_protocol_evaluation_protocol_reviewer_ProtocolReviewerId",
+                        column: x => x.ProtocolReviewerId,
+                        principalTable: "protocol_reviewer",
+                        principalColumn: "reviewer_id");
                     table.ForeignKey(
-                        name: "FK_ProtocolEvaluations_review_protocol_ProtocolId",
-                        column: x => x.ProtocolId,
+                        name: "FK_protocol_evaluation_protocol_reviewer_reviewer_id",
+                        column: x => x.reviewer_id,
+                        principalTable: "protocol_reviewer",
+                        principalColumn: "reviewer_id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_protocol_evaluation_review_protocol_protocol_id",
+                        column: x => x.protocol_id,
                         principalTable: "review_protocol",
                         principalColumn: "protocol_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "ProtocolVersions",
+                name: "protocol_version",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProtocolId = table.Column<Guid>(type: "uuid", nullable: false),
-                    VersionNumber = table.Column<string>(type: "text", nullable: false),
-                    ChangeSummary = table.Column<string>(type: "text", nullable: true),
-                    SnapshotData = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    version_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    version_number = table.Column<string>(type: "text", nullable: false),
+                    change_summary = table.Column<string>(type: "text", nullable: true),
+                    snapshot_data = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProtocolVersions", x => x.Id);
+                    table.PrimaryKey("PK_protocol_version", x => x.version_id);
                     table.ForeignKey(
-                        name: "FK_ProtocolVersions_review_protocol_ProtocolId",
-                        column: x => x.ProtocolId,
+                        name: "FK_protocol_version_review_protocol_protocol_id",
+                        column: x => x.protocol_id,
                         principalTable: "review_protocol",
                         principalColumn: "protocol_id",
                         onDelete: ReferentialAction.Cascade);
@@ -493,6 +499,28 @@ namespace SRSS.IAM.Repositories.Migrations
                     table.PrimaryKey("PK_quality_assessment_strategy", x => x.qa_strategy_id);
                     table.ForeignKey(
                         name: "FK_quality_assessment_strategy_review_protocol_protocol_id",
+                        column: x => x.protocol_id,
+                        principalTable: "review_protocol",
+                        principalColumn: "protocol_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "search_source",
+                columns: table => new
+                {
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_type = table.Column<string>(type: "text", nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_search_source", x => x.source_id);
+                    table.ForeignKey(
+                        name: "FK_search_source_review_protocol_protocol_id",
                         column: x => x.protocol_id,
                         principalTable: "review_protocol",
                         principalColumn: "protocol_id",
@@ -521,22 +549,21 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SearchSources",
+                name: "study_selection_criteria",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProtocolId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceType = table.Column<string>(type: "text", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    criteria_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SearchSources", x => x.Id);
+                    table.PrimaryKey("PK_study_selection_criteria", x => x.criteria_id);
                     table.ForeignKey(
-                        name: "FK_SearchSources_review_protocol_ProtocolId",
-                        column: x => x.ProtocolId,
+                        name: "FK_study_selection_criteria_review_protocol_protocol_id",
+                        column: x => x.protocol_id,
                         principalTable: "review_protocol",
                         principalColumn: "protocol_id",
                         onDelete: ReferentialAction.Cascade);
@@ -558,27 +585,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     table.ForeignKey(
                         name: "FK_study_selection_procedure_review_protocol_protocol_id",
                         column: x => x.protocol_id,
-                        principalTable: "review_protocol",
-                        principalColumn: "protocol_id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "StudySelectionCriterias",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    ProtocolId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Description = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_StudySelectionCriterias", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_StudySelectionCriterias_review_protocol_ProtocolId",
-                        column: x => x.ProtocolId,
                         principalTable: "review_protocol",
                         principalColumn: "protocol_id",
                         onDelete: ReferentialAction.Cascade);
@@ -785,146 +791,146 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SearchStrings",
+                name: "bibliographic_database",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    StrategyId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Expression = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    database_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_SearchStrings", x => x.Id);
+                    table.PrimaryKey("PK_bibliographic_database", x => x.database_id);
                     table.ForeignKey(
-                        name: "FK_SearchStrings_search_strategy_StrategyId",
-                        column: x => x.StrategyId,
+                        name: "FK_bibliographic_database_search_source_source_id",
+                        column: x => x.source_id,
+                        principalTable: "search_source",
+                        principalColumn: "source_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "conference_proceeding",
+                columns: table => new
+                {
+                    conference_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_conference_proceeding", x => x.conference_id);
+                    table.ForeignKey(
+                        name: "FK_conference_proceeding_search_source_source_id",
+                        column: x => x.source_id,
+                        principalTable: "search_source",
+                        principalColumn: "source_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "digital_library",
+                columns: table => new
+                {
+                    library_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    access_url = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_digital_library", x => x.library_id);
+                    table.ForeignKey(
+                        name: "FK_digital_library_search_source_source_id",
+                        column: x => x.source_id,
+                        principalTable: "search_source",
+                        principalColumn: "source_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "journal",
+                columns: table => new
+                {
+                    journal_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_journal", x => x.journal_id);
+                    table.ForeignKey(
+                        name: "FK_journal_search_source_source_id",
+                        column: x => x.source_id,
+                        principalTable: "search_source",
+                        principalColumn: "source_id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "search_string",
+                columns: table => new
+                {
+                    search_string_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    strategy_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    expression = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_search_string", x => x.search_string_id);
+                    table.ForeignKey(
+                        name: "FK_search_string_search_strategy_strategy_id",
+                        column: x => x.strategy_id,
                         principalTable: "search_strategy",
                         principalColumn: "strategy_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "BibliographicDatabases",
+                name: "exclusion_criterion",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    exclusion_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    criteria_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    rule = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_BibliographicDatabases", x => x.Id);
+                    table.PrimaryKey("PK_exclusion_criterion", x => x.exclusion_id);
                     table.ForeignKey(
-                        name: "FK_BibliographicDatabases_SearchSources_SourceId",
-                        column: x => x.SourceId,
-                        principalTable: "SearchSources",
-                        principalColumn: "Id",
+                        name: "FK_exclusion_criterion_study_selection_criteria_criteria_id",
+                        column: x => x.criteria_id,
+                        principalTable: "study_selection_criteria",
+                        principalColumn: "criteria_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "ConferenceProceedings",
+                name: "inclusion_criterion",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    inclusion_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    criteria_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    rule = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ConferenceProceedings", x => x.Id);
+                    table.PrimaryKey("PK_inclusion_criterion", x => x.inclusion_id);
                     table.ForeignKey(
-                        name: "FK_ConferenceProceedings_SearchSources_SourceId",
-                        column: x => x.SourceId,
-                        principalTable: "SearchSources",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "DigitalLibraries",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AccessUrl = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_DigitalLibraries", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_DigitalLibraries_SearchSources_SourceId",
-                        column: x => x.SourceId,
-                        principalTable: "SearchSources",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Journals",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Journals", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_Journals_SearchSources_SourceId",
-                        column: x => x.SourceId,
-                        principalTable: "SearchSources",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ExclusionCriteria",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    CriteriaId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Rule = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ExclusionCriteria", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ExclusionCriteria_StudySelectionCriterias_CriteriaId",
-                        column: x => x.CriteriaId,
-                        principalTable: "StudySelectionCriterias",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "InclusionCriteria",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    CriteriaId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Rule = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_InclusionCriteria", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_InclusionCriteria_StudySelectionCriterias_CriteriaId",
-                        column: x => x.CriteriaId,
-                        principalTable: "StudySelectionCriterias",
-                        principalColumn: "Id",
+                        name: "FK_inclusion_criterion_study_selection_criteria_criteria_id",
+                        column: x => x.criteria_id,
+                        principalTable: "study_selection_criteria",
+                        principalColumn: "criteria_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -1013,16 +1019,16 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     table.PrimaryKey("PK_search_string_term", x => new { x.search_string_id, x.term_id });
                     table.ForeignKey(
-                        name: "FK_search_string_term_SearchStrings_search_string_id",
+                        name: "FK_search_string_term_search_string_search_string_id",
                         column: x => x.search_string_id,
-                        principalTable: "SearchStrings",
-                        principalColumn: "Id",
+                        principalTable: "search_string",
+                        principalColumn: "search_string_id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_search_string_term_SearchTerms_term_id",
+                        name: "FK_search_string_term_search_term_term_id",
                         column: x => x.term_id,
-                        principalTable: "SearchTerms",
-                        principalColumn: "Id",
+                        principalTable: "search_term",
+                        principalColumn: "term_id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -1066,11 +1072,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     pdf_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     full_text_available = table.Column<bool>(type: "boolean", nullable: true),
                     access_type = table.Column<string>(type: "text", nullable: true),
-                    current_selection_status = table.Column<string>(type: "text", nullable: false),
-                    last_decision_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     internal_notes = table.Column<string>(type: "text", nullable: true),
-                    is_duplicate = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
-                    duplicate_of_id = table.Column<Guid>(type: "uuid", nullable: true),
                     project_id = table.Column<Guid>(type: "uuid", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1085,15 +1087,47 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalColumn: "id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
-                        name: "FK_papers_papers_duplicate_of_id",
-                        column: x => x.duplicate_of_id,
-                        principalTable: "papers",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
                         name: "FK_papers_systematic_review_projects_project_id",
                         column: x => x.project_id,
                         principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "deduplication_results",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    identification_process_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    paper_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    duplicate_of_paper_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    method = table.Column<string>(type: "text", nullable: false),
+                    confidence_score = table.Column<decimal>(type: "numeric(5,4)", precision: 5, scale: 4, nullable: true),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_deduplication_results", x => x.id);
+                    table.CheckConstraint("ck_deduplication_no_self_duplicate", "paper_id != duplicate_of_paper_id");
+                    table.ForeignKey(
+                        name: "FK_deduplication_results_identification_processes_identificati~",
+                        column: x => x.identification_process_id,
+                        principalTable: "identification_processes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_deduplication_results_papers_duplicate_of_paper_id",
+                        column: x => x.duplicate_of_paper_id,
+                        principalTable: "papers",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_deduplication_results_papers_paper_id",
+                        column: x => x.paper_id,
+                        principalTable: "papers",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1161,15 +1195,15 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_BibliographicDatabases_SourceId",
-                table: "BibliographicDatabases",
-                column: "SourceId",
+                name: "IX_bibliographic_database_source_id",
+                table: "bibliographic_database",
+                column: "source_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_CommissioningDocuments_ProjectId",
-                table: "CommissioningDocuments",
-                column: "ProjectId");
+                name: "IX_commissioning_document_project_id",
+                table: "commissioning_document",
+                column: "project_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_comparison_picoc_id",
@@ -1178,9 +1212,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_ConferenceProceedings_SourceId",
-                table: "ConferenceProceedings",
-                column: "SourceId",
+                name: "IX_conference_proceeding_source_id",
+                table: "conference_proceeding",
+                column: "source_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1210,9 +1244,35 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "protocol_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DigitalLibraries_SourceId",
-                table: "DigitalLibraries",
-                column: "SourceId",
+                name: "IX_deduplication_results_duplicate_of_paper_id",
+                table: "deduplication_results",
+                column: "duplicate_of_paper_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_deduplication_results_identification_process_id",
+                table: "deduplication_results",
+                column: "identification_process_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_deduplication_results_method",
+                table: "deduplication_results",
+                column: "method");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_deduplication_results_paper_id",
+                table: "deduplication_results",
+                column: "paper_id");
+
+            migrationBuilder.CreateIndex(
+                name: "uq_deduplication_process_paper",
+                table: "deduplication_results",
+                columns: new[] { "identification_process_id", "paper_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_digital_library_source_id",
+                table: "digital_library",
+                column: "source_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1221,14 +1281,15 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "protocol_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ExclusionCriteria_CriteriaId",
-                table: "ExclusionCriteria",
-                column: "CriteriaId");
+                name: "IX_exclusion_criterion_criteria_id",
+                table: "exclusion_criterion",
+                column: "criteria_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_identification_processes_review_process_id",
+                name: "idx_identification_process_review_process_id_unique",
                 table: "identification_processes",
-                column: "review_process_id");
+                column: "review_process_id",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_import_batches_search_execution_id",
@@ -1236,9 +1297,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "search_execution_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_InclusionCriteria_CriteriaId",
-                table: "InclusionCriteria",
-                column: "CriteriaId");
+                name: "IX_inclusion_criterion_criteria_id",
+                table: "inclusion_criterion",
+                column: "criteria_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_intervention_picoc_id",
@@ -1247,9 +1308,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Journals_SourceId",
-                table: "Journals",
-                column: "SourceId",
+                name: "IX_journal_source_id",
+                table: "journal",
+                column: "source_id",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -1262,11 +1323,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_papers_doi",
                 table: "papers",
                 column: "doi");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_papers_duplicate_of_id",
-                table: "papers",
-                column: "duplicate_of_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_papers_import_batch_id",
@@ -1315,19 +1371,24 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "protocol_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProtocolEvaluations_ProtocolId",
-                table: "ProtocolEvaluations",
-                column: "ProtocolId");
+                name: "IX_protocol_evaluation_protocol_id",
+                table: "protocol_evaluation",
+                column: "protocol_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProtocolEvaluations_ReviewerId",
-                table: "ProtocolEvaluations",
-                column: "ReviewerId");
+                name: "IX_protocol_evaluation_ProtocolReviewerId",
+                table: "protocol_evaluation",
+                column: "ProtocolReviewerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ProtocolVersions_ProtocolId",
-                table: "ProtocolVersions",
-                column: "ProtocolId");
+                name: "IX_protocol_evaluation_reviewer_id",
+                table: "protocol_evaluation",
+                column: "reviewer_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_protocol_version_protocol_id",
+                table: "protocol_version",
+                column: "protocol_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_quality_assessment_strategy_protocol_id",
@@ -1355,6 +1416,16 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "question_type_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_review_need_project_id",
+                table: "review_need",
+                column: "project_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_review_objective_project_id",
+                table: "review_objective",
+                column: "project_id");
+
+            migrationBuilder.CreateIndex(
                 name: "idx_review_process_project_id",
                 table: "review_processes",
                 column: "project_id");
@@ -1368,16 +1439,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_review_protocol_project_id",
                 table: "review_protocol",
                 column: "project_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ReviewNeeds_ProjectId",
-                table: "ReviewNeeds",
-                column: "ProjectId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ReviewObjectives_ProjectId",
-                table: "ReviewObjectives",
-                column: "ProjectId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_screening_decisions_paper_id",
@@ -1395,9 +1456,10 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "study_selection_process_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_screening_decisions_study_selection_process_id_paper_id_rev~",
+                name: "uq_screening_decision_process_paper_reviewer",
                 table: "screening_decisions",
-                columns: new[] { "study_selection_process_id", "paper_id", "reviewer_id" });
+                columns: new[] { "study_selection_process_id", "paper_id", "reviewer_id" },
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_screening_resolutions_paper_id",
@@ -1421,9 +1483,19 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "identification_process_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_search_source_protocol_id",
+                table: "search_source",
+                column: "protocol_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_search_strategy_protocol_id",
                 table: "search_strategy",
                 column: "protocol_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_search_string_strategy_id",
+                table: "search_string",
+                column: "strategy_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_search_string_term_term_id",
@@ -1431,14 +1503,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "term_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_SearchSources_ProtocolId",
-                table: "SearchSources",
-                column: "ProtocolId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SearchStrings_StrategyId",
-                table: "SearchStrings",
-                column: "StrategyId");
+                name: "IX_study_selection_criteria_protocol_id",
+                table: "study_selection_criteria",
+                column: "protocol_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_study_selection_procedure_protocol_id",
@@ -1446,14 +1513,10 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "protocol_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_study_selection_processes_review_process_id",
+                name: "idx_study_selection_process_review_process_id_unique",
                 table: "study_selection_processes",
-                column: "review_process_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_StudySelectionCriterias_ProtocolId",
-                table: "StudySelectionCriterias",
-                column: "ProtocolId");
+                column: "review_process_id",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "idx_project_status",
@@ -1487,16 +1550,16 @@ namespace SRSS.IAM.Repositories.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "BibliographicDatabases");
+                name: "bibliographic_database");
 
             migrationBuilder.DropTable(
-                name: "CommissioningDocuments");
+                name: "commissioning_document");
 
             migrationBuilder.DropTable(
                 name: "comparison");
 
             migrationBuilder.DropTable(
-                name: "ConferenceProceedings");
+                name: "conference_proceeding");
 
             migrationBuilder.DropTable(
                 name: "context");
@@ -1508,22 +1571,25 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "data_synthesis_strategy");
 
             migrationBuilder.DropTable(
-                name: "DigitalLibraries");
+                name: "deduplication_results");
+
+            migrationBuilder.DropTable(
+                name: "digital_library");
 
             migrationBuilder.DropTable(
                 name: "dissemination_strategy");
 
             migrationBuilder.DropTable(
-                name: "ExclusionCriteria");
+                name: "exclusion_criterion");
 
             migrationBuilder.DropTable(
-                name: "InclusionCriteria");
+                name: "inclusion_criterion");
 
             migrationBuilder.DropTable(
                 name: "intervention");
 
             migrationBuilder.DropTable(
-                name: "Journals");
+                name: "journal");
 
             migrationBuilder.DropTable(
                 name: "outcome");
@@ -1538,19 +1604,19 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "project_timetable");
 
             migrationBuilder.DropTable(
-                name: "ProtocolEvaluations");
+                name: "protocol_evaluation");
 
             migrationBuilder.DropTable(
-                name: "ProtocolVersions");
+                name: "protocol_version");
 
             migrationBuilder.DropTable(
                 name: "quality_criterion");
 
             migrationBuilder.DropTable(
-                name: "ReviewNeeds");
+                name: "review_need");
 
             migrationBuilder.DropTable(
-                name: "ReviewObjectives");
+                name: "review_objective");
 
             migrationBuilder.DropTable(
                 name: "screening_decisions");
@@ -1571,10 +1637,10 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "data_extraction_form");
 
             migrationBuilder.DropTable(
-                name: "StudySelectionCriterias");
+                name: "study_selection_criteria");
 
             migrationBuilder.DropTable(
-                name: "SearchSources");
+                name: "search_source");
 
             migrationBuilder.DropTable(
                 name: "picoc_element");
@@ -1583,7 +1649,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "prisma_reports");
 
             migrationBuilder.DropTable(
-                name: "ProtocolReviewers");
+                name: "protocol_reviewer");
 
             migrationBuilder.DropTable(
                 name: "quality_checklist");
@@ -1595,10 +1661,10 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "study_selection_processes");
 
             migrationBuilder.DropTable(
-                name: "SearchStrings");
+                name: "search_string");
 
             migrationBuilder.DropTable(
-                name: "SearchTerms");
+                name: "search_term");
 
             migrationBuilder.DropTable(
                 name: "data_extraction_strategy");
@@ -1616,7 +1682,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "search_strategy");
 
             migrationBuilder.DropTable(
-                name: "QuestionTypes");
+                name: "question_type");
 
             migrationBuilder.DropTable(
                 name: "search_executions");

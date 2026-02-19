@@ -54,9 +54,14 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(rp => rp.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(rp => rp.IdentificationProcesses)
+            builder.HasOne(rp => rp.IdentificationProcess)
                 .WithOne(ip => ip.ReviewProcess)
-                .HasForeignKey(ip => ip.ReviewProcessId)
+                .HasForeignKey<IdentificationProcess>(ip => ip.ReviewProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(rp => rp.StudySelectionProcess)
+                .WithOne(ssp => ssp.ReviewProcess)
+                .HasForeignKey<StudySelectionProcess>(ssp => ssp.ReviewProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes

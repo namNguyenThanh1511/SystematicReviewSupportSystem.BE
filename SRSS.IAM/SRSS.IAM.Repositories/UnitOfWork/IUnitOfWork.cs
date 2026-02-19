@@ -17,6 +17,8 @@ using SRSS.IAM.Repositories.ReviewProcessRepo;
 using SRSS.IAM.Repositories.PrismaReportRepo;
 using SRSS.IAM.Repositories.DeduplicationResultRepo;
 using SRSS.IAM.Repositories.ScreeningResolutionRepo;
+using SRSS.IAM.Repositories.StudySelectionProcessRepo;
+using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -79,5 +81,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IPrismaReportRepository PrismaReports { get; }
 		IDeduplicationResultRepository DeduplicationResults { get; }
 		IScreeningResolutionRepository ScreeningResolutions { get; }
+		IStudySelectionProcessRepository StudySelectionProcesses { get; }
+		IScreeningDecisionRepository ScreeningDecisions { get; }
 	}
 }

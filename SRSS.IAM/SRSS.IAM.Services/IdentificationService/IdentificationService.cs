@@ -19,6 +19,18 @@ namespace SRSS.IAM.Services.IdentificationService
             CreateIdentificationProcessRequest request, 
             CancellationToken cancellationToken = default)
         {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == request.ReviewProcessId,
+                isTracking: true,
+                cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {request.ReviewProcessId} not found.");
+            }
+
+            reviewProcess.EnsureCanCreateIdentificationProcess();
+
             var identificationProcess = new IdentificationProcess
             {
                 Id = Guid.NewGuid(),
@@ -40,6 +52,80 @@ namespace SRSS.IAM.Services.IdentificationService
                 StartedAt = identificationProcess.StartedAt,
                 CompletedAt = identificationProcess.CompletedAt,
                 Status = identificationProcess.Status,
+                CreatedAt = identificationProcess.CreatedAt,
+                ModifiedAt = identificationProcess.ModifiedAt
+            };
+        }
+
+        public async Task<IdentificationProcessResponse> GetIdentificationProcessByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == id,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
+            }
+
+            return MapToIdentificationProcessResponse(identificationProcess);
+        }
+
+        public async Task<IdentificationProcessResponse> StartIdentificationProcessAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == id,
+                isTracking: true,
+                cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
+            }
+
+            identificationProcess.Start();
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToIdentificationProcessResponse(identificationProcess);
+        }
+
+        public async Task<IdentificationProcessResponse> CompleteIdentificationProcessAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == id,
+                isTracking: true,
+                cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
+            }
+
+            identificationProcess.Complete();
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToIdentificationProcessResponse(identificationProcess);
+        }
+
+        private static IdentificationProcessResponse MapToIdentificationProcessResponse(IdentificationProcess identificationProcess)
+        {
+            return new IdentificationProcessResponse
+            {
+                Id = identificationProcess.Id,
+                ReviewProcessId = identificationProcess.ReviewProcessId,
+                Notes = identificationProcess.Notes,
+                StartedAt = identificationProcess.StartedAt,
+                CompletedAt = identificationProcess.CompletedAt,
+                Status = identificationProcess.Status,
+                StatusText = identificationProcess.Status.ToString(),
                 CreatedAt = identificationProcess.CreatedAt,
                 ModifiedAt = identificationProcess.ModifiedAt
             };

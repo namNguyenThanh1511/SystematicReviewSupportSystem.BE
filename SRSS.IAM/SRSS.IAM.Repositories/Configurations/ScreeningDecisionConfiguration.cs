@@ -63,7 +63,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasIndex(sd => sd.StudySelectionProcessId);
             builder.HasIndex(sd => sd.PaperId);
             builder.HasIndex(sd => sd.ReviewerId);
-            builder.HasIndex(sd => new { sd.StudySelectionProcessId, sd.PaperId, sd.ReviewerId });
+
+            // Unique constraint: One decision per reviewer per paper per process
+            builder.HasIndex(sd => new { sd.StudySelectionProcessId, sd.PaperId, sd.ReviewerId })
+                .IsUnique()
+                .HasDatabaseName("uq_screening_decision_process_paper_reviewer");
         }
     }
 }

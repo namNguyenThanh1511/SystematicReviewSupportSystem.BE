@@ -13,6 +13,31 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<SearchExecution> SearchExecutions { get; set; } = new List<SearchExecution>();
         public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
         public ReviewProcess ReviewProcess { get; set; } = null!;
+
+        // Domain Methods
+        public void Start()
+        {
+            if (Status != IdentificationStatus.NotStarted)
+            {
+                throw new InvalidOperationException($"Cannot start identification process from {Status} status.");
+            }
+
+            Status = IdentificationStatus.InProgress;
+            StartedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void Complete()
+        {
+            if (Status != IdentificationStatus.InProgress)
+            {
+                throw new InvalidOperationException($"Cannot complete identification process from {Status} status.");
+            }
+
+            Status = IdentificationStatus.Completed;
+            CompletedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum IdentificationStatus

@@ -13,7 +13,8 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
         public Task<ReviewProcess?> GetByIdWithProcessesAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return _context.ReviewProcesses
-                .Include(rp => rp.IdentificationProcesses)
+                .Include(rp => rp.IdentificationProcess)
+                .Include(rp => rp.StudySelectionProcess)
                 .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
 
         }

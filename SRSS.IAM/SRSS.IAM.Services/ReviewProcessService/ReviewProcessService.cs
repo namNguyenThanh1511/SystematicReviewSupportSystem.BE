@@ -3,6 +3,7 @@ using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -151,6 +152,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
             }
 
+            // Load StudySelectionProcess for validation
+            var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.ReviewProcessId == id,
+                isTracking: false,
+                cancellationToken);
+
+            reviewProcess.StudySelectionProcess = studySelectionProcess;
+
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
@@ -236,18 +245,30 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 Notes = reviewProcess.Notes,
                 CreatedAt = reviewProcess.CreatedAt,
                 ModifiedAt = reviewProcess.ModifiedAt,
-                IdentificationProcesses = reviewProcess.IdentificationProcesses?
-                    .Select(ip => new IdentificationProcessResponse
+                IdentificationProcess = reviewProcess.IdentificationProcess != null
+                    ? new IdentificationProcessResponse
                     {
-                        Id = ip.Id,
-                        ReviewProcessId = ip.ReviewProcessId,
-                        Status = ip.Status,
-                        StatusText = ip.Status.ToString(),
-                        Notes = ip.Notes,
-                        CreatedAt = ip.CreatedAt,
-                        ModifiedAt = ip.ModifiedAt
-                    })
-                    .ToList() ?? new List<IdentificationProcessResponse>()
+                        Id = reviewProcess.IdentificationProcess.Id,
+                        ReviewProcessId = reviewProcess.IdentificationProcess.ReviewProcessId,
+                        Status = reviewProcess.IdentificationProcess.Status,
+                        StatusText = reviewProcess.IdentificationProcess.Status.ToString(),
+                        Notes = reviewProcess.IdentificationProcess.Notes,
+                        CreatedAt = reviewProcess.IdentificationProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.IdentificationProcess.ModifiedAt
+                    }
+                    : null,
+                StudySelectionProcess = reviewProcess.StudySelectionProcess != null
+                    ? new StudySelectionProcessResponse
+                    {
+                        Id = reviewProcess.StudySelectionProcess.Id,
+                        ReviewProcessId = reviewProcess.StudySelectionProcess.ReviewProcessId,
+                        Status = reviewProcess.StudySelectionProcess.Status,
+                        StatusText = reviewProcess.StudySelectionProcess.Status.ToString(),
+                        Notes = reviewProcess.StudySelectionProcess.Notes,
+                        CreatedAt = reviewProcess.StudySelectionProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.StudySelectionProcess.ModifiedAt
+                    }
+                    : null
             };
         }
     }

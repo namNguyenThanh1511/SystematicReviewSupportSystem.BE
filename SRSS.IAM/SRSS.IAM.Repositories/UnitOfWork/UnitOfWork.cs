@@ -19,6 +19,8 @@ using SRSS.IAM.Repositories.ReviewProcessRepo;
 using SRSS.IAM.Repositories.PrismaReportRepo;
 using SRSS.IAM.Repositories.DeduplicationResultRepo;
 using SRSS.IAM.Repositories.ScreeningResolutionRepo;
+using SRSS.IAM.Repositories.StudySelectionProcessRepo;
+using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -36,6 +38,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IPrismaReportRepository _prismaReports;
 		private IDeduplicationResultRepository _deduplicationResults;
 		private IScreeningResolutionRepository _screeningResolutions;
+		private IStudySelectionProcessRepository _studySelectionProcesses;
+		private IScreeningDecisionRepository _screeningDecisions;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -214,6 +218,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IScreeningResolutionRepository ScreeningResolutions
 			=> _screeningResolutions ??= new ScreeningResolutionRepository(_dbContext);
+
+		public IStudySelectionProcessRepository StudySelectionProcesses
+			=> _studySelectionProcesses ??= new StudySelectionProcessRepository(_dbContext);
+
+		public IScreeningDecisionRepository ScreeningDecisions
+			=> _screeningDecisions ??= new ScreeningDecisionRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

@@ -27,7 +27,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="request">Process creation request</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Created process details</returns>
-        [HttpPost("projects/{projectId}/processes")]
+        [HttpPost("projects/{projectId}/review-processes")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> CreateReviewProcess(
             [FromRoute] Guid projectId,
             [FromBody] CreateReviewProcessRequest request,
@@ -43,7 +43,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Process details</returns>
-        [HttpGet("processes/{id}")]
+        [HttpGet("review-processes/{id}")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> GetReviewProcessById(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
@@ -60,7 +60,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="projectId">Project ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of processes</returns>
-        [HttpGet("projects/{projectId}/processes")]
+        [HttpGet("projects/{projectId}/review-processes")]
         public async Task<ActionResult<ApiResponse<List<ReviewProcessResponse>>>> GetReviewProcessesByProject(
             [FromRoute] Guid projectId,
             CancellationToken cancellationToken)
@@ -76,7 +76,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="request">Update request</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Updated process details</returns>
-        [HttpPut("processes/{id}")]
+        [HttpPut("review-processes/{id}")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> UpdateReviewProcess(
             [FromRoute] Guid id,
             [FromBody] UpdateReviewProcessRequest request,
@@ -97,7 +97,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Updated process details</returns>
-        [HttpPost("processes/{id}/start")]
+        [HttpPost("review-processes/{id}/start")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> StartReviewProcess(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
@@ -112,7 +112,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Updated process details</returns>
-        [HttpPost("processes/{id}/complete")]
+        [HttpPost("review-processes/{id}/complete")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> CompleteReviewProcess(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
@@ -127,7 +127,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Updated process details</returns>
-        [HttpPost("processes/{id}/cancel")]
+        [HttpPost("review-processes/{id}/cancel")]
         public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> CancelReviewProcess(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)
@@ -142,7 +142,7 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="id">Process ID</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Success status</returns>
-        [HttpDelete("processes/{id}")]
+        [HttpDelete("review-processes/{id}")]
         public async Task<ActionResult<ApiResponse>> DeleteReviewProcess(
             [FromRoute] Guid id,
             CancellationToken cancellationToken)

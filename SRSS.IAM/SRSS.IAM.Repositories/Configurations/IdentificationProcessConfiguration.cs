@@ -48,9 +48,14 @@ namespace SRSS.IAM.Repositories.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(ip => ip.ReviewProcess)
-                .WithMany(rp => rp.IdentificationProcesses)
-                .HasForeignKey(ip => ip.ReviewProcessId)
+                .WithOne(rp => rp.IdentificationProcess)
+                .HasForeignKey<IdentificationProcess>(ip => ip.ReviewProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Enforce 1:1 relationship at database level
+            builder.HasIndex(ip => ip.ReviewProcessId)
+                .IsUnique()
+                .HasDatabaseName("idx_identification_process_review_process_id_unique");
         }
     }
 }

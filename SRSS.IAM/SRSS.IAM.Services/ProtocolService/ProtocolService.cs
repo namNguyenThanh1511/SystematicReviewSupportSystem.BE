@@ -43,6 +43,11 @@ namespace SRSS.IAM.Services.ProtocolService
 
 		public async Task<ProtocolDetailResponse> CreateProtocolAsync(CreateProtocolRequest request)
 		{
+			var projectExists = await _unitOfWork.SystematicReviewProjects.AnyAsync(p => p.Id == request.ProjectId);
+			if (!projectExists)
+			{
+				throw new KeyNotFoundException($"Project với ID {request.ProjectId} không tồn tại");
+			}
 			var protocol = new ReviewProtocol
 			{
 				ProjectId = request.ProjectId,

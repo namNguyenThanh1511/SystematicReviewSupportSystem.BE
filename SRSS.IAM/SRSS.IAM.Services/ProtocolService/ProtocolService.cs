@@ -69,6 +69,12 @@ namespace SRSS.IAM.Services.ProtocolService
 			return protocol.ToDetailResponse();  
 		}
 
+		public async Task<List<ProtocolDetailResponse>> GetProtocolsByProjectIdAsync(Guid projectId)
+		{
+			var protocols = await _unitOfWork.Protocols.GetByProjectIdAsync(projectId);
+			return protocols.Select(p => p.ToDetailResponse()).ToList();
+		}
+
 		public async Task<ProtocolDetailResponse> UpdateProtocolAsync(UpdateProtocolRequest request)
 		{
 			var protocol = await _unitOfWork.Protocols.GetByIdWithVersionsAsync(request.ProtocolId)

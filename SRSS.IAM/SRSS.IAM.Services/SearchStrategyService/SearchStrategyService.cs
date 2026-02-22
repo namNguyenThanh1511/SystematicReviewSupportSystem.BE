@@ -60,6 +60,12 @@ namespace SRSS.IAM.Services.SearchStrategyService
 
 			foreach (var dto in dtos)
 			{
+				var strategyExists = await _unitOfWork.SearchStrategies.AnyAsync(s => s.Id == dto.StrategyId);
+				if (!strategyExists)
+				{
+					throw new KeyNotFoundException($"Strategy với ID {dto.StrategyId} không tồn tại");
+				}
+
 				SearchString entity;
 
 				if (dto.SearchStringId.HasValue && dto.SearchStringId.Value != Guid.Empty)

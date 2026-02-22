@@ -12,6 +12,7 @@ namespace SRSS.IAM.Services.ProtocolService
 		Task<ProtocolDetailResponse> CreateProtocolAsync(CreateProtocolRequest request);
 		Task<ProtocolDetailResponse> UpdateProtocolAsync(UpdateProtocolRequest request);
 		Task<ProtocolDetailResponse> GetProtocolByIdAsync(Guid protocolId);
+		Task<List<ProtocolDetailResponse>> GetProtocolsByProjectIdAsync(Guid projectId);
 		Task ApproveProtocolAsync(Guid protocolId, Guid reviewerId);
 	}
 }

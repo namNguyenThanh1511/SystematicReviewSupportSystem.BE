@@ -254,6 +254,29 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		// ─────────────────────────── PICOC ─────────────────────────────────
 
+		public async Task<PicocElementDto> GetPicocElementByIdAsync(Guid picocElementId)
+		{
+			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == picocElementId, isTracking: false)
+				?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
+
+			return await BuildPicocElementDtoAsync(picoc);
+		}
+
+		public async Task<IEnumerable<PicocElementDto>> GetPicocElementsByResearchQuestionIdAsync(Guid researchQuestionId)
+		{
+			var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == researchQuestionId);
+			if (!questionExists)
+				throw new InvalidOperationException($"ResearchQuestion với ID {researchQuestionId} không tồn tại.");
+
+			var elements = await _unitOfWork.PicocElements.GetByResearchQuestionIdAsync(researchQuestionId);
+
+			var dtos = new List<PicocElementDto>();
+			foreach (var picoc in elements)
+				dtos.Add(await BuildPicocElementDtoAsync(picoc));
+
+			return dtos;
+		}
+        
 		public async Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request)
 		{
 			var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == request.ResearchQuestionId);

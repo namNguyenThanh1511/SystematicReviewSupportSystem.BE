@@ -37,9 +37,11 @@ namespace SRSS.IAM.Services.CoreGovernService
 		Task<ResearchQuestionDetailResponse> UpdateResearchQuestionAsync(UpdateResearchQuestionRequest request);
 		Task DeleteResearchQuestionAsync(Guid id);
 
-		// PICOC (add / update / delete individual elements)
+		// PICOC (add / update / delete / get individual elements)
 		Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request);
 		Task<PicocElementDto> UpdatePicocElementAsync(UpdatePicocElementRequest request);
 		Task DeletePicocElementAsync(Guid picocElementId);
+		Task<PicocElementDto> GetPicocElementByIdAsync(Guid picocElementId);
+		Task<IEnumerable<PicocElementDto>> GetPicocElementsByResearchQuestionIdAsync(Guid researchQuestionId);
 	}
 }

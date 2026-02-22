@@ -275,6 +275,27 @@ namespace SRSS.IAM.API.Controllers
 		// ══════════════════════════ PICOC Elements ════════════════════════════
 
 		/// <summary>
+		/// Lấy PICOC element theo ID kèm child detail
+		/// </summary>
+		[HttpGet("picoc-elements/{id}")]
+		public async Task<ActionResult<ApiResponse<PicocElementDto>>> GetPicocElementById(Guid id)
+		{
+			var result = await _coreGovernService.GetPicocElementByIdAsync(id);
+			return Ok(result, "Lấy PICOC element thành công.");
+		}
+
+		/// <summary>
+		/// Lấy toàn bộ PICOC elements của một research question
+		/// </summary>
+		[HttpGet("picoc-elements/research-question/{researchQuestionId}")]
+		public async Task<ActionResult<ApiResponse<IEnumerable<PicocElementDto>>>> GetPicocElementsByResearchQuestion(
+			Guid researchQuestionId)
+		{
+			var result = await _coreGovernService.GetPicocElementsByResearchQuestionIdAsync(researchQuestionId);
+			return Ok(result, "Lấy danh sách PICOC elements thành công.");
+		}
+
+		/// <summary>
 		/// Thêm PICOC element vào research question
 		/// </summary>
 		[HttpPost("picoc-elements")]

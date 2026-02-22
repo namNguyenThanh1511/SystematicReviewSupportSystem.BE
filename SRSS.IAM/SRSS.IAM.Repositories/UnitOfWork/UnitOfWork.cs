@@ -6,6 +6,7 @@ using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.SearchExecutionRepo;
+using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
 using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
@@ -30,6 +31,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IDbContextTransaction? _currentTransaction;
 		private IUserRepository _users;
 		private ISystematicReviewProjectRepository _systematicReviewProjects;
+		// Core Governance
+		private IReviewNeedRepository? _reviewNeeds;
+		private ICommissioningDocumentRepository? _commissioningDocuments;
+		private IReviewObjectiveRepository? _reviewObjectives;
+		private IQuestionTypeRepository? _questionTypes;
 		private IReviewProcessRepository _reviewProcesses;
 		private IIdentificationProcessRepository _identificationProcesses;
 		private ISearchExecutionRepository _searchExecutions;
@@ -131,6 +137,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         }
 
 		public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+
+		// Core Governance
+		public IReviewNeedRepository ReviewNeeds => _reviewNeeds ??= new ReviewNeedRepository(_dbContext);
+		public ICommissioningDocumentRepository CommissioningDocuments => _commissioningDocuments ??= new CommissioningDocumentRepository(_dbContext);
+		public IReviewObjectiveRepository ReviewObjectives => _reviewObjectives ??= new ReviewObjectiveRepository(_dbContext);
+		public IQuestionTypeRepository QuestionTypes => _questionTypes ??= new QuestionTypeRepository(_dbContext);
 
 		// Protocol
 		public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);

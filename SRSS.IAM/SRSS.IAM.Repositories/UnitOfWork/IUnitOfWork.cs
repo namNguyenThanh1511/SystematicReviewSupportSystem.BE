@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
+using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
 using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
@@ -30,6 +31,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         Task CommitTransactionAsync(CancellationToken cancellationToken = default);
         Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
         IUserRepository Users { get; }
+
+		// Core Governance
+		IReviewNeedRepository ReviewNeeds { get; }
+		ICommissioningDocumentRepository CommissioningDocuments { get; }
+		IReviewObjectiveRepository ReviewObjectives { get; }
+		IQuestionTypeRepository QuestionTypes { get; }
 
 		// Protocol
 		IReviewProtocolRepository Protocols { get; }

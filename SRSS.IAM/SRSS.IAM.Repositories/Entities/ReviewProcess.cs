@@ -5,6 +5,7 @@ namespace SRSS.IAM.Repositories.Entities
     public class ReviewProcess : BaseEntity<Guid>
     {
         public Guid ProjectId { get; set; }
+        public string Name { get; set; } = string.Empty;
         public ProcessStatus Status { get; set; } = ProcessStatus.Pending;
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }

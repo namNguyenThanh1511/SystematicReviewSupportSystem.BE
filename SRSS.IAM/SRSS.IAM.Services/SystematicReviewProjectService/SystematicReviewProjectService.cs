@@ -249,6 +249,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 ReviewProcesses = project.ReviewProcesses.Select(p => new DTOs.ReviewProcess.ReviewProcessResponse
                 {
                     Id = p.Id,
+                    Name = p.Name,
                     ProjectId = p.ProjectId,
                     Status = p.Status,
                     StatusText = p.Status.ToString(),

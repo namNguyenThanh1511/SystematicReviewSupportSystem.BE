@@ -54,6 +54,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
     public class ReviewProcessSummaryDto
     {
         public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
         public ProcessStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         public ProcessPhase CurrentPhase { get; set; }

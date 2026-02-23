@@ -26,8 +26,11 @@ namespace SRSS.IAM.API
             builder.Services.ConfigureJWT(config);
             builder.Services.ConfigureGlobalException();
 
-            // Configure logging (Console + Debug)
-            builder.Logging.ClearProviders();
+			// Add CORS policy to allow all origins (for development/testing purposes)
+			builder.Services.AddCorsPolicy("AllowAll");
+
+			// Configure logging (Console + Debug)
+			builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
             builder.Logging.AddDebug();
 
@@ -105,8 +108,9 @@ namespace SRSS.IAM.API
             });
 
             app.UseSwaggerUI();
+            app.UseCors("AllowAll");
 
-            app.UseHttpsRedirection();
+			app.UseHttpsRedirection();
             app.UseAuthorization();// vì gateway xử lý authen rồi nên ở đây chỉ cần autho
             app.UseExceptionHandler();
 

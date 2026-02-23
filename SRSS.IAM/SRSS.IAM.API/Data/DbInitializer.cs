@@ -27,19 +27,31 @@ namespace SRSS.IAM.API.Data
                 return;
             }
 
-            var project = new SystematicReviewProject
-            {
-                Id = Guid.NewGuid(),
-                Title = "AI-based Human Activity Recognition",
-                Domain = "Computer Science",
-                Description = "Systematic review of AI-based HAR approaches using deep learning and machine learning techniques",
-                Status = ProjectStatus.Active,
-                StartDate = DateTimeOffset.UtcNow,
-                CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
-            };
+            var projects = new List<SystematicReviewProject> {
+                new SystematicReviewProject{
+                    Id = Guid.NewGuid(),
+                    Title = "AI-based Human Activity Recognition",
+                    Domain = "Computer Science",
+                    Description = "Systematic review of AI-based HAR approaches using deep learning and machine learning techniques",
+                    Status = ProjectStatus.Active,
+                    StartDate = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                },
+				new SystematicReviewProject{
+					Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+					Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+					Domain = "Science Education",
+					Description = "A systematic literature review investigating definitions, strategies, and research trends related to empowering scientific literacy among science teachers.",
+					Status = ProjectStatus.Completed,
+					StartDate = DateTimeOffset.UtcNow,
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+				},
 
-            await context.SystematicReviewProjects.AddAsync(project);
+			};
+
+            await context.SystematicReviewProjects.AddRangeAsync(projects);
             await context.SaveChangesAsync();
         }
 

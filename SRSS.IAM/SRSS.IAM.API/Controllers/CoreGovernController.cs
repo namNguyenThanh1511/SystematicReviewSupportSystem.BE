@@ -249,6 +249,26 @@ namespace SRSS.IAM.API.Controllers
 		// ══════════════════════════ ResearchQuestion ═════════════════════════
 
 		/// <summary>
+		/// Lấy research question theo ID kèm QuestionType và toàn bộ PICOC elements
+		/// </summary>
+		[HttpGet("research-questions/{id}")]
+		public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> GetResearchQuestionById(Guid id)
+		{
+			var result = await _coreGovernService.GetResearchQuestionByIdAsync(id);
+			return Ok(result, "Lấy research question thành công.");
+		}
+
+		/// <summary>
+		/// Lấy toàn bộ research questions của một project kèm QuestionType và PICOC elements
+		/// </summary>
+		[HttpGet("research-questions/project/{projectId}")]
+		public async Task<ActionResult<ApiResponse<IEnumerable<ResearchQuestionDetailResponse>>>> GetResearchQuestionsByProject(Guid projectId)
+		{
+			var result = await _coreGovernService.GetResearchQuestionsByProjectIdAsync(projectId);
+			return Ok(result, "Lấy danh sách research questions thành công.");
+		}
+
+		/// <summary>
 		/// Cập nhật nội dung research question (không bao gồm PICOC)
 		/// </summary>
 		[HttpPut("research-questions/{id}")]

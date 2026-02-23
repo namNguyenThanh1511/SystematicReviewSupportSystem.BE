@@ -224,6 +224,41 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		// ─────────────────────────── ResearchQuestion ──────────────────────
 
+		public async Task<ResearchQuestionDetailResponse> GetResearchQuestionByIdAsync(Guid id)
+		{
+			var exists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == id);
+			if (!exists)
+				throw new InvalidOperationException($"ResearchQuestion với ID {id} không tồn tại.");
+
+			return await BuildResearchQuestionResponseAsync(id);
+		}
+
+		public async Task<IEnumerable<ResearchQuestionDetailResponse>> GetResearchQuestionsByProjectIdAsync(Guid projectId)
+		{
+			var questions = await _unitOfWork.ResearchQuestions.GetByProjectIdWithDetailsAsync(projectId);
+
+			var results = new List<ResearchQuestionDetailResponse>();
+			foreach (var question in questions)
+			{
+				var picocDtos = new List<PicocElementDto>();
+				foreach (var picoc in question.PicocElements)
+					picocDtos.Add(await BuildPicocElementDtoAsync(picoc));
+
+				results.Add(new ResearchQuestionDetailResponse
+				{
+					ResearchQuestionId = question.Id,
+					ProjectId = question.ProjectId,
+					QuestionType = question.QuestionType.Name,
+					QuestionText = question.QuestionText,
+					Rationale = question.Rationale,
+					PicocElements = picocDtos,
+					CreatedAt = question.CreatedAt
+				});
+			}
+
+			return results;
+		}
+
 		public async Task<ResearchQuestionDetailResponse> UpdateResearchQuestionAsync(UpdateResearchQuestionRequest request)
 		{
 			var entity = await _unitOfWork.ResearchQuestions.GetByIdWithDetailsAsync(request.Id)

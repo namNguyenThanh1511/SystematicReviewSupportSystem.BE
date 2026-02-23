@@ -43,6 +43,11 @@ namespace SRSS.IAM.Services.ProtocolService
 
 		public async Task<ProtocolDetailResponse> CreateProtocolAsync(CreateProtocolRequest request)
 		{
+			var projectExists = await _unitOfWork.SystematicReviewProjects.AnyAsync(p => p.Id == request.ProjectId);
+			if (!projectExists)
+			{
+				throw new KeyNotFoundException($"Project với ID {request.ProjectId} không tồn tại");
+			}
 			var protocol = new ReviewProtocol
 			{
 				ProjectId = request.ProjectId,
@@ -62,6 +67,12 @@ namespace SRSS.IAM.Services.ProtocolService
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
 			return protocol.ToDetailResponse();  
+		}
+
+		public async Task<List<ProtocolDetailResponse>> GetProtocolsByProjectIdAsync(Guid projectId)
+		{
+			var protocols = await _unitOfWork.Protocols.GetByProjectIdAsync(projectId);
+			return protocols.Select(p => p.ToDetailResponse()).ToList();
 		}
 
 		public async Task<ProtocolDetailResponse> UpdateProtocolAsync(UpdateProtocolRequest request)

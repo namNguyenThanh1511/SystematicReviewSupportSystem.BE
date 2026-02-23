@@ -52,6 +52,16 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
+		/// Lấy tất cả protocols của một project
+		/// </summary>
+		[HttpGet("project/{projectId}")]
+		public async Task<ActionResult<ApiResponse<List<ProtocolDetailResponse>>>> GetProtocolsByProjectId(Guid projectId)
+		{
+			var result = await _protocolService.GetProtocolsByProjectIdAsync(projectId);
+			return Ok(result, "Lấy danh sách protocols thành công");
+		}
+
+		/// <summary>
 		/// Phê duyệt protocol
 		/// </summary>
 		[HttpPost("{protocolId}/approve")]

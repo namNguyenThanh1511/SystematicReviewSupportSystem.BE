@@ -18,6 +18,7 @@ namespace SRSS.IAM.API.Data
             await SeedSearchExecutionsAsync(context);
             await SeedImportBatchesAsync(context);
             await SeedPapersAsync(context);
+            await SeedCoreGovernanceAsync(context);
         }
 
         private static async Task SeedProjectsAsync(AppDbContext context)
@@ -269,6 +270,215 @@ namespace SRSS.IAM.API.Data
 
             await context.Papers.AddRangeAsync(papers);
             await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedCoreGovernanceAsync(AppDbContext context)
+        {
+            var project = await context.SystematicReviewProjects.FirstOrDefaultAsync();
+            if (project == null) return;
+
+            // ── ReviewNeed ──────────────────────────────────────────────────
+            if (!context.ReviewNeeds.Any())
+            {
+                var reviewNeeds = new List<ReviewNeed>
+                {
+                    new ReviewNeed
+                    {
+                        Id = Guid.NewGuid(),
+                        ProjectId = project.Id,
+                        Description = "Systematic review needed to evaluate deep learning approaches for human activity recognition using wearable sensors",
+                        Justification = "Current literature lacks a comprehensive comparison of DL architectures under real-world conditions with limited labelled data",
+                        IdentifiedBy = "Dr. Nguyen",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    },
+                    new ReviewNeed
+                    {
+                        Id = Guid.NewGuid(),
+                        ProjectId = project.Id,
+                        Description = "Evidence synthesis required on transfer learning effectiveness for cross-subject HAR generalisation",
+                        Justification = "Inconsistent findings across studies motivate a pooled analysis to guide future model selection",
+                        IdentifiedBy = "Research Team",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    }
+                };
+
+                await context.ReviewNeeds.AddRangeAsync(reviewNeeds);
+                await context.SaveChangesAsync();
+            }
+
+            // ── CommissioningDocument ────────────────────────────────────────
+            if (!context.CommissioningDocuments.Any())
+            {
+                var commissioningDocument = new CommissioningDocument
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = project.Id,
+                    Sponsor = "Vietnam National University – Ho Chi Minh City",
+                    Scope = "Review covers deep learning and traditional ML methods applied to HAR using inertial measurement unit (IMU) and camera-based sensors, published 2015–2025",
+                    Budget = 15000.00m,
+                    DocumentUrl = "https://internal.vnuhcm.edu.vn/docs/slr-har-commission-2025.pdf",
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await context.CommissioningDocuments.AddAsync(commissioningDocument);
+                await context.SaveChangesAsync();
+            }
+
+            // ── ReviewObjective ──────────────────────────────────────────────
+            if (!context.ReviewObjectives.Any())
+            {
+                var reviewObjectives = new List<ReviewObjective>
+                {
+                    new ReviewObjective
+                    {
+                        Id = Guid.NewGuid(),
+                        ProjectId = project.Id,
+                        ObjectiveStatement = "To identify and compare deep learning architectures used for human activity recognition with wearable sensor data, assessing their accuracy, computational cost, and generalisation capability",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    },
+                    new ReviewObjective
+                    {
+                        Id = Guid.NewGuid(),
+                        ProjectId = project.Id,
+                        ObjectiveStatement = "To evaluate the impact of data augmentation and transfer learning strategies on HAR model performance across different subject populations",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    }
+                };
+
+                await context.ReviewObjectives.AddRangeAsync(reviewObjectives);
+                await context.SaveChangesAsync();
+            }
+
+            // ── QuestionType ─────────────────────────────────────────────────
+            if (!context.QuestionTypes.Any())
+            {
+                var questionTypes = new List<QuestionType>
+                {
+                    new QuestionType
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "PICOC",
+                        Description = "Population, Intervention, Comparison, Outcome, Context – standard SLR question framework",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    },
+                    new QuestionType
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "PICO",
+                        Description = "Population, Intervention, Comparison, Outcome – clinical research question framework without explicit context",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    },
+                    new QuestionType
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = "GQM",
+                        Description = "Goal, Question, Metric – software engineering measurement framework",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    }
+                };
+
+                await context.QuestionTypes.AddRangeAsync(questionTypes);
+                await context.SaveChangesAsync();
+            }
+
+            // ── ResearchQuestion + PICOC ─────────────────────────────────────
+            if (!context.ResearchQuestions.Any())
+            {
+                var picocType = await context.QuestionTypes.FirstOrDefaultAsync(q => q.Name == "PICOC");
+                if (picocType == null) return;
+
+                var rq1Id = Guid.NewGuid();
+                var rq2Id = Guid.NewGuid();
+
+                var researchQuestions = new List<ResearchQuestion>
+                {
+                    new ResearchQuestion
+                    {
+                        Id = rq1Id,
+                        ProjectId = project.Id,
+                        QuestionTypeId = picocType.Id,
+                        QuestionText = "What deep learning approaches are most effective for human activity recognition using wearable sensors in terms of accuracy and computational efficiency?",
+                        Rationale = "Understanding the performance trade-offs of different DL architectures will guide practitioners in selecting appropriate models for resource-constrained devices",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    },
+                    new ResearchQuestion
+                    {
+                        Id = rq2Id,
+                        ProjectId = project.Id,
+                        QuestionTypeId = picocType.Id,
+                        QuestionText = "How does transfer learning affect the generalisation of HAR models across different subjects and activity sets?",
+                        Rationale = "Cross-subject generalisation is a known bottleneck; synthesising transfer learning evidence will inform future benchmark design",
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    }
+                };
+
+                await context.ResearchQuestions.AddRangeAsync(researchQuestions);
+                await context.SaveChangesAsync();
+
+                // ── PicocElements for RQ1 ────────────────────────────────────
+                var picoc1PopId = Guid.NewGuid();
+                var picoc1InvId = Guid.NewGuid();
+                var picoc1CmpId = Guid.NewGuid();
+                var picoc1OutId = Guid.NewGuid();
+                var picoc1CtxId = Guid.NewGuid();
+
+                var picocElementsRq1 = new List<PicocElement>
+                {
+                    new PicocElement { Id = picoc1PopId, ResearchQuestionId = rq1Id, ElementType = "Population",     Description = "Adults performing daily living activities monitored by wearable IMU sensors", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc1InvId, ResearchQuestionId = rq1Id, ElementType = "Intervention",   Description = "Deep learning models (CNN, LSTM, Transformer) applied to raw sensor time-series data", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc1CmpId, ResearchQuestionId = rq1Id, ElementType = "Comparison",     Description = "Traditional machine learning classifiers (SVM, Random Forest, k-NN)", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc1OutId, ResearchQuestionId = rq1Id, ElementType = "Outcome",        Description = "Recognition accuracy (F1-score), inference latency, and model size on benchmark datasets", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc1CtxId, ResearchQuestionId = rq1Id, ElementType = "Context",        Description = "Controlled laboratory and free-living environments using publicly available HAR datasets", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                };
+
+                await context.PicocElements.AddRangeAsync(picocElementsRq1);
+                await context.SaveChangesAsync();
+
+                // child detail rows for RQ1 PICOC elements
+                await context.Populations.AddAsync(new Population   { Id = Guid.NewGuid(), PicocId = picoc1PopId, Description = "Healthy adults (18–65 years) in both controlled-lab and free-living settings", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Interventions.AddAsync(new Intervention { Id = Guid.NewGuid(), PicocId = picoc1InvId, Description = "End-to-end deep learning pipelines trained on windowed accelerometer/gyroscope data", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Comparisons.AddAsync(new Comparison    { Id = Guid.NewGuid(), PicocId = picoc1CmpId, Description = "Hand-crafted feature extraction followed by classical ML classifiers", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Outcomes.AddAsync(new Outcome          { Id = Guid.NewGuid(), PicocId = picoc1OutId, Metric = "F1-score, Accuracy, Inference Time (ms)", Description = "Per-activity and macro-average F1-score on UCI HAR, OPPORTUNITY, and PAMAP2 datasets", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Contexts.AddAsync(new Context          { Id = Guid.NewGuid(), PicocId = picoc1CtxId, Environment = "Laboratory and free-living", Description = "Studies published in English in peer-reviewed venues between 2015 and 2025", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.SaveChangesAsync();
+
+                // ── PicocElements for RQ2 ────────────────────────────────────
+                var picoc2PopId = Guid.NewGuid();
+                var picoc2InvId = Guid.NewGuid();
+                var picoc2CmpId = Guid.NewGuid();
+                var picoc2OutId = Guid.NewGuid();
+                var picoc2CtxId = Guid.NewGuid();
+
+                var picocElementsRq2 = new List<PicocElement>
+                {
+                    new PicocElement { Id = picoc2PopId, ResearchQuestionId = rq2Id, ElementType = "Population",     Description = "Heterogeneous subject groups across age, fitness level, and activity repertoire", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc2InvId, ResearchQuestionId = rq2Id, ElementType = "Intervention",   Description = "Pre-trained deep learning models fine-tuned on target subject data (transfer learning)", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc2CmpId, ResearchQuestionId = rq2Id, ElementType = "Comparison",     Description = "Models trained from scratch on target subject data without pre-training", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc2OutId, ResearchQuestionId = rq2Id, ElementType = "Outcome",        Description = "Cross-subject accuracy improvement and training data reduction achieved by transfer learning", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new PicocElement { Id = picoc2CtxId, ResearchQuestionId = rq2Id, ElementType = "Context",        Description = "Subject-independent and leave-one-subject-out evaluation protocols", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                };
+
+                await context.PicocElements.AddRangeAsync(picocElementsRq2);
+                await context.SaveChangesAsync();
+
+                // child detail rows for RQ2 PICOC elements
+                await context.Populations.AddAsync(new Population    { Id = Guid.NewGuid(), PicocId = picoc2PopId, Description = "Subjects with varying demographics in leave-one-subject-out cross-validation splits", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Interventions.AddAsync(new Intervention { Id = Guid.NewGuid(), PicocId = picoc2InvId, Description = "Domain adaptation and fine-tuning strategies using source-domain pre-trained weights", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Comparisons.AddAsync(new Comparison     { Id = Guid.NewGuid(), PicocId = picoc2CmpId, Description = "Baseline models trained exclusively on target subject data", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Outcomes.AddAsync(new Outcome           { Id = Guid.NewGuid(), PicocId = picoc2OutId, Metric = "Accuracy gain (%), Required labelled samples", Description = "Reduction in labelled training samples required to match scratch-trained model accuracy", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.Contexts.AddAsync(new Context           { Id = Guid.NewGuid(), PicocId = picoc2CtxId, Environment = "Cross-subject evaluation", Description = "HAR datasets supporting subject-independent splits: NTU RGB+D, PAMAP2, OPPORTUNITY", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

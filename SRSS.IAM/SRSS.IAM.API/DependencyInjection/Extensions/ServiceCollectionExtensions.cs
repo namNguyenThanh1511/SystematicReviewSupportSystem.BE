@@ -27,6 +27,7 @@ using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using System.Text;
 using SRSS.IAM.API.Data;
+using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -49,6 +50,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // Planning Phase
+			services.AddScoped<ICoreGovernService, CoreGovernService>();
 			services.AddScoped<IProtocolService, ProtocolService>();
 			services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
 			services.AddScoped<ISearchStrategyService, SearchStrategyService>();

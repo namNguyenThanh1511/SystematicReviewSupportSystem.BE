@@ -11,6 +11,7 @@ namespace SRSS.IAM.Repositories.ResearchQuestionRepo
 
 	public interface IPicocElementRepository : IGenericRepository<PicocElement, Guid, AppDbContext>
 	{
+		Task<PicocElement?> GetByIdWithChildrenAsync(Guid picocId, CancellationToken cancellationToken = default);
 		Task<IEnumerable<PicocElement>> GetByResearchQuestionIdAsync(Guid questionId, CancellationToken cancellationToken = default);
 	}
 

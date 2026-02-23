@@ -1,5 +1,6 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.CoreGovern;
+using SRSS.IAM.Services.DTOs.ResearchQuestion;
 
 namespace SRSS.IAM.Services.Mappers
 {
@@ -107,6 +108,42 @@ namespace SRSS.IAM.Services.Mappers
 			Description = e.Description,
 			CreatedAt = e.CreatedAt,
 			ModifiedAt = e.ModifiedAt
+		};
+
+		// ══════════════════════════ PicocElement ════════════════════════════
+
+		public static PicocElementDto ToResponse(this PicocElement picoc)
+		{
+			object? specificDetail = picoc.ElementType switch
+			{
+				"Population" => picoc.Population != null ? new { picoc.Population.Description } : null,
+				"Intervention" => picoc.Intervention != null ? new { picoc.Intervention.Description } : null,
+				"Comparison" => picoc.Comparison != null ? new { picoc.Comparison.Description } : null,
+				"Outcome" => picoc.Outcome != null ? new { picoc.Outcome.Metric, picoc.Outcome.Description } : null,
+				"Context" => picoc.Context != null ? new { picoc.Context.Environment, picoc.Context.Description } : null,
+				_ => null
+			};
+
+			return new PicocElementDto
+			{
+				PicocId = picoc.Id,
+				ElementType = picoc.ElementType,
+				Description = picoc.Description,
+				SpecificDetail = specificDetail
+			};
+		}
+
+		// ══════════════════════════ ResearchQuestion ════════════════════════
+
+		public static ResearchQuestionDetailResponse ToResponse(this ResearchQuestion question) => new()
+		{
+			ResearchQuestionId = question.Id,
+			ProjectId = question.ProjectId,
+			QuestionType = question.QuestionType.Name,
+			QuestionText = question.QuestionText,
+			Rationale = question.Rationale,
+			PicocElements = question.PicocElements.Select(p => p.ToResponse()).ToList(),
+			CreatedAt = question.CreatedAt
 		};
 	}
 }

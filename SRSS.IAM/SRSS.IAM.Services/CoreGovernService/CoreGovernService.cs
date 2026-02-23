@@ -236,27 +236,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		public async Task<IEnumerable<ResearchQuestionDetailResponse>> GetResearchQuestionsByProjectIdAsync(Guid projectId)
 		{
 			var questions = await _unitOfWork.ResearchQuestions.GetByProjectIdWithDetailsAsync(projectId);
-
-			var results = new List<ResearchQuestionDetailResponse>();
-			foreach (var question in questions)
-			{
-				var picocDtos = new List<PicocElementDto>();
-				foreach (var picoc in question.PicocElements)
-					picocDtos.Add(await BuildPicocElementDtoAsync(picoc));
-
-				results.Add(new ResearchQuestionDetailResponse
-				{
-					ResearchQuestionId = question.Id,
-					ProjectId = question.ProjectId,
-					QuestionType = question.QuestionType.Name,
-					QuestionText = question.QuestionText,
-					Rationale = question.Rationale,
-					PicocElements = picocDtos,
-					CreatedAt = question.CreatedAt
-				});
-			}
-
-			return results;
+			// Map all question in the list to responseDTO
+			return questions.Select(q => q.ToResponse()).ToList();
 		}
 
 		public async Task<ResearchQuestionDetailResponse> UpdateResearchQuestionAsync(UpdateResearchQuestionRequest request)
@@ -291,10 +272,10 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<PicocElementDto> GetPicocElementByIdAsync(Guid picocElementId)
 		{
-			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == picocElementId, isTracking: false)
+			var picoc = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picocElementId)
 				?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
 
-			return await BuildPicocElementDtoAsync(picoc);
+			return picoc.ToResponse();
 		}
 
 		public async Task<IEnumerable<PicocElementDto>> GetPicocElementsByResearchQuestionIdAsync(Guid researchQuestionId)
@@ -304,14 +285,10 @@ namespace SRSS.IAM.Services.CoreGovernService
 				throw new InvalidOperationException($"ResearchQuestion với ID {researchQuestionId} không tồn tại.");
 
 			var elements = await _unitOfWork.PicocElements.GetByResearchQuestionIdAsync(researchQuestionId);
-
-			var dtos = new List<PicocElementDto>();
-			foreach (var picoc in elements)
-				dtos.Add(await BuildPicocElementDtoAsync(picoc));
-
-			return dtos;
+			// Map all element in the list to responseDTO
+			return elements.Select(p => p.ToResponse()).ToList();
 		}
-        
+
 		public async Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request)
 		{
 			var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == request.ResearchQuestionId);
@@ -337,7 +314,9 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 			await _unitOfWork.SaveChangesAsync();
 
-			return await BuildPicocElementDtoAsync(picoc);
+			var created = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
+				?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi tạo.");
+			return created.ToResponse();
 		}
 
 		public async Task<PicocElementDto> UpdatePicocElementAsync(UpdatePicocElementRequest request)
@@ -357,7 +336,9 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 			await _unitOfWork.SaveChangesAsync();
 
-			return await BuildPicocElementDtoAsync(picoc);
+			var updated = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
+				?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi cập nhật.");
+			return updated.ToResponse();
 		}
 
 		public async Task DeletePicocElementAsync(Guid picocElementId)
@@ -453,46 +434,7 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var question = await _unitOfWork.ResearchQuestions.GetByIdWithDetailsAsync(questionId)
 				?? throw new InvalidOperationException($"ResearchQuestion {questionId} không tồn tại.");
 
-			var picocDtos = new List<PicocElementDto>();
-			foreach (var picoc in question.PicocElements)
-				picocDtos.Add(await BuildPicocElementDtoAsync(picoc));
-
-			return new ResearchQuestionDetailResponse
-			{
-				ResearchQuestionId = question.Id,
-				ProjectId = question.ProjectId,
-				QuestionType = question.QuestionType.Name,
-				QuestionText = question.QuestionText,
-				Rationale = question.Rationale,
-				PicocElements = picocDtos,
-				CreatedAt = question.CreatedAt
-			};
-		}
-
-		private async Task<PicocElementDto> BuildPicocElementDtoAsync(PicocElement picoc)
-		{
-			object? specificDetail = picoc.ElementType switch
-			{
-				"Population" => await _unitOfWork.Populations.GetByPicocIdAsync(picoc.Id) is var p && p != null
-					? new { p.Description } : null,
-				"Intervention" => await _unitOfWork.Interventions.GetByPicocIdAsync(picoc.Id) is var i && i != null
-					? new { i.Description } : null,
-				"Comparison" => await _unitOfWork.Comparisons.GetByPicocIdAsync(picoc.Id) is var c && c != null
-					? new { c.Description } : null,
-				"Outcome" => await _unitOfWork.Outcomes.GetByPicocIdAsync(picoc.Id) is var o && o != null
-					? new { o.Metric, o.Description } : null,
-				"Context" => await _unitOfWork.Contexts.GetByPicocIdAsync(picoc.Id) is var ctx && ctx != null
-					? new { ctx.Environment, ctx.Description } : null,
-				_ => null
-			};
-
-			return new PicocElementDto
-			{
-				PicocId = picoc.Id,
-				ElementType = picoc.ElementType,
-				Description = picoc.Description,
-				SpecificDetail = specificDetail
-			};
+			return question.ToResponse();
 		}
 	}
 }

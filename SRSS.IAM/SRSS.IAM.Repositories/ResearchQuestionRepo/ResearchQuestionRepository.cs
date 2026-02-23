@@ -13,6 +13,15 @@ namespace SRSS.IAM.Repositories.ResearchQuestionRepo
 			return await _context.ResearchQuestions
 				.Include(q => q.QuestionType)
 				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Population)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Intervention)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Comparison)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Outcome)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Context)
 				.AsNoTracking()
 				.FirstOrDefaultAsync(q => q.Id == questionId, cancellationToken);
 		}
@@ -22,6 +31,15 @@ namespace SRSS.IAM.Repositories.ResearchQuestionRepo
 			return await _context.ResearchQuestions
 				.Include(q => q.QuestionType)
 				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Population)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Intervention)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Comparison)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Outcome)
+				.Include(q => q.PicocElements)
+					.ThenInclude(p => p.Context)
 				.AsNoTracking()
 				.Where(q => q.ProjectId == projectId)
 				.ToListAsync(cancellationToken);
@@ -32,9 +50,29 @@ namespace SRSS.IAM.Repositories.ResearchQuestionRepo
 	{
 		public PicocElementRepository(AppDbContext context) : base(context) { }
 
+		public async Task<PicocElement?> GetByIdWithChildrenAsync(Guid picocId, CancellationToken cancellationToken = default)
+		{
+			return await _context.PicocElements
+				.Include(p => p.Population)
+				.Include(p => p.Intervention)
+				.Include(p => p.Comparison)
+				.Include(p => p.Outcome)
+				.Include(p => p.Context)
+				.AsNoTracking()
+				.FirstOrDefaultAsync(p => p.Id == picocId, cancellationToken);
+		}
+
 		public async Task<IEnumerable<PicocElement>> GetByResearchQuestionIdAsync(Guid questionId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(p => p.ResearchQuestionId == questionId, isTracking: false, cancellationToken);
+			return await _context.PicocElements
+				.Include(p => p.Population)
+				.Include(p => p.Intervention)
+				.Include(p => p.Comparison)
+				.Include(p => p.Outcome)
+				.Include(p => p.Context)
+				.AsNoTracking()
+				.Where(p => p.ResearchQuestionId == questionId)
+				.ToListAsync(cancellationToken);
 		}
 	}
 

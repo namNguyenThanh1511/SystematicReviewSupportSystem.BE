@@ -22,6 +22,9 @@ namespace SRSS.IAM.Services.DTOs.ResearchQuestion
 		public Guid PicocId { get; set; }
 		public string ElementType { get; set; } = string.Empty;
 		public string Description { get; set; } = string.Empty;
-		public object? SpecificDetail { get; set; }
+        /// <summary>
+        /// General object to hold Population/Intervention/Comparison/Outcome/Context
+        /// </summary>
+        public object? SpecificDetail { get; set; }
 	}
 }

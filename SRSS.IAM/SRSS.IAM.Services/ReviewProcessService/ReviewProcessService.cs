@@ -235,6 +235,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return new ReviewProcessResponse
             {
                 Id = reviewProcess.Id,
+                Name = reviewProcess.Name,
                 ProjectId = reviewProcess.ProjectId,
                 Status = reviewProcess.Status,
                 StatusText = reviewProcess.Status.ToString(),

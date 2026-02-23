@@ -12,12 +12,14 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
     public class UpdateReviewProcessRequest
     {
         public Guid Id { get; set; }
+        public string? Name { get; set; }
         public string? Notes { get; set; }
     }
 
     public class ReviewProcessResponse
     {
         public Guid Id { get; set; }
+        public string Name { get; set; }
         public Guid ProjectId { get; set; }
         public ProcessStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;

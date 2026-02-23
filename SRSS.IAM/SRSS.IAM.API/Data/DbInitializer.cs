@@ -127,6 +127,7 @@ namespace SRSS.IAM.API.Data
             var reviewProcess = new ReviewProcess
             {
                 Id = HarReviewProcessId,
+                Name = "HAR Systematic Review Process",
                 ProjectId = HarProjectId,
                 CurrentPhase = ProcessPhase.Identification,
                 Status = ProcessStatus.InProgress,

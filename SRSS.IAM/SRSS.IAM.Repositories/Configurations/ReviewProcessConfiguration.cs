@@ -16,6 +16,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("id")
                 .IsRequired();
 
+            builder.Property(rp => rp.Name)
+                .HasColumnName("name")
+                .HasMaxLength(255)
+                .IsRequired();
+
             builder.Property(rp => rp.ProjectId)
                 .HasColumnName("project_id")
                 .IsRequired();

@@ -70,6 +70,16 @@ namespace SRSS.IAM.API.Controllers
 			await _protocolService.ApproveProtocolAsync(protocolId, request.ReviewerId);
 			return Ok("Phê duyệt protocol thành công");
 		}
+
+		/// <summary>
+		/// Xóa protocol và tất cả dữ liệu liên quan (cascade delete)
+		/// </summary>
+		[HttpDelete("{protocolId}")]
+		public async Task<ActionResult<ApiResponse>> DeleteProtocol(Guid protocolId)
+		{
+			await _protocolService.DeleteProtocolAsync(protocolId);
+			return Ok("Xóa protocol thành công");
+		}
 	}
 
 	public class ApproveProtocolRequest

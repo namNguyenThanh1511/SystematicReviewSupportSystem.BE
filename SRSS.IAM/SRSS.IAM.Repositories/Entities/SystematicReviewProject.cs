@@ -18,13 +18,13 @@ namespace SRSS.IAM.Repositories.Entities
 
         public Guid OwnerId { get; set; }
 
-		// Navigation Properties
-		public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
-		public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
-		public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
-		public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
-		public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
-		public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
+        // Navigation Properties
+        public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
+        public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
+        public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
+        public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
+        public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
+        public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
 
@@ -112,6 +112,8 @@ namespace SRSS.IAM.Repositories.Entities
 
             return !ReviewProcesses.Any(rp => rp.Status == ProcessStatus.InProgress);
         }
+
+        public ICollection<ProjectMember> ProjectMembers { get; set; } = new List<ProjectMember>();
     }
 
     public enum ProjectStatus
@@ -119,6 +121,6 @@ namespace SRSS.IAM.Repositories.Entities
         Draft = 0,
         Active = 1,
         Completed = 2,
-        Archived = 3		
+        Archived = 3
     }
 }

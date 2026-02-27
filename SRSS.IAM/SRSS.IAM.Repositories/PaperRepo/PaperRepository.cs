@@ -111,5 +111,56 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
             return (papers, deduplicationResults, totalCount);
         }
+
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific identification process.
+        /// Papers linked via ImportBatch → SearchExecution → IdentificationProcess
+        /// that have NO deduplication results for this process.
+        /// </summary>
+        public async Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Where(p =>
+                    p.ImportBatch != null &&
+                    p.ImportBatch.SearchExecution != null &&
+                    p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
+                    !p.DuplicateResults.Any(dr =>
+                        dr.IdentificationProcessId == identificationProcessId));
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(p =>
+                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply year filter
+            if (year.HasValue)
+            {
+                query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply ordering and pagination
+            var papers = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
     }
 }

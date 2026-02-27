@@ -115,6 +115,262 @@ namespace SRSS.IAM.Services.IdentificationService
             return MapToIdentificationProcessResponse(identificationProcess);
         }
 
+        public async Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
+                se => se.IdentificationProcessId == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
+
+            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+                cancellationToken: cancellationToken);
+
+            var importBatchList = allImportBatches.ToList();
+            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
+            var duplicateRecords = 0;
+            var uniqueRecords = totalRecordsImported - duplicateRecords;
+
+            return new PrismaStatisticsResponse
+            {
+                TotalRecordsImported = totalRecordsImported,
+                DuplicateRecords = duplicateRecords,
+                UniqueRecords = uniqueRecords,
+                ImportBatchCount = importBatchList.Count
+            };
+        }
+
+        public async Task<ImportBatchResponse> CreateImportBatchAsync(
+            CreateImportBatchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var searchExecution = await _unitOfWork.SearchExecutions.FindSingleAsync(
+                se => se.Id == request.SearchExecutionId,
+                isTracking: true,
+                cancellationToken);
+
+            if (searchExecution == null)
+            {
+                throw new InvalidOperationException($"SearchExecution with ID {request.SearchExecutionId} not found.");
+            }
+
+            var importBatch = new ImportBatch
+            {
+                Id = Guid.NewGuid(),
+                SearchExecutionId = request.SearchExecutionId,
+                FileName = request.FileName,
+                FileType = request.FileType,
+                Source = request.Source,
+                TotalRecords = request.TotalRecords,
+                ImportedBy = request.ImportedBy,
+                ImportedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            };
+
+            await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToImportBatchResponse(importBatch);
+        }
+
+        public async Task<ImportBatchResponse> GetImportBatchByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var importBatch = await _unitOfWork.ImportBatches.FindSingleAsync(
+                ib => ib.Id == id,
+                cancellationToken: cancellationToken);
+
+            if (importBatch == null)
+            {
+                throw new NotFoundException("ImportBatch not found.");
+            }
+
+            return MapToImportBatchResponse(importBatch);
+        }
+
+        public async Task<List<ImportBatchResponse>> GetImportBatchesBySearchExecutionIdAsync(
+            Guid searchExecutionId,
+            CancellationToken cancellationToken = default)
+        {
+            var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId == searchExecutionId,
+                cancellationToken: cancellationToken);
+
+            return importBatches.Select(MapToImportBatchResponse).ToList();
+        }
+
+        public async Task<List<ImportBatchResponse>> GetImportBatchesByIdentificationProcessIdAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
+                se => se.IdentificationProcessId == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
+
+            var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+                cancellationToken: cancellationToken);
+
+            return importBatches.Select(MapToImportBatchResponse).ToList();
+        }
+
+        public async Task<ImportBatchResponse> UpdateImportBatchAsync(
+            UpdateImportBatchRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var importBatch = await _unitOfWork.ImportBatches.FindSingleAsync(
+                ib => ib.Id == request.Id,
+                isTracking: true,
+                cancellationToken);
+
+            if (importBatch == null)
+            {
+                throw new InvalidOperationException($"ImportBatch with ID {request.Id} not found.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.FileName))
+            {
+                importBatch.FileName = request.FileName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.FileType))
+            {
+                importBatch.FileType = request.FileType;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Source))
+            {
+                importBatch.Source = request.Source;
+            }
+
+            if (request.TotalRecords.HasValue)
+            {
+                importBatch.TotalRecords = request.TotalRecords.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.ImportedBy))
+            {
+                importBatch.ImportedBy = request.ImportedBy;
+            }
+
+            importBatch.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToImportBatchResponse(importBatch);
+        }
+
+        public async Task<bool> DeleteImportBatchAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var importBatch = await _unitOfWork.ImportBatches.FindSingleAsync(
+                ib => ib.Id == id,
+                cancellationToken: cancellationToken);
+
+            if (importBatch == null)
+            {
+                throw new NotFoundException("ImportBatch not found.");
+            }
+
+            await _unitOfWork.ImportBatches.RemoveAsync(importBatch, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return true;
+        }
+
+        public async Task<List<DTOs.Paper.PaperResponse>> GetPapersByImportBatchIdAsync(
+            Guid importBatchId,
+            CancellationToken cancellationToken = default)
+        {
+            var importBatch = await _unitOfWork.ImportBatches.FindSingleAsync(
+                ib => ib.Id == importBatchId,
+                cancellationToken: cancellationToken);
+
+            if (importBatch == null)
+            {
+                throw new NotFoundException($"ImportBatch with ID {importBatchId} not found.");
+            }
+
+            var papers = await _unitOfWork.Papers.FindAllAsync(
+                p => p.ImportBatchId == importBatchId,
+                cancellationToken: cancellationToken);
+
+            return papers.Select(MapToPaperResponse).ToList();
+        }
+
+        private static DTOs.Paper.PaperResponse MapToPaperResponse(Paper paper)
+        {
+            return new DTOs.Paper.PaperResponse
+            {
+                Id = paper.Id,
+                Title = paper.Title,
+                Authors = paper.Authors,
+                Abstract = paper.Abstract,
+                DOI = paper.DOI,
+                PublicationType = paper.PublicationType,
+                PublicationYear = paper.PublicationYear,
+                PublicationYearInt = paper.PublicationYearInt,
+                PublicationDate = paper.PublicationDate,
+                Volume = paper.Volume,
+                Issue = paper.Issue,
+                Pages = paper.Pages,
+                Publisher = paper.Publisher,
+                Language = paper.Language,
+                Keywords = paper.Keywords,
+                Url = paper.Url,
+                ConferenceName = paper.ConferenceName,
+                ConferenceLocation = paper.ConferenceLocation,
+                ConferenceCountry = paper.ConferenceCountry,
+                ConferenceYear = paper.ConferenceYear,
+                Journal = paper.Journal,
+                JournalIssn = paper.JournalIssn,
+                Source = paper.Source,
+                ImportedAt = paper.ImportedAt,
+                ImportedBy = paper.ImportedBy,
+                PdfUrl = paper.PdfUrl,
+                FullTextAvailable = paper.FullTextAvailable,
+                AccessType = paper.AccessType,
+                AccessTypeText = paper.AccessType?.ToString(),
+                CreatedAt = paper.CreatedAt,
+                ModifiedAt = paper.ModifiedAt
+            };
+        }
+
+        private static ImportBatchResponse MapToImportBatchResponse(ImportBatch importBatch)
+        {
+            return new ImportBatchResponse
+            {
+                Id = importBatch.Id,
+                SearchExecutionId = importBatch.SearchExecutionId,
+                FileName = importBatch.FileName,
+                FileType = importBatch.FileType,
+                Source = importBatch.Source,
+                TotalRecords = importBatch.TotalRecords,
+                ImportedBy = importBatch.ImportedBy,
+                ImportedAt = importBatch.ImportedAt,
+                CreatedAt = importBatch.CreatedAt,
+                ModifiedAt = importBatch.ModifiedAt
+            };
+        }
+
         private static IdentificationProcessResponse MapToIdentificationProcessResponse(IdentificationProcess identificationProcess)
         {
             return new IdentificationProcessResponse
@@ -162,7 +418,7 @@ namespace SRSS.IAM.Services.IdentificationService
             await _unitOfWork.SearchExecutions.AddAsync(searchExecution, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToSearchExecutionResponse(searchExecution);
+            return await MapToSearchExecutionResponseAsync(searchExecution, cancellationToken);
         }
 
         public async Task<SearchExecutionResponse> GetSearchExecutionByIdAsync(
@@ -178,7 +434,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new NotFoundException("SearchExecution not found.");
             }
 
-            return MapToSearchExecutionResponse(searchExecution);
+            return await MapToSearchExecutionResponseAsync(searchExecution, cancellationToken);
         }
 
         public async Task<List<SearchExecutionResponse>> GetSearchExecutionsByIdentificationProcessIdAsync(
@@ -189,7 +445,13 @@ namespace SRSS.IAM.Services.IdentificationService
                 se => se.IdentificationProcessId == identificationProcessId,
                 cancellationToken: cancellationToken);
 
-            return searchExecutions.Select(MapToSearchExecutionResponse).ToList();
+            var responses = new List<SearchExecutionResponse>();
+            foreach (var searchExecution in searchExecutions)
+            {
+                responses.Add(await MapToSearchExecutionResponseAsync(searchExecution, cancellationToken));
+            }
+
+            return responses;
         }
 
         public async Task<SearchExecutionResponse> UpdateSearchExecutionAsync(
@@ -231,7 +493,7 @@ namespace SRSS.IAM.Services.IdentificationService
             await _unitOfWork.SearchExecutions.UpdateAsync(searchExecution, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToSearchExecutionResponse(searchExecution);
+            return await MapToSearchExecutionResponseAsync(searchExecution, cancellationToken);
         }
 
         public async Task<bool> DeleteSearchExecutionAsync(
@@ -247,10 +509,49 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new NotFoundException("SearchExecution not found.");
             }
 
+            var hasImportBatches = await _unitOfWork.ImportBatches.AnyAsync(
+                ib => ib.SearchExecutionId == id,
+                cancellationToken: cancellationToken);
+
+            if (hasImportBatches)
+            {
+                throw new InvalidOperationException(
+                    "Cannot delete search execution with existing import batches. Please delete all import batches first."
+                );
+            }
+
             await _unitOfWork.SearchExecutions.RemoveAsync(searchExecution, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
+        }
+
+        private async Task<SearchExecutionResponse> MapToSearchExecutionResponseAsync(
+            SearchExecution searchExecution, 
+            CancellationToken cancellationToken = default)
+        {
+            var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId == searchExecution.Id,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var importBatchCount = importBatches.Count();
+
+            return new SearchExecutionResponse
+            {
+                Id = searchExecution.Id,
+                IdentificationProcessId = searchExecution.IdentificationProcessId,
+                SearchSource = searchExecution.SearchSource,
+                SearchQuery = searchExecution.SearchQuery,
+                ExecutedAt = searchExecution.ExecutedAt,
+                ResultCount = searchExecution.ResultCount,
+                Type = searchExecution.Type,
+                TypeText = searchExecution.Type.ToString(),
+                Notes = searchExecution.Notes,
+                ImportBatchCount = importBatchCount,
+                CreatedAt = searchExecution.CreatedAt,
+                ModifiedAt = searchExecution.ModifiedAt
+            };
         }
 
         private static SearchExecutionResponse MapToSearchExecutionResponse(SearchExecution searchExecution)
@@ -266,6 +567,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 Type = searchExecution.Type,
                 TypeText = searchExecution.Type.ToString(),
                 Notes = searchExecution.Notes,
+                ImportBatchCount = 0,
                 CreatedAt = searchExecution.CreatedAt,
                 ModifiedAt = searchExecution.ModifiedAt
             };
@@ -393,9 +695,9 @@ namespace SRSS.IAM.Services.IdentificationService
 
             if (identificationProcess == null)
             {
-                result.Errors.Add($"IdentificationProcess with ID {identificationProcessId} not found.");
+                
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                return result;
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
                 try
@@ -415,19 +717,13 @@ namespace SRSS.IAM.Services.IdentificationService
 
                             if (searchExecution == null)
                             {
-                                result.Errors.Add($"SearchExecution with ID {searchExecutionId.Value} not found.");
+                               
                                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                                return result;
+                                throw new InvalidOperationException($"SearchExecution with ID {searchExecutionId.Value} not found.");
                             }
-
-
                         }
                         else
                         {
-
-
-
-
                             // Create a new SearchExecution for this import
                             searchExecution = new SearchExecution
                             {
@@ -453,16 +749,18 @@ namespace SRSS.IAM.Services.IdentificationService
                         }
                         catch (Exception ex)
                         {
-                            result.Errors.Add($"Failed to parse RIS file: {ex.Message}");
+                           
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            return result;
+                            throw new InvalidOperationException($"Failed to parse RIS file: {ex.Message}", ex);
+                    
                         }
 
                         if (!risPapers.Any())
                         {
-                            result.Errors.Add("No valid records found in RIS file.");
+                            
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            return result;
+                            throw new InvalidOperationException("No valid records found in the RIS file.");
+          
                         }
 
                         result.TotalRecords = risPapers.Count;
@@ -609,14 +907,15 @@ namespace SRSS.IAM.Services.IdentificationService
                     {
                         // Rollback transaction on any error
                         await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                        result.Errors.Add($"Transaction failed: {ex.Message}");
-                        result.ImportBatchId = null; // No batch was persisted
+                        throw new Exception("An error occurred during RIS import. See inner exception for details.", ex);
+             
                     }
                 }
                 catch (Exception ex)
                 {
-                    result.Errors.Add($"Unexpected error during import: {ex.Message}");
-                }
+                    throw new Exception("An unexpected error occurred during RIS import. See inner exception for details.", ex);
+
+            }
 
             return result;
         }

@@ -19,6 +19,15 @@ namespace SRSS.IAM.Services.PaperService
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific identification process
+        /// Returns papers that have no deduplication results in that process
+        /// </summary>
+        Task<PaginatedResponse<PaperResponse>> GetUniquePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<PaperResponse> GetPaperByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);

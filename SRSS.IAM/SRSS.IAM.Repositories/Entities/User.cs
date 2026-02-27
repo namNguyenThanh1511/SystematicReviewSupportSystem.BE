@@ -13,6 +13,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? RefreshToken { get; set; }
         public bool IsRefreshTokenRevoked { get; set; } = false;
         public DateTimeOffset? RefreshTokenExpiryTime { get; set; }
+        public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     }
 
     public enum Role

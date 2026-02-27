@@ -8,5 +8,12 @@ namespace SRSS.IAM.Repositories.UserRepo
         public UserRepository(AppDbContext context) : base(context)
         {
         }
+
+        public async Task<User?> GetByEmailAsync(string email)
+        {
+            return await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+        }
     }
 }

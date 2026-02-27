@@ -338,3 +338,4 @@ ASALocalRun/
 
 #AI Agent rules
 agent/
+.vscode/

@@ -5,6 +5,10 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.SystematicReviewProjectService;
+using Microsoft.AspNetCore.Authorization;
+using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.DTOs.ProjectMemberInvitation;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -16,10 +20,17 @@ namespace SRSS.IAM.API.Controllers
     public class SystematicReviewProjectController : BaseController
     {
         private readonly ISystematicReviewProjectService _projectService;
+        private readonly IProjectInvitationService _invitationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SystematicReviewProjectController(ISystematicReviewProjectService projectService)
+        public SystematicReviewProjectController(
+            ISystematicReviewProjectService projectService,
+            IProjectInvitationService invitationService,
+            ICurrentUserService currentUserService)
         {
             _projectService = projectService;
+            _invitationService = invitationService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -155,6 +166,48 @@ namespace SRSS.IAM.API.Controllers
 
 
             return Ok("Project deleted successfully.");
+        }
+
+        /// <summary>
+        /// Get all members of a project by project ID
+        /// </summary>
+        /// <param name="projectId">Project ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of project members</returns>
+        [HttpGet("{projectId}/members")]
+        public async Task<ActionResult<ApiResponse<List<ProjectMemberDto>>>> GetProjectMembers(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _projectService.GetProjectMembersAsync(projectId, cancellationToken);
+            return Ok(result, "Project members retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get all projects that the currently authenticated user is a member of
+        /// </summary>
+        /// <returns>List of projects with user's role</returns>
+        [HttpGet("my")]
+        public async Task<ActionResult<ApiResponse<List<MyProjectResponse>>>> GetMyProjects()
+        {
+            var result = await _projectService.GetMyProjectsAsync();
+            return Ok(result, "Your projects retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Create invitations for a project
+        /// </summary>
+        /// <param name="projectId">Project ID</param>
+        /// <param name="request">Invitation request</param>
+        /// <returns>Success response</returns>
+        [HttpPost("{projectId}/invitations")]
+        public async Task<ActionResult<ApiResponse>> CreateInvitations(
+            [FromRoute] Guid projectId,
+            [FromBody] CreateProjectInvitationRequest request)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            await _invitationService.CreateInvitationsAsync(projectId, Guid.Parse(userId), request);
+            return Ok("Invitations created successfully.");
         }
     }
 }

@@ -15,6 +15,7 @@ using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
 using SRSS.IAM.Repositories.UserRepo;
+using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
 using SRSS.IAM.Repositories.ReviewProcessRepo;
 using SRSS.IAM.Repositories.PrismaReportRepo;
@@ -22,6 +23,7 @@ using SRSS.IAM.Repositories.DeduplicationResultRepo;
 using SRSS.IAM.Repositories.ScreeningResolutionRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
+using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -29,23 +31,25 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 	{
 		private readonly AppDbContext _dbContext;
 		private IDbContextTransaction? _currentTransaction;
-		private IUserRepository _users;
-		private ISystematicReviewProjectRepository _systematicReviewProjects;
+		private IUserRepository? _users;
+		private INotificationRepository? _notifications;
+		private IProjectMemberInvitationRepository? _projectMemberInvitations;
+		private ISystematicReviewProjectRepository? _systematicReviewProjects;
 		// Core Governance
 		private IReviewNeedRepository? _reviewNeeds;
 		private ICommissioningDocumentRepository? _commissioningDocuments;
 		private IReviewObjectiveRepository? _reviewObjectives;
 		private IQuestionTypeRepository? _questionTypes;
-		private IReviewProcessRepository _reviewProcesses;
-		private IIdentificationProcessRepository _identificationProcesses;
-		private ISearchExecutionRepository _searchExecutions;
-		private IPaperRepository _papers;
-		private IImportBatchRepository _importBatches;
-		private IPrismaReportRepository _prismaReports;
-		private IDeduplicationResultRepository _deduplicationResults;
-		private IScreeningResolutionRepository _screeningResolutions;
-		private IStudySelectionProcessRepository _studySelectionProcesses;
-		private IScreeningDecisionRepository _screeningDecisions;
+		private IReviewProcessRepository? _reviewProcesses;
+		private IIdentificationProcessRepository? _identificationProcesses;
+		private ISearchExecutionRepository? _searchExecutions;
+		private IPaperRepository? _papers;
+		private IImportBatchRepository? _importBatches;
+		private IPrismaReportRepository? _prismaReports;
+		private IDeduplicationResultRepository? _deduplicationResults;
+		private IScreeningResolutionRepository? _screeningResolutions;
+		private IStudySelectionProcessRepository? _studySelectionProcesses;
+		private IScreeningDecisionRepository? _screeningDecisions;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -82,61 +86,62 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public UnitOfWork(AppDbContext dbContext)
 		{
-            _dbContext = dbContext;
-        }
-        public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction != null) return;
-            _currentTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
-        }
+			_dbContext = dbContext;
+		}
+		public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction != null) return;
+			_currentTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+		}
 
-        public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction == null) return;
+		public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction == null) return;
 
-            try
-            {
-                await SaveChangesAsync(cancellationToken);
-                await _currentTransaction.CommitAsync(cancellationToken);
-            }
-            finally
-            {
-                await _currentTransaction.DisposeAsync();
-                _currentTransaction = null;
-            }
-        }
+			try
+			{
+				await SaveChangesAsync(cancellationToken);
+				await _currentTransaction.CommitAsync(cancellationToken);
+			}
+			finally
+			{
+				await _currentTransaction.DisposeAsync();
+				_currentTransaction = null;
+			}
+		}
 
-        public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
-        {
-            if (_currentTransaction == null) return;
+		public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction == null) return;
 
-            try
-            {
-                await _currentTransaction.RollbackAsync(cancellationToken);
-            }
-            finally
-            {
-                await _currentTransaction.DisposeAsync();
-                _currentTransaction = null;
-            }
-        }
+			try
+			{
+				await _currentTransaction.RollbackAsync(cancellationToken);
+			}
+			finally
+			{
+				await _currentTransaction.DisposeAsync();
+				_currentTransaction = null;
+			}
+		}
 
-        public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-        {
-            var date = DateTime.UtcNow;
-            foreach (var entry in _dbContext.ChangeTracker.Entries<IBaseEntity>())
-            {
-                if (entry.State == EntityState.Added)
-                    entry.Entity.CreatedAt = date;
+		public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+		{
+			var date = DateTime.UtcNow;
+			foreach (var entry in _dbContext.ChangeTracker.Entries<IBaseEntity>())
+			{
+				if (entry.State == EntityState.Added)
+					entry.Entity.CreatedAt = date;
 
-                if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
-                    entry.Entity.ModifiedAt = date;
-            }
+				if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
+					entry.Entity.ModifiedAt = date;
+			}
 
-            return await _dbContext.SaveChangesAsync(cancellationToken);
-        }
+			return await _dbContext.SaveChangesAsync(cancellationToken);
+		}
 
 		public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+		public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_dbContext);
 
 		// Core Governance
 		public IReviewNeedRepository ReviewNeeds => _reviewNeeds ??= new ReviewNeedRepository(_dbContext);
@@ -204,25 +209,25 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IProjectTimetableRepository Timetables =>
 			_timetables ??= new ProjectTimetableRepository(_dbContext);
 
-        public ISystematicReviewProjectRepository SystematicReviewProjects
-            => _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);
+		public ISystematicReviewProjectRepository SystematicReviewProjects
+			=> _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);
 
-        public IReviewProcessRepository ReviewProcesses
-            => _reviewProcesses ??= new ReviewProcessRepository(_dbContext);
+		public IReviewProcessRepository ReviewProcesses
+			=> _reviewProcesses ??= new ReviewProcessRepository(_dbContext);
 
-        public IIdentificationProcessRepository IdentificationProcesses
-            => _identificationProcesses ??= new IdentificationProcessRepository(_dbContext);
+		public IIdentificationProcessRepository IdentificationProcesses
+			=> _identificationProcesses ??= new IdentificationProcessRepository(_dbContext);
 
-        public ISearchExecutionRepository SearchExecutions
-            => _searchExecutions ??= new SearchExecutionRepository(_dbContext);
+		public ISearchExecutionRepository SearchExecutions
+			=> _searchExecutions ??= new SearchExecutionRepository(_dbContext);
 
-        public IPaperRepository Papers
-            => _papers ??= new PaperRepository(_dbContext);
+		public IPaperRepository Papers
+			=> _papers ??= new PaperRepository(_dbContext);
 
-		public IImportBatchRepository ImportBatches 
+		public IImportBatchRepository ImportBatches
 			=> _importBatches ??= new ImportBatchRepository(_dbContext);
 
-		public IPrismaReportRepository PrismaReports 
+		public IPrismaReportRepository PrismaReports
 			=> _prismaReports ??= new PrismaReportRepository(_dbContext);
 
 		public IDeduplicationResultRepository DeduplicationResults
@@ -237,14 +242,17 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IScreeningDecisionRepository ScreeningDecisions
 			=> _screeningDecisions ??= new ScreeningDecisionRepository(_dbContext);
 
+		public IProjectMemberInvitationRepository ProjectMemberInvitations
+			=> _projectMemberInvitations ??= new ProjectMemberInvitationRepository(_dbContext);
+
 		public void Dispose() => _dbContext.Dispose();
 	}
-    public static class Extensions
-    {
-        public static bool HasChangedOwnedEntities(this EntityEntry entry) =>
-            entry.References.Any(r =>
-                r.TargetEntry != null &&
-                r.TargetEntry.Metadata.IsOwned() &&
-                (r.TargetEntry.State == EntityState.Added || r.TargetEntry.State == EntityState.Modified));
-    }
+	public static class Extensions
+	{
+		public static bool HasChangedOwnedEntities(this EntityEntry entry) =>
+			entry.References.Any(r =>
+				r.TargetEntry != null &&
+				r.TargetEntry.Metadata.IsOwned() &&
+				(r.TargetEntry.State == EntityState.Added || r.TargetEntry.State == EntityState.Modified));
+	}
 }

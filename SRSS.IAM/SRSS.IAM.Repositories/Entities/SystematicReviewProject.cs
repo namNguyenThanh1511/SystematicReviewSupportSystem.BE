@@ -114,6 +114,7 @@ namespace SRSS.IAM.Repositories.Entities
         }
 
         public ICollection<ProjectMember> ProjectMembers { get; set; } = new List<ProjectMember>();
+        public ICollection<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = new List<ProjectMemberInvitation>();
     }
 
     public enum ProjectStatus

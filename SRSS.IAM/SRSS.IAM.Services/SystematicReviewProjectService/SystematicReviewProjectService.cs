@@ -4,16 +4,19 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
 using Shared.Exceptions;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
     public class SystematicReviewProjectService : ISystematicReviewProjectService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SystematicReviewProjectService(IUnitOfWork unitOfWork)
+        public SystematicReviewProjectService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
         }
 
         public async Task<SystematicReviewProjectResponse> CreateProjectAsync(
@@ -203,6 +206,53 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
+        }
+
+        public async Task<List<ProjectMemberDto>> GetProjectMembersAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var members = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(projectId);
+
+            return members.Select(m => new ProjectMemberDto
+            {
+                UserId = m.UserId,
+                ProjectId = m.ProjectId,
+                Role = m.Role,
+                JoinedAt = m.JoinedAt,
+                UserName = m.User.Username,
+                FullName = m.User.FullName,
+                Email = m.User.Email
+            }).ToList();
+        }
+
+        public async Task<List<MyProjectResponse>> GetMyProjectsAsync(CancellationToken cancellationToken = default)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var userIdGuid = Guid.Parse(userId);
+
+            var memberships = await _unitOfWork.SystematicReviewProjects.GetProjectsByUserIdAsync(userIdGuid);
+
+            return memberships.Select(m => new MyProjectResponse
+            {
+                Id = m.ProjectId,
+                Title = m.Project.Title,
+                Domain = m.Project.Domain,
+                Description = m.Project.Description,
+                Status = m.Project.Status,
+                StatusText = m.Project.Status.ToString(),
+                Role = m.Role,
+                RoleText = m.Role.ToString(),
+                CreatedAt = m.Project.CreatedAt
+            }).ToList();
         }
 
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)

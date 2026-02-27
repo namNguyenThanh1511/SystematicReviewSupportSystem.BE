@@ -6,5 +6,6 @@ namespace SRSS.IAM.Repositories.UserRepo
 {
     public interface IUserRepository : IGenericRepository<User, Guid, AppDbContext>
     {
+        Task<User?> GetByEmailAsync(string email);
     }
 }

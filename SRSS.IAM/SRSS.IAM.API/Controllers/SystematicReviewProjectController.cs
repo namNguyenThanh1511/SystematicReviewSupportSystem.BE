@@ -186,11 +186,17 @@ namespace SRSS.IAM.API.Controllers
         /// <summary>
         /// Get all projects that the currently authenticated user is a member of
         /// </summary>
-        /// <returns>List of projects with user's role</returns>
+        /// <param name="status">Optional status filter</param>
+        /// <param name="pageNumber">Page number</param>
+        /// <param name="pageSize">Page size</param>
+        /// <returns>Paginated list of projects with user's role</returns>
         [HttpGet("my")]
-        public async Task<ActionResult<ApiResponse<List<MyProjectResponse>>>> GetMyProjects()
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<MyProjectResponse>>>> GetMyProjects(
+            [FromQuery] ProjectStatus? status,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var result = await _projectService.GetMyProjectsAsync();
+            var result = await _projectService.GetMyProjectsAsync(status, pageNumber, pageSize);
             return Ok(result, "Your projects retrieved successfully.");
         }
 

@@ -64,5 +64,13 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
                 .AsNoTracking()
                 .ToListAsync();
         }
+
+        public IQueryable<ProjectMember> GetMembershipQueryable(Guid userId)
+        {
+            return _context.Set<ProjectMember>()
+                .Include(m => m.Project)
+                .Where(m => m.UserId == userId)
+                .AsNoTracking();
+        }
     }
 }

@@ -234,25 +234,52 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             }).ToList();
         }
 
-        public async Task<List<MyProjectResponse>> GetMyProjectsAsync(CancellationToken cancellationToken = default)
+        public async Task<PaginatedResponse<MyProjectResponse>> GetMyProjectsAsync(
+            ProjectStatus? status,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
             var (userId, _) = _currentUserService.GetCurrentUser();
             var userIdGuid = Guid.Parse(userId);
 
-            var memberships = await _unitOfWork.SystematicReviewProjects.GetProjectsByUserIdAsync(userIdGuid);
+            var query = _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid);
 
-            return memberships.Select(m => new MyProjectResponse
+            if (status.HasValue)
             {
-                Id = m.ProjectId,
-                Title = m.Project.Title,
-                Domain = m.Project.Domain,
-                Description = m.Project.Description,
-                Status = m.Project.Status,
-                StatusText = m.Project.Status.ToString(),
-                Role = m.Role,
-                RoleText = m.Role.ToString(),
-                CreatedAt = m.Project.CreatedAt
-            }).ToList();
+                query = query.Where(m => m.Project.Status == status.Value);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var memberships = await query
+                .OrderByDescending(m => m.Project.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<MyProjectResponse>
+            {
+                Items = memberships.Select(m => new MyProjectResponse
+                {
+                    Id = m.ProjectId,
+                    Title = m.Project.Title,
+                    Domain = m.Project.Domain,
+                    Description = m.Project.Description,
+                    Status = m.Project.Status,
+                    StatusText = m.Project.Status.ToString(),
+                    Role = m.Role,
+                    RoleText = m.Role.ToString(),
+                    CreatedAt = m.Project.CreatedAt
+                }).ToList(),
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)

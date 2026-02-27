@@ -44,6 +44,10 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             Guid projectId,
             CancellationToken cancellationToken = default);
 
-        Task<List<MyProjectResponse>> GetMyProjectsAsync(CancellationToken cancellationToken = default);
+        Task<PaginatedResponse<MyProjectResponse>> GetMyProjectsAsync(
+            ProjectStatus? status,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
     }
 }

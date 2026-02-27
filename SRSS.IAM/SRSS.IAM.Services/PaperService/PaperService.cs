@@ -193,6 +193,54 @@ namespace SRSS.IAM.Services.PaperService
             return MapToPaperResponse(paper);
         }
 
+        public async Task<PaginatedResponse<PaperResponse>> GetUniquePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            if (request.PageNumber < 1)
+            {
+                request.PageNumber = 1;
+            }
+
+            if (request.PageSize < 1)
+            {
+                request.PageSize = 20;
+            }
+
+            if (request.PageSize > 100)
+            {
+                request.PageSize = 100;
+            }
+
+            var (papers, totalCount) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
+                identificationProcessId,
+                request.Search,
+                request.Year,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            var paperResponses = papers.Select(MapToPaperResponse).ToList();
+
+            return new PaginatedResponse<PaperResponse>
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+        }
+
         public async Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(
             Guid projectId,
             PaperSearchRequest request,

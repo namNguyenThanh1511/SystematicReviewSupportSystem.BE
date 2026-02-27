@@ -82,5 +82,20 @@ namespace SRSS.IAM.API.Controllers
             var result = await _identificationService.CompleteIdentificationProcessAsync(id, cancellationToken);
             return Ok(result, "Identification Process completed successfully.");
         }
+
+        /// <summary>
+        /// Get PRISMA statistics for an Identification Process
+        /// </summary>
+        /// <param name="id">Identification Process ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Aggregated PRISMA statistics including import counts and deduplication metrics</returns>
+        [HttpGet("identification-processes/{id}/statistics")]
+        public async Task<ActionResult<ApiResponse<PrismaStatisticsResponse>>> GetPrismaStatistics(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.GetPrismaStatisticsAsync(id, cancellationToken);
+            return Ok(result, "PRISMA statistics retrieved successfully.");
+        }
     }
 }

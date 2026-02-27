@@ -28,5 +28,17 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific identification process.
+        /// Returns papers imported via this process that have no deduplication results.
+        /// </summary>
+        Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
     }
 }

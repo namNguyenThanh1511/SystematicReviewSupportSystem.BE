@@ -100,5 +100,45 @@ namespace SRSS.IAM.API.Controllers
 
             return Ok(result, message);
         }
+
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific identification process.
+        /// Returns papers imported via this process that are NOT marked as duplicates.
+        /// </summary>
+        /// <param name="identificationProcessId">Identification Process ID</param>
+        /// <param name="search">Search in Title, DOI, or Authors</param>
+        /// <param name="year">Filter by publication year</param>
+        /// <param name="pageNumber">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 20, max: 100)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paginated list of unique papers</returns>
+        [HttpGet("identification-processes/{identificationProcessId}/unique-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetUniquePapersByIdentificationProcess(
+            [FromRoute] Guid identificationProcessId,
+            [FromQuery] string? search,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new PaperListRequest
+            {
+                Search = search,
+                Year = year,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _paperService.GetUniquePapersByIdentificationProcessAsync(
+                identificationProcessId,
+                request,
+                cancellationToken);
+
+            var message = result.TotalCount == 0
+                ? "No unique papers found for this identification process."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} unique papers.";
+
+            return Ok(result, message);
+        }
     }
 }

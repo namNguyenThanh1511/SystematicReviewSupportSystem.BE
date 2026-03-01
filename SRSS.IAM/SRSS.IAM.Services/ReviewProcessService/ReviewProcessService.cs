@@ -34,7 +34,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             try
             {
                 // Create ReviewProcess
-                var reviewProcess = project.AddReviewProcess(request.Notes);
+                var reviewProcess = project.AddReviewProcess(request.Name,request.Notes);
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -70,7 +70,20 @@ namespace SRSS.IAM.Services.ReviewProcessService
         {
             var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProcessesAsync(id, cancellationToken);
 
-            return reviewProcess == null ? throw new NotFoundException($"ReviewProcess with ID {id} not found.") : MapToResponse(reviewProcess);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"ReviewProcess with ID {id} not found.");
+            }
+
+            var response = MapToResponse(reviewProcess);
+
+            if (reviewProcess.IdentificationProcess != null)
+            {
+                response.IdentificationProcess!.PrismaStatistics =
+                    await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+            }
+
+            return response;
         }
 
         public async Task<List<ReviewProcessResponse>> GetReviewProcessesByProjectIdAsync(
@@ -80,7 +93,22 @@ namespace SRSS.IAM.Services.ReviewProcessService
             var reviewProcesses = await _unitOfWork.ReviewProcesses
                 .GetByProjectIdAsync(projectId, cancellationToken);
 
-            return reviewProcesses.Select(MapToResponse).ToList();
+            var responses = new List<ReviewProcessResponse>();
+
+            foreach (var reviewProcess in reviewProcesses)
+            {
+                var response = MapToResponse(reviewProcess);
+
+                if (reviewProcess.IdentificationProcess != null)
+                {
+                    response.IdentificationProcess!.PrismaStatistics =
+                        await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                }
+
+                responses.Add(response);
+            }
+
+            return responses;
         }
 
         public async Task<ReviewProcessResponse> UpdateReviewProcessAsync(
@@ -164,8 +192,9 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             try
             {
-                reviewProcess.Complete();
-
+                //reviewProcess.Complete();
+                reviewProcess.CompletedAt = DateTimeOffset.UtcNow;
+                reviewProcess.Status = Repositories.Entities.ProcessStatus.Completed;
                 await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -270,6 +299,34 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         ModifiedAt = reviewProcess.StudySelectionProcess.ModifiedAt
                     }
                     : null
+            };
+        }
+
+        private async Task<PrismaStatisticsResponse> GetPrismaStatisticsForIdentificationAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken)
+        {
+            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
+                se => se.IdentificationProcessId == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
+
+            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+                cancellationToken: cancellationToken);
+
+            var importBatchList = allImportBatches.ToList();
+            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
+            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
+            var uniqueRecords = totalRecordsImported - duplicateRecords;
+
+            return new PrismaStatisticsResponse
+            {
+                TotalRecordsImported = totalRecordsImported,
+                DuplicateRecords = duplicateRecords,
+                UniqueRecords = uniqueRecords,
+                ImportBatchCount = importBatchList.Count
             };
         }
     }

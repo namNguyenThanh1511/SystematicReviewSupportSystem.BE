@@ -32,6 +32,32 @@ namespace SRSS.IAM.Services.PaperService
             Guid id,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Resolve a duplicate detection result (confirm, reject)
+        /// </summary>
+        Task<DuplicatePaperResponse> ResolveDuplicateAsync(
+            Guid identificationProcessId,
+            Guid deduplicationResultId,
+            ResolveDuplicateRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get paginated duplicate pairs with both papers for side-by-side comparison
+        /// </summary>
+        Task<PaginatedResponse<DuplicatePairResponse>> GetDuplicatePairsAsync(
+            Guid identificationProcessId,
+            DuplicatePairsRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resolve a duplicate pair with a specific decision (keep-original, keep-duplicate, keep-both)
+        /// </summary>
+        Task<ResolveDuplicatePairResponse> ResolveDuplicatePairAsync(
+            Guid identificationProcessId,
+            Guid pairId,
+            ResolveDuplicatePairRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(
             Guid projectId,
             PaperSearchRequest request,

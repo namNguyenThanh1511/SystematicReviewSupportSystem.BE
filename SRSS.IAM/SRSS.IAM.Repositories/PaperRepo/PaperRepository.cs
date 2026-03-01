@@ -13,7 +13,20 @@ namespace SRSS.IAM.Repositories.PaperRepo
         public async Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Papers
-                .FirstOrDefaultAsync(p => p.DOI == doi && p.ProjectId == projectId, cancellationToken);
+                .Where(p => p.DOI == doi && p.ProjectId == projectId && !p.IsRemovedAsDuplicate)
+                .OrderBy(p => p.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .Where(p => p.DOI == doi
+                    && p.ImportBatch != null
+                    && p.ImportBatch.SearchExecutionId == searchExecutionId
+                    && !p.IsRemovedAsDuplicate)
+                .OrderBy(p => p.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
         }
 
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
@@ -69,6 +82,9 @@ namespace SRSS.IAM.Repositories.PaperRepo
             Guid identificationProcessId,
             string? search,
             int? year,
+            string? sortBy,
+            string? sortOrder,
+            DeduplicationReviewStatus? reviewStatus,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -79,6 +95,12 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Include(dr => dr.Paper)
                 .Include(dr => dr.DuplicateOfPaper)
                 .Where(dr => dr.IdentificationProcessId == identificationProcessId);
+
+            // Apply review status filter
+            if (reviewStatus.HasValue)
+            {
+                query = query.Where(dr => dr.ReviewStatus == reviewStatus.Value);
+            }
 
             // Apply search filter on paper metadata
             if (!string.IsNullOrWhiteSpace(search))
@@ -99,9 +121,28 @@ namespace SRSS.IAM.Repositories.PaperRepo
             // Get total count
             var totalCount = await query.CountAsync(cancellationToken);
 
-            // Apply ordering and pagination
+            // Apply sorting
+            var isDescending = string.Equals(sortOrder, "desc", StringComparison.OrdinalIgnoreCase);
+
+            query = sortBy?.ToLower() switch
+            {
+                "confidencescore" => isDescending
+                    ? query.OrderByDescending(dr => dr.ConfidenceScore)
+                    : query.OrderBy(dr => dr.ConfidenceScore),
+                "title" => isDescending
+                    ? query.OrderByDescending(dr => dr.Paper.Title)
+                    : query.OrderBy(dr => dr.Paper.Title),
+                "method" => isDescending
+                    ? query.OrderByDescending(dr => dr.Method)
+                    : query.OrderBy(dr => dr.Method),
+                "reviewstatus" => isDescending
+                    ? query.OrderByDescending(dr => dr.ReviewStatus)
+                    : query.OrderBy(dr => dr.ReviewStatus),
+                _ => query.OrderByDescending(dr => dr.CreatedAt) // default: detectedAt DESC
+            };
+
+            // Apply pagination
             var deduplicationResults = await query
-                .OrderByDescending(dr => dr.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
@@ -115,7 +156,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
         /// <summary>
         /// Get unique (non-duplicate) papers for a specific identification process.
         /// Papers linked via ImportBatch → SearchExecution → IdentificationProcess
-        /// that have NO deduplication results for this process.
+        /// that are not removed as duplicates and have no pending deduplication results.
         /// </summary>
         public async Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByIdentificationProcessAsync(
             Guid identificationProcessId,
@@ -131,8 +172,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
+                    !p.IsRemovedAsDuplicate &&
+                    // Also exclude papers with pending (unresolved) deduplication
                     !p.DuplicateResults.Any(dr =>
-                        dr.IdentificationProcessId == identificationProcessId));
+                        dr.IdentificationProcessId == identificationProcessId &&
+                        dr.ReviewStatus == DeduplicationReviewStatus.Pending));
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(search))

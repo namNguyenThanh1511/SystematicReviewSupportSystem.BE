@@ -140,8 +140,19 @@ namespace SRSS.IAM.Services.IdentificationService
 
             var importBatchList = allImportBatches.ToList();
             var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
-            var duplicateRecords = 0;
-            var uniqueRecords = totalRecordsImported - duplicateRecords;
+
+            // Query actual unique paper count using the same logic as the unique papers endpoint
+            var (_, uniqueRecords) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
+                identificationProcessId,
+                search: null,
+                year: null,
+                pageNumber: 1,
+                pageSize: 1,
+                cancellationToken);
+
+            // Derive duplicate count from total minus unique to account for ALL removed papers
+            // (both skipped-during-import duplicates and tracked DeduplicationResult duplicates)
+            var duplicateRecords = totalRecordsImported - uniqueRecords;
 
             return new PrismaStatisticsResponse
             {
@@ -797,14 +808,30 @@ namespace SRSS.IAM.Services.IdentificationService
                                     continue;
                                 }
 
-                                // Check for duplicate by DOI (case-insensitive, scoped to project)
+                                // Check for duplicate by DOI
                                 Paper? existingPaper = null;
                                 if (!string.IsNullOrWhiteSpace(risPaper.DOI))
                                 {
+                                    // When importing with a search execution ID, check within that search execution
+                                    if (searchExecutionId.HasValue)
+                                    {
+                                        existingPaper = await _unitOfWork.Papers.GetByDoiAndSearchExecutionAsync(
+                                            risPaper.DOI,
+                                            searchExecutionId.Value,
+                                            cancellationToken);
+
+                                        if (existingPaper != null)
+                                        {
+                                            throw new InvalidOperationException("Duplicate record detected within the same search execution based on DOI. Import aborted to prevent duplicates. Please review the RIS file and remove duplicates before importing.");
+                                        }
+                       
+                                    }
+                                    //get orginal paper for deduplication 
                                     existingPaper = await _unitOfWork.Papers.GetByDoiAndProjectAsync(
-                                        risPaper.DOI, 
-                                        identificationProcess.ReviewProcess.ProjectId, 
-                                        cancellationToken);
+                                            risPaper.DOI,
+                                            identificationProcess.ReviewProcess.ProjectId,
+                                            cancellationToken);
+                                    
                                 }
 
                                 // Parse PublicationYear to int
@@ -815,8 +842,7 @@ namespace SRSS.IAM.Services.IdentificationService
                                     publicationYearInt = year;
                                 }
 
-                                // Create new paper regardless of duplication
-                                // Duplication is tracked separately in DeduplicationResult table
+                                // Create new paper (or track duplication when no search execution ID)
                                 var newPaper = new Paper
                                 {
                                     Id = Guid.NewGuid(),
@@ -859,7 +885,7 @@ namespace SRSS.IAM.Services.IdentificationService
                                 result.ImportedRecords++;
                                 result.ImportedPaperIds.Add(newPaper.Id);
 
-                                // If duplicate detected, create deduplication result
+                                // If duplicate detected (no search execution ID case), create deduplication result
                                 if (existingPaper != null)
                                 {
                                     var deduplicationResult = new DeduplicationResult
@@ -877,14 +903,12 @@ namespace SRSS.IAM.Services.IdentificationService
 
                                     await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
                                     result.DuplicateRecords++;
-                                    // Status NOT stored in Paper - it's queried from DeduplicationResult
                                 }
                             }
                             catch (Exception ex)
                             {
-                                result.SkippedRecords++;
-                                result.Errors.Add($"Error processing paper '{risPaper.Title}': {ex.Message}");
-                            }
+                               throw new InvalidOperationException($"Error importing record with title '{risPaper.Title}': {ex.Message}", ex);
+                        }
                         }
 
                         // Update SearchExecution result count if provided

@@ -17,5 +17,19 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
         Task<int> CountDuplicatesByProcessAsync(
             Guid identificationProcessId,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get paginated duplicate pairs with both papers included for side-by-side comparison.
+        /// </summary>
+        Task<(List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePairsAsync(
+            Guid identificationProcessId,
+            string? search,
+            DeduplicationReviewStatus? status,
+            decimal? minConfidence,
+            DeduplicationMethod? method,
+            string? sortBy,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
     }
 }

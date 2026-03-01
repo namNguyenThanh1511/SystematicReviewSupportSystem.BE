@@ -12,12 +12,13 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Services/SRSS.IAM/SRSS.IAM.API/SRSS.IAM.API.csproj", "Services/SRSS.IAM/SRSS.IAM.API/"]
-COPY ["Services/SRSS.IAM/SRSS.IAM.Services/SRSS.IAM.Services.csproj", "Services/SRSS.IAM/SRSS.IAM.Services/"]
-COPY ["Services/SRSS.IAM/SRSS.IAM.Repositories/SRSS.IAM.Repositories.csproj", "Services/SRSS.IAM/SRSS.IAM.Repositories/"]
-RUN dotnet restore "./Services/SRSS.IAM/SRSS.IAM.API/SRSS.IAM.API.csproj"
+COPY ["SRSS.IAM/SRSS.IAM.API/SRSS.IAM.API.csproj", "SRSS.IAM/SRSS.IAM.API/"]
+COPY ["SRSS.IAM/SRSS.IAM.Services/SRSS.IAM.Services.csproj", "SRSS.IAM/SRSS.IAM.Services/"]
+COPY ["SRSS.IAM/SRSS.IAM.Repositories/SRSS.IAM.Repositories.csproj", "SRSS.IAM/SRSS.IAM.Repositories/"]
+COPY ["Shared/Shared/Shared.csproj", "Shared/Shared/"]
+RUN dotnet restore "./SRSS.IAM/SRSS.IAM.API/SRSS.IAM.API.csproj"
 COPY . .
-WORKDIR "/src/Services/SRSS.IAM/SRSS.IAM.API"
+WORKDIR "/src/SRSS.IAM/SRSS.IAM.API"
 RUN dotnet build "./SRSS.IAM.API.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage

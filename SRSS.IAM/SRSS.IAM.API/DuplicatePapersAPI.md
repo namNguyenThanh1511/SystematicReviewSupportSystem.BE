@@ -1,8 +1,8 @@
 # Duplicate Papers API Documentation
 
-**Version:** 1.0  
+**Version:** 3.0  
 **Base URL:** `/api`  
-**Last Updated:** 2024
+**Last Updated:** 2025-02-27
 
 ---
 
@@ -46,6 +46,9 @@ Authorization: Bearer {token}  (if authentication enabled)
 |-----------|------|----------|---------|-------------|
 | `search` | `string` | ❌ No | `null` | Search in Title, DOI, or Authors of the **duplicate paper** (case-insensitive, partial match) |
 | `year` | `integer` | ❌ No | `null` | Filter by publication year of the duplicate paper (exact match) |
+| `sortBy` | `string` | ❌ No | `null` | Sort field: `detectedAt` (default), `confidenceScore`, `title`, `method`, `reviewStatus` |
+| `sortOrder` | `string` | ❌ No | `desc` | Sort direction: `asc` or `desc` |
+| `reviewStatus` | `integer` | ❌ No | `null` | Filter by review status: `0`=Pending, `1`=Confirmed, `2`=Rejected |
 | `pageNumber` | `integer` | ❌ No | `1` | Page number (minimum: 1) |
 | `pageSize` | `integer` | ❌ No | `20` | Items per page (minimum: 1, maximum: 100) |
 
@@ -104,11 +107,20 @@ Authorization: Bearer {token}  (if authentication enabled)
 
         "duplicateOfPaperId": "f7e6d5c4-b3a2-1098-7654-321fedcba098",
         "duplicateOfTitle": "Machine Learning in Healthcare: A Systematic Review",
+        "duplicateOfAuthors": "Smith, J.; Doe, A.; Johnson, M.",
+        "duplicateOfYear": "2024",
+        "duplicateOfDoi": "10.1234/example.2024.001",
+        "duplicateOfSource": "RIS",
+        "duplicateOfAbstract": "This paper reviews recent advances...",
         "method": 0,
         "methodText": "DOI_MATCH",
         "confidenceScore": 1.0,
         "deduplicationNotes": "Duplicate detected by DOI: 10.1234/example.2024.001",
-        "detectedAt": "2024-06-01T11:00:00+00:00"
+        "detectedAt": "2024-06-01T11:00:00+00:00",
+        "reviewStatus": 0,
+        "reviewStatusText": "Pending",
+        "reviewedBy": null,
+        "reviewedAt": null
       }
     ],
     "totalCount": 53,
@@ -162,9 +174,10 @@ Authorization: Bearer {token}  (if authentication enabled)
 1. **Validates** that the Identification Process exists
 2. **Normalizes** pagination parameters (`pageNumber` ≥ 1, `pageSize` between 1–100)
 3. **Queries** the `DeduplicationResult` table for records matching this Identification Process
-4. **Includes** the duplicate paper metadata and the original paper's title
-5. **Applies** optional search and year filters on the duplicate paper's metadata
-6. **Returns** paginated results ordered by `detectedAt` descending (most recently detected first)
+4. **Includes** the duplicate paper metadata and the original paper's metadata (title, authors, year, DOI, source, abstract)
+5. **Applies** optional search, year, and `reviewStatus` filters on the duplicate paper's metadata
+6. **Sorts** by the requested field (`sortBy`/`sortOrder`), defaulting to `detectedAt` descending
+7. **Returns** paginated results with review status for each deduplication result
 
 #### Query Logic
 
@@ -195,7 +208,10 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 |-----------|--------|
 | **Each item = one deduplication result** | A paper can appear multiple times if it duplicates different originals |
 | **`duplicateOfPaperId`** | The UUID of the original paper this is a duplicate of |
-| **`duplicateOfTitle`** | The title of the original paper (for quick UI display without extra API call) |
+| **`duplicateOfTitle`** | The title of the original paper |
+| **`duplicateOfAuthors`, `duplicateOfYear`, `duplicateOfDoi`, `duplicateOfSource`, `duplicateOfAbstract`** | Full original paper metadata for side-by-side comparison |
+| **`reviewStatus` / `reviewStatusText`** | Review status: `Pending` (0), `Confirmed` (1), `Rejected` (2) |
+| **`reviewedBy` / `reviewedAt`** | Who reviewed and when (null if pending) |
 | **`confidenceScore`** | Range 0.0 to 1.0 — useful for displaying confidence badges/bars |
 | **`method` is an integer enum** | Use `methodText` for display (e.g., `"DOI_MATCH"`) |
 | **`selectionStatus` is always null** | Status lives in `ScreeningResolution`, not on the paper |
@@ -204,6 +220,73 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 #### Side Effects
 
 - **None** — this is a read-only endpoint
+
+---
+
+## Resolve Duplicate
+
+### Basic Info
+
+| Property | Value |
+|----------|-------|
+| **Method** | `POST` |
+| **Route** | `/api/identification-processes/{identificationProcessId}/duplicates/{deduplicationResultId}/resolve` |
+| **Content-Type** | `application/json` |
+| **Description** | Confirm or reject a duplicate detection result |
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `identificationProcessId` | `string (UUID)` | ✅ Yes | The Identification Process ID |
+| `deduplicationResultId` | `string (UUID)` | ✅ Yes | The Deduplication Result ID |
+
+### Request Body
+
+```json
+{
+  "resolution": 1,
+  "reviewedBy": "researcher@university.edu",
+  "notes": "Confirmed as duplicate — same DOI"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `resolution` | `integer` | ✅ Yes | `0`=Pending, `1`=Confirmed, `2`=Rejected |
+| `reviewedBy` | `string` | ❌ No | User who performed the review |
+| `notes` | `string` | ❌ No | Optional notes (updates existing notes if provided) |
+
+### Success Response (200 OK)
+
+Returns the updated `DuplicatePaperResponse` with `reviewStatus`, `reviewedBy`, and `reviewedAt` set.
+
+```json
+{
+  "isSuccess": true,
+  "message": "Duplicate resolution updated successfully.",
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "title": "Machine Learning in Healthcare",
+    "duplicateOfPaperId": "f7e6d5c4-...",
+    "duplicateOfTitle": "Machine Learning in Healthcare",
+    "duplicateOfAuthors": "Smith, J.",
+    "reviewStatus": 1,
+    "reviewStatusText": "Confirmed",
+    "reviewedBy": "researcher@university.edu",
+    "reviewedAt": "2025-02-27T14:30:00+00:00",
+    "...": "(other paper + deduplication fields)"
+  },
+  "errors": null
+}
+```
+
+### Error Responses
+
+| Status | Scenario |
+|--------|----------|
+| **500** | Deduplication result not found for the given process |
+| **500** | Server error |
 
 #### Relationship to Unique Papers Endpoint
 
@@ -284,6 +367,9 @@ interface GetDuplicatePapersParams {
   identificationProcessId: string;     // UUID (path param)
   search?: string;                     // Optional search text
   year?: number;                       // Optional year filter
+  sortBy?: 'detectedAt' | 'confidenceScore' | 'title' | 'method' | 'reviewStatus';  // Sort field
+  sortOrder?: 'asc' | 'desc';         // Sort direction (default: desc)
+  reviewStatus?: DeduplicationReviewStatus; // Filter by review status
   pageNumber?: number;                 // Default: 1
   pageSize?: number;                   // Default: 20, max: 100
 }
@@ -324,11 +410,38 @@ interface DuplicatePaperResponse extends PaperResponse {
   // Deduplication metadata
   duplicateOfPaperId: string;            // UUID of the original paper
   duplicateOfTitle?: string | null;      // Title of the original paper
+  duplicateOfAuthors?: string | null;    // Authors of the original paper
+  duplicateOfYear?: string | null;       // Publication year of the original paper
+  duplicateOfDoi?: string | null;        // DOI of the original paper
+  duplicateOfSource?: string | null;     // Source of the original paper
+  duplicateOfAbstract?: string | null;   // Abstract of the original paper
   method: DeduplicationMethod;           // Enum integer value
   methodText: string;                    // Enum string (e.g., "DOI_MATCH")
   confidenceScore?: number | null;       // 0.0 to 1.0
   deduplicationNotes?: string | null;    // Why it was flagged
   detectedAt: string;                    // ISO 8601 — when duplicate was detected
+  reviewStatus: DeduplicationReviewStatus; // Review status enum value
+  reviewStatusText: string;              // Review status display text
+  reviewedBy?: string | null;            // Who reviewed
+  reviewedAt?: string | null;            // When reviewed (ISO 8601)
+}
+
+// ============================================
+// Deduplication Review Status Enum
+// ============================================
+enum DeduplicationReviewStatus {
+  Pending = 0,
+  Confirmed = 1,
+  Rejected = 2
+}
+
+// ============================================
+// Resolve Duplicate Request
+// ============================================
+interface ResolveDuplicateRequest {
+  resolution: DeduplicationReviewStatus; // 0=Pending, 1=Confirmed, 2=Rejected
+  reviewedBy?: string | null;            // User who reviewed
+  notes?: string | null;                 // Optional review notes
 }
 
 // ============================================
@@ -683,17 +796,91 @@ curl -X GET "https://your-api.com/api/identification-processes/abc-123-def/dupli
 | **Pagination** | ✅ Supported (`pageNumber`, `pageSize`, max 100) |
 | **Search** | ✅ By title, DOI, or authors of the duplicate paper (case-insensitive) |
 | **Year Filter** | ✅ Exact match on publication year |
-| **Sort Order** | `detectedAt` descending (most recently detected first) |
+| **Sort Order** | Configurable via `sortBy`/`sortOrder` (default: `detectedAt` descending) |
 | **Side Effects** | None (read-only) |
 | **Companion** | `GET .../unique-papers` returns the inverse set (non-duplicates) |
-| **Key Extra Fields** | `duplicateOfPaperId`, `duplicateOfTitle`, `method`, `methodText`, `confidenceScore`, `deduplicationNotes`, `detectedAt` |
+| **Key Extra Fields** | `duplicateOfPaperId`, `duplicateOfTitle`, `duplicateOfAuthors`, `duplicateOfYear`, `duplicateOfDoi`, `duplicateOfSource`, `duplicateOfAbstract`, `method`, `methodText`, `confidenceScore`, `deduplicationNotes`, `detectedAt`, `reviewStatus`, `reviewStatusText`, `reviewedBy`, `reviewedAt` |
+| **Resolve Endpoint** | `POST .../duplicates/{id}/resolve` — confirm or reject a detection |
+| **Paired Endpoint** | `GET .../duplicate-pairs` — side-by-side comparison with both papers' full metadata |
+| **Pair Resolve Endpoint** | `PATCH .../duplicate-pairs/{pairId}/resolve` — resolve with decision: `keep-original` / `keep-duplicate` / `keep-both` |
 
 ---
 
 **Backend Implementation:**
-- Controller: `SRSS.IAM.API.Controllers.PapersController.GetDuplicatePapersByIdentificationProcess`
-- Service: `SRSS.IAM.Services.PaperService.IPaperService.GetDuplicatePapersByIdentificationProcessAsync`
-- Repository: `SRSS.IAM.Repositories.PaperRepo.IPaperRepository.GetDuplicatePapersByIdentificationProcessAsync`
+- Controller: `SRSS.IAM.API.Controllers.PapersController`
+- Service: `SRSS.IAM.Services.PaperService.IPaperService`
+- Repository (flat): `SRSS.IAM.Repositories.PaperRepo.IPaperRepository.GetDuplicatePapersByIdentificationProcessAsync`
+- Repository (pairs): `SRSS.IAM.Repositories.DeduplicationResultRepo.IDeduplicationResultRepository.GetDuplicatePairsAsync`
 
-**Document Version:** 1.0  
+**Document Version:** 3.0  
 **Maintained by:** Backend Team
+
+---
+
+## Changelog
+
+### v2.0 (2025-02-27) — Gap Report Resolution
+
+All changes are **backward compatible** — existing consumers continue to work unchanged.
+
+| Change | Gap Issue | Type | Breaking |
+|--------|-----------|------|----------|
+| Added `duplicateOfAuthors`, `duplicateOfYear`, `duplicateOfDoi`, `duplicateOfSource`, `duplicateOfAbstract` to response | Issue 1 | Additive | ❌ No |
+| Added `POST .../duplicates/{id}/resolve` endpoint | Issue 2 | New endpoint | ❌ No |
+| Added `reviewStatus`, `reviewStatusText`, `reviewedBy`, `reviewedAt` to response | Issue 3 | Additive | ❌ No |
+| Added `sortBy`, `sortOrder` query params | Issue 4 | Additive | ❌ No |
+| Added `reviewStatus` query param for filtering | Issue 3 | Additive | ❌ No |
+| DB migration: `AddDeduplicationReviewFields` (3 new columns + index) | Issues 2,3 | Schema | ❌ No (defaults to `Pending`) |
+
+**Migration notes:**
+- Run `dotnet ef database update` to apply the migration
+- Existing rows get `review_status = 'Pending'`, `reviewed_by = NULL`, `reviewed_at = NULL`
+- No data loss, no column renames, no type changes
+
+### v3.0 (2025-02-27) — Duplicate Pairs Feature
+
+New paired endpoint for side-by-side researcher review workflow. All changes are **backward compatible** — existing `/duplicates` endpoint is unchanged.
+
+| Change | Type | Breaking |
+|--------|------|----------|
+| Added `GET .../duplicate-pairs` endpoint — returns paired `originalPaper` + `duplicatePaper` with lightweight DTO | New endpoint | ❌ No |
+| Added `PATCH .../duplicate-pairs/{pairId}/resolve` endpoint — resolve with `keep-original` / `keep-duplicate` / `keep-both` | New endpoint | ❌ No |
+| Added `ResolvedDecision` field to `DeduplicationResult` entity | Additive | ❌ No |
+| Added `DuplicatePairPaperDto` — lightweight paper DTO (13 fields vs 30+ in full `PaperResponse`) | New DTO | ❌ No |
+| Added `DuplicatePairResponse`, `DuplicatePairsRequest`, `ResolveDuplicatePairRequest`, `ResolveDuplicatePairResponse` DTOs | New DTOs | ❌ No |
+| Added `GetDuplicatePairsAsync` to `IDeduplicationResultRepository` — search across both papers, filter by status/confidence/method, configurable sort | New method | ❌ No |
+| DB migration: `AddResolvedDecisionField` (`resolved_decision` varchar(50), nullable) | Schema | ❌ No |
+
+**New query parameters for `GET .../duplicate-pairs`:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `search` | `string` | `null` | Search title/DOI/authors of **either** paper in the pair |
+| `status` | `integer` | `null` | Filter by review status: `0`=Pending, `1`=Confirmed, `2`=Rejected |
+| `minConfidence` | `decimal` | `null` | Filter pairs with confidence ≥ value (0.0–1.0) |
+| `method` | `integer` | `null` | Filter by detection method enum |
+| `sortBy` | `string` | `confidenceDesc` | Sort: `confidenceDesc`, `confidenceAsc`, `detectedAtDesc` |
+| `pageNumber` | `integer` | `1` | Page number |
+| `pageSize` | `integer` | `20` | Items per page (max: 100) |
+
+**Resolve decisions:**
+
+| Decision | Effect | Maps to ReviewStatus |
+|----------|--------|---------------------|
+| `keep-original` | Duplicate paper excluded | `Confirmed` |
+| `keep-duplicate` | Original paper excluded | `Confirmed` |
+| `keep-both` | Not a duplicate, keep both | `Rejected` |
+
+**Migration notes:**
+- Run `dotnet ef database update` to apply the migration
+- Existing rows get `resolved_decision = NULL`
+- No data loss, no column renames, no type changes
+
+**Endpoint relationship:**
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET .../duplicates` | Flat reporting, statistics, export |
+| `GET .../duplicate-pairs` | Review workflow, side-by-side comparison |
+| `PATCH .../duplicate-pairs/{id}/resolve` | Record researcher decision with audit trail |
+| `GET .../unique-papers` | Non-duplicate papers |

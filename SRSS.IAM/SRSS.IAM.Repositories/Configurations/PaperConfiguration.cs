@@ -172,6 +172,17 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
 
+            // ============================================
+            // DEDUPLICATION STATUS
+            // ============================================
+            builder.Property(p => p.IsRemovedAsDuplicate)
+                .HasColumnName("is_removed_as_duplicate")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            builder.HasIndex(p => p.IsRemovedAsDuplicate)
+                .HasDatabaseName("ix_papers_is_removed_as_duplicate");
+
             //project
             builder.Property(p => p.ProjectId)
                 .HasColumnName("project_id")

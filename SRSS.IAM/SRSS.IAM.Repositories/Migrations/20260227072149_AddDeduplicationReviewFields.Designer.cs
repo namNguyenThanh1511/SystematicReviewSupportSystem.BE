@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260227072149_AddDeduplicationReviewFields")]
+    partial class AddDeduplicationReviewFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -350,11 +353,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("PaperId")
                         .HasColumnType("uuid")
                         .HasColumnName("paper_id");
-
-                    b.Property<string>("ResolvedDecision")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("resolved_decision");
 
                     b.Property<string>("ReviewStatus")
                         .IsRequired()
@@ -791,12 +789,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("internal_notes");
 
-                    b.Property<bool>("IsRemovedAsDuplicate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_removed_as_duplicate");
-
                     b.Property<string>("Issue")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -907,9 +899,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("DOI");
 
                     b.HasIndex("ImportBatchId");
-
-                    b.HasIndex("IsRemovedAsDuplicate")
-                        .HasDatabaseName("ix_papers_is_removed_as_duplicate");
 
                     b.HasIndex("ProjectId");
 

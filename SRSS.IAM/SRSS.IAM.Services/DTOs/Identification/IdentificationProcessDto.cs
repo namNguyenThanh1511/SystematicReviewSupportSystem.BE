@@ -19,5 +19,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+
+        public PrismaStatisticsResponse PrismaStatistics { get; set; }
     }
 }

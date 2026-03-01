@@ -35,8 +35,8 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             try
             {
-                // Calculate PRISMA counts from Paper table (using project context)
-                var counts = await CalculatePrismaCounts(reviewProcess.ProjectId, cancellationToken);
+                // Calculate PRISMA counts scoped to this review process
+                var counts = await CalculatePrismaCounts(reviewProcessId, cancellationToken);
 
                 // Create PRISMA Report
                 var prismaReport = new PrismaReport
@@ -113,38 +113,52 @@ namespace SRSS.IAM.Services.PrismaReportService
             return MapToResponse(report);
         }
         private async Task<PrismaCounts> CalculatePrismaCounts(
-            Guid projectId,
+            Guid reviewProcessId,
             CancellationToken cancellationToken)
         {
-            var papers = await _unitOfWork.Papers.FindAllAsync(
-                p => p.ProjectId == projectId,
+            // Scope to the review process's identification process
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.ReviewProcessId == reviewProcessId,
                 cancellationToken: cancellationToken);
 
-            var papersList = papers.ToList();
-
-            // Duplicates are tracked in DeduplicationResult table
-            // Count papers that appear in DeduplicationResult
-            var duplicateCount = 0;
-            foreach (var paper in papersList)
+            if (identificationProcess == null)
             {
-                var isDuplicate = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                    dr => dr.PaperId == paper.Id,
-                    cancellationToken: cancellationToken);
-
-                if (isDuplicate != null)
-                {
-                    duplicateCount++;
-                }
+                return new PrismaCounts();
             }
+
+            // Get total records imported via ImportBatch → SearchExecution → IdentificationProcess chain
+            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
+                se => se.IdentificationProcessId == identificationProcess.Id,
+                cancellationToken: cancellationToken);
+
+            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
+
+            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+                cancellationToken: cancellationToken);
+
+            var importBatchList = allImportBatches.ToList();
+            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
+
+            // Query actual unique paper count using the same logic as the unique papers endpoint
+            var (_, uniqueRecords) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
+                identificationProcess.Id,
+                search: null,
+                year: null,
+                pageNumber: 1,
+                pageSize: 1,
+                cancellationToken);
+
+            var duplicateCount = totalRecordsImported - uniqueRecords;
 
             // TODO: Selection status should be calculated from ScreeningResolution, not Paper
             // This requires knowing the StudySelectionProcessId
             // For now, return basic counts
             return new PrismaCounts
             {
-                RecordsIdentified = papersList.Count,
+                RecordsIdentified = totalRecordsImported,
                 DuplicateRecordsRemoved = duplicateCount,
-                RecordsScreened = papersList.Count - duplicateCount,
+                RecordsScreened = uniqueRecords,
                 RecordsExcluded = 0, // TODO: Query ScreeningResolution with FinalDecision = Exclude
                 StudiesIncluded = 0  // TODO: Query ScreeningResolution with FinalDecision = Include
             };

@@ -65,6 +65,16 @@ namespace SRSS.IAM.Repositories.Entities
         public string? InternalNotes { get; set; }
 
         // ============================================
+        // DEDUPLICATION STATUS
+        // ============================================
+        /// <summary>
+        /// Flag set during deduplication resolution.
+        /// True = this paper was removed as a duplicate (or superseded by a duplicate).
+        /// Simplifies all queries that need to find "surviving" papers.
+        /// </summary>
+        public bool IsRemovedAsDuplicate { get; set; } = false;
+
+        // ============================================
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }

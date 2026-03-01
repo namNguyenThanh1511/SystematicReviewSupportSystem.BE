@@ -7,6 +7,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
     {
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
+        Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
 
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
@@ -25,6 +26,9 @@ namespace SRSS.IAM.Repositories.PaperRepo
             Guid identificationProcessId,
             string? search,
             int? year,
+            string? sortBy,
+            string? sortOrder,
+            DeduplicationReviewStatus? reviewStatus,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);

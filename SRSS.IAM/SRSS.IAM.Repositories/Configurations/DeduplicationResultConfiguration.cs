@@ -40,6 +40,22 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(dr => dr.Notes)
                 .HasColumnName("notes");
 
+            builder.Property(dr => dr.ReviewStatus)
+                .HasColumnName("review_status")
+                .HasConversion<string>()
+                .HasDefaultValue(DeduplicationReviewStatus.Pending)
+                .IsRequired();
+
+            builder.Property(dr => dr.ReviewedBy)
+                .HasColumnName("reviewed_by");
+
+            builder.Property(dr => dr.ReviewedAt)
+                .HasColumnName("reviewed_at");
+
+            builder.Property(dr => dr.ResolvedDecision)
+                .HasColumnName("resolved_decision")
+                .HasMaxLength(50);
+
             builder.Property(dr => dr.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -79,6 +95,7 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasIndex(dr => dr.PaperId);
             builder.HasIndex(dr => dr.DuplicateOfPaperId);
             builder.HasIndex(dr => dr.Method);
+            builder.HasIndex(dr => dr.ReviewStatus);
         }
     }
 }

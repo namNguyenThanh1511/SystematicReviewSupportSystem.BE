@@ -67,7 +67,8 @@ namespace SRSS.IAM.Services.Utils
 
                     case "DA": // Publication Date
                         if (DateTime.TryParse(value, out var date))
-                            currentPaper.PublicationDate = new DateTimeOffset(date);
+                            currentPaper.PublicationDate =
+                                new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc));
                         break;
 
                     case "JO": // Journal Name

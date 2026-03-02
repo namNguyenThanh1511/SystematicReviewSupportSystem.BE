@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SRSS.IAM.Repositories;
 using SRSS.IAM.Repositories.Entities;
@@ -68,11 +69,17 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid Rq2OutcomeDetailId = Guid.Parse("f2644444-4444-4444-4444-444444444444");
         private static readonly Guid Rq2ContextDetailId = Guid.Parse("f2655555-5555-5555-5555-555555555555");
 
+        // ── User IDs ─────────────────────────────────────────────────────
+        private static readonly Guid AdminUserId = Guid.Parse("aa111111-1111-1111-1111-111111111111");
+        private static readonly Guid ClientUserId = Guid.Parse("aa222222-2222-2222-2222-222222222222");
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
 
+            await SeedUsersAsync(context, passwordHasher);
             await SeedProjectsAsync(context);
             await SeedReviewProcessesAsync(context);
             await SeedIdentificationProcessesAsync(context);
@@ -81,6 +88,48 @@ namespace SRSS.IAM.API.Data
             await SeedPapersAsync(context);
             await SeedCoreGovernanceAsync(context);
         }
+
+		private static async Task SeedUsersAsync(AppDbContext context, IPasswordHasher<User> passwordHasher)
+		{
+			if (await context.Users.AnyAsync(x => x.Id == AdminUserId || x.Id == ClientUserId))
+			{
+				return;
+			}
+
+			var users = new List<User>
+			{
+				new User
+				{
+					Id = AdminUserId,
+					Username = "admin",
+					FullName = "System Administrator",
+					Email = "admin@srss.com",
+					Role = Role.Admin,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+                },
+				new User
+				{
+					Id = ClientUserId,
+					Username = "client",
+					FullName = "Demo Client",
+					Email = "client@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                }
+			};
+
+			foreach (var user in users)
+			{
+				user.Password = passwordHasher.HashPassword(user, "P@ssw0rd123");
+			}
+
+			await context.Users.AddRangeAsync(users);
+			await context.SaveChangesAsync();
+		}
 
 		private static async Task SeedProjectsAsync(AppDbContext context)
 		{

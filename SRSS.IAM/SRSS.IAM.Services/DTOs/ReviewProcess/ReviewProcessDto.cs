@@ -6,6 +6,7 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
 {
     public class CreateReviewProcessRequest
     {
+        public string? Name { get; set; }
         public string? Notes { get; set; }
     }
 

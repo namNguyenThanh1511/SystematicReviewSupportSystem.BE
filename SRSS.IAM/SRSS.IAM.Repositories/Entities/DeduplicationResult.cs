@@ -38,6 +38,26 @@ namespace SRSS.IAM.Repositories.Entities
         /// </summary>
         public string? Notes { get; set; }
 
+        /// <summary>
+        /// Review status of this deduplication result (Pending, Confirmed, Rejected)
+        /// </summary>
+        public DeduplicationReviewStatus ReviewStatus { get; set; } = DeduplicationReviewStatus.Pending;
+
+        /// <summary>
+        /// Who reviewed this deduplication result
+        /// </summary>
+        public string? ReviewedBy { get; set; }
+
+        /// <summary>
+        /// When this deduplication result was reviewed
+        /// </summary>
+        public DateTimeOffset? ReviewedAt { get; set; }
+
+        /// <summary>
+        /// The resolution decision: "keep-original", "keep-duplicate", "keep-both"
+        /// </summary>
+        public string? ResolvedDecision { get; set; }
+
         // Navigation Properties
         public IdentificationProcess IdentificationProcess { get; set; } = null!;
         public Paper Paper { get; set; } = null!;
@@ -73,5 +93,26 @@ namespace SRSS.IAM.Repositories.Entities
         /// Manual review by researcher
         /// </summary>
         MANUAL = 4
+    }
+
+    /// <summary>
+    /// Review status for a deduplication result
+    /// </summary>
+    public enum DeduplicationReviewStatus
+    {
+        /// <summary>
+        /// Not yet reviewed by a researcher
+        /// </summary>
+        Pending = 0,
+
+        /// <summary>
+        /// Researcher confirmed this is a duplicate
+        /// </summary>
+        Confirmed = 1,
+
+        /// <summary>
+        /// Researcher rejected — not actually a duplicate, keep both papers
+        /// </summary>
+        Rejected = 2
     }
 }

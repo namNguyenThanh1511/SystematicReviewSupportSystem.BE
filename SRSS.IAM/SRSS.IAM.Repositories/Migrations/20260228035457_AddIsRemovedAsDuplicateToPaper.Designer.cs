@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228035457_AddIsRemovedAsDuplicateToPaper")]
+    partial class AddIsRemovedAsDuplicateToPaper
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1076,111 +1079,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ReviewProcessId");
 
                     b.ToTable("prisma_reports", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectMember", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("JoinedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("joined_at")
-                        .HasDefaultValueSql("timezone('utc', now())");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer")
-                        .HasColumnName("role");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ProjectId", "Role")
-                        .IsUnique()
-                        .HasFilter("role = 1");
-
-                    b.HasIndex("ProjectId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("project_members", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectMemberInvitation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("timezone('utc', now())");
-
-                    b.Property<DateTimeOffset?>("ExpiredAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expired_at");
-
-                    b.Property<Guid>("InvitedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("invited_by_user_id");
-
-                    b.Property<Guid>("InvitedUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("invited_user_id");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("project_id");
-
-                    b.Property<DateTimeOffset?>("RespondedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("responded_at");
-
-                    b.Property<string>("ResponseMessage")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("response_message");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvitedByUserId");
-
-                    b.HasIndex("InvitedUserId");
-
-                    b.HasIndex("ProjectId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("project_member_invitations", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectTimetable", b =>
@@ -2509,52 +2407,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ReviewProcess");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectMember", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
-                        .WithMany("ProjectMembers")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Project");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectMemberInvitation", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "InvitedByUser")
-                        .WithMany()
-                        .HasForeignKey("InvitedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "InvitedUser")
-                        .WithMany()
-                        .HasForeignKey("InvitedUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
-                        .WithMany("ProjectMemberInvitations")
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InvitedByUser");
-
-                    b.Navigation("InvitedUser");
-
-                    b.Navigation("Project");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectTimetable", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProtocol", "Protocol")
@@ -2990,10 +2842,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("CommissioningDocuments");
 
                     b.Navigation("Papers");
-
-                    b.Navigation("ProjectMemberInvitations");
-
-                    b.Navigation("ProjectMembers");
 
                     b.Navigation("Protocols");
 

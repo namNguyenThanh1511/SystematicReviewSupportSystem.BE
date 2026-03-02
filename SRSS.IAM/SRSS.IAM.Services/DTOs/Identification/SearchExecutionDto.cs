@@ -31,7 +31,16 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public SearchExecutionType Type { get; set; }
         public string TypeText { get; set; } = string.Empty;
         public string? Notes { get; set; }
+        public int ImportBatchCount { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+    }
+
+    public class PrismaStatisticsResponse
+    {
+        public int TotalRecordsImported { get; set; }
+        public int DuplicateRecords { get; set; }
+        public int UniqueRecords { get; set; }
+        public int ImportBatchCount { get; set; }
     }
 }

@@ -32,6 +32,8 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
         public async Task<IEnumerable<ReviewProcess>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.ReviewProcesses
+                .Include(rp => rp.IdentificationProcess)
+                .Include(rp => rp.StudySelectionProcess)
                 .Where(rp => rp.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }

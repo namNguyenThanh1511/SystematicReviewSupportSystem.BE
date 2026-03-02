@@ -74,7 +74,7 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public ReviewProcess AddReviewProcess(string? notes = null)
+        public ReviewProcess AddReviewProcess(string name ,string? notes = null)
         {
             if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
             {
@@ -90,6 +90,7 @@ namespace SRSS.IAM.Repositories.Entities
             var reviewProcess = new ReviewProcess
             {
                 Id = Guid.NewGuid(),
+                Name = name,
                 ProjectId = Id,
                 Status = ProcessStatus.Pending,
                 Notes = notes,

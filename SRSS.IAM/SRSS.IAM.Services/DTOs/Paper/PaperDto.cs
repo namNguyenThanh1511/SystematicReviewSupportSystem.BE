@@ -66,6 +66,9 @@ namespace SRSS.IAM.Services.DTOs.Paper
     {
         public string? Search { get; set; }
         public int? Year { get; set; }
+        public string? SortBy { get; set; }
+        public string? SortOrder { get; set; }
+        public DeduplicationReviewStatus? ReviewStatus { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }
@@ -78,10 +81,29 @@ namespace SRSS.IAM.Services.DTOs.Paper
         // Deduplication metadata
         public Guid DuplicateOfPaperId { get; set; }
         public string? DuplicateOfTitle { get; set; }
+        public string? DuplicateOfAuthors { get; set; }
+        public string? DuplicateOfYear { get; set; }
+        public string? DuplicateOfDoi { get; set; }
+        public string? DuplicateOfSource { get; set; }
+        public string? DuplicateOfAbstract { get; set; }
         public DeduplicationMethod Method { get; set; }
         public string MethodText { get; set; } = string.Empty;
         public decimal? ConfidenceScore { get; set; }
         public string? DeduplicationNotes { get; set; }
         public DateTimeOffset DetectedAt { get; set; }
+        public DeduplicationReviewStatus ReviewStatus { get; set; } = DeduplicationReviewStatus.Pending;
+        public string ReviewStatusText { get; set; } = DeduplicationReviewStatus.Pending.ToString();
+        public string? ReviewedBy { get; set; }
+        public DateTimeOffset? ReviewedAt { get; set; }
+    }
+
+    /// <summary>
+    /// Request to resolve a duplicate detection result
+    /// </summary>
+    public class ResolveDuplicateRequest
+    {
+        public DeduplicationReviewStatus Resolution { get; set; }
+        public string? ReviewedBy { get; set; }
+        public string? Notes { get; set; }
     }
 }

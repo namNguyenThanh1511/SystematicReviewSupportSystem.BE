@@ -19,8 +19,43 @@ namespace SRSS.IAM.Services.PaperService
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific identification process
+        /// Returns papers that have no deduplication results in that process
+        /// </summary>
+        Task<PaginatedResponse<PaperResponse>> GetUniquePapersByIdentificationProcessAsync(
+            Guid identificationProcessId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<PaperResponse> GetPaperByIdAsync(
             Guid id,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resolve a duplicate detection result (confirm, reject)
+        /// </summary>
+        Task<DuplicatePaperResponse> ResolveDuplicateAsync(
+            Guid identificationProcessId,
+            Guid deduplicationResultId,
+            ResolveDuplicateRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get paginated duplicate pairs with both papers for side-by-side comparison
+        /// </summary>
+        Task<PaginatedResponse<DuplicatePairResponse>> GetDuplicatePairsAsync(
+            Guid identificationProcessId,
+            DuplicatePairsRequest request,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Resolve a duplicate pair with a specific decision (keep-original, keep-duplicate, keep-both)
+        /// </summary>
+        Task<ResolveDuplicatePairResponse> ResolveDuplicatePairAsync(
+            Guid identificationProcessId,
+            Guid pairId,
+            ResolveDuplicatePairRequest request,
             CancellationToken cancellationToken = default);
 
         Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(

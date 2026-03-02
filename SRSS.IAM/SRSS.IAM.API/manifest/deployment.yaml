@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: srss-iam
-          image: ghcr.io/namnguyenthanh1511/srss-iam-api:latest
+          image: ghcr.io/namnguyenthanh1511/srss-be-api:latest
           resources:
             limits:
               memory: "2Gi"

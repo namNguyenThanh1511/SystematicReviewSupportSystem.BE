@@ -72,5 +72,10 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
                 .Where(m => m.UserId == userId)
                 .AsNoTracking();
         }
+
+        public async Task AddMemberAsync(ProjectMember member)
+        {
+            await _context.ProjectMembers.AddAsync(member);
+        }
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
@@ -8,6 +9,7 @@ namespace SRSS.IAM.API.Controllers
 {
     [ApiController]
     [Route("api/users")]
+    [Authorize]
     public class UserController : BaseController
     {
         private readonly IUserService _userService;
@@ -18,25 +20,19 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
-        /// Get user by email address
+        /// Search for users by keyword (Email or Username) to invite to a project.
+        /// Matches if keyword is at least 3 characters.
         /// </summary>
-        /// <param name="email">Email address to search for</param>
-        /// <returns>User details if found, otherwise 404</returns>
-        [HttpGet("email/{email}")]
-        public async Task<ActionResult<ApiResponse<UserResponse>>> GetByEmail(string email)
+        /// <param name="projectId">ID of the project for awareness</param>
+        /// <param name="keyword">Keyword to search for (min 3 chars)</param>
+        /// <returns>List of users matching the keyword with project membership info</returns>
+        [HttpGet("search")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<UserSearchResponse>>>> SearchUsers(
+            [FromQuery] Guid projectId,
+            [FromQuery] string keyword)
         {
-            var result = await _userService.GetUserByEmailAsync(email);
-
-            if (result == null)
-            {
-                // This will be caught by the client based on our conventions, 
-                // but the prompt asked for 200 OK -> UserResponse or 404 NotFound.
-                // However, our BaseController and GlobalExceptionMiddleware usually handle this.
-                // Following the "Let exceptions bubble up" rule from user_rules:
-                throw new InvalidOperationException($"User with email {email} not found.");
-            }
-
-            return Ok(result, "User retrieved successfully.");
+            var result = await _userService.SearchUsersAsync(projectId, keyword);
+            return Ok(result, "Users retrieved successfully.");
         }
     }
 }

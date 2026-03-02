@@ -1,5 +1,6 @@
 ﻿using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.UserRepo.DTOs;
 
 namespace SRSS.IAM.Repositories.UserRepo
 {
@@ -9,11 +10,26 @@ namespace SRSS.IAM.Repositories.UserRepo
         {
         }
 
-        public async Task<User?> GetByEmailAsync(string email)
+        public async Task<IEnumerable<UserSearchResultDto>> SearchUsersAsync(Guid projectId, string keyword, int limit = 15)
         {
             return await _context.Users
                 .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+                .Where(u => u.IsActive &&
+                           (u.Email.StartsWith(keyword) ||
+                            u.Username.StartsWith(keyword)))
+                .OrderBy(u => u.Username)
+                .Select(u => new UserSearchResultDto
+                {
+                    Id = u.Id,
+                    Email = u.Email,
+                    Username = u.Username,
+                    ProjectRole = _context.ProjectMembers
+                        .Where(pm => pm.ProjectId == projectId && pm.UserId == u.Id)
+                        .Select(pm => pm.Role)
+                        .FirstOrDefault()
+                })
+                .Take(limit)
+                .ToListAsync();
         }
     }
 }

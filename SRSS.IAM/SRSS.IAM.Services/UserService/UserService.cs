@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.User;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.UserService
 {
@@ -13,30 +14,29 @@ namespace SRSS.IAM.Services.UserService
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<UserResponse?> GetUserByEmailAsync(string email)
+        public async Task<IEnumerable<UserSearchResponse>> SearchUsersAsync(Guid projectId, string keyword, int limit = 15)
         {
-            if (string.IsNullOrWhiteSpace(email))
+            if (string.IsNullOrWhiteSpace(keyword))
             {
-                return null;
+                return Enumerable.Empty<UserSearchResponse>();
             }
 
-            var normalizedEmail = email.Trim().ToLower();
-            var user = await _unitOfWork.Users.GetByEmailAsync(normalizedEmail);
-
-            if (user == null)
+            var trimmedKeyword = keyword.Trim();
+            if (trimmedKeyword.Length < 3)
             {
-                return null;
+                throw new ArgumentException("Search keyword must be at least 3 characters long.");
             }
 
-            return new UserResponse
+            var users = await _unitOfWork.Users.SearchUsersAsync(projectId, trimmedKeyword, limit);
+
+            return users.Select(u => new UserSearchResponse
             {
-                Id = user.Id,
-                FullName = user.FullName,
-                Email = user.Email,
-                Username = user.Username,
-                IsActive = user.IsActive,
-                Role = user.Role.ToString()
-            };
+                Id = u.Id,
+                Email = u.Email,
+                Username = u.Username,
+                ProjectRole = u.ProjectRole,
+                IsAlreadyMember = u.ProjectRole != null
+            });
         }
     }
 }

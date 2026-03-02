@@ -4,6 +4,6 @@ namespace SRSS.IAM.Services.UserService
 {
     public interface IUserService
     {
-        Task<UserResponse?> GetUserByEmailAsync(string email);
+        Task<IEnumerable<UserSearchResponse>> SearchUsersAsync(Guid projectId, string keyword, int limit = 15);
     }
 }

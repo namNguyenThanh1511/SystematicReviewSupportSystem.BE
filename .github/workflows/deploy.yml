@@ -36,8 +36,8 @@ jobs:
          - name: Build and push Docker image
            uses: docker/build-push-action@v5
            with:
-              context: ./src
-              file: ./src/Services/SRSS.IAM/SRSS.IAM.API/Dockerfile
+              context: ./
+              file: ./SRSS.IAM/SRSS.IAM.API/Dockerfile
               push: true
               tags: ${{ steps.meta.outputs.tags }}
 

@@ -224,6 +224,55 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		// ─────────────────────────── ResearchQuestion ──────────────────────
 
+		public async Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request)
+		{
+			await _unitOfWork.BeginTransactionAsync();
+
+			try
+			{
+				var entity = new ResearchQuestion
+				{
+					ProjectId = request.ProjectId,
+					QuestionTypeId = request.QuestionTypeId,
+					QuestionText = request.QuestionText,
+					Rationale = request.Rationale
+				};
+
+				await _unitOfWork.ResearchQuestions.AddAsync(entity);
+				await _unitOfWork.SaveChangesAsync();
+
+				foreach (var picocRequest in request.PicocElements)
+				{
+					var picocElement = new PicocElement
+					{
+						ResearchQuestionId = entity.Id,
+						ElementType = picocRequest.ElementType,
+						Description = picocRequest.Description
+					};
+
+					await _unitOfWork.PicocElements.AddAsync(picocElement);
+					await _unitOfWork.SaveChangesAsync();
+
+					await CreateSpecificPicocChildAsync(picocElement.Id, picocRequest.ElementType,
+						picocRequest.PopulationDetail?.Description,
+						picocRequest.InterventionDetail?.Description,
+						picocRequest.ComparisonDetail?.Description,
+						picocRequest.OutcomeDetail?.Metric, picocRequest.OutcomeDetail?.Description,
+						picocRequest.ContextDetail?.Environment, picocRequest.ContextDetail?.Description);
+				}
+
+				await _unitOfWork.SaveChangesAsync();
+				await _unitOfWork.CommitTransactionAsync();
+
+				return await BuildResearchQuestionResponseAsync(entity.Id);
+			}
+			catch
+			{
+				await _unitOfWork.RollbackTransactionAsync();
+				throw;
+			}
+		}
+
 		public async Task<ResearchQuestionDetailResponse> GetResearchQuestionByIdAsync(Guid id)
 		{
 			var exists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == id);

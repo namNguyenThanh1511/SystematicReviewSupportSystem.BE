@@ -27,18 +27,6 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
-        /// Get all invitations where the current user is invited
-        /// </summary>
-        /// <returns>List of invitations</returns>
-        [HttpGet("my")]
-        public async Task<ActionResult<ApiResponse<IEnumerable<ProjectInvitationResponse>>>> GetMyInvitations()
-        {
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var result = await _invitationService.GetMyInvitationsAsync(Guid.Parse(userId));
-            return Ok(result, "Your invitations retrieved successfully.");
-        }
-
-        /// <summary>
         /// Get pending invitations for a specific project. Only for Leaders or Admins.
         /// </summary>
         /// <param name="projectId">Project ID</param>
@@ -52,6 +40,19 @@ namespace SRSS.IAM.API.Controllers
             var (userId, _) = _currentUserService.GetCurrentUser();
             var result = await _invitationService.GetProjectInvitationsAsync(projectId, Guid.Parse(userId), status);
             return Ok(result, "Project invitations retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get a specific invitation by ID.
+        /// </summary>
+        /// <param name="invitationId">Invitation ID</param>
+        /// <returns>Invitation details</returns>
+        [HttpGet("{invitationId}")]
+        public async Task<ActionResult<ApiResponse<ProjectInvitationResponse>>> GetById([FromRoute] Guid invitationId)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var result = await _invitationService.GetByIdAsync(invitationId, Guid.Parse(userId));
+            return Ok(result, "Invitation retrieved successfully.");
         }
 
         /// <summary>

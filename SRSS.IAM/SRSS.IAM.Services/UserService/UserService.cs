@@ -34,8 +34,9 @@ namespace SRSS.IAM.Services.UserService
                 Id = u.Id,
                 Email = u.Email,
                 Username = u.Username,
+                FullName = u.FullName,
                 ProjectRole = u.ProjectRole,
-                IsAlreadyMember = u.ProjectRole != null
+                IsAlreadyMember = u.IsAlreadyMember
             });
         }
     }

@@ -14,16 +14,16 @@ namespace SRSS.IAM.Services.NotificationService
             _unitOfWork = unitOfWork;
         }
 
-        public async Task SendAsync(Guid userId, string title, string message, NotificationType type, string? navigationUrl = null, string? metadata = null)
+        public async Task SendAsync(Guid userId, string title, string message, NotificationType type, Guid? relatedEntityId = null, NotificationEntityType? entityType = null, string? metadata = null)
         {
-            var notification = new Notification(userId, title, message, type, navigationUrl, metadata);
+            var notification = new Notification(userId, title, message, type, relatedEntityId, entityType, metadata);
             await _unitOfWork.Notifications.AddAsync(notification);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task SendToManyAsync(IEnumerable<Guid> userIds, string title, string message, NotificationType type, string? navigationUrl = null, string? metadata = null)
+        public async Task SendToManyAsync(IEnumerable<Guid> userIds, string title, string message, NotificationType type, Guid? relatedEntityId = null, NotificationEntityType? entityType = null, string? metadata = null)
         {
-            var notifications = userIds.Select(userId => new Notification(userId, title, message, type, navigationUrl, metadata)).ToList();
+            var notifications = userIds.Select(userId => new Notification(userId, title, message, type, relatedEntityId, entityType, metadata)).ToList();
             await _unitOfWork.Notifications.AddRangeAsync(notifications);
             await _unitOfWork.SaveChangesAsync();
         }
@@ -88,7 +88,8 @@ namespace SRSS.IAM.Services.NotificationService
                     Title = entity.Title,
                     Message = entity.Message,
                     Type = entity.Type,
-                    NavigationUrl = entity.NavigationUrl,
+                    RelatedEntityId = entity.RelatedEntityId,
+                    EntityType = entity.EntityType,
                     IsRead = entity.IsRead,
                     CreatedAt = entity.CreatedAt
                 };

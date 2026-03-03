@@ -30,22 +30,6 @@ namespace SRSS.IAM.Repositories.ProjectMemberInvitationRepo
             return await query.ToListAsync();
         }
 
-        public async Task<IEnumerable<ProjectMemberInvitation>> GetByInvitedUserIdAsync(Guid userId, bool includeExpired = false)
-        {
-            var query = _context.ProjectMemberInvitations
-                .Include(i => i.Project)
-                .Include(i => i.InvitedByUser)
-                .Where(i => i.InvitedUserId == userId);
-
-            if (!includeExpired)
-            {
-                query = query.Where(i => i.Status == ProjectMemberInvitationStatus.Pending &&
-                                       (i.ExpiredAt == null || i.ExpiredAt > DateTimeOffset.UtcNow));
-            }
-
-            return await query.ToListAsync();
-        }
-
         public async Task<ProjectMemberInvitation?> GetByIdWithDetailsAsync(Guid id)
         {
             return await _context.ProjectMemberInvitations

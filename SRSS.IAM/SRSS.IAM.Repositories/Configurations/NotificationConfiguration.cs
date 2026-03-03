@@ -35,9 +35,13 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasConversion<string>()
                 .IsRequired();
 
-            builder.Property(n => n.NavigationUrl)
-                .HasColumnName("navigation_url")
-                .HasMaxLength(500)
+            builder.Property(n => n.RelatedEntityId)
+                .HasColumnName("related_entity_id")
+                .IsRequired(false);
+
+            builder.Property(n => n.EntityType)
+                .HasColumnName("entity_type")
+                .HasConversion<int>()
                 .IsRequired(false);
 
             builder.Property(n => n.IsRead)

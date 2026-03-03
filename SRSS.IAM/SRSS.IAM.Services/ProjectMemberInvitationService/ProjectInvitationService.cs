@@ -112,7 +112,6 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
                     {
                         var title = "Project Invitation";
                         var message = $"You have been invited to join project {project.Title} as {invitation.Role}";
-                        var navigationUrl = $"/project/{projectId}/my-invitation";
                         var metadataObj = new
                         {
                             projectId = projectId,
@@ -125,7 +124,8 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
                             title,
                             message,
                             NotificationType.Invitation,
-                            navigationUrl,
+                            invitation.Id,
+                            NotificationEntityType.ProjectInvitation,
                             JsonSerializer.Serialize(metadataObj));
                     }
                 }
@@ -153,10 +153,23 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
             return invitations.ToResponseList();
         }
 
-        public async Task<IEnumerable<ProjectInvitationResponse>> GetMyInvitationsAsync(Guid currentUserId)
+        public async Task<ProjectInvitationResponse> GetByIdAsync(Guid invitationId, Guid currentUserId)
         {
-            var invitations = await _unitOfWork.ProjectMemberInvitations.GetByInvitedUserIdAsync(currentUserId);
-            return invitations.ToResponseList();
+            var invitation = await _unitOfWork.ProjectMemberInvitations.GetByIdWithDetailsAsync(invitationId);
+
+            if (invitation == null)
+            {
+                throw new InvalidOperationException($"Invitation with ID {invitationId} not found.");
+            }
+
+            var user = await _unitOfWork.Users.FindSingleAsync(u => u.Id == currentUserId);
+
+            if (user?.Role != Role.Admin && invitation.InvitedUserId != currentUserId)
+            {
+                throw new InvalidOperationException("Unauthorized: You do not have permission to view this invitation.");
+            }
+
+            return invitation.ToResponse();
         }
 
         public async Task AcceptInvitationAsync(Guid invitationId, Guid currentUserId)
@@ -203,7 +216,8 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
                         "Invitation Accepted",
                         $"{invitation.InvitedUser.FullName} has accepted your invitation to join {invitation.Project.Title}.",
                         NotificationType.System,
-                        $"/project/{invitation.ProjectId}/members",
+                        invitation.ProjectId,
+                        NotificationEntityType.Project,
                         null);
                 }
                 catch { }

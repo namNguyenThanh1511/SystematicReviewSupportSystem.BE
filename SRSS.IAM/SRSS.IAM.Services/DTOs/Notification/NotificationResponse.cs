@@ -8,7 +8,9 @@ namespace SRSS.IAM.Services.DTOs.Notification
         public string Title { get; set; } = null!;
         public string Message { get; set; } = null!;
         public NotificationType Type { get; set; }
-        public string? NavigationUrl { get; set; }
+        public Guid? RelatedEntityId { get; set; }
+        public NotificationEntityType? EntityType { get; set; }
+
         public bool IsRead { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
     }

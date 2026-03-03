@@ -23,10 +23,13 @@ namespace SRSS.IAM.Repositories.UserRepo
                     Id = u.Id,
                     Email = u.Email,
                     Username = u.Username,
+                    FullName = u.FullName,
                     ProjectRole = _context.ProjectMembers
                         .Where(pm => pm.ProjectId == projectId && pm.UserId == u.Id)
                         .Select(pm => pm.Role)
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    IsAlreadyMember = _context.ProjectMembers
+                        .Any(pm => pm.ProjectId == projectId && pm.UserId == u.Id)
                 })
                 .Take(limit)
                 .ToListAsync();

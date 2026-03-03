@@ -7,7 +7,6 @@ namespace SRSS.IAM.Repositories.ProjectMemberInvitationRepo
     {
         Task AddRangeAsync(IEnumerable<ProjectMemberInvitation> invitations);
         Task<IEnumerable<ProjectMemberInvitation>> GetByProjectIdAsync(Guid projectId, ProjectMemberInvitationStatus? status = null);
-        Task<IEnumerable<ProjectMemberInvitation>> GetByInvitedUserIdAsync(Guid userId, bool includeExpired = false);
         Task<ProjectMemberInvitation?> GetByIdWithDetailsAsync(Guid id);
     }
 }

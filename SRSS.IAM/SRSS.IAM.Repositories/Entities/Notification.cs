@@ -8,7 +8,10 @@ namespace SRSS.IAM.Repositories.Entities
         public string Title { get; set; }
         public string Message { get; set; }
         public NotificationType Type { get; set; }
-        public string? NavigationUrl { get; set; }
+
+        public Guid? RelatedEntityId { get; private set; }
+        public NotificationEntityType? EntityType { get; private set; }
+
         public bool IsRead { get; set; }
         public DateTimeOffset? ReadAt { get; set; }
         public string? Metadata { get; set; }
@@ -22,14 +25,22 @@ namespace SRSS.IAM.Repositories.Entities
             User = null!;
         }
 
-        public Notification(Guid userId, string title, string message, NotificationType type, string? navigationUrl = null, string? metadata = null)
+        public Notification(
+            Guid userId,
+            string title,
+            string message,
+            NotificationType type,
+            Guid? relatedEntityId = null,
+            NotificationEntityType? entityType = null,
+            string? metadata = null)
         {
             Id = Guid.NewGuid();
             UserId = userId;
             Title = title;
             Message = message;
             Type = type;
-            NavigationUrl = navigationUrl;
+            RelatedEntityId = relatedEntityId;
+            EntityType = entityType;
             Metadata = metadata;
             IsRead = false;
             CreatedAt = DateTimeOffset.UtcNow;

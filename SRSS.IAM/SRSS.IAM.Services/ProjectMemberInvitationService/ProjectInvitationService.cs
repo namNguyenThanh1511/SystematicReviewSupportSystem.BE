@@ -211,14 +211,21 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
                 // Notify inviter
                 try
                 {
+                    var metadataObj = new
+                    {
+                        projectId = invitation.ProjectId,
+                        invitationId = invitation.Id,
+                        role = invitation.Role.ToString()
+                    };
+
                     await _notificationService.SendAsync(
                         invitation.InvitedByUserId,
                         "Invitation Accepted",
                         $"{invitation.InvitedUser.FullName} has accepted your invitation to join {invitation.Project.Title}.",
-                        NotificationType.System,
-                        invitation.ProjectId,
-                        NotificationEntityType.Project,
-                        null);
+                        NotificationType.Invitation,
+                        invitation.Id,
+                        NotificationEntityType.ProjectInvitation,
+                        JsonSerializer.Serialize(metadataObj));
                 }
                 catch { }
             }
@@ -231,7 +238,7 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
 
         public async Task RejectInvitationAsync(Guid invitationId, Guid currentUserId, RejectInvitationRequest request)
         {
-            var invitation = await _unitOfWork.ProjectMemberInvitations.FindSingleAsync(i => i.Id == invitationId, isTracking: true);
+            var invitation = await _unitOfWork.ProjectMemberInvitations.GetByIdWithDetailsAsync(invitationId);
 
             if (invitation == null)
                 throw new InvalidOperationException("Invitation not found.");
@@ -244,6 +251,27 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
 
             invitation.Reject(request.ResponseMessage);
             await _unitOfWork.SaveChangesAsync();
+
+            // Notify inviter
+            try
+            {
+                var metadataObj = new
+                {
+                    projectId = invitation.ProjectId,
+                    invitationId = invitation.Id,
+                    role = invitation.Role.ToString()
+                };
+
+                await _notificationService.SendAsync(
+                    invitation.InvitedByUserId,
+                    "Invitation Rejected",
+                    $"{invitation.InvitedUser.FullName} has rejected your invitation to join {invitation.Project.Title}. Message: {invitation.ResponseMessage ?? "No message provided"}",
+                    NotificationType.Invitation,
+                    invitation.Id,
+                    NotificationEntityType.ProjectInvitation,
+                    JsonSerializer.Serialize(metadataObj));
+            }
+            catch { }
         }
 
         public async Task CancelInvitationAsync(Guid invitationId, Guid currentUserId)
@@ -267,6 +295,27 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
 
             invitation.Cancel();
             await _unitOfWork.SaveChangesAsync();
+
+            // Notify invited user
+            try
+            {
+                var metadataObj = new
+                {
+                    projectId = invitation.ProjectId,
+                    invitationId = invitation.Id,
+                    role = invitation.Role.ToString()
+                };
+
+                await _notificationService.SendAsync(
+                    invitation.InvitedUserId,
+                    "Invitation Cancelled",
+                    $"The invitation to join project {invitation.Project.Title} has been cancelled.",
+                    NotificationType.Invitation,
+                    invitation.Id,
+                    NotificationEntityType.ProjectInvitation,
+                    JsonSerializer.Serialize(metadataObj));
+            }
+            catch { }
         }
     }
 }

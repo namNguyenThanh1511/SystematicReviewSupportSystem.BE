@@ -4,6 +4,7 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.ProtocolService;
+using System.Security.Claims;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -67,12 +68,15 @@ namespace SRSS.IAM.API.Controllers
 		[HttpPost("{protocolId}/approve")]
 		public async Task<ActionResult<ApiResponse>> ApproveProtocol(Guid protocolId, [FromBody] ApproveProtocolRequest request)
 		{
-			await _protocolService.ApproveProtocolAsync(protocolId, request.ReviewerId);
+			// Get current user ID from JWT claims or use the provided one
+			var currentUserId = GetCurrentUserId() ?? request.UserId;
+
+			await _protocolService.ApproveProtocolAsync(protocolId, currentUserId);
 			return Ok("Phê duyệt protocol thành công");
 		}
 
 		/// <summary>
-		/// Xóa protocol và tất cả dữ liệu liên quan (cascade delete)
+		/// Xóa protocol mềm
 		/// </summary>
 		[HttpDelete("{protocolId}")]
 		public async Task<ActionResult<ApiResponse>> DeleteProtocol(Guid protocolId)
@@ -80,10 +84,61 @@ namespace SRSS.IAM.API.Controllers
 			await _protocolService.DeleteProtocolAsync(protocolId);
 			return Ok("Xóa protocol thành công");
 		}
+
+		[HttpPost("{protocolId}/restore")]
+		public async Task<ActionResult<ApiResponse>> RestoreProtocol(Guid protocolId)
+		{
+			await _protocolService.RestoreProtocolAsync(protocolId);
+			return Ok("Khôi phục protocol thành công");
+		}
+
+		[HttpPost("{protocolId}/reject")]
+		public async Task<ActionResult<ApiResponse>> RejectProtocol(Guid protocolId, [FromBody] RejectProtocolRequest request)
+		{
+			var currentUserId = GetCurrentUserId() ?? request.UserId;
+			await _protocolService.RejectProtocolAsync(protocolId, currentUserId, request.Reason);
+			return Ok("Từ chối protocol thành công");
+		}
+
+		[HttpPost("{protocolId}/submit")]
+		public async Task<ActionResult<ApiResponse>> SubmitForReview(Guid protocolId)
+		{
+			await _protocolService.SubmitForReviewAsync(protocolId);
+			return Ok("Submit protocol để review thành công");
+		}
+
+		/// <summary>
+		/// Helper method để lấy user ID từ JWT token
+		/// </summary>
+		private Guid? GetCurrentUserId()
+		{
+			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+							  ?? User.FindFirst("sub")?.Value
+							  ?? User.FindFirst("user_id")?.Value;
+
+			if (Guid.TryParse(userIdClaim, out var userId))
+			{
+				return userId;
+			}
+
+			return null;
+		}
 	}
 
 	public class ApproveProtocolRequest
 	{
-		public Guid ReviewerId { get; set; }
+		public Guid UserId { get; set; }
+	}
+	public class RejectProtocolRequest
+	{
+		/// <summary>
+		/// ID của user từ chối (optional nếu lấy từ JWT)
+		/// </summary>
+		public Guid UserId { get; set; }
+
+		/// <summary>
+		/// Lý do từ chối
+		/// </summary>
+		public string? Reason { get; set; }
 	}
 }

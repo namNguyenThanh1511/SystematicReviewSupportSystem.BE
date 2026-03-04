@@ -53,10 +53,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IContextRepository Contexts { get; }
 
 		// Search Strategy
-		ISearchStrategyRepository SearchStrategies { get; }
-		ISearchStringRepository SearchStrings { get; }
-		ISearchTermRepository SearchTerms { get; }
-		ISearchStringTermRepository SearchStringTerms { get; }
 		ISearchSourceRepository SearchSources { get; }
 
 		// Selection Criteria

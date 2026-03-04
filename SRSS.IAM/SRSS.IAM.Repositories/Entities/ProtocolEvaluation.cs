@@ -17,6 +17,6 @@ namespace SRSS.IAM.Repositories.Entities
 
 		// Navigation properties
 		public ReviewProtocol Protocol { get; set; } = null!;
-		public ProtocolReviewer Reviewer { get; set; } = null!;
+		public User Reviewer { get; set; } = null!;
 	}
 }

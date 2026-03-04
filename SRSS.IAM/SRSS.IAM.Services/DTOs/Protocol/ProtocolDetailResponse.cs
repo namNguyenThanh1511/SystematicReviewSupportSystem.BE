@@ -12,6 +12,7 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public Guid ProjectId { get; set; }
 		public string ProtocolVersion { get; set; } = string.Empty;
 		public string Status { get; set; } = string.Empty;
+		public bool IsDeleted { get; set; }
 		public DateTimeOffset CreatedAt { get; set; }
 		public DateTimeOffset? ApprovedAt { get; set; }
 		public List<VersionHistoryDto> Versions { get; set; } = new();

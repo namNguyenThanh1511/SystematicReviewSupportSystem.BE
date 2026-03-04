@@ -61,10 +61,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IContextRepository? _contexts;
 
 		// Search Strategy
-		private ISearchStrategyRepository? _searchStrategies;
-		private ISearchStringRepository? _searchStrings;
-		private ISearchTermRepository? _searchTerms;
-		private ISearchStringTermRepository? _searchStringTerms;
 		private ISearchSourceRepository? _searchSources;
 		private IStudySelectionCriteriaRepository? _selectionCriterias;
 		private IInclusionCriterionRepository? _inclusionCriteria;
@@ -159,10 +155,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IContextRepository Contexts => _contexts ??= new ContextRepository(_dbContext);
 
 		// Search Strategy
-		public ISearchStrategyRepository SearchStrategies => _searchStrategies ??= new SearchStrategyRepository(_dbContext);
-		public ISearchStringRepository SearchStrings => _searchStrings ??= new SearchStringRepository(_dbContext);
-		public ISearchTermRepository SearchTerms => _searchTerms ??= new SearchTermRepository(_dbContext);
-		public ISearchStringTermRepository SearchStringTerms => _searchStringTerms ??= new SearchStringTermRepository(_dbContext);
 		public ISearchSourceRepository SearchSources => _searchSources ??= new SearchSourceRepository(_dbContext);
 
 		public IStudySelectionCriteriaRepository SelectionCriterias =>

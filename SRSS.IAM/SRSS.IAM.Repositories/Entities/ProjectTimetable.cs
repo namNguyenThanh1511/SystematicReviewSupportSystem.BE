@@ -6,7 +6,7 @@ namespace SRSS.IAM.Repositories.Entities
 	{
 		public Guid ProtocolId { get; set; }
 		public string Milestone { get; set; } = string.Empty;
-		public DateOnly? PlannedDate { get; set; }
+		public DateTimeOffset? PlannedDate { get; set; }
 
 		// Navigation properties
 		public ReviewProtocol Protocol { get; set; } = null!;

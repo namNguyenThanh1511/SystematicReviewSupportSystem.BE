@@ -33,7 +33,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		Task<QuestionTypeResponse> GetQuestionTypeByIdAsync(Guid id);
 		Task<IEnumerable<QuestionTypeResponse>> GetAllQuestionTypesAsync();
 
-		// ResearchQuestion (get / update / delete, create is handled by ResearchQuestionService)
+		// ResearchQuestion
+		Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request);
 		Task<ResearchQuestionDetailResponse> GetResearchQuestionByIdAsync(Guid id);
 		Task<IEnumerable<ResearchQuestionDetailResponse>> GetResearchQuestionsByProjectIdAsync(Guid projectId);
 		Task<ResearchQuestionDetailResponse> UpdateResearchQuestionAsync(UpdateResearchQuestionRequest request);

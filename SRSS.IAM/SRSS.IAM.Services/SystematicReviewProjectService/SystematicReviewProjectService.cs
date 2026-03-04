@@ -4,16 +4,19 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
 using Shared.Exceptions;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
     public class SystematicReviewProjectService : ISystematicReviewProjectService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public SystematicReviewProjectService(IUnitOfWork unitOfWork)
+        public SystematicReviewProjectService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
         }
 
         public async Task<SystematicReviewProjectResponse> CreateProjectAsync(
@@ -54,7 +57,21 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 throw new NotFoundException("Project not found.");
             }
 
-            return MapToDetailResponse(project);
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            bool isLeader = false;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var userIdGuid = Guid.Parse(userId);
+                var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid)
+                    .FirstOrDefaultAsync(m => m.ProjectId == id, cancellationToken);
+
+                isLeader = membership?.Role == ProjectRole.Leader;
+            }
+
+            var response = MapToDetailResponse(project);
+            response.IsLeader = isLeader;
+            return response;
         }
 
         public async Task<PaginatedResponse<SystematicReviewProjectResponse>> GetProjectsAsync(
@@ -203,6 +220,81 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
+        }
+
+        public async Task<List<ProjectMemberDto>> GetProjectMembersAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var members = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(projectId);
+
+            return members.Select(m => new ProjectMemberDto
+            {
+                UserId = m.UserId,
+                ProjectId = m.ProjectId,
+                Role = m.Role,
+                JoinedAt = m.JoinedAt,
+                UserName = m.User.Username,
+                FullName = m.User.FullName,
+                Email = m.User.Email
+            }).ToList();
+        }
+
+        public async Task<PaginatedResponse<MyProjectResponse>> GetMyProjectsAsync(
+            ProjectStatus? status,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var userIdGuid = Guid.Parse(userId);
+
+            var query = _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid);
+
+            if (status.HasValue)
+            {
+                query = query.Where(m => m.Project.Status == status.Value);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var memberships = await query
+                .OrderByDescending(m => m.Project.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<MyProjectResponse>
+            {
+                Items = memberships.Select(m => new MyProjectResponse
+                {
+                    Id = m.ProjectId,
+                    Title = m.Project.Title,
+                    Domain = m.Project.Domain,
+                    Description = m.Project.Description,
+                    Status = m.Project.Status,
+                    StatusText = m.Project.Status.ToString(),
+                    Role = m.Role,
+                    RoleText = m.Role.ToString(),
+                    IsLeader = m.Role == ProjectRole.Leader,
+                    CreatedAt = m.Project.CreatedAt
+                }).ToList(),
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)

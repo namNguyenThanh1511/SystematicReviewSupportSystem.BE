@@ -25,10 +25,12 @@ using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.ProjectMemberInvitationService;
 using System.Text;
 using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
+using SRSS.IAM.Services.NotificationService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -39,28 +41,28 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
 
             services.AddSignalR();
-			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
             services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
             services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 
-			services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+            services.AddScoped<IRefreshTokenService, RefreshTokenService>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // Planning Phase
-			services.AddScoped<ICoreGovernService, CoreGovernService>();
-			services.AddScoped<IProtocolService, ProtocolService>();
-			services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
-			services.AddScoped<ISearchStrategyService, SearchStrategyService>();
-			services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
-			services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
-			services.AddScoped<IDataExtractionService, DataExtractionService>();
-			services.AddScoped<ISynthesisService, SynthesisService>();
+            services.AddScoped<ICoreGovernService, CoreGovernService>();
+            services.AddScoped<IProtocolService, ProtocolService>();
+            services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
+            services.AddScoped<ISearchStrategyService, SearchStrategyService>();
+            services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
+            services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
+            services.AddScoped<IDataExtractionService, DataExtractionService>();
+            services.AddScoped<ISynthesisService, SynthesisService>();
 
 
-            
+
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IIdentificationService, IdentificationService>();
@@ -70,6 +72,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
 
 
 

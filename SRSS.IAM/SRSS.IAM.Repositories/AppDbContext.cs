@@ -3,9 +3,9 @@ using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories
 {
-    public class AppDbContext : DbContext
-    {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+	public class AppDbContext : DbContext
+	{
+		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
@@ -20,14 +20,17 @@ namespace SRSS.IAM.Repositories
          */
 
 		protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            base.OnConfiguring(optionsBuilder);
-        }
+		{
+			base.OnConfiguring(optionsBuilder);
+		}
 
-        public DbSet<User> Users { get; set; } = default!;
+		public DbSet<User> Users { get; set; } = default!;
+		public DbSet<Notification> Notifications { get; set; } = default!;
 
 		// Planning Phase
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
+		public DbSet<ProjectMember> ProjectMembers { get; set; } = default!;
+		public DbSet<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = default!;
 		public DbSet<ReviewProtocol> ReviewProtocols { get; set; } = default!;
 		public DbSet<ProtocolVersion> ProtocolVersions { get; set; } = default!;
 		public DbSet<ResearchQuestion> ResearchQuestions { get; set; } = default!;
@@ -78,4 +81,3 @@ namespace SRSS.IAM.Repositories
 		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 	}
 }
-	

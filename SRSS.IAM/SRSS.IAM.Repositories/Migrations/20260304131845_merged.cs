@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class fix : Migration
+    public partial class merged : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -202,6 +202,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     status = table.Column<string>(type: "text", nullable: false),
                     started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -240,6 +241,102 @@ namespace SRSS.IAM.Repositories.Migrations
                         name: "FK_review_protocol_systematic_review_projects_project_id",
                         column: x => x.project_id,
                         principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "notifications",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    message = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    type = table.Column<string>(type: "text", nullable: false),
+                    related_entity_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    entity_type = table.Column<int>(type: "integer", nullable: true),
+                    is_read = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
+                    read_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    metadata = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_notifications", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_notifications_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "project_member_invitations",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    invited_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    invited_by_user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    status = table.Column<int>(type: "integer", nullable: false),
+                    Role = table.Column<int>(type: "integer", nullable: false),
+                    response_message = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    expired_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    responded_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
+                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_project_member_invitations", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_project_member_invitations_systematic_review_projects_proje~",
+                        column: x => x.project_id,
+                        principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_project_member_invitations_users_invited_by_user_id",
+                        column: x => x.invited_by_user_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_project_member_invitations_users_invited_user_id",
+                        column: x => x.invited_user_id,
+                        principalTable: "users",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "project_members",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    role = table.Column<int>(type: "integer", nullable: false),
+                    joined_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_project_members", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_project_members_systematic_review_projects_project_id",
+                        column: x => x.project_id,
+                        principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_project_members_users_user_id",
+                        column: x => x.user_id,
+                        principalTable: "users",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -1073,6 +1170,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     full_text_available = table.Column<bool>(type: "boolean", nullable: true),
                     access_type = table.Column<string>(type: "text", nullable: true),
                     internal_notes = table.Column<string>(type: "text", nullable: true),
+                    is_removed_as_duplicate = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     project_id = table.Column<Guid>(type: "uuid", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1105,6 +1203,10 @@ namespace SRSS.IAM.Repositories.Migrations
                     method = table.Column<string>(type: "text", nullable: false),
                     confidence_score = table.Column<decimal>(type: "numeric(5,4)", precision: 5, scale: 4, nullable: true),
                     notes = table.Column<string>(type: "text", nullable: true),
+                    review_status = table.Column<string>(type: "text", nullable: false, defaultValue: "Pending"),
+                    reviewed_by = table.Column<string>(type: "text", nullable: true),
+                    reviewed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    resolved_decision = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -1264,6 +1366,11 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "paper_id");
 
             migrationBuilder.CreateIndex(
+                name: "IX_deduplication_results_review_status",
+                table: "deduplication_results",
+                column: "review_status");
+
+            migrationBuilder.CreateIndex(
                 name: "uq_deduplication_process_paper",
                 table: "deduplication_results",
                 columns: new[] { "identification_process_id", "paper_id" },
@@ -1314,6 +1421,16 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "ix_notifications_is_read",
+                table: "notifications",
+                column: "is_read");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_notifications_user_id",
+                table: "notifications",
+                column: "user_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_outcome_picoc_id",
                 table: "outcome",
                 column: "picoc_id",
@@ -1328,6 +1445,11 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_papers_import_batch_id",
                 table: "papers",
                 column: "import_batch_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_papers_is_removed_as_duplicate",
+                table: "papers",
+                column: "is_removed_as_duplicate");
 
             migrationBuilder.CreateIndex(
                 name: "IX_papers_project_id",
@@ -1364,6 +1486,49 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_prisma_reports_review_process_id",
                 table: "prisma_reports",
                 column: "review_process_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_member_invitations_invited_by_user_id",
+                table: "project_member_invitations",
+                column: "invited_by_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_member_invitations_invited_user_id",
+                table: "project_member_invitations",
+                column: "invited_user_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_member_invitations_project_id",
+                table: "project_member_invitations",
+                column: "project_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_member_invitations_status",
+                table: "project_member_invitations",
+                column: "status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_members_project_id",
+                table: "project_members",
+                column: "project_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_members_project_id_role",
+                table: "project_members",
+                columns: new[] { "project_id", "role" },
+                unique: true,
+                filter: "role = 1");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_members_project_id_user_id",
+                table: "project_members",
+                columns: new[] { "project_id", "user_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_project_members_user_id",
+                table: "project_members",
+                column: "user_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_project_timetable_protocol_id",
@@ -1592,6 +1757,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "journal");
 
             migrationBuilder.DropTable(
+                name: "notifications");
+
+            migrationBuilder.DropTable(
                 name: "outcome");
 
             migrationBuilder.DropTable(
@@ -1599,6 +1767,12 @@ namespace SRSS.IAM.Repositories.Migrations
 
             migrationBuilder.DropTable(
                 name: "prisma_flow_records");
+
+            migrationBuilder.DropTable(
+                name: "project_member_invitations");
+
+            migrationBuilder.DropTable(
+                name: "project_members");
 
             migrationBuilder.DropTable(
                 name: "project_timetable");
@@ -1631,9 +1805,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "study_selection_procedure");
 
             migrationBuilder.DropTable(
-                name: "users");
-
-            migrationBuilder.DropTable(
                 name: "data_extraction_form");
 
             migrationBuilder.DropTable(
@@ -1647,6 +1818,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             migrationBuilder.DropTable(
                 name: "prisma_reports");
+
+            migrationBuilder.DropTable(
+                name: "users");
 
             migrationBuilder.DropTable(
                 name: "protocol_reviewer");

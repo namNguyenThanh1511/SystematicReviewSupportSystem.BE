@@ -46,6 +46,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset? StartDate { get; set; }
         public DateTimeOffset? EndDate { get; set; }
+        public bool IsLeader { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
         public List<ReviewProcessResponse> ReviewProcesses { get; set; } = new();
@@ -61,6 +62,20 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public string CurrentPhaseText { get; set; } = string.Empty;
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
+    }
+
+    public class MyProjectResponse
+    {
+        public Guid Id { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Domain { get; set; }
+        public string? Description { get; set; }
+        public ProjectStatus Status { get; set; }
+        public string StatusText { get; set; } = string.Empty;
+        public ProjectRole Role { get; set; }
+        public string RoleText { get; set; } = string.Empty;
+        public bool IsLeader { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
     }
 }
 

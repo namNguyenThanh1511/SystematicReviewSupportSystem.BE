@@ -62,7 +62,7 @@ namespace SRSS.IAM.Repositories.Configurations
                 .IsRequired();
 
             builder.Property(n => n.ModifiedAt)
-                .HasColumnName("updated_at")
+                .HasColumnName("modified_at")
                 .IsRequired();
 
             // Relationships

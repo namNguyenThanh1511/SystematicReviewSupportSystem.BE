@@ -150,6 +150,8 @@ namespace SRSS.IAM.Services.ProjectMemberInvitationService
             }
 
             var invitations = await _unitOfWork.ProjectMemberInvitations.GetByProjectIdAsync(projectId, status);
+
+            invitations = invitations.Where(i => i.InvitedByUserId == currentUserId);
             return invitations.ToResponseList();
         }
 

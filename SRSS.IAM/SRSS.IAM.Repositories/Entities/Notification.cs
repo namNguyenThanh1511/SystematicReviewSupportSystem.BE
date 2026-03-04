@@ -34,7 +34,6 @@ namespace SRSS.IAM.Repositories.Entities
             NotificationEntityType? entityType = null,
             string? metadata = null)
         {
-            Id = Guid.NewGuid();
             UserId = userId;
             Title = title;
             Message = message;
@@ -43,8 +42,22 @@ namespace SRSS.IAM.Repositories.Entities
             EntityType = entityType;
             Metadata = metadata;
             IsRead = false;
-            CreatedAt = DateTimeOffset.UtcNow;
             User = null!;
         }
+    }
+
+    public enum NotificationType
+    {
+        System = 1,
+        Project = 2,
+        Invitation = 3,
+        Review = 4,
+        Comment = 5
+    }
+
+    public enum NotificationEntityType
+    {
+        ProjectInvitation = 1,
+        Project = 2
     }
 }

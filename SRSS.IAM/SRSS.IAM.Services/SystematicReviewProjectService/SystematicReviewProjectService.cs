@@ -57,7 +57,21 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 throw new NotFoundException("Project not found.");
             }
 
-            return MapToDetailResponse(project);
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            bool isLeader = false;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                var userIdGuid = Guid.Parse(userId);
+                var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid)
+                    .FirstOrDefaultAsync(m => m.ProjectId == id, cancellationToken);
+
+                isLeader = membership?.Role == ProjectRole.Leader;
+            }
+
+            var response = MapToDetailResponse(project);
+            response.IsLeader = isLeader;
+            return response;
         }
 
         public async Task<PaginatedResponse<SystematicReviewProjectResponse>> GetProjectsAsync(
@@ -274,6 +288,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     StatusText = m.Project.Status.ToString(),
                     Role = m.Role,
                     RoleText = m.Role.ToString(),
+                    IsLeader = m.Role == ProjectRole.Leader,
                     CreatedAt = m.Project.CreatedAt
                 }).ToList(),
                 TotalCount = totalCount,

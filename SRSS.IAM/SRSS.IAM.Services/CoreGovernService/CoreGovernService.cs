@@ -67,10 +67,6 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<CommissioningDocumentResponse> CreateCommissioningDocumentAsync(CreateCommissioningDocumentRequest request)
 		{
-			var existing = await _unitOfWork.CommissioningDocuments.GetByProjectIdAsync(request.ProjectId);
-			if (existing != null)
-				throw new InvalidOperationException($"Dự án {request.ProjectId} đã có CommissioningDocument.");
-
 			var entity = request.ToEntity();
 
 			await _unitOfWork.CommissioningDocuments.AddAsync(entity);
@@ -167,10 +163,6 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<QuestionTypeResponse> CreateQuestionTypeAsync(CreateQuestionTypeRequest request)
 		{
-			var existing = await _unitOfWork.QuestionTypes.GetByNameAsync(request.Name);
-			if (existing != null)
-				throw new InvalidOperationException($"QuestionType với tên '{request.Name}' đã tồn tại.");
-
 			var entity = request.ToEntity();
 
 			await _unitOfWork.QuestionTypes.AddAsync(entity);
@@ -185,8 +177,6 @@ namespace SRSS.IAM.Services.CoreGovernService
 				?? throw new InvalidOperationException($"QuestionType với ID {request.Id} không tồn tại.");
 
 			var duplicate = await _unitOfWork.QuestionTypes.GetByNameAsync(request.Name);
-			if (duplicate != null && duplicate.Id != request.Id)
-				throw new InvalidOperationException($"QuestionType với tên '{request.Name}' đã tồn tại.");
 
 			request.ApplyTo(entity);
 
@@ -200,9 +190,6 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var entity = await _unitOfWork.QuestionTypes.FindSingleAsync(q => q.Id == id)
 				?? throw new InvalidOperationException($"QuestionType với ID {id} không tồn tại.");
-
-			if (await _unitOfWork.ResearchQuestions.AnyAsync(r => r.QuestionTypeId == id))
-				throw new InvalidOperationException($"Không thể xóa QuestionType vì đang được sử dụng bởi ResearchQuestion.");
 
 			await _unitOfWork.QuestionTypes.RemoveAsync(entity);
 			await _unitOfWork.SaveChangesAsync();

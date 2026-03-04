@@ -15,14 +15,11 @@ spec:
     spec:
       containers:
         - name: srss-iam
-          image: ghcr.io/namnguyenthanh1511/srss-iam-api:latest
+          image: ghcr.io/namnguyenthanh1511/srss-be-api:latest
           resources:
-            requests:
-              memory: "1Gi"
-              cpu: "2"
             limits:
               memory: "2Gi"
-              cpu: "6"
+              cpu: "4"
           ports:
             - containerPort: 8080
               protocol: TCP

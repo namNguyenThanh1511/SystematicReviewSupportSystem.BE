@@ -101,8 +101,7 @@ namespace SRSS.IAM.API
                     var publicBaseUrl = config["Swagger:PublicBaseUrl"];
                     swaggerDoc.Servers = new List<OpenApiServer>
                     {
-                        new OpenApiServer { Url = $"{httpReq.Scheme}://{httpReq.Host.Value}", Description = "Direct API Access (Use this for testing)" },
-                        new OpenApiServer { Url =  "/iam", Description = "Via API Gateway (Production)" }
+                        new OpenApiServer { Url = $"/", Description = "Direct API Access" },
                     };
                 });
             });

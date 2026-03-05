@@ -56,6 +56,11 @@ namespace SRSS.IAM.Repositories.Configurations
 				.WithMany(x => x.Protocols)
 				.HasForeignKey(x => x.ProjectId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasMany(x => x.ExtractionTemplates)
+				.WithOne(t => t.Protocol)
+				.HasForeignKey(t => t.ProtocolId)
+				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}
 }

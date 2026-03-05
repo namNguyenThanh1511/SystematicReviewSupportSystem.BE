@@ -138,7 +138,7 @@ namespace SRSS.IAM.API.Data
 			await SeedStudySelectionCriteriaAsync(context);
 			await SeedStudySelectionProceduresAsync(context);
 			await SeedQualityAssessmentAsync(context);
-			await SeedDataExtractionAsync(context);
+			//await SeedDataExtractionAsync(context);
 			await SeedDataSynthesisAsync(context);
 			await SeedDisseminationStrategyAsync(context);
 			await SeedProjectTimetableAsync(context);
@@ -884,66 +884,66 @@ namespace SRSS.IAM.API.Data
 			await context.SaveChangesAsync();
 		}
 
-		private static async Task SeedDataExtractionAsync(AppDbContext context)
-		{
-			if (await context.DataExtractionStrategies.AnyAsync(x => x.Id == ExtractionStrategy1Id))
-			{
-				return;
-			}
+		//private static async Task SeedDataExtractionAsync(AppDbContext context)
+		//{
+		//	if (await context.DataExtractionStrategies.AnyAsync(x => x.Id == ExtractionStrategy1Id))
+		//	{
+		//		return;
+		//	}
 
-			var strategy = new DataExtractionStrategy
-			{
-				Id = ExtractionStrategy1Id,
-				ProtocolId = HarProtocol1Id,
-				Description = "Structured data extraction form capturing study characteristics, model architecture, dataset details, and performance metrics",
-				CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-				ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-			};
+		//	var strategy = new DataExtractionStrategy
+		//	{
+		//		Id = ExtractionStrategy1Id,
+		//		ProtocolId = HarProtocol1Id,
+		//		Description = "Structured data extraction form capturing study characteristics, model architecture, dataset details, and performance metrics",
+		//		CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
+		//		ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
+		//	};
 
-			await context.DataExtractionStrategies.AddAsync(strategy);
-			await context.SaveChangesAsync();
+		//	await context.DataExtractionStrategies.AddAsync(strategy);
+		//	await context.SaveChangesAsync();
 
-			// ── Extraction Form ──────────────────────────────────────────────
-			var form = new DataExtractionForm
-			{
-				Id = ExtractionForm1Id,
-				ExtractionStrategyId = ExtractionStrategy1Id,
-				Name = "HAR Study Data Extraction Form",
-				CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-				ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-			};
+		//	// ── Extraction Form ──────────────────────────────────────────────
+		//	var form = new DataExtractionForm
+		//	{
+		//		Id = ExtractionForm1Id,
+		//		ExtractionStrategyId = ExtractionStrategy1Id,
+		//		Name = "HAR Study Data Extraction Form",
+		//		CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
+		//		ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
+		//	};
 
-			await context.DataExtractionForms.AddAsync(form);
-			await context.SaveChangesAsync();
+		//	await context.DataExtractionForms.AddAsync(form);
+		//	await context.SaveChangesAsync();
 
-			// ── Data Items ───────────────────────────────────────────────────
-			var dataItems = new List<DataItemDefinition>
-			{
-				new DataItemDefinition
-				{
-					Id = DataItem1Id,
-					FormId = ExtractionForm1Id,
-					Name = "Model Architecture",
-					Description = "Type of deep learning architecture used (CNN, LSTM, Transformer, Hybrid)",
-					DataType = "Categorical",
-					CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-				},
-				new DataItemDefinition
-				{
-					Id = DataItem2Id,
-					FormId = ExtractionForm1Id,
-					Name = "F1-Score",
-					Description = "Reported F1-score (macro-average if available)",
-					DataType = "Numeric",
-					CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-				}
-			};
+		//	// ── Data Items ───────────────────────────────────────────────────
+		//	var dataItems = new List<DataItemDefinition>
+		//	{
+		//		new DataItemDefinition
+		//		{
+		//			Id = DataItem1Id,
+		//			FormId = ExtractionForm1Id,
+		//			Name = "Model Architecture",
+		//			Description = "Type of deep learning architecture used (CNN, LSTM, Transformer, Hybrid)",
+		//			DataType = "Categorical",
+		//			CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
+		//			ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
+		//		},
+		//		new DataItemDefinition
+		//		{
+		//			Id = DataItem2Id,
+		//			FormId = ExtractionForm1Id,
+		//			Name = "F1-Score",
+		//			Description = "Reported F1-score (macro-average if available)",
+		//			DataType = "Numeric",
+		//			CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
+		//			ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
+		//		}
+		//	};
 
-			await context.DataItemDefinitions.AddRangeAsync(dataItems);
-			await context.SaveChangesAsync();
-		}
+		//	await context.DataItemDefinitions.AddRangeAsync(dataItems);
+		//	await context.SaveChangesAsync();
+		//}
 
 		private static async Task SeedDataSynthesisAsync(AppDbContext context)
 		{

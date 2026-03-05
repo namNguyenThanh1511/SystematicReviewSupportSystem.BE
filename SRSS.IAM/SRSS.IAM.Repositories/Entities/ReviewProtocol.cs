@@ -25,6 +25,7 @@ namespace SRSS.IAM.Repositories.Entities
 		public ICollection<ProtocolEvaluation> Evaluations { get; set; } = new List<ProtocolEvaluation>();
 		public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
 		public ICollection<DataExtractionStrategy> ExtractionStrategies { get; set; } = new List<DataExtractionStrategy>();
+		public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
 		public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
 		public ICollection<DisseminationStrategy> DisseminationStrategies { get; set; } = new List<DisseminationStrategy>();
 		public ICollection<ProjectTimetable> Timetables { get; set; } = new List<ProjectTimetable>();

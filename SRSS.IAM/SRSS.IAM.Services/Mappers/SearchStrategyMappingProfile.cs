@@ -35,20 +35,20 @@ namespace SRSS.IAM.Services.Mappers
 		}
 
 		// ==================== List Mapping ====================
-		public static List<DataExtractionStrategyDto> ToDtoList(this IEnumerable<DataExtractionStrategy> entities)
-		{
-			return entities.Select(e => e.ToDto()).ToList();
-		}
+		//public static List<DataExtractionStrategyDto> ToDtoList(this IEnumerable<DataExtractionStrategy> entities)
+		//{
+		//	return entities.Select(e => e.ToDto()).ToList();
+		//}
 
-		public static List<DataExtractionFormDto> ToDtoList(this IEnumerable<DataExtractionForm> entities)
-		{
-			return entities.Select(e => e.ToDto()).ToList();
-		}
+		//public static List<DataExtractionFormDto> ToDtoList(this IEnumerable<DataExtractionForm> entities)
+		//{
+		//	return entities.Select(e => e.ToDto()).ToList();
+		//}
 
-		public static List<DataItemDefinitionDto> ToDtoList(this IEnumerable<DataItemDefinition> entities)
-		{
-			return entities.Select(e => e.ToDto()).ToList();
-		}
+		//public static List<DataItemDefinitionDto> ToDtoList(this IEnumerable<DataItemDefinition> entities)
+		//{
+		//	return entities.Select(e => e.ToDto()).ToList();
+		//}
 
 		public static List<SearchSourceDto> ToDtoList(this IEnumerable<SearchSource> entities)
 		{

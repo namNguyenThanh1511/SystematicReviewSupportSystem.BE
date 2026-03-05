@@ -9,6 +9,7 @@ using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
 using SRSS.IAM.Repositories.UserRepo;
+using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.PaperRepo;
@@ -20,17 +21,20 @@ using SRSS.IAM.Repositories.DeduplicationResultRepo;
 using SRSS.IAM.Repositories.ScreeningResolutionRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
+using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
-    // Service-specific interface extends base
-    public interface IUnitOfWork
-    {
-        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
-        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
-        IUserRepository Users { get; }
+	// Service-specific interface extends base
+	public interface IUnitOfWork
+	{
+		Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+		Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+		Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+		Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+		IUserRepository Users { get; }
+		INotificationRepository Notifications { get; }
+		IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
 
 		// Core Governance
 		IReviewNeedRepository ReviewNeeds { get; }

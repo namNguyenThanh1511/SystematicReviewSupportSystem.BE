@@ -79,6 +79,9 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.HasIndex(u => u.IsActive)
                 .HasDatabaseName("ix_users_is_active");
+
+            builder.HasIndex(u => u.FullName)
+                .HasDatabaseName("ix_users_full_name");
         }
     }
 }

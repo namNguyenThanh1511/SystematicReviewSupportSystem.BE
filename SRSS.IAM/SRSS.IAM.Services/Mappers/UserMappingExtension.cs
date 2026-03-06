@@ -5,7 +5,7 @@ namespace SRSS.IAM.Services.Mappers
 {
     public static class UserMappingExtension
     {
-        public static UserResponse ToUserResponse(User user)
+        public static UserResponse ToUserResponse(this User user)
         {
             return new UserResponse
             {

@@ -12,7 +12,8 @@ namespace SRSS.IAM.Services.Mappers
 				ProtocolId = entity.Id,
 				ProjectId = entity.ProjectId,
 				ProtocolVersion = entity.ProtocolVersion,
-				Status = entity.Status,
+				Status = entity.Status.ToString(),
+				IsDeleted = entity.IsDeleted,
 				CreatedAt = entity.CreatedAt,
 				ApprovedAt = entity.ApprovedAt,
 				Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>()

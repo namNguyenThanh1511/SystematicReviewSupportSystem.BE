@@ -41,15 +41,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Comparison> Comparisons { get; set; } = default!;
 		public DbSet<Outcome> Outcomes { get; set; } = default!;
 		public DbSet<Context> Contexts { get; set; } = default!;
-		public DbSet<SearchStrategy> SearchStrategies { get; set; } = default!;
-		public DbSet<SearchString> SearchStrings { get; set; } = default!;
-		public DbSet<SearchTerm> SearchTerms { get; set; } = default!;
-		public DbSet<SearchStringTerm> SearchStringTerms { get; set; } = default!;
 		public DbSet<SearchSource> SearchSources { get; set; } = default!;
-		public DbSet<DigitalLibrary> DigitalLibraries { get; set; } = default!;
-		public DbSet<Journal> Journals { get; set; } = default!;
-		public DbSet<BibliographicDatabase> BibliographicDatabases { get; set; } = default!;
-		public DbSet<ConferenceProceeding> ConferenceProceedings { get; set; } = default!;
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
@@ -62,9 +54,14 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
-		public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
-		public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
-		public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
+		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
+		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
+		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
+		public DbSet<ExtractionTemplate> ExtractionTemplates { get; set; } = default!;
+		public DbSet<ExtractionField> ExtractionFields { get; set; } = default!;
+		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
+		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
+
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
 		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
 		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;

@@ -13,8 +13,7 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public Guid ProjectId { get; set; }
 
 		[StringLength(50, ErrorMessage = "Protocol version không được vượt quá 50 ký tự")]
-		public string ProtocolVersion { get; set; } = "1.0";
+		public string ProtocolVersion { get; set; } = "1.0.0";
 
-		public string? Description { get; set; }
 	}
 }

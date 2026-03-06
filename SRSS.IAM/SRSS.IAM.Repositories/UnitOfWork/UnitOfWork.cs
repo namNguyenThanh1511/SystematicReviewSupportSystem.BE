@@ -65,10 +65,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IContextRepository? _contexts;
 
 		// Search Strategy
-		private ISearchStrategyRepository? _searchStrategies;
-		private ISearchStringRepository? _searchStrings;
-		private ISearchTermRepository? _searchTerms;
-		private ISearchStringTermRepository? _searchStringTerms;
 		private ISearchSourceRepository? _searchSources;
 		private IStudySelectionCriteriaRepository? _selectionCriterias;
 		private IInclusionCriterionRepository? _inclusionCriteria;
@@ -77,9 +73,15 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IQualityAssessmentStrategyRepository? _qualityStrategies;
 		private IQualityChecklistRepository? _qualityChecklists;
 		private IQualityCriterionRepository? _qualityCriteria;
-		private IDataExtractionStrategyRepository? _extractionStrategies;
-		private IDataExtractionFormRepository? _extractionForms;
-		private IDataItemDefinitionRepository? _dataItems;
+		//private IDataExtractionStrategyRepository? _extractionStrategies;
+		//private IDataExtractionFormRepository? _extractionForms;
+		//private IDataItemDefinitionRepository? _dataItems;
+		// Data Extraction
+		private IExtractionTemplateRepository? _extractionTemplates;
+		private IExtractionFieldRepository? _extractionFields;
+		private IFieldOptionRepository? _fieldOptions;
+		private IExtractedDataValueRepository? _extractedDataValues;
+
 		private IDataSynthesisStrategyRepository? _synthesisStrategies;
 		private IDisseminationStrategyRepository? _disseminationStrategies;
 		private IProjectTimetableRepository? _timetables;
@@ -164,10 +166,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IContextRepository Contexts => _contexts ??= new ContextRepository(_dbContext);
 
 		// Search Strategy
-		public ISearchStrategyRepository SearchStrategies => _searchStrategies ??= new SearchStrategyRepository(_dbContext);
-		public ISearchStringRepository SearchStrings => _searchStrings ??= new SearchStringRepository(_dbContext);
-		public ISearchTermRepository SearchTerms => _searchTerms ??= new SearchTermRepository(_dbContext);
-		public ISearchStringTermRepository SearchStringTerms => _searchStringTerms ??= new SearchStringTermRepository(_dbContext);
 		public ISearchSourceRepository SearchSources => _searchSources ??= new SearchSourceRepository(_dbContext);
 
 		public IStudySelectionCriteriaRepository SelectionCriterias =>
@@ -191,20 +189,27 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IQualityCriterionRepository QualityCriteria =>
 			_qualityCriteria ??= new QualityCriterionRepository(_dbContext);
 
-		public IDataExtractionStrategyRepository ExtractionStrategies =>
-			_extractionStrategies ??= new DataExtractionStrategyRepository(_dbContext);
+		// Data Extraction
+		public IExtractionTemplateRepository ExtractionTemplates =>
+			_extractionTemplates ??= new ExtractionTemplateRepository(_dbContext);
 
-		public IDataExtractionFormRepository ExtractionForms =>
-			_extractionForms ??= new DataExtractionFormRepository(_dbContext);
+		public IExtractionFieldRepository ExtractionFields =>
+			_extractionFields ??= new ExtractionFieldRepository(_dbContext);
 
-		public IDataItemDefinitionRepository DataItems =>
-			_dataItems ??= new DataItemDefinitionRepository(_dbContext);
+		public IFieldOptionRepository FieldOptions =>
+			_fieldOptions ??= new FieldOptionRepository(_dbContext);
+
+		public IExtractedDataValueRepository ExtractedDataValues =>
+			_extractedDataValues ??= new ExtractedDataValueRepository(_dbContext);
+
 
 		public IDataSynthesisStrategyRepository SynthesisStrategies =>
 			_synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
 
 		public IDisseminationStrategyRepository DisseminationStrategies =>
 			_disseminationStrategies ??= new DisseminationStrategyRepository(_dbContext);
+
+
 
 		public IProjectTimetableRepository Timetables =>
 			_timetables ??= new ProjectTimetableRepository(_dbContext);

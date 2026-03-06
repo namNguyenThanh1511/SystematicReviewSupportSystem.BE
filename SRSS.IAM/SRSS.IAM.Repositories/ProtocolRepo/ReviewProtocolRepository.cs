@@ -8,6 +8,31 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 	{
 		public ReviewProtocolRepository(AppDbContext context) : base(context) { }
 
+		// Get protocol including soft deleted ones
+		public async Task<ReviewProtocol?> GetByIdIncludeDeletedAsync(Guid id, CancellationToken cancellationToken = default)
+		{
+			return await _context.ReviewProtocols
+				.IgnoreQueryFilters()
+				.FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
+		}
+
+		// Get all protocols including soft deleted ones
+		public async Task<IEnumerable<ReviewProtocol>> GetAllIncludeDeletedAsync(CancellationToken cancellationToken = default)
+		{
+			return await _context.ReviewProtocols
+				.IgnoreQueryFilters()
+				.ToListAsync(cancellationToken);
+		}
+
+		// Get only soft deleted protocols
+		public async Task<IEnumerable<ReviewProtocol>> GetDeletedProtocolsAsync(CancellationToken cancellationToken = default)
+		{
+			return await _context.ReviewProtocols
+				.IgnoreQueryFilters()
+				.Where(rp => rp.IsDeleted)
+				.ToListAsync(cancellationToken);
+		}
+
 		public async Task<ReviewProtocol?> GetByIdWithVersionsAsync(Guid protocolId, CancellationToken cancellationToken = default)
 		{
 			return await _context.ReviewProtocols

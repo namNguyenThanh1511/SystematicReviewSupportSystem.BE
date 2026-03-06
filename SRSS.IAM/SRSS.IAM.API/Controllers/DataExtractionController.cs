@@ -17,86 +17,49 @@ namespace SRSS.IAM.API.Controllers
 			_service = service;
 		}
 
-		// ==================== Extraction Strategies ====================
+		// ==================== Extraction Templates ====================
 
 		/// <summary>
-		/// Upsert một Data Extraction Strategy
+		/// Upsert một Extraction Template với cấu trúc cây đầy đủ
 		/// </summary>
-		[HttpPost("strategies/upsert")]
-		public async Task<ActionResult<ApiResponse<DataExtractionStrategyDto>>> UpsertStrategy(
-			[FromBody] DataExtractionStrategyDto dto)
+		[HttpPost("templates/upsert")]
+		public async Task<ActionResult<ApiResponse<ExtractionTemplateDto>>> UpsertTemplate(
+			[FromBody] ExtractionTemplateDto dto)
 		{
-			var result = await _service.UpsertStrategyAsync(dto);
-			return Ok(result, "Lưu extraction strategy thành công");
+			var result = await _service.UpsertTemplateAsync(dto);
+			return Ok(result, "Lưu extraction template thành công");
 		}
 
 		/// <summary>
-		/// Lấy tất cả Extraction Strategies theo Protocol ID
+		/// Lấy tất cả Templates theo Protocol ID (với cấu trúc cây)
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/strategies")]
-		public async Task<ActionResult<ApiResponse<List<DataExtractionStrategyDto>>>> GetStrategiesByProtocolId(
+		[HttpGet("protocol/{protocolId}/templates")]
+		public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProtocolId(
 			Guid protocolId)
 		{
-			var result = await _service.GetStrategiesByProtocolIdAsync(protocolId);
-			return Ok(result, "Lấy danh sách strategies thành công");
+			var result = await _service.GetTemplatesByProtocolIdAsync(protocolId);
+			return Ok(result, "Lấy danh sách templates thành công");
 		}
 
 		/// <summary>
-		/// Xóa một Extraction Strategy
+		/// Lấy chi tiết 1 Template theo ID (với cấu trúc cây đầy đủ)
 		/// </summary>
-		[HttpDelete("strategies/{strategyId}")]
-		public async Task<ActionResult<ApiResponse>> DeleteStrategy(Guid strategyId)
+		[HttpGet("templates/{templateId}")]
+		public async Task<ActionResult<ApiResponse<ExtractionTemplateDto>>> GetTemplateById(
+			Guid templateId)
 		{
-			await _service.DeleteStrategyAsync(strategyId);
-			return Ok("Xóa strategy thành công");
-		}
-
-		// ==================== Extraction Forms ====================
-
-		/// <summary>
-		/// Bulk Upsert Extraction Forms
-		/// </summary>
-		[HttpPost("forms/bulk")]
-		public async Task<ActionResult<ApiResponse<List<DataExtractionFormDto>>>> BulkUpsertForms(
-			[FromBody] List<DataExtractionFormDto> dtos)
-		{
-			var result = await _service.BulkUpsertFormsAsync(dtos);
-			return Ok(result, $"Lưu {result.Count} forms thành công");
+			var result = await _service.GetTemplateByIdAsync(templateId);
+			return Ok(result, "Lấy template thành công");
 		}
 
 		/// <summary>
-		/// Lấy Forms theo Strategy ID
+		/// Xóa một Extraction Template
 		/// </summary>
-		[HttpGet("strategies/{strategyId}/forms")]
-		public async Task<ActionResult<ApiResponse<List<DataExtractionFormDto>>>> GetFormsByStrategyId(
-			Guid strategyId)
+		[HttpDelete("templates/{templateId}")]
+		public async Task<ActionResult<ApiResponse>> DeleteTemplate(Guid templateId)
 		{
-			var result = await _service.GetFormsByStrategyIdAsync(strategyId);
-			return Ok(result, "Lấy danh sách forms thành công");
-		}
-
-		// ==================== Data Items ====================
-
-		/// <summary>
-		/// Bulk Upsert Data Item Definitions
-		/// </summary>
-		[HttpPost("data-items/bulk")]
-		public async Task<ActionResult<ApiResponse<List<DataItemDefinitionDto>>>> BulkUpsertDataItems(
-			[FromBody] List<DataItemDefinitionDto> dtos)
-		{
-			var result = await _service.BulkUpsertDataItemsAsync(dtos);
-			return Ok(result, $"Lưu {result.Count} data items thành công");
-		}
-
-		/// <summary>
-		/// Lấy Data Items theo Form ID
-		/// </summary>
-		[HttpGet("forms/{formId}/data-items")]
-		public async Task<ActionResult<ApiResponse<List<DataItemDefinitionDto>>>> GetDataItemsByFormId(
-			Guid formId)
-		{
-			var result = await _service.GetDataItemsByFormIdAsync(formId);
-			return Ok(result, "Lấy danh sách data items thành công");
+			await _service.DeleteTemplateAsync(templateId);
+			return Ok("Xóa template thành công");
 		}
 	}
 }

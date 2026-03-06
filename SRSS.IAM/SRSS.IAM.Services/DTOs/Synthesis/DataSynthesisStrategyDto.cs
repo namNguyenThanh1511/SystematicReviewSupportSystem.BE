@@ -43,6 +43,6 @@ namespace SRSS.IAM.Services.DTOs.Synthesis
 		[StringLength(500, ErrorMessage = "Milestone không được vượt quá 500 ký tự")]
 		public string Milestone { get; set; } = string.Empty;
 
-		public DateOnly? PlannedDate { get; set; }
+		public DateTimeOffset? PlannedDate { get; set; }
 	}
 }

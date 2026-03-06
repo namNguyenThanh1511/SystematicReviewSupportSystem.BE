@@ -29,7 +29,21 @@ namespace SRSS.IAM.Repositories.Configurations
 
 			builder.Property(x => x.Status)
 				.HasColumnName("status")
-				.IsRequired();
+				.IsRequired()
+				.HasConversion<string>()
+				.HasMaxLength(50);
+
+			builder.Property(x => x.IsDeleted)
+				.HasColumnName("is_deleted")
+				.IsRequired()
+				.HasDefaultValue(false);
+
+			builder.Property(x => x.DeletedAt)
+				.HasColumnName("deleted_at")
+				.IsRequired(false);
+
+			// Query filter to exclude soft deleted records
+			//builder.HasQueryFilter(rp => !rp.IsDeleted);
 
 			builder.Property(x => x.CreatedAt)
 				.HasColumnName("created_at")
@@ -41,6 +55,11 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.HasOne(x => x.Project)
 				.WithMany(x => x.Protocols)
 				.HasForeignKey(x => x.ProjectId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasMany(x => x.ExtractionTemplates)
+				.WithOne(t => t.Protocol)
+				.HasForeignKey(t => t.ProtocolId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

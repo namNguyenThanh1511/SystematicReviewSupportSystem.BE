@@ -20,10 +20,6 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("protocol_id")
 				.IsRequired();
 
-			builder.Property(x => x.SourceType)
-				.HasColumnName("source_type")
-				.IsRequired();
-
 			builder.Property(x => x.Name)
 				.HasColumnName("name")
 				.IsRequired();

@@ -4,17 +4,10 @@ namespace SRSS.IAM.Services.DataExtractionService
 {
 	public interface IDataExtractionService
 	{
-		// Extraction Strategies
-		Task<DataExtractionStrategyDto> UpsertStrategyAsync(DataExtractionStrategyDto dto);
-		Task<List<DataExtractionStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId);
-		Task DeleteStrategyAsync(Guid strategyId);
-
-		// Extraction Forms
-		Task<List<DataExtractionFormDto>> BulkUpsertFormsAsync(List<DataExtractionFormDto> dtos);
-		Task<List<DataExtractionFormDto>> GetFormsByStrategyIdAsync(Guid strategyId);
-
-		// Data Items
-		Task<List<DataItemDefinitionDto>> BulkUpsertDataItemsAsync(List<DataItemDefinitionDto> dtos);
-		Task<List<DataItemDefinitionDto>> GetDataItemsByFormIdAsync(Guid formId);
+		// Extraction Templates with Tree Structure
+		Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto);
+		Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId);
+		Task<ExtractionTemplateDto> GetTemplateByIdAsync(Guid templateId);
+		Task DeleteTemplateAsync(Guid templateId);
 	}
 }

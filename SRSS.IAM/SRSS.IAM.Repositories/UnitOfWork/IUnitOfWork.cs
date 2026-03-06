@@ -57,10 +57,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IContextRepository Contexts { get; }
 
 		// Search Strategy
-		ISearchStrategyRepository SearchStrategies { get; }
-		ISearchStringRepository SearchStrings { get; }
-		ISearchTermRepository SearchTerms { get; }
-		ISearchStringTermRepository SearchStringTerms { get; }
 		ISearchSourceRepository SearchSources { get; }
 
 		// Selection Criteria
@@ -75,9 +71,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IQualityCriterionRepository QualityCriteria { get; }
 
 		// Data Extraction
-		IDataExtractionStrategyRepository ExtractionStrategies { get; }
-		IDataExtractionFormRepository ExtractionForms { get; }
-		IDataItemDefinitionRepository DataItems { get; }
+		//IDataExtractionStrategyRepository ExtractionStrategies { get; }
+		//IDataExtractionFormRepository ExtractionForms { get; }
+		//IDataItemDefinitionRepository DataItems { get; }
+		IExtractionTemplateRepository ExtractionTemplates { get; }
+		IExtractionFieldRepository ExtractionFields { get; }
+		IFieldOptionRepository FieldOptions { get; }
+		IExtractedDataValueRepository ExtractedDataValues { get; }
 
 		// Synthesis
 		IDataSynthesisStrategyRepository SynthesisStrategies { get; }

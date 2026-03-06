@@ -5,6 +5,9 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 {
 	public interface IReviewProtocolRepository : IGenericRepository<ReviewProtocol, Guid, AppDbContext>
 	{
+		Task<ReviewProtocol?> GetByIdIncludeDeletedAsync(Guid id, CancellationToken cancellationToken = default);
+		Task<IEnumerable<ReviewProtocol>> GetAllIncludeDeletedAsync(CancellationToken cancellationToken = default);
+		Task<IEnumerable<ReviewProtocol>> GetDeletedProtocolsAsync(CancellationToken cancellationToken = default);
 		Task<ReviewProtocol?> GetByIdWithVersionsAsync(Guid protocolId, CancellationToken cancellationToken = default);
 		Task<IEnumerable<ReviewProtocol>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
 	}

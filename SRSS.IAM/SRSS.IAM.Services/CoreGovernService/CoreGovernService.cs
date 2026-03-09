@@ -105,10 +105,10 @@ namespace SRSS.IAM.Services.CoreGovernService
 			return entity.ToResponse();
 		}
 
-		public async Task<CommissioningDocumentResponse?> GetCommissioningDocumentByProjectIdAsync(Guid projectId)
+		public async Task<IEnumerable<CommissioningDocumentResponse>> GetCommissioningDocumentsByProjectIdAsync(Guid projectId)
 		{
-			var entity = await _unitOfWork.CommissioningDocuments.GetByProjectIdAsync(projectId);
-			return entity is null ? null : entity.ToResponse();
+			var entities = await _unitOfWork.CommissioningDocuments.GetByProjectIdAsync(projectId);
+			return entities.Select(e => e.ToResponse());
 		}
 
 		// ─────────────────────────── ReviewObjective ───────────────────────

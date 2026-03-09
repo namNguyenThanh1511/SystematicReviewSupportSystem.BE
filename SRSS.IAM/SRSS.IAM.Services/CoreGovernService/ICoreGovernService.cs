@@ -17,7 +17,7 @@ namespace SRSS.IAM.Services.CoreGovernService
 		Task<CommissioningDocumentResponse> UpdateCommissioningDocumentAsync(UpdateCommissioningDocumentRequest request);
 		Task DeleteCommissioningDocumentAsync(Guid id);
 		Task<CommissioningDocumentResponse> GetCommissioningDocumentByIdAsync(Guid id);
-		Task<CommissioningDocumentResponse?> GetCommissioningDocumentByProjectIdAsync(Guid projectId);
+		Task<IEnumerable<CommissioningDocumentResponse>> GetCommissioningDocumentsByProjectIdAsync(Guid projectId);
 
 		// ReviewObjective
 		Task<ReviewObjectiveResponse> CreateReviewObjectiveAsync(CreateReviewObjectiveRequest request);

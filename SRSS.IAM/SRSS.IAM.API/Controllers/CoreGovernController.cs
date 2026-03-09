@@ -126,9 +126,9 @@ namespace SRSS.IAM.API.Controllers
 		/// Lấy commissioning document theo dự án
 		/// </summary>
 		[HttpGet("commissioning-documents/project/{projectId}")]
-		public async Task<ActionResult<ApiResponse<CommissioningDocumentResponse?>>> GetCommissioningDocumentByProject(Guid projectId)
+		public async Task<ActionResult<ApiResponse<IEnumerable<CommissioningDocumentResponse>>>> GetCommissioningDocumentsByProject(Guid projectId)
 		{
-			var result = await _coreGovernService.GetCommissioningDocumentByProjectIdAsync(projectId);
+			var result = await _coreGovernService.GetCommissioningDocumentsByProjectIdAsync(projectId);
 			return Ok(result, "Lấy commissioning document thành công.");
 		}
 

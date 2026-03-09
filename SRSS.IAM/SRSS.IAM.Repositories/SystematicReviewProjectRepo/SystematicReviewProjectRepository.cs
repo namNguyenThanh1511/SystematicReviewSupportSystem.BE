@@ -77,5 +77,11 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
         {
             await _context.ProjectMembers.AddAsync(member);
         }
+
+        public async Task<bool> IsProjectLeaderAsync(Guid projectId, Guid userId)
+        {
+            return await _context.ProjectMembers
+                .AnyAsync(m => m.ProjectId == projectId && m.UserId == userId && m.Role == ProjectRole.Leader);
+        }
     }
 }

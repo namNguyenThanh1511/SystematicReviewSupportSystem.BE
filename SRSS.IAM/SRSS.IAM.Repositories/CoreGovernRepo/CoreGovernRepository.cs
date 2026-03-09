@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
@@ -11,7 +12,7 @@ namespace SRSS.IAM.Repositories.CoreGovernRepo
 
 	public interface ICommissioningDocumentRepository : IGenericRepository<CommissioningDocument, Guid, AppDbContext>
 	{
-		Task<CommissioningDocument?> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+		Task<IEnumerable<CommissioningDocument>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
 	}
 
 	public interface IReviewObjectiveRepository : IGenericRepository<ReviewObjective, Guid, AppDbContext>
@@ -39,9 +40,9 @@ namespace SRSS.IAM.Repositories.CoreGovernRepo
 	{
 		public CommissioningDocumentRepository(AppDbContext context) : base(context) { }
 
-		public async Task<CommissioningDocument?> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<CommissioningDocument>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindSingleAsync(c => c.ProjectId == projectId, isTracking: false, cancellationToken);
+			return await FindAllAsync(c => c.ProjectId == projectId, isTracking: false, cancellationToken);
 		}
 	}
 

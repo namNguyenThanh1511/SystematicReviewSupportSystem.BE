@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.DTOs.Tag;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.TagService;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -15,10 +19,17 @@ namespace SRSS.IAM.API.Controllers
     public class StudySelectionController : BaseController
     {
         private readonly IStudySelectionService _studySelectionService;
+        private readonly ITagService _tagService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public StudySelectionController(IStudySelectionService studySelectionService)
+        public StudySelectionController(
+            IStudySelectionService studySelectionService,
+            ITagService tagService,
+            ICurrentUserService currentUserService)
         {
             _studySelectionService = studySelectionService;
+            _tagService = tagService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -188,6 +199,61 @@ namespace SRSS.IAM.API.Controllers
             var message = result.TotalCount == 0
                 ? "No papers found matching the criteria."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} papers (page {result.PageNumber}/{result.TotalPages}).";
+
+            return Ok(result, message);
+        }
+
+        // ============================================
+        // PAPER TAGS (within Study Selection context)
+        // ============================================
+
+        /// <summary>
+        /// Add a tag to a paper within the study selection screening phase.
+        /// Also adds the tag to the current user's tag inventory.
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/{paperId}/tags")]
+        public async Task<ActionResult<ApiResponse<PaperTagResponse>>> AddTagToPaper(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            [FromBody] AddPaperTagRequest request,
+            CancellationToken cancellationToken)
+        {
+            request.Phase = ProcessPhase.StudySelection;
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _tagService.AddTagToPaperAsync(paperId, userId, request, cancellationToken);
+            return Created(result, "Tag added to paper successfully.");
+        }
+
+        /// <summary>
+        /// Remove a tag from a paper within the study selection context.
+        /// TODO: Only allow removing tags that the current user created (enforce in service layer). Or let admins remove tags
+        /// </summary>
+        [HttpDelete("study-selection/{id}/papers/{paperId}/tags/{tagId}")]
+        public async Task<ActionResult<ApiResponse>> RemoveTagFromPaper(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            [FromRoute] Guid tagId,
+            CancellationToken cancellationToken)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            await _tagService.RemoveTagFromPaperAsync(tagId, userId, cancellationToken);
+            return Ok("Tag removed from paper successfully.");
+        }
+
+        /// <summary>
+        /// Get all screening-phase tags for a paper within the study selection context.
+        /// </summary>
+        [HttpGet("study-selection/{id}/papers/{paperId}/tags")]
+        public async Task<ActionResult<ApiResponse<List<PaperTagResponse>>>> GetTagsByPaper(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _tagService.GetTagsByPaperAndPhaseAsync(paperId, ProcessPhase.StudySelection, cancellationToken);
+
+            var message = result.Count == 0
+                ? "No tags found for this paper."
+                : $"Retrieved {result.Count} tags.";
 
             return Ok(result, message);
         }

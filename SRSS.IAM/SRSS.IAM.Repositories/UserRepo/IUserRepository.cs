@@ -8,5 +8,10 @@ namespace SRSS.IAM.Repositories.UserRepo
     public interface IUserRepository : IGenericRepository<User, Guid, AppDbContext>
     {
         Task<IEnumerable<UserSearchResultDto>> SearchUsersAsync(Guid projectId, string keyword, int limit = 15);
+        Task<(IEnumerable<User> Items, int TotalCount)> GetPaginatedUsersAsync(
+            string? search,
+            bool? isActive,
+            int pageNumber,
+            int pageSize);
     }
 }

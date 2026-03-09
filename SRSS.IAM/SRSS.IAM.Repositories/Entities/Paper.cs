@@ -83,6 +83,8 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Identification process snapshots where this paper is included
         public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
+        // Tags applied to this paper across review phases
+        public ICollection<PaperTag> Tags { get; set; } = new List<PaperTag>();
     }
 
     public enum AccessType

@@ -77,5 +77,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
 		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 		public DbSet<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = default!;
+		public DbSet<PaperTag> PaperTags { get; set; } = default!;
+		public DbSet<UserTagInventory> UserTagInventories { get; set; } = default!;
 	}
 }

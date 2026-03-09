@@ -14,6 +14,8 @@ namespace SRSS.IAM.Repositories.Entities
         public bool IsRefreshTokenRevoked { get; set; } = false;
         public DateTimeOffset? RefreshTokenExpiryTime { get; set; }
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+        public ICollection<PaperTag> PaperTags { get; set; } = new List<PaperTag>();
+        public ICollection<UserTagInventory> TagInventory { get; set; } = new List<UserTagInventory>();
     }
 
     public enum Role

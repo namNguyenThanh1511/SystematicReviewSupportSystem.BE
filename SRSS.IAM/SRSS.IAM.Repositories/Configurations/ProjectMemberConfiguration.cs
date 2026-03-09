@@ -33,6 +33,12 @@ namespace SRSS.IAM.Repositories.Configurations
                    .HasDefaultValueSql("timezone('utc', now())")
                    .IsRequired();
 
+            builder.Property(x => x.CreatedAt)
+                   .HasColumnName("created_at");
+
+            builder.Property(x => x.ModifiedAt)
+                   .HasColumnName("modified_at");
+
             // Relationships
             builder.HasOne(x => x.Project)
                    .WithMany(p => p.ProjectMembers)

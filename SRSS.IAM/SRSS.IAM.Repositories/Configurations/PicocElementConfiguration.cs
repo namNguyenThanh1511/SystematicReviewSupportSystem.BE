@@ -32,6 +32,12 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("description")
 				.IsRequired();
 
+			builder.Property(x => x.CreatedAt)
+				.HasColumnName("created_at");
+
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.HasOne(x => x.ResearchQuestion)
 				.WithMany(x => x.PicocElements)
 				.HasForeignKey(x => x.ResearchQuestionId)

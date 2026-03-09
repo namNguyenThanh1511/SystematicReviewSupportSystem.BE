@@ -4,16 +4,19 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.StudySelectionService;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
     public class ReviewProcessService : IReviewProcessService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IStudySelectionService _studySelectionService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork)
+        public ReviewProcessService(IUnitOfWork unitOfWork , IStudySelectionService selectionService)
         {
             _unitOfWork = unitOfWork;
+            _studySelectionService = selectionService;
         }
 
         public async Task<ReviewProcessResponse> CreateReviewProcessAsync(
@@ -34,7 +37,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             try
             {
                 // Create ReviewProcess
-                var reviewProcess = project.AddReviewProcess(request.Name,request.Notes);
+                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes);
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -49,8 +52,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+                //Auto-create Study Selection Process for the new ReviewProcess
+                var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Notes = "Auto-created study selection process",
+                    Status = Repositories.Entities.SelectionProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
 
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
+                await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -82,6 +96,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 response.IdentificationProcess!.PrismaStatistics =
                     await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
             }
+
+            if (reviewProcess.StudySelectionProcess != null)
+            {
+                // Optionally, you could add additional statistics for the StudySelectionProcess here
+                response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id,cancellationToken);
+
+            }
+
 
             return response;
         }
@@ -329,5 +351,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 ImportBatchCount = importBatchList.Count
             };
         }
+
+
     }
 }

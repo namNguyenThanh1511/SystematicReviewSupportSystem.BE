@@ -19,8 +19,11 @@ namespace SRSS.IAM.API.Data
 		// ── Identification Process IDs ───────────────────────────────────
 		private static readonly Guid HarIdentificationProcessId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-		// ── Search Execution IDs ─────────────────────────────────────────
-		private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+        // ── Study Selection Process IDs ─────────────────────────────────
+		private static readonly Guid HarStudySelectionProcessId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+
+        // ── Search Execution IDs ─────────────────────────────────────────
+        private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
 		// ── Import Batch IDs ─────────────────────────────────────────────
 		private static readonly Guid ScopusImportBatchId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -126,7 +129,8 @@ namespace SRSS.IAM.API.Data
 			await SeedProjectsAsync(context);
 			await SeedReviewProcessesAsync(context);
 			await SeedIdentificationProcessesAsync(context);
-			await SeedSearchExecutionsAsync(context);
+			await SeedStudySelectionProcessesAsync(context);
+            await SeedSearchExecutionsAsync(context);
 			await SeedImportBatchesAsync(context);
 			await SeedPapersAsync(context);
 			await SeedCoreGovernanceAsync(context);
@@ -267,7 +271,25 @@ namespace SRSS.IAM.API.Data
 			await context.SaveChangesAsync();
 		}
 
-		private static async Task SeedSearchExecutionsAsync(AppDbContext context)
+		private static async Task SeedStudySelectionProcessesAsync(AppDbContext context)
+		{
+			if (await context.StudySelectionProcesses.AnyAsync(x => x.Id == HarStudySelectionProcessId))
+			{
+				return;
+			}
+			var studySelectionProcess = new StudySelectionProcess
+			{
+				Id = HarStudySelectionProcessId,
+				ReviewProcessId = HarReviewProcessId,
+				Status = SelectionProcessStatus.NotStarted,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
+			};
+			await context.StudySelectionProcesses.AddAsync(studySelectionProcess);
+			await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedSearchExecutionsAsync(AppDbContext context)
 		{
 			if (await context.SearchExecutions.AnyAsync(x => x.Id == ScopusSearchExecutionId))
 			{

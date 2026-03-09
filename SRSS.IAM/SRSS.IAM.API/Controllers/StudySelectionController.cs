@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
+using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.StudySelectionService;
 
@@ -161,15 +162,34 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
-        /// Get all papers with their decisions and resolutions
+        /// Get all papers with their decisions and resolutions (paginated, with search/filter/sort)
         /// </summary>
         [HttpGet("study-selection/{id}/papers")]
-        public async Task<ActionResult<ApiResponse<List<PaperWithDecisionsResponse>>>> GetPapersWithDecisions(
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperWithDecisionsResponse>>>> GetPapersWithDecisions(
             [FromRoute] Guid id,
-            CancellationToken cancellationToken)
+            [FromQuery] string? search,
+            [FromQuery] PaperSelectionStatus? status,
+            [FromQuery] PaperSortBy sortBy = PaperSortBy.TitleAsc,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _studySelectionService.GetPapersWithDecisionsAsync(id, cancellationToken);
-            return Ok(result, $"Retrieved {result.Count} papers with decisions.");
+            var request = new PapersWithDecisionsRequest
+            {
+                Search = search,
+                Status = status,
+                SortBy = sortBy,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _studySelectionService.GetPapersWithDecisionsAsync(id, request, cancellationToken);
+
+            var message = result.TotalCount == 0
+                ? "No papers found matching the criteria."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} papers (page {result.PageNumber}/{result.TotalPages}).";
+
+            return Ok(result, message);
         }
     }
 }

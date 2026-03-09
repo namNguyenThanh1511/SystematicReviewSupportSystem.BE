@@ -1,3 +1,4 @@
+using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.StudySelectionService
@@ -59,8 +60,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default);
 
-        Task<List<PaperWithDecisionsResponse>> GetPapersWithDecisionsAsync(
+        Task<PaginatedResponse<PaperWithDecisionsResponse>> GetPapersWithDecisionsAsync(
             Guid studySelectionProcessId,
+            PapersWithDecisionsRequest request,
             CancellationToken cancellationToken = default);
     }
 }

@@ -26,6 +26,15 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? ResolutionNotes { get; set; }
     }
 
+    public class PapersWithDecisionsRequest
+    {
+        public string? Search { get; set; }
+        public PaperSelectionStatus? Status { get; set; }
+        public PaperSortBy SortBy { get; set; } = PaperSortBy.TitleAsc;
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
     // ============================================
     // RESPONSE DTOs
     // ============================================
@@ -41,9 +50,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
-        public int ScreenedStudy { get; set; }
+        public SelectionStatisticsResponse SelectionStatistics { get; set; } 
 
-        public int StudyToScreen { get; set; }
     }
 
     public class ScreeningDecisionResponse
@@ -53,6 +61,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public Guid PaperId { get; set; }
         public string PaperTitle { get; set; } = string.Empty;
         public Guid ReviewerId { get; set; }
+        public string ReviewerName { get; set; } = string.Empty;
         public ScreeningDecisionType Decision { get; set; }
         public string DecisionText { get; set; } = string.Empty;
         public string? Reason { get; set; }
@@ -69,6 +78,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string FinalDecisionText { get; set; } = string.Empty;
         public string? ResolutionNotes { get; set; }
         public Guid ResolvedBy { get; set; }
+        public string ResolverName { get; set; } = string.Empty;
         public DateTimeOffset ResolvedAt { get; set; }
     }
 
@@ -79,6 +89,21 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? DOI { get; set; }
         public string? Authors { get; set; }
         public int? PublicationYear { get; set; }
+        public string? Abstract { get; set; }
+        public string? Journal { get; set; }
+        public string? Source { get; set; }
+        public string? Keywords { get; set; }
+        public string? PublicationType { get; set; }
+        public string? Volume { get; set; }
+        public string? Issue { get; set; }
+        public string? Pages { get; set; }
+        public string? Publisher { get; set; }
+        public string? Language { get; set; }
+        public string? Url { get; set; }
+        public string? PdfUrl { get; set; }
+        public string? ConferenceName { get; set; }
+        public string? ConferenceLocation { get; set; }
+        public string? JournalIssn { get; set; }
         public PaperSelectionStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         public List<ScreeningDecisionResponse> Decisions { get; set; } = new();
@@ -115,5 +140,13 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         Excluded = 2,
         Conflict = 3,
         Resolved = 4
+    }
+
+    public enum PaperSortBy
+    {
+        TitleAsc = 0,
+        TitleDesc = 1,
+        YearNewest = 2,
+        YearOldest = 3
     }
 }

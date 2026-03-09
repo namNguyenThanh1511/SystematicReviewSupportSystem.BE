@@ -110,7 +110,8 @@ namespace SRSS.IAM.API
             app.UseCors("AllowAll");
 
 			app.UseHttpsRedirection();
-            app.UseAuthorization();// vì gateway xử lý authen rồi nên ở đây chỉ cần autho
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseExceptionHandler();
 
             //app.MapHub<ChatHub>("/hubs/chat"); // <--- Đường dẫn websocket

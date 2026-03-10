@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
@@ -332,6 +334,64 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return true;
         }
 
+        public async Task<ReviewProcessResponse> AssignProtocolAsync(
+            Guid processId,
+            Guid protocolId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses
+                .FindSingleAsync(rp => rp.Id == processId, isTracking: true, cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
+            }
+
+            // Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can assign a protocol to a review process.");
+            }
+
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId, cancellationToken: cancellationToken);
+            if (protocol == null)
+            {
+                throw new NotFoundException($"Protocol with ID {protocolId} not found.");
+            }
+
+            reviewProcess.SetProtocol(protocol);
+
+            await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(reviewProcess);
+        }
+
+        public async Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
+            Guid processId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses
+                .FindSingleAsync(rp => rp.Id == processId, cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
+            }
+
+            if (reviewProcess.ProtocolId == null)
+            {
+                return null;
+            }
+
+            var protocol = await _unitOfWork.Protocols
+                .GetByIdWithVersionsAsync(reviewProcess.ProtocolId.Value, cancellationToken);
+
+            return protocol?.ToDetailResponse();
+        }
+
         private static ReviewProcessResponse MapToResponse(Repositories.Entities.ReviewProcess reviewProcess)
         {
             return new ReviewProcessResponse
@@ -339,6 +399,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 Id = reviewProcess.Id,
                 Name = reviewProcess.Name,
                 ProjectId = reviewProcess.ProjectId,
+                ProtocolId = reviewProcess.ProtocolId,
                 Status = reviewProcess.Status,
                 StatusText = reviewProcess.Status.ToString(),
                 CurrentPhase = reviewProcess.CurrentPhase,

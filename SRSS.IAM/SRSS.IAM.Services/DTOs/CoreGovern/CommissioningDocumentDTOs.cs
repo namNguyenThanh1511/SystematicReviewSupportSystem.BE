@@ -34,7 +34,7 @@ namespace SRSS.IAM.Services.DTOs.CoreGovern
 
 	public class CommissioningDocumentResponse
 	{
-		public Guid Id { get; set; }
+		public Guid DocumentId { get; set; }
 		public Guid ProjectId { get; set; }
 		public string? Sponsor { get; set; }
 		public string? Scope { get; set; }

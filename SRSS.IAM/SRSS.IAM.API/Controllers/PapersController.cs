@@ -213,7 +213,7 @@ namespace SRSS.IAM.API.Controllers
         /// </summary>
         /// <param name="identificationProcessId">Identification Process ID</param>
         /// <param name="pairId">Deduplication Result ID (the pair ID)</param>
-        /// <param name="request">Resolution decision: "keep-original", "keep-duplicate", or "keep-both"</param>
+        /// <param name="request">Resolution decision: CANCEL (0) = exclude PaperId, KEEP_BOTH (1) = not a duplicate</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Resolution result with audit trail</returns>
         [HttpPatch("identification-processes/{identificationProcessId}/duplicate-pairs/{pairId}/resolve")]

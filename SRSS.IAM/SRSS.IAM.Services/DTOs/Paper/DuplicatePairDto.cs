@@ -35,7 +35,7 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string MethodText { get; set; } = string.Empty;
         public decimal? ConfidenceScore { get; set; }
         public string? DeduplicationNotes { get; set; }
-        public required string ResolvedDecision { get; set; } 
+        public DuplicateResolutionDecision? ResolvedDecision { get; set; }
         public DeduplicationReviewStatus ReviewStatus { get; set; } = DeduplicationReviewStatus.Pending;
         public string ReviewStatusText { get; set; } = DeduplicationReviewStatus.Pending.ToString();
         public string? ReviewedBy { get; set; }
@@ -59,10 +59,11 @@ namespace SRSS.IAM.Services.DTOs.Paper
 
     /// <summary>
     /// Request to resolve a duplicate pair decision.
+    /// CANCEL = PaperId is excluded. KEEP_BOTH = not a duplicate.
     /// </summary>
     public class ResolveDuplicatePairRequest
     {
-        public string Decision { get; set; } = string.Empty;
+        public DuplicateResolutionDecision Decision { get; set; }
         public string? Notes { get; set; }
     }
 
@@ -74,7 +75,7 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public Guid Id { get; set; }
         public DeduplicationReviewStatus ReviewStatus { get; set; }
         public string ReviewStatusText { get; set; } = string.Empty;
-        public string? ResolvedDecision { get; set; }
+        public DuplicateResolutionDecision? ResolvedDecision { get; set; }
         public DateTimeOffset? ReviewedAt { get; set; }
         public string? ReviewedBy { get; set; }
     }

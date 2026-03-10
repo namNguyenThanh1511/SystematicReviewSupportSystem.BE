@@ -54,9 +54,11 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? ReviewedAt { get; set; }
 
         /// <summary>
-        /// The resolution decision: "keep-original", "keep-duplicate", "keep-both"
+        /// The resolution decision made by the reviewer.
+        /// CANCEL = PaperId is excluded as duplicate.
+        /// KEEP_BOTH = Not a real duplicate, both papers remain.
         /// </summary>
-        public string? ResolvedDecision { get; set; }
+        public DuplicateResolutionDecision? ResolvedDecision { get; set; }
 
         // Navigation Properties
         public IdentificationProcess IdentificationProcess { get; set; } = null!;
@@ -114,5 +116,24 @@ namespace SRSS.IAM.Repositories.Entities
         /// Researcher rejected — not actually a duplicate, keep both papers
         /// </summary>
         Rejected = 2
+    }
+
+    /// <summary>
+    /// Resolution decision for a duplicate pair.
+    /// Replaces the old survivor-chain model (keep-original/keep-duplicate/keep-both).
+    /// Each pair is independent — no cascade logic.
+    /// </summary>
+    public enum DuplicateResolutionDecision
+    {
+        /// <summary>
+        /// Not a real duplicate — both papers remain in the dataset
+        /// </summary>
+        KEEP_BOTH = 0,
+
+        /// <summary>
+        /// Confirmed duplicate — PaperId is excluded from the identification process.
+        /// DuplicateOfPaperId is just the reference paper, NOT a "survivor".
+        /// </summary>
+        CANCEL = 1
     }
 }

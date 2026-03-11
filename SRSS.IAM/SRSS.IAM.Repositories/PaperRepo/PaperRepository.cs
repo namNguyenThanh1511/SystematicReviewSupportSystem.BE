@@ -156,7 +156,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
         /// <summary>
         /// Get unique (non-duplicate) papers for a specific identification process.
         /// Papers linked via ImportBatch → SearchExecution → IdentificationProcess
-        /// that are not removed as duplicates and have no pending deduplication results.
+        /// EXCEPT papers confirmed as duplicates (CANCEL decision) in this process.
         /// </summary>
         public async Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByIdentificationProcessAsync(
             Guid identificationProcessId,
@@ -172,11 +172,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
-                    !p.IsRemovedAsDuplicate &&
-                    // Also exclude papers with pending (unresolved) deduplication
+                    // Exclude papers confirmed as duplicates ( cancel dedup) in this process or (unresolved) deduplication
                     !p.DuplicateResults.Any(dr =>
                         dr.IdentificationProcessId == identificationProcessId &&
-                        dr.ReviewStatus == DeduplicationReviewStatus.Pending));
+                        dr.ReviewStatus == DeduplicationReviewStatus.Pending || dr.ReviewStatus == DeduplicationReviewStatus.Confirmed));
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(search))

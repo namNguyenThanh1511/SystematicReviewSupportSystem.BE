@@ -98,11 +98,12 @@ namespace SRSS.IAM.Services.DTOs.Paper
     }
 
     /// <summary>
-    /// Request to resolve a duplicate detection result
+    /// Request to resolve a duplicate detection result.
+    /// CANCEL = PaperId is excluded. KEEP_BOTH = not a duplicate.
     /// </summary>
     public class ResolveDuplicateRequest
     {
-        public DeduplicationReviewStatus Resolution { get; set; }
+        public DuplicateResolutionDecision Decision { get; set; }
         public string? ReviewedBy { get; set; }
         public string? Notes { get; set; }
     }

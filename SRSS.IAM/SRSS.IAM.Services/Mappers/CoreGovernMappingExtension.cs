@@ -25,7 +25,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static ReviewNeedResponse ToResponse(this ReviewNeed e) => new()
 		{
-			Id = e.Id,
+			NeedId = e.Id,
 			ProjectId = e.ProjectId,
 			Description = e.Description,
 			Justification = e.Justification,
@@ -55,7 +55,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static CommissioningDocumentResponse ToResponse(this CommissioningDocument e) => new()
 		{
-			Id = e.Id,
+			DocumentId = e.Id,
 			ProjectId = e.ProjectId,
 			Sponsor = e.Sponsor,
 			Scope = e.Scope,
@@ -80,7 +80,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static ReviewObjectiveResponse ToResponse(this ReviewObjective e) => new()
 		{
-			Id = e.Id,
+			ObjectiveId = e.Id,
 			ProjectId = e.ProjectId,
 			ObjectiveStatement = e.ObjectiveStatement,
 			CreatedAt = e.CreatedAt,
@@ -103,7 +103,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static QuestionTypeResponse ToResponse(this QuestionType e) => new()
 		{
-			Id = e.Id,
+			QuestionTypeId = e.Id,
 			Name = e.Name,
 			Description = e.Description,
 			CreatedAt = e.CreatedAt,

@@ -54,6 +54,7 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(dr => dr.ResolvedDecision)
                 .HasColumnName("resolved_decision")
+                .HasConversion<string>()
                 .HasMaxLength(50);
 
             builder.Property(dr => dr.CreatedAt)

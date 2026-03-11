@@ -32,7 +32,7 @@ namespace SRSS.IAM.Services.DTOs.CoreGovern
 
 	public class ReviewNeedResponse
 	{
-		public Guid Id { get; set; }
+		public Guid NeedId { get; set; }
 		public Guid ProjectId { get; set; }
 		public string Description { get; set; } = string.Empty;
 		public string? Justification { get; set; }

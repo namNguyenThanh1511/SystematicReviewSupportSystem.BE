@@ -1,8 +1,8 @@
 # Duplicate Papers API Documentation
 
-**Version:** 3.0  
+**Version:** 4.0  
 **Base URL:** `/api`  
-**Last Updated:** 2025-02-27
+**Last Updated:** 2025-06-01
 
 ---
 
@@ -232,7 +232,7 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 | **Method** | `POST` |
 | **Route** | `/api/identification-processes/{identificationProcessId}/duplicates/{deduplicationResultId}/resolve` |
 | **Content-Type** | `application/json` |
-| **Description** | Confirm or reject a duplicate detection result |
+| **Description** | Resolve a duplicate detection result with CANCEL or KEEP_BOTH |
 
 ### Path Parameters
 
@@ -245,7 +245,7 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 
 ```json
 {
-  "resolution": 1,
+  "decision": 1,
   "reviewedBy": "researcher@university.edu",
   "notes": "Confirmed as duplicate — same DOI"
 }
@@ -253,7 +253,7 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `resolution` | `integer` | ✅ Yes | `0`=Pending, `1`=Confirmed, `2`=Rejected |
+| `decision` | `integer` | ✅ Yes | `0` = KEEP_BOTH, `1` = CANCEL |
 | `reviewedBy` | `string` | ❌ No | User who performed the review |
 | `notes` | `string` | ❌ No | Optional notes (updates existing notes if provided) |
 
@@ -439,7 +439,7 @@ enum DeduplicationReviewStatus {
 // Resolve Duplicate Request
 // ============================================
 interface ResolveDuplicateRequest {
-  resolution: DeduplicationReviewStatus; // 0=Pending, 1=Confirmed, 2=Rejected
+  decision: DuplicateResolutionDecision; // 0=KEEP_BOTH, 1=CANCEL
   reviewedBy?: string | null;            // User who reviewed
   notes?: string | null;                 // Optional review notes
 }
@@ -802,7 +802,7 @@ curl -X GET "https://your-api.com/api/identification-processes/abc-123-def/dupli
 | **Key Extra Fields** | `duplicateOfPaperId`, `duplicateOfTitle`, `duplicateOfAuthors`, `duplicateOfYear`, `duplicateOfDoi`, `duplicateOfSource`, `duplicateOfAbstract`, `method`, `methodText`, `confidenceScore`, `deduplicationNotes`, `detectedAt`, `reviewStatus`, `reviewStatusText`, `reviewedBy`, `reviewedAt` |
 | **Resolve Endpoint** | `POST .../duplicates/{id}/resolve` — confirm or reject a detection |
 | **Paired Endpoint** | `GET .../duplicate-pairs` — side-by-side comparison with both papers' full metadata |
-| **Pair Resolve Endpoint** | `PATCH .../duplicate-pairs/{pairId}/resolve` — resolve with decision: `keep-original` / `keep-duplicate` / `keep-both` |
+| **Pair Resolve Endpoint** | `PATCH .../duplicate-pairs/{pairId}/resolve` — resolve with decision: `CANCEL` (exclude PaperId) or `KEEP_BOTH` (not a duplicate) |
 
 ---
 
@@ -863,13 +863,13 @@ New paired endpoint for side-by-side researcher review workflow. All changes are
 | `pageNumber` | `integer` | `1` | Page number |
 | `pageSize` | `integer` | `20` | Items per page (max: 100) |
 
-**Resolve decisions:**
+**Resolve decisions (v3.0 — DEPRECATED, replaced by v4.0):**
 
 | Decision | Effect | Maps to ReviewStatus |
 |----------|--------|---------------------|
-| `keep-original` | Duplicate paper excluded | `Confirmed` |
-| `keep-duplicate` | Original paper excluded | `Confirmed` |
-| `keep-both` | Not a duplicate, keep both | `Rejected` |
+| ~~`keep-original`~~ | ~~Duplicate paper excluded~~ | ~~`Confirmed`~~ |
+| ~~`keep-duplicate`~~ | ~~Original paper excluded~~ | ~~`Confirmed`~~ |
+| ~~`keep-both`~~ | ~~Not a duplicate, keep both~~ | ~~`Rejected`~~ |
 
 **Migration notes:**
 - Run `dotnet ef database update` to apply the migration
@@ -884,3 +884,205 @@ New paired endpoint for side-by-side researcher review workflow. All changes are
 | `GET .../duplicate-pairs` | Review workflow, side-by-side comparison |
 | `PATCH .../duplicate-pairs/{id}/resolve` | Record researcher decision with audit trail |
 | `GET .../unique-papers` | Non-duplicate papers |
+
+---
+
+### v4.0 — Simplified Decision Model (No Survivor Chains)
+
+**⚠️ BREAKING CHANGE** — The resolve endpoints now use a new `DuplicateResolutionDecision` enum instead of string-based decisions.
+
+#### Problem with v3.0
+
+The old model (`keep-original` / `keep-duplicate` / `keep-both`) created **survivor chains** (A → B → C → D), requiring complex cascade logic (`CascadeOriginalPaperChangeAsync`) that rewrote `DuplicateOfPaperId` references. This was:
+- Fragile and error-prone
+- Hard to audit/reproduce
+- Non-deterministic
+
+#### New Decision Model
+
+Each duplicate pair is **independent**. No cascade, no reference rewriting.
+
+| Decision | Enum Value | Effect | ReviewStatus |
+|----------|------------|--------|--------------|
+| `KEEP_BOTH` | `0` | Not a duplicate — both papers remain | `Rejected` |
+| `CANCEL` | `1` | Confirmed duplicate — `PaperId` is excluded | `Confirmed` |
+
+**Key rules:**
+- `CANCEL` always removes `PaperId` (the paper flagged as duplicate)
+- `DuplicateOfPaperId` is just a reference paper — it is NOT a "survivor"
+- No other pairs are modified when resolving a pair
+- `ResolvedDecision` changed from `string?` to `DuplicateResolutionDecision?` enum
+
+#### Resolve Duplicate Pair — `PATCH .../duplicate-pairs/{pairId}/resolve`
+
+**Request Body:**
+
+```json
+{
+  "decision": 1,
+  "notes": "Confirmed duplicate by DOI match"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `decision` | `integer` | ✅ Yes | `0` = KEEP_BOTH, `1` = CANCEL |
+| `notes` | `string` | ❌ No | Optional review notes |
+
+**Success Response (200 OK):**
+
+```json
+{
+  "isSuccess": true,
+  "message": "Duplicate pair resolved successfully.",
+  "data": {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "reviewStatus": 1,
+    "reviewStatusText": "Confirmed",
+    "resolvedDecision": 1,
+    "reviewedAt": "2025-06-01T14:30:00+00:00",
+    "reviewedBy": null
+  },
+  "errors": null
+}
+```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string (UUID)` | The deduplication result ID |
+| `reviewStatus` | `integer` | `1` = Confirmed (CANCEL), `2` = Rejected (KEEP_BOTH) |
+| `reviewStatusText` | `string` | `"Confirmed"` or `"Rejected"` |
+| `resolvedDecision` | `integer` | `0` = KEEP_BOTH, `1` = CANCEL |
+| `reviewedAt` | `string (ISO 8601)` | When the decision was made |
+| `reviewedBy` | `string \| null` | Who made the decision |
+
+**Error Responses:**
+
+| Status | Scenario |
+|--------|----------|
+| **500** | Pair not found for the given identification process |
+| **500** | Pair already resolved (not Pending) |
+
+**Side Effects:**
+
+| Decision | Side Effect |
+|----------|-------------|
+| `CANCEL` | `Paper.IsRemovedAsDuplicate = true` on the PaperId paper |
+| `KEEP_BOTH` | No paper changes |
+
+#### Resolve Duplicate (Legacy) — `POST .../duplicates/{id}/resolve`
+
+Also updated to use `DuplicateResolutionDecision`.
+
+**Request Body:**
+
+```json
+{
+  "decision": 1,
+  "reviewedBy": "researcher@university.edu",
+  "notes": "Confirmed duplicate"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `decision` | `integer` | ✅ Yes | `0` = KEEP_BOTH, `1` = CANCEL |
+| `reviewedBy` | `string` | ❌ No | User who performed the review |
+| `notes` | `string` | ❌ No | Optional notes |
+
+#### Unique Papers Filtering (Updated)
+
+Unique papers for an identification process are now:
+
+```
+All papers in this IdentificationProcess
+EXCEPT papers where EXISTS DeduplicationResult
+  WHERE IdentificationProcessId = current process
+  AND ReviewStatus = Confirmed
+  AND PaperId = current paper
+```
+
+No `IsRemovedAsDuplicate` flag or `OriginalOfDuplicates` subquery needed.
+
+#### TypeScript Interfaces (Updated)
+
+```typescript
+enum DuplicateResolutionDecision {
+  KEEP_BOTH = 0,
+  CANCEL = 1
+}
+
+interface ResolveDuplicatePairRequest {
+  decision: DuplicateResolutionDecision;
+  notes?: string | null;
+}
+
+interface ResolveDuplicatePairResponse {
+  id: string;
+  reviewStatus: DeduplicationReviewStatus;
+  reviewStatusText: string;
+  resolvedDecision: DuplicateResolutionDecision | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+}
+
+// Updated — DuplicatePairResponse.resolvedDecision is now enum
+interface DuplicatePairResponse {
+  id: string;
+  originalPaper: DuplicatePairPaperDto;
+  duplicatePaper: DuplicatePairPaperDto;
+  method: DeduplicationMethod;
+  methodText: string;
+  confidenceScore: number | null;
+  deduplicationNotes: string | null;
+  resolvedDecision: DuplicateResolutionDecision | null;
+  reviewStatus: DeduplicationReviewStatus;
+  reviewStatusText: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  detectedAt: string;
+}
+```
+
+#### cURL Examples
+
+```bash
+# CANCEL — exclude PaperId as duplicate
+curl -X PATCH "https://your-api.com/api/identification-processes/{processId}/duplicate-pairs/{pairId}/resolve" \
+  -H "Content-Type: application/json" \
+  -d '{"decision": 1, "notes": "Confirmed duplicate by DOI"}'
+
+# KEEP_BOTH — not a real duplicate
+curl -X PATCH "https://your-api.com/api/identification-processes/{processId}/duplicate-pairs/{pairId}/resolve" \
+  -H "Content-Type: application/json" \
+  -d '{"decision": 0, "notes": "Different editions, keep both"}'
+```
+
+#### Migration & Breaking Changes
+
+| Change | Type | Breaking |
+|--------|------|----------|
+| `ResolvedDecision` changed from `string?` to `DuplicateResolutionDecision?` enum | Schema | ✅ **Yes** |
+| `ResolveDuplicatePairRequest.Decision` changed from `string` to `DuplicateResolutionDecision` enum | DTO | ✅ **Yes** |
+| `ResolveDuplicateRequest.Resolution` renamed to `Decision`, type changed to `DuplicateResolutionDecision` | DTO | ✅ **Yes** |
+| Removed `keep-original`, `keep-duplicate`, `keep-both` string decisions | Logic | ✅ **Yes** |
+| Removed `CascadeOriginalPaperChangeAsync()` — no more reference rewriting | Logic | ❌ No |
+| Unique papers query simplified — no `OriginalOfDuplicates` subquery | Query | ❌ No |
+| Added `DuplicateResolutionDecision` enum (KEEP_BOTH=0, CANCEL=1) | New type | ❌ No |
+
+**Data migration for existing records:**
+
+```sql
+UPDATE deduplication_results
+SET resolved_decision = 'CANCEL'
+WHERE resolved_decision IN ('keep-original', 'keep-duplicate');
+
+UPDATE deduplication_results
+SET resolved_decision = 'KEEP_BOTH'
+WHERE resolved_decision = 'keep-both';
+```
+
+**Document Version:** 4.0
+**Maintained by:** Backend Team

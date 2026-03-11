@@ -87,6 +87,13 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
             }
 
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                cancellationToken: cancellationToken);
+            if (reviewProcess == null) {
+                throw new InvalidOperationException($"Associated ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+            reviewProcess.CurrentPhase = ProcessPhase.Identification;
             identificationProcess.Start();
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);

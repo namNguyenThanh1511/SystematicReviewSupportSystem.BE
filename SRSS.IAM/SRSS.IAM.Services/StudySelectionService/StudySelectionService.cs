@@ -96,6 +96,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 cancellationToken);
 
             reviewProcess.IdentificationProcess = identificationProcess;
+            reviewProcess.CurrentPhase = ProcessPhase.StudySelection;
             process.ReviewProcess = reviewProcess;
 
             // Use domain method for validation and state transition

@@ -12,8 +12,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260309035328_merged-e")]
-    partial class mergede
+    [Migration("20260310081402_SimplifyDeduplicationDecisionModel")]
+    partial class SimplifyDeduplicationDecisionModel
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

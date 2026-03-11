@@ -1,3 +1,4 @@
+using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 
 namespace SRSS.IAM.Services.ReviewProcessService
@@ -35,6 +36,15 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
         Task<bool> DeleteReviewProcessAsync(
             Guid id,
+            CancellationToken cancellationToken = default);
+
+        Task<ReviewProcessResponse> AssignProtocolAsync(
+            Guid processId,
+            Guid protocolId,
+            CancellationToken cancellationToken = default);
+
+        Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
+            Guid processId,
             CancellationToken cancellationToken = default);
     }
 }

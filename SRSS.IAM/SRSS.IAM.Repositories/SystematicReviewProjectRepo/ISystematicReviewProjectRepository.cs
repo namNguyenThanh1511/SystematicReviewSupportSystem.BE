@@ -15,5 +15,6 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
         Task<List<ProjectMember>> GetProjectsByUserIdAsync(Guid userId);
         IQueryable<ProjectMember> GetMembershipQueryable(Guid userId);
         Task AddMemberAsync(ProjectMember member);
+        Task<bool> IsProjectLeaderAsync(Guid projectId, Guid userId);
     }
 }

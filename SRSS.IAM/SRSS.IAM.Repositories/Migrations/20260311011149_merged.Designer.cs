@@ -12,8 +12,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260309035328_merged-e")]
-    partial class mergede
+    [Migration("20260311011149_merged")]
+    partial class merged
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1758,6 +1758,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
 
+                    b.Property<Guid?>("ProtocolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("protocol_id");
+
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
@@ -1771,6 +1775,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("ProjectId")
                         .HasDatabaseName("idx_review_process_project_id");
+
+                    b.HasIndex("ProtocolId")
+                        .IsUnique();
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_review_process_status");
@@ -2766,7 +2773,14 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProtocol", "Protocol")
+                        .WithOne("ReviewProcess")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.ReviewProcess", "ProtocolId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Project");
+
+                    b.Navigation("Protocol");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProtocol", b =>
@@ -2981,6 +2995,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ExtractionTemplates");
 
                     b.Navigation("QualityStrategies");
+
+                    b.Navigation("ReviewProcess");
 
                     b.Navigation("SearchSources");
 

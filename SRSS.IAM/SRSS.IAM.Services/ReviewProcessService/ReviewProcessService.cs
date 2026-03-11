@@ -2,9 +2,13 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -12,11 +16,13 @@ namespace SRSS.IAM.Services.ReviewProcessService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStudySelectionService _studySelectionService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork , IStudySelectionService selectionService)
+        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
             _studySelectionService = selectionService;
+            _currentUserService = currentUserService;
         }
 
         public async Task<ReviewProcessResponse> CreateReviewProcessAsync(
@@ -24,6 +30,20 @@ namespace SRSS.IAM.Services.ReviewProcessService
             CreateReviewProcessRequest request,
             CancellationToken cancellationToken = default)
         {
+
+            // Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can create a new review process.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Process name is required.", nameof(request.Name));
+            }
+
             var project = await _unitOfWork.SystematicReviewProjects
                 .GetByIdWithProcessesAsync(projectId, cancellationToken);
 
@@ -100,7 +120,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (reviewProcess.StudySelectionProcess != null)
             {
                 // Optionally, you could add additional statistics for the StudySelectionProcess here
-                response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id,cancellationToken);
+                response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id, cancellationToken);
 
             }
 
@@ -137,12 +157,21 @@ namespace SRSS.IAM.Services.ReviewProcessService
             UpdateReviewProcessRequest request,
             CancellationToken cancellationToken = default)
         {
+
             var reviewProcess = await _unitOfWork.ReviewProcesses
                 .FindSingleAsync(rp => rp.Id == request.Id, isTracking: true, cancellationToken);
 
             if (reviewProcess == null)
             {
                 throw new InvalidOperationException($"ReviewProcess with ID {request.Id} not found.");
+            }
+
+            //Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can update a review process.");
             }
 
             if (request.Notes != null)
@@ -168,6 +197,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (reviewProcess == null)
             {
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
+            }
+
+            //Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can start a review process.");
             }
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -200,6 +237,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (reviewProcess == null)
             {
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
+            }
+
+            //Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can complete a review process.");
             }
 
             // Load StudySelectionProcess for validation
@@ -275,10 +320,76 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new NotFoundException("ReviewProcess not found.");
             }
 
+            //Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can delete a review process.");
+            }
+
             await _unitOfWork.ReviewProcesses.RemoveAsync(reviewProcess, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
+        }
+
+        public async Task<ReviewProcessResponse> AssignProtocolAsync(
+            Guid processId,
+            Guid protocolId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses
+                .FindSingleAsync(rp => rp.Id == processId, isTracking: true, cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
+            }
+
+            // Check if current user is the leader of the project
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can assign a protocol to a review process.");
+            }
+
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId, cancellationToken: cancellationToken);
+            if (protocol == null)
+            {
+                throw new NotFoundException($"Protocol with ID {protocolId} not found.");
+            }
+
+            reviewProcess.SetProtocol(protocol);
+
+            await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(reviewProcess);
+        }
+
+        public async Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
+            Guid processId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses
+                .FindSingleAsync(rp => rp.Id == processId, cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
+            }
+
+            if (reviewProcess.ProtocolId == null)
+            {
+                return null;
+            }
+
+            var protocol = await _unitOfWork.Protocols
+                .GetByIdWithVersionsAsync(reviewProcess.ProtocolId.Value, cancellationToken);
+
+            return protocol?.ToDetailResponse();
         }
 
         private static ReviewProcessResponse MapToResponse(Repositories.Entities.ReviewProcess reviewProcess)
@@ -288,6 +399,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 Id = reviewProcess.Id,
                 Name = reviewProcess.Name,
                 ProjectId = reviewProcess.ProjectId,
+                ProtocolId = reviewProcess.ProtocolId,
                 Status = reviewProcess.Status,
                 StatusText = reviewProcess.Status.ToString(),
                 CurrentPhase = reviewProcess.CurrentPhase,

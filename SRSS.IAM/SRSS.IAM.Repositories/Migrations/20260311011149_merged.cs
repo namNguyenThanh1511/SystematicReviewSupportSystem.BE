@@ -182,32 +182,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "review_processes",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    status = table.Column<string>(type: "text", nullable: false),
-                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    current_phase = table.Column<string>(type: "text", nullable: false),
-                    notes = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_review_processes", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_review_processes_systematic_review_projects_project_id",
-                        column: x => x.project_id,
-                        principalTable: "systematic_review_projects",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "review_protocol",
                 columns: table => new
                 {
@@ -347,78 +321,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         column: x => x.research_question_id,
                         principalTable: "research_question",
                         principalColumn: "research_question_id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "identification_processes",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    status = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_identification_processes", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_identification_processes_review_processes_review_process_id",
-                        column: x => x.review_process_id,
-                        principalTable: "review_processes",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "prisma_reports",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    version = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    generated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    generated_by = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_prisma_reports", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_prisma_reports_review_processes_review_process_id",
-                        column: x => x.review_process_id,
-                        principalTable: "review_processes",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "study_selection_processes",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    status = table.Column<string>(type: "text", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_study_selection_processes", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_study_selection_processes_review_processes_review_process_id",
-                        column: x => x.review_process_id,
-                        principalTable: "review_processes",
-                        principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -612,6 +514,39 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "review_processes",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    project_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    protocol_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    status = table.Column<string>(type: "text", nullable: false),
+                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    current_phase = table.Column<string>(type: "text", nullable: false),
+                    notes = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_review_processes", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_review_processes_review_protocol_protocol_id",
+                        column: x => x.protocol_id,
+                        principalTable: "review_protocol",
+                        principalColumn: "protocol_id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_review_processes_systematic_review_projects_project_id",
+                        column: x => x.project_id,
+                        principalTable: "systematic_review_projects",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "search_source",
                 columns: table => new
                 {
@@ -782,57 +717,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "search_executions",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    identification_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    search_source = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    search_query = table.Column<string>(type: "text", nullable: true),
-                    executed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    result_count = table.Column<int>(type: "integer", nullable: false),
-                    type = table.Column<string>(type: "text", nullable: false),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_search_executions", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_search_executions_identification_processes_identification_p~",
-                        column: x => x.identification_process_id,
-                        principalTable: "identification_processes",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "prisma_flow_records",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    prisma_report_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    stage = table.Column<string>(type: "text", nullable: false),
-                    label = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    count = table.Column<int>(type: "integer", nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    display_order = table.Column<int>(type: "integer", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_prisma_flow_records", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_prisma_flow_records_prisma_reports_prisma_report_id",
-                        column: x => x.prisma_report_id,
-                        principalTable: "prisma_reports",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "data_extraction_form",
                 columns: table => new
                 {
@@ -907,6 +791,78 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "identification_processes",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    status = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_identification_processes", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_identification_processes_review_processes_review_process_id",
+                        column: x => x.review_process_id,
+                        principalTable: "review_processes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "prisma_reports",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    version = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    generated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    generated_by = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_prisma_reports", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_prisma_reports_review_processes_review_process_id",
+                        column: x => x.review_process_id,
+                        principalTable: "review_processes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "study_selection_processes",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    status = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_study_selection_processes", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_study_selection_processes_review_processes_review_process_id",
+                        column: x => x.review_process_id,
+                        principalTable: "review_processes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "exclusion_criterion",
                 columns: table => new
                 {
@@ -946,32 +902,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "study_selection_criteria",
                         principalColumn: "criteria_id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "import_batches",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    file_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
-                    file_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    source = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    total_records = table.Column<int>(type: "integer", nullable: false),
-                    imported_by = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
-                    imported_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    search_execution_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_import_batches", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_import_batches_search_executions_search_execution_id",
-                        column: x => x.search_execution_id,
-                        principalTable: "search_executions",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -1039,6 +969,83 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "quality_checklist",
                         principalColumn: "checklist_id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "search_executions",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    identification_process_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    search_source = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    search_query = table.Column<string>(type: "text", nullable: true),
+                    executed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    result_count = table.Column<int>(type: "integer", nullable: false),
+                    type = table.Column<string>(type: "text", nullable: false),
+                    notes = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_search_executions", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_search_executions_identification_processes_identification_p~",
+                        column: x => x.identification_process_id,
+                        principalTable: "identification_processes",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "prisma_flow_records",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    prisma_report_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    stage = table.Column<string>(type: "text", nullable: false),
+                    label = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    count = table.Column<int>(type: "integer", nullable: false),
+                    description = table.Column<string>(type: "text", nullable: true),
+                    display_order = table.Column<int>(type: "integer", nullable: false),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_prisma_flow_records", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_prisma_flow_records_prisma_reports_prisma_report_id",
+                        column: x => x.prisma_report_id,
+                        principalTable: "prisma_reports",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "import_batches",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    file_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    file_type = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    source = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    total_records = table.Column<int>(type: "integer", nullable: false),
+                    imported_by = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    imported_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    search_execution_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_import_batches", x => x.id);
+                    table.ForeignKey(
+                        name: "FK_import_batches_search_executions_search_execution_id",
+                        column: x => x.search_execution_id,
+                        principalTable: "search_executions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -1577,6 +1584,12 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "status");
 
             migrationBuilder.CreateIndex(
+                name: "IX_review_processes_protocol_id",
+                table: "review_processes",
+                column: "protocol_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_review_protocol_project_id",
                 table: "review_protocol",
                 column: "project_id");
@@ -1659,6 +1672,11 @@ namespace SRSS.IAM.Repositories.Migrations
                 table: "users",
                 column: "email",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_users_full_name",
+                table: "users",
+                column: "full_name");
 
             migrationBuilder.CreateIndex(
                 name: "ix_users_is_active",
@@ -1811,13 +1829,13 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "search_executions");
 
             migrationBuilder.DropTable(
-                name: "review_protocol");
-
-            migrationBuilder.DropTable(
                 name: "identification_processes");
 
             migrationBuilder.DropTable(
                 name: "review_processes");
+
+            migrationBuilder.DropTable(
+                name: "review_protocol");
 
             migrationBuilder.DropTable(
                 name: "systematic_review_projects");

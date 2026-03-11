@@ -5,6 +5,7 @@ namespace SRSS.IAM.Repositories.Entities
     public class ReviewProcess : BaseEntity<Guid>
     {
         public Guid ProjectId { get; set; }
+        public Guid? ProtocolId { get; set; }
         public string Name { get; set; } = string.Empty;
         public ProcessStatus Status { get; set; } = ProcessStatus.NotStarted;
         public DateTimeOffset? StartedAt { get; set; }
@@ -14,12 +15,36 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Navigation Properties
         public SystematicReviewProject Project { get; set; } = null!;
+        public ReviewProtocol? Protocol { get; set; }
 
         public IdentificationProcess? IdentificationProcess { get; set; }
         public StudySelectionProcess? StudySelectionProcess { get; set; }
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods
+        public void SetProtocol(ReviewProtocol protocol)
+        {
+            if (Status != ProcessStatus.NotStarted)
+            {
+                throw new InvalidOperationException($"Cannot change protocol when process is in {Status} status.");
+            }
+
+            if (protocol.ProjectId != ProjectId)
+            {
+                throw new ArgumentException("The protocol must belong to the same project as the review process.");
+            }
+
+            // TODO: Uncomment when protocol approval is implemented    
+            // if (protocol.Status != ProtocolStatus.Approved)
+            // {
+            //     throw new InvalidOperationException("Only approved protocols can be used in a review process.");
+            // }
+
+            ProtocolId = protocol.Id;
+            Protocol = protocol;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+
         public void Start()
         {
             if (Status != ProcessStatus.NotStarted)

@@ -29,6 +29,7 @@ namespace SRSS.IAM.Repositories.Entities
 		public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
 		public ICollection<DisseminationStrategy> DisseminationStrategies { get; set; } = new List<DisseminationStrategy>();
 		public ICollection<ProjectTimetable> Timetables { get; set; } = new List<ProjectTimetable>();
+		public ReviewProcess? ReviewProcess { get; set; }
 
 		// Domain Methods
 		public void Approve(Guid userId)

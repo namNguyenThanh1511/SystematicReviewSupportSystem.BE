@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Protocol;
@@ -91,6 +91,14 @@ namespace SRSS.IAM.Services.ProtocolService
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
 			return protocol.ToDetailResponse();  
+		}
+
+		public async Task<ProtocolDetailResponse> GetProtocolDetailByIdAsync(Guid protocolId)
+		{
+			var protocol = await _unitOfWork.Protocols.GetProtocolDetailByIdAsync(protocolId)
+				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+			return protocol.ToDetailResponse();
 		}
 
 		public async Task<List<ProtocolDetailResponse>> GetProtocolsByProjectIdAsync(Guid projectId)

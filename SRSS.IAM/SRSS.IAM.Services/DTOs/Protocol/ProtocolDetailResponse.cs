@@ -1,4 +1,9 @@
-﻿using System;
+using SRSS.IAM.Services.DTOs.DataExtraction;
+using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.DTOs.SearchStrategy;
+using SRSS.IAM.Services.DTOs.SelectionCriteria;
+using SRSS.IAM.Services.DTOs.Synthesis;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +21,16 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public DateTimeOffset CreatedAt { get; set; }
 		public DateTimeOffset? ApprovedAt { get; set; }
 		public List<VersionHistoryDto> Versions { get; set; } = new();
+
+		// Related Protocol Details
+		public List<SearchSourceDto> SearchSources { get; set; } = new();
+		public List<StudySelectionCriteriaDto> SelectionCriterias { get; set; } = new();
+		public List<StudySelectionProcedureDto> SelectionProcedures { get; set; } = new();
+		public List<QualityAssessmentStrategyDto> QualityStrategies { get; set; } = new();
+		public List<DataExtractionStrategyDto> ExtractionStrategies { get; set; } = new();
+		public List<ExtractionTemplateDto> ExtractionTemplates { get; set; } = new();
+		public List<DataSynthesisStrategyDto> SynthesisStrategies { get; set; } = new();
+		public List<DisseminationStrategyDto> DisseminationStrategies { get; set; } = new();
 	}
 
 	public class VersionHistoryDto
@@ -25,4 +40,4 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public string? ChangeSummary { get; set; }
 		public DateTimeOffset CreatedAt { get; set; }
 	}
-}
+}

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
@@ -50,6 +50,16 @@ namespace SRSS.IAM.API.Controllers
 		{
 			var result = await _protocolService.GetProtocolByIdAsync(protocolId);
 			return Ok(result, "Lấy thông tin protocol thành công");
+		}
+
+		/// <summary>
+		/// Lấy chi tiết đầy đủ protocol (bao gồm Search Sources, Study Selection, Quality Assessment, Data Extraction, Synthesis &amp; Dissemination)
+		/// </summary>
+		[HttpGet("{protocolId}/detail")]
+		public async Task<ActionResult<ApiResponse<ProtocolDetailResponse>>> GetProtocolDetailById(Guid protocolId)
+		{
+			var result = await _protocolService.GetProtocolDetailByIdAsync(protocolId);
+			return Ok(result, "Lấy chi tiết đầy đủ protocol thành công");
 		}
 
 		/// <summary>

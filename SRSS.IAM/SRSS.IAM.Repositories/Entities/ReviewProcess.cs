@@ -6,7 +6,7 @@ namespace SRSS.IAM.Repositories.Entities
     {
         public Guid ProjectId { get; set; }
         public string Name { get; set; } = string.Empty;
-        public ProcessStatus Status { get; set; } = ProcessStatus.Pending;
+        public ProcessStatus Status { get; set; } = ProcessStatus.NotStarted;
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public ProcessPhase CurrentPhase { get; set; } = ProcessPhase.Identification;
@@ -22,7 +22,7 @@ namespace SRSS.IAM.Repositories.Entities
         // Domain Methods
         public void Start()
         {
-            if (Status != ProcessStatus.Pending)
+            if (Status != ProcessStatus.NotStarted)
             {
                 throw new InvalidOperationException($"Cannot start process from {Status} status.");
             }
@@ -64,7 +64,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public bool CanStart()
         {
-            if (Status != ProcessStatus.Pending)
+            if (Status != ProcessStatus.NotStarted)
             {
                 return false;
             }
@@ -74,7 +74,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public void EnsureCanCreateIdentificationProcess()
         {
-            if (Status != ProcessStatus.InProgress && Status != ProcessStatus.Pending)
+            if (Status != ProcessStatus.InProgress && Status != ProcessStatus.NotStarted)
             {
                 throw new InvalidOperationException($"Cannot create identification process when review process status is {Status}.");
             }
@@ -119,7 +119,7 @@ namespace SRSS.IAM.Repositories.Entities
 
     public enum ProcessStatus
     {
-        Pending = 0,
+        NotStarted = 0,
         InProgress = 1,
         Completed = 2,
         Cancelled = 3
@@ -128,7 +128,7 @@ namespace SRSS.IAM.Repositories.Entities
     public enum ProcessPhase
     {
         Identification = 0,
-        Screening = 1,
+        StudySelection = 1,
         DataExtraction = 2,
         QualityAssessment = 3,
         Synthesis = 4

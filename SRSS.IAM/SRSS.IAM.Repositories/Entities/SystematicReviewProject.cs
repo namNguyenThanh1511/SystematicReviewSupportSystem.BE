@@ -92,7 +92,7 @@ namespace SRSS.IAM.Repositories.Entities
                 Id = Guid.NewGuid(),
                 Name = name,
                 ProjectId = Id,
-                Status = ProcessStatus.Pending,
+                Status = ProcessStatus.NotStarted,
                 Notes = notes,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow

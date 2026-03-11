@@ -1,9 +1,4 @@
 using SRSS.IAM.Repositories.Entities;
-using SRSS.IAM.Services.DTOs.DataExtraction;
-using SRSS.IAM.Services.DTOs.QualityAssessment;
-using SRSS.IAM.Services.DTOs.SearchStrategy;
-using SRSS.IAM.Services.DTOs.SelectionCriteria;
-using SRSS.IAM.Services.DTOs.Synthesis;
 using SRSS.IAM.Services.DTOs.Protocol;
 
 namespace SRSS.IAM.Services.Mappers

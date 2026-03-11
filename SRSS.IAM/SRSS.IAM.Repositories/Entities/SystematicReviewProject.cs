@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -74,7 +74,7 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public ReviewProcess AddReviewProcess(string name ,string? notes = null)
+        public ReviewProcess AddReviewProcess(string name, string? notes = null, ReviewProtocol? protocol = null)
         {
             if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
             {
@@ -92,11 +92,17 @@ namespace SRSS.IAM.Repositories.Entities
                 Id = Guid.NewGuid(),
                 Name = name,
                 ProjectId = Id,
+                ProtocolId = protocol?.Id, // Initialize directly
                 Status = ProcessStatus.NotStarted,
                 Notes = notes,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
+
+            if (protocol != null)
+            {
+                reviewProcess.SetProtocol(protocol);
+            }
 
             ReviewProcesses.Add(reviewProcess);
             ModifiedAt = DateTimeOffset.UtcNow;

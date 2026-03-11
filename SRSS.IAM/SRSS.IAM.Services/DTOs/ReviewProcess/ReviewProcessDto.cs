@@ -8,6 +8,7 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
     {
         public string? Name { get; set; }
         public string? Notes { get; set; }
+        public Guid? ProtocolId { get; set; }
     }
 
     public class UpdateReviewProcessRequest
@@ -20,7 +21,7 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
     public class ReviewProcessResponse
     {
         public Guid Id { get; set; }
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
         public Guid ProjectId { get; set; }
         public Guid? ProtocolId { get; set; }
         public ProcessStatus Status { get; set; }

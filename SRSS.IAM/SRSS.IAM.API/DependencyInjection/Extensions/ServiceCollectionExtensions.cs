@@ -31,6 +31,7 @@ using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
 using SRSS.IAM.Services.NotificationService;
+using SRSS.IAM.Services.SupabaseService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -41,9 +42,24 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
 
             services.AddSignalR();
-            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-            services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
-            services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+			// Đọc từ Environment Variables và bind vào Settings objects
+			services.Configure<JwtSettings>(options =>
+			{
+				options.ValidIssuer = configuration["JWT_VALID_ISSUER"] ?? "http://localhost:5000";
+				options.ValidAudience = configuration["JWT_VALID_AUDIENCE"] ?? "http://localhost:5000";
+				options.SecretKey = configuration["JWT_SECRET_KEY"] ?? throw new InvalidOperationException("JWT_SECRET_KEY is required");
+				options.AccessTokenExpirationMinutes = int.TryParse(configuration["JWT_ACCESS_TOKEN_EXPIRATION_MINUTES"], out var accessMin) ? accessMin : 15;
+				options.RefreshTokenExpirationDays = int.TryParse(configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"], out var refreshDays) ? refreshDays : 30;
+			});
+
+			services.Configure<GoogleAuthSettings>(options =>
+			{
+				options.ClientId = configuration["GOOGLE_CLIENT_ID"] ?? throw new InvalidOperationException("GOOGLE_CLIENT_ID is required");
+				options.ClientSecret = configuration["GOOGLE_CLIENT_SECRET"] ?? throw new InvalidOperationException("GOOGLE_CLIENT_SECRET is required");
+				options.AuthorizationEndpoint = configuration["GOOGLE_AUTHORIZATION_ENDPOINT"] ?? "https://accounts.google.com/o/oauth2/v2/auth";
+				options.Scope = configuration["GOOGLE_SCOPE"] ?? "openid profile email";
+			});
+			services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -75,10 +91,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
 
-
-        }
+		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName)
         {
@@ -102,10 +118,11 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
         public static void ConfigureJWT(this IServiceCollection services, IConfiguration configuration)
         {
-            var jwtSettings = configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["secretKey"];
+			var secretKey = configuration["JWT_SECRET_KEY"] ?? throw new InvalidOperationException("JWT_SECRET_KEY is required");
+			var validIssuer = configuration["JWT_VALID_ISSUER"] ?? "http://localhost:5000";
+			var validAudience = configuration["JWT_VALID_AUDIENCE"] ?? "http://localhost:5000";
 
-            services.AddAuthentication(opt =>
+			services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -118,8 +135,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings["ValidIssuer"],
-                    ValidAudience = jwtSettings["ValidAudience"],
+                    ValidIssuer = validIssuer,
+                    ValidAudience = validAudience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
                 };
             });

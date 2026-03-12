@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 
 namespace SRSS.IAM.Services.Mappers
@@ -128,8 +128,25 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
+
+		// ==================== DataExtractionStrategy ====================
+		public static DataExtractionStrategyDto ToDto(this DataExtractionStrategy entity)
+		{
+			return new DataExtractionStrategyDto
+			{
+				ExtractionStrategyId = entity.Id,
+				ProtocolId = entity.ProtocolId,
+				Description = entity.Description
+			};
+		}
+
 		// ==================== List Extensions ====================
 		public static List<ExtractionTemplateDto> ToDtoList(this IEnumerable<ExtractionTemplate> entities)
+		{
+			return entities.Select(e => e.ToDto()).ToList();
+		}
+
+		public static List<DataExtractionStrategyDto> ToDtoList(this IEnumerable<DataExtractionStrategy> entities)
 		{
 			return entities.Select(e => e.ToDto()).ToList();
 		}

@@ -54,13 +54,31 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
+            Console.WriteLine($"Check name: {request.Name}");
+
             try
             {
+                // Validate protocol if provided
+                ReviewProtocol? protocol = null;
+                Console.WriteLine($"Protocol ID: {request.ProtocolId}");
+                if (request.ProtocolId.HasValue)
+                {
+                    protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == request.ProtocolId.Value, cancellationToken: cancellationToken);
+                    if (protocol == null)
+                    {
+                        throw new InvalidOperationException($"Protocol with ID {request.ProtocolId.Value} not found.");
+                    }
+                    if (protocol.ProjectId != projectId)
+                    {
+                        throw new InvalidOperationException("The protocol must belong to the same project as the review process.");
+                    }
+                }
+
                 // Create ReviewProcess
-                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes);
+                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes, protocol);
+                Console.WriteLine($"Review process created: {reviewProcess}");
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // Auto-create IdentificationProcess for the new ReviewProcess
                 var identificationProcess = new Repositories.Entities.IdentificationProcess

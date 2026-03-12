@@ -35,7 +35,7 @@ namespace SRSS.IAM.API.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _reviewProcessService.CreateReviewProcessAsync(projectId, request, cancellationToken);
-            return Created(result, "Review process created successfully.");
+            return Ok(result, "Review process created successfully.");
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace SRSS.IAM.API.Controllers
         {
             if (id != request.Id)
             {
-                return BadRequest<ReviewProcessResponse>("ID in route does not match ID in request body.");
+                throw new ArgumentException("ID in route does not match ID in request body.");
             }
 
             var result = await _reviewProcessService.UpdateReviewProcessAsync(request, cancellationToken);

@@ -80,6 +80,9 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Deduplication results where this paper is the ORIGINAL
         public ICollection<DeduplicationResult> OriginalOfDuplicates { get; set; } = new List<DeduplicationResult>();
+
+        // Identification process snapshots where this paper is included
+        public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
     }
 
     public enum AccessType

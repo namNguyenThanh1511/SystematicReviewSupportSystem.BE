@@ -103,7 +103,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
-
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);

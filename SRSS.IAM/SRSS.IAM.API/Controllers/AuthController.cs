@@ -138,7 +138,7 @@ namespace SRSS.IAM.API.Controllers
             {
                 HttpOnly = true,
                 Secure = false,
-                SameSite = SameSiteMode.None,
+                SameSite = SameSiteMode.Lax,
                 Expires = expiresUtc
             };
         }

@@ -49,31 +49,14 @@ namespace SRSS.IAM.API
 
 
             // Database connection
-            var connectionString = $"Host={config["POSTGRES_HOST"]};" +
-								 $"Port={config["POSTGRES_PORT"]};" +
-								 $"Username={config["POSTGRES_USERNAME"]};" +
-								 $"Password={config["POSTGRES_PASSWORD"]};" +
-								 $"Database={config["POSTGRES_DATABASE"]}";
+            var connectionString = config.GetConnectionString("SRSS_IAM_DB")
+				?? throw new InvalidOperationException("ConnectionStrings:SRSS_IAM_DB is required");
 			builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(connectionString));
 
 			// Redis connection
+            builder.Services.AddRedisCacheWithHealthCheck(config);
 
-			var redisConnection = config["REDIS_CONNECTION"] ?? "localhost:6379";
-			builder.Services.AddStackExchangeRedisCache(options =>
-			{
-				options.Configuration = redisConnection;
-			});
-
-			// 2. ĐĂNG KÝ THÊM IConnectionMultiplexer CHO RedisCacheService
-			builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
-			{
-				// Khởi tạo connection tới Redis dựa trên chuỗi kết nối từ .env
-				var configuration = StackExchange.Redis.ConfigurationOptions.Parse(redisConnection, true);
-				return StackExchange.Redis.ConnectionMultiplexer.Connect(configuration);
-			});
-
-			builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 
 			builder.Services.AddApplicationServices(config);
 

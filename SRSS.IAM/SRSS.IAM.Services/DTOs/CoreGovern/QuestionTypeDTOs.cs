@@ -25,7 +25,7 @@ namespace SRSS.IAM.Services.DTOs.CoreGovern
 
 	public class QuestionTypeResponse
 	{
-		public Guid Id { get; set; }
+		public Guid QuestionTypeId { get; set; }
 		public string Name { get; set; } = string.Empty;
 		public string? Description { get; set; }
 		public DateTimeOffset CreatedAt { get; set; }

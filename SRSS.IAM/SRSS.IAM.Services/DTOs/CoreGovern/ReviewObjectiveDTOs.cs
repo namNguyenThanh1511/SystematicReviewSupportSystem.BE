@@ -24,7 +24,7 @@ namespace SRSS.IAM.Services.DTOs.CoreGovern
 
 	public class ReviewObjectiveResponse
 	{
-		public Guid Id { get; set; }
+		public Guid ObjectiveId { get; set; }
 		public Guid ProjectId { get; set; }
 		public string ObjectiveStatement { get; set; } = string.Empty;
 		public DateTimeOffset CreatedAt { get; set; }

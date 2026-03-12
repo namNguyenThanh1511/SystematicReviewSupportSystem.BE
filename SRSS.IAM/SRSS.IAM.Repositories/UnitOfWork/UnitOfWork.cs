@@ -24,6 +24,7 @@ using SRSS.IAM.Repositories.ScreeningResolutionRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
+using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -50,6 +51,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IScreeningResolutionRepository? _screeningResolutions;
 		private IStudySelectionProcessRepository? _studySelectionProcesses;
 		private IScreeningDecisionRepository? _screeningDecisions;
+		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -249,6 +251,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IProjectMemberInvitationRepository ProjectMemberInvitations
 			=> _projectMemberInvitations ??= new ProjectMemberInvitationRepository(_dbContext);
+
+		public IIdentificationProcessPaperRepository IdentificationProcessPapers
+			=> _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

@@ -176,31 +176,10 @@ namespace SRSS.IAM.Services.StudySelectionService
                 return new List<Guid>();
             }
 
-            // Use the same unique papers logic as the unique papers endpoint
-            // (filters by ImportBatch → SearchExecution chain, excludes IsRemovedAsDuplicate and pending dedup)
-            var (_, totalCount) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
+            // Use the frozen snapshot dataset generated when identification was completed
+            return await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
                 identificationProcess.Id,
-                search: null,
-                year: null,
-                pageNumber: 1,
-                pageSize: 1,
                 cancellationToken);
-
-            if (totalCount == 0)
-            {
-                return new List<Guid>();
-            }
-
-            // Fetch all unique paper IDs
-            var (papers, _) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
-                identificationProcess.Id,
-                search: null,
-                year: null,
-                pageNumber: 1,
-                pageSize: totalCount,
-                cancellationToken);
-
-            return papers.Select(p => p.Id).ToList();
         }
 
         public async Task<ScreeningDecisionResponse> SubmitScreeningDecisionAsync(

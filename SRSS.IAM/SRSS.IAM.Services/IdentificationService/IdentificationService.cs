@@ -115,11 +115,69 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
             }
 
+            // Guard: Prevent completion if there are unresolved (Pending) deduplication results
+            var hasPendingDedup = await _unitOfWork.DeduplicationResults.AnyAsync(
+                dr => dr.IdentificationProcessId == id && dr.ReviewStatus == DeduplicationReviewStatus.Pending,
+                cancellationToken: cancellationToken);
+
+            if (hasPendingDedup)
+            {
+                throw new InvalidOperationException(
+                    "Cannot complete identification process with unresolved duplicate pairs. Please resolve all pending deduplication results first.");
+            }
+
             identificationProcess.Complete();
+
+            // Generate the dataset snapshot for screening phase
+            await GenerateIdentificationSnapshotAsync(id, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToIdentificationProcessResponse(identificationProcess);
+        }
+
+        /// <summary>
+        /// Generates the frozen dataset snapshot of papers that survived deduplication.
+        /// This snapshot is used by the screening phase instead of dynamic queries.
+        /// </summary>
+        private async Task GenerateIdentificationSnapshotAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            // Check if snapshot already exists (idempotency guard)
+            var snapshotExists = await _unitOfWork.IdentificationProcessPapers.SnapshotExistsAsync(
+                identificationProcessId, cancellationToken);
+
+            if (snapshotExists)
+            {
+                throw new InvalidOperationException(
+                    $"Snapshot already exists for IdentificationProcess {identificationProcessId}.");
+            }
+
+            // Get all unique papers (not cancelled, not pending) using existing query
+            var (uniquePapers, totalCount) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
+                identificationProcessId,
+                search: null,
+                year: null,
+                pageNumber: 1,
+                pageSize: int.MaxValue,
+                cancellationToken);
+
+            // Create snapshot records
+            var snapshotRecords = uniquePapers.Select(paper => new IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcessId,
+                PaperId = paper.Id,
+                IncludedAfterDedup = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            }).ToList();
+
+            if (snapshotRecords.Any())
+            {
+                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(snapshotRecords, cancellationToken);
+            }
         }
 
         public async Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(

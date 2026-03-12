@@ -1,4 +1,5 @@
 
+using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -7,6 +8,7 @@ using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace SRSS.IAM.API
 {
@@ -14,8 +16,15 @@ namespace SRSS.IAM.API
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
-            var config = builder.Configuration;
+
+			Env.Load();
+
+			var builder = WebApplication.CreateBuilder(args);
+
+			// Thêm Environment Variables vào Configuration
+			builder.Configuration.AddEnvironmentVariables();
+
+			var config = builder.Configuration;
             // Add services to the container.
             //DotNetEnv.Env.Load();
 
@@ -37,38 +46,59 @@ namespace SRSS.IAM.API
             var environment = builder.Environment.EnvironmentName;
             builder.Logging.AddConsole();
 
+
+
             // Database connection
-            var connectionString = config.GetConnectionString("SRSS_IAM_DB");
-            builder.Services.AddDbContext<AppDbContext>(options =>
+            var connectionString = $"Host={config["POSTGRES_HOST"]};" +
+								 $"Port={config["POSTGRES_PORT"]};" +
+								 $"Username={config["POSTGRES_USERNAME"]};" +
+								 $"Password={config["POSTGRES_PASSWORD"]};" +
+								 $"Database={config["POSTGRES_DATABASE"]}";
+			builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(connectionString));
 
-            // Redis connection
-            builder.Services.AddRedisCacheWithHealthCheck(config);
+			// Redis connection
 
-            builder.Services.AddApplicationServices(config);
+			var redisConnection = config["REDIS_CONNECTION"] ?? "localhost:6379";
+			builder.Services.AddStackExchangeRedisCache(options =>
+			{
+				options.Configuration = redisConnection;
+			});
 
-            builder.Services.Configure<ApiBehaviorOptions>(options =>
-            {
-                options.InvalidModelStateResponseFactory = context =>
-                {
-                    var errors = context.ModelState
-                        .Where(x => x.Value.Errors.Count > 0)
-                        .SelectMany(x => x.Value.Errors.Select(e => new ApiError { Code = "INVALID_MODEL_STATE", Message = e.ErrorMessage }))
-                        .ToList();
+			// 2. ĐĂNG KÝ THÊM IConnectionMultiplexer CHO RedisCacheService
+			builder.Services.AddSingleton<StackExchange.Redis.IConnectionMultiplexer>(sp =>
+			{
+				// Khởi tạo connection tới Redis dựa trên chuỗi kết nối từ .env
+				var configuration = StackExchange.Redis.ConfigurationOptions.Parse(redisConnection, true);
+				return StackExchange.Redis.ConnectionMultiplexer.Connect(configuration);
+			});
 
-                    var response = new ApiResponse
-                    {
-                        IsSuccess = false,
-                        Message = "Dữ liệu không hợp lệ",
-                        Errors = errors
-                    };
+			builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 
-                    return new BadRequestObjectResult(response);
-                };
-            });
+			builder.Services.AddApplicationServices(config);
+
+			builder.Services.Configure<ApiBehaviorOptions>(options =>
+			{
+				options.InvalidModelStateResponseFactory = context =>
+				{
+					var errors = context.ModelState
+						.Where(x => x.Value.Errors.Count > 0)
+						.SelectMany(x => x.Value.Errors.Select(e => new ApiError { Code = "INVALID_MODEL_STATE", Message = e.ErrorMessage }))
+						.ToList();
+
+					var response = new ApiResponse
+					{
+						IsSuccess = false,
+						Message = "Dữ liệu không hợp lệ",
+						Errors = errors
+					};
+
+					return new BadRequestObjectResult(response);
+				};
+			});
 
 
-            var app = builder.Build();
+			var app = builder.Build();
 
             // 🔥 LOG MÔI TRƯỜNG VÀ CONNECTION INFO
             var logger = app.Services.GetRequiredService<ILogger<Program>>();

@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Protocol;
 
 namespace SRSS.IAM.Services.Mappers
@@ -16,7 +16,17 @@ namespace SRSS.IAM.Services.Mappers
 				IsDeleted = entity.IsDeleted,
 				CreatedAt = entity.CreatedAt,
 				ApprovedAt = entity.ApprovedAt,
-				Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>()
+				Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>(),
+
+				// Map related details
+				SearchSources = entity.SearchSources?.Select(s => s.ToDto()).ToList() ?? new(),
+				SelectionCriterias = entity.SelectionCriterias?.Select(s => s.ToDto()).ToList() ?? new(),
+				SelectionProcedures = entity.SelectionProcedures?.Select(p => p.ToDto()).ToList() ?? new(),
+				QualityStrategies = entity.QualityStrategies?.Select(q => q.ToDto()).ToList() ?? new(),
+				ExtractionStrategies = entity.ExtractionStrategies?.Select(e => e.ToDto()).ToList() ?? new(),
+				ExtractionTemplates = entity.ExtractionTemplates?.Select(t => t.ToDto()).ToList() ?? new(),
+				SynthesisStrategies = entity.SynthesisStrategies?.Select(s => s.ToDto()).ToList() ?? new(),
+				DisseminationStrategies = entity.DisseminationStrategies?.Select(d => d.ToDto()).ToList() ?? new()
 			};
 		}
 

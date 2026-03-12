@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
@@ -36,6 +36,22 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		public async Task<ReviewProtocol?> GetByIdWithVersionsAsync(Guid protocolId, CancellationToken cancellationToken = default)
 		{
 			return await _context.ReviewProtocols
+				.Include(p => p.Versions)
+				.AsNoTracking()
+				.FirstOrDefaultAsync(p => p.Id == protocolId, cancellationToken);
+		}
+		
+		public async Task<ReviewProtocol?> GetProtocolDetailByIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+		{
+			return await _context.ReviewProtocols
+				.Include(p => p.SearchSources)
+				.Include(p => p.SelectionCriterias)
+				.Include(p => p.SelectionProcedures)
+				.Include(p => p.QualityStrategies)
+				.Include(p => p.ExtractionStrategies)
+				.Include(p => p.ExtractionTemplates)
+				.Include(p => p.SynthesisStrategies)
+				.Include(p => p.DisseminationStrategies)
 				.Include(p => p.Versions)
 				.AsNoTracking()
 				.FirstOrDefaultAsync(p => p.Id == protocolId, cancellationToken);

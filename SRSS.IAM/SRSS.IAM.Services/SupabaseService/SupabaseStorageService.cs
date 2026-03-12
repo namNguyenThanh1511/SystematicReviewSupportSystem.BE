@@ -15,8 +15,8 @@ namespace SRSS.IAM.Services.SupabaseService
 
 		public SupabaseStorageService(IConfiguration configuration)
 		{
-			var url = configuration["SUPABASE_URL"] ?? throw new InvalidOperationException("SUPABASE_URL is required");
-			var key = configuration["SUPABASE_KEY"] ?? throw new InvalidOperationException("SUPABASE_KEY is required");
+			var url = configuration["SupabaseSettings:Url"] ?? throw new InvalidOperationException("SupabaseSettings:Url is required");
+			var key = configuration["SupabaseSettings:Key"] ?? throw new InvalidOperationException("SupabaseSettings:Key is required");
 
 
 			// Khởi tạo Supabase Client

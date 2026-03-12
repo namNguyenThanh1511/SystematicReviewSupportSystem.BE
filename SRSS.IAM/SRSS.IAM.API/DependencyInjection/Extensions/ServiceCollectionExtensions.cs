@@ -31,6 +31,7 @@ using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
 using SRSS.IAM.Services.NotificationService;
+using SRSS.IAM.Services.SupabaseService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -41,9 +42,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
 
             services.AddSignalR();
-            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-            services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
-            services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+			services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+			services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -75,10 +76,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
 
-
-        }
+		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName)
         {
@@ -102,10 +103,13 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
         public static void ConfigureJWT(this IServiceCollection services, IConfiguration configuration)
         {
-            var jwtSettings = configuration.GetSection("JwtSettings");
-            var secretKey = jwtSettings["secretKey"];
+			var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+				?? throw new InvalidOperationException("JwtSettings section is missing in configuration");
+			var secretKey = jwtSettings.SecretKey ?? throw new InvalidOperationException("JwtSettings:SecretKey is required");
+			var validIssuer = jwtSettings.ValidIssuer;
+			var validAudience = jwtSettings.ValidAudience;
 
-            services.AddAuthentication(opt =>
+			services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -118,8 +122,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings["ValidIssuer"],
-                    ValidAudience = jwtSettings["ValidAudience"],
+                    ValidIssuer = validIssuer,
+                    ValidAudience = validAudience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
                 };
             });

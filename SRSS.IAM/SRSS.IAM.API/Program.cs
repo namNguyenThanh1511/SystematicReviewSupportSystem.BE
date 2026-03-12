@@ -1,4 +1,5 @@
 
+using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -7,6 +8,7 @@ using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace SRSS.IAM.API
 {
@@ -14,8 +16,15 @@ namespace SRSS.IAM.API
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
-            var config = builder.Configuration;
+
+			Env.Load();
+
+			var builder = WebApplication.CreateBuilder(args);
+
+			// Thêm Environment Variables vào Configuration
+			builder.Configuration.AddEnvironmentVariables();
+
+			var config = builder.Configuration;
             // Add services to the container.
             //DotNetEnv.Env.Load();
 
@@ -37,38 +46,42 @@ namespace SRSS.IAM.API
             var environment = builder.Environment.EnvironmentName;
             builder.Logging.AddConsole();
 
+
+
             // Database connection
-            var connectionString = config.GetConnectionString("SRSS_IAM_DB");
-            builder.Services.AddDbContext<AppDbContext>(options =>
+            var connectionString = config.GetConnectionString("SRSS_IAM_DB")
+				?? throw new InvalidOperationException("ConnectionStrings:SRSS_IAM_DB is required");
+			builder.Services.AddDbContext<AppDbContext>(options =>
                 options.UseNpgsql(connectionString));
 
-            // Redis connection
+			// Redis connection
             builder.Services.AddRedisCacheWithHealthCheck(config);
 
-            builder.Services.AddApplicationServices(config);
 
-            builder.Services.Configure<ApiBehaviorOptions>(options =>
-            {
-                options.InvalidModelStateResponseFactory = context =>
-                {
-                    var errors = context.ModelState
-                        .Where(x => x.Value.Errors.Count > 0)
-                        .SelectMany(x => x.Value.Errors.Select(e => new ApiError { Code = "INVALID_MODEL_STATE", Message = e.ErrorMessage }))
-                        .ToList();
+			builder.Services.AddApplicationServices(config);
 
-                    var response = new ApiResponse
-                    {
-                        IsSuccess = false,
-                        Message = "Dữ liệu không hợp lệ",
-                        Errors = errors
-                    };
+			builder.Services.Configure<ApiBehaviorOptions>(options =>
+			{
+				options.InvalidModelStateResponseFactory = context =>
+				{
+					var errors = context.ModelState
+						.Where(x => x.Value.Errors.Count > 0)
+						.SelectMany(x => x.Value.Errors.Select(e => new ApiError { Code = "INVALID_MODEL_STATE", Message = e.ErrorMessage }))
+						.ToList();
 
-                    return new BadRequestObjectResult(response);
-                };
-            });
+					var response = new ApiResponse
+					{
+						IsSuccess = false,
+						Message = "Dữ liệu không hợp lệ",
+						Errors = errors
+					};
+
+					return new BadRequestObjectResult(response);
+				};
+			});
 
 
-            var app = builder.Build();
+			var app = builder.Build();
 
             // 🔥 LOG MÔI TRƯỜNG VÀ CONNECTION INFO
             var logger = app.Services.GetRequiredService<ILogger<Program>>();

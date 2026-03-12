@@ -15,8 +15,9 @@ namespace SRSS.IAM.Services.RefreshTokenService
         private readonly IJwtService _jwtService;
         public RefreshTokenService(IConfiguration configuration, IUnitOfWork unitOfWork, IJwtService jwtService)
         {
-            var refreshTokenExpirationDaysString = configuration["JwtSettings:RefreshTokenExpirationDays"] ?? "30";
-            if (!long.TryParse(refreshTokenExpirationDaysString, out _refreshTokenLifetimeDays))
+			var refreshTokenExpirationDaysString = configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] ?? "30";
+
+			if (!long.TryParse(refreshTokenExpirationDaysString, out _refreshTokenLifetimeDays))
             {
                 _refreshTokenLifetimeDays = 30;
             }

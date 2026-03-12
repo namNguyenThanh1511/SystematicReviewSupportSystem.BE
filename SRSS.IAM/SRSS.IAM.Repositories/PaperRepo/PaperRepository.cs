@@ -13,7 +13,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
         public async Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Papers
-                .Where(p => p.DOI == doi && p.ProjectId == projectId && !p.IsRemovedAsDuplicate)
+                .Where(p => p.DOI == doi && p.ProjectId == projectId)
                 .OrderBy(p => p.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -24,7 +24,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Where(p => p.DOI == doi
                     && p.ImportBatch != null
                     && p.ImportBatch.SearchExecutionId == searchExecutionId
-                    && !p.IsRemovedAsDuplicate)
+)
                 .OrderBy(p => p.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -172,10 +172,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
-                    // Exclude papers confirmed as duplicates ( cancel dedup) in this process or (unresolved) deduplication
-                    !p.DuplicateResults.Any(dr =>
+                    // Exclude papers confirmed as duplicates (CANCEL decision) in this process
+                    !_context.DeduplicationResults.Any(dr =>
+                        dr.PaperId == p.Id &&
                         dr.IdentificationProcessId == identificationProcessId &&
-                        dr.ReviewStatus == DeduplicationReviewStatus.Pending || dr.ReviewStatus == DeduplicationReviewStatus.Confirmed));
+                        dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL));
 
             // Apply search filter
             if (!string.IsNullOrWhiteSpace(search))

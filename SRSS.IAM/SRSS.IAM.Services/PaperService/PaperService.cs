@@ -287,16 +287,6 @@ namespace SRSS.IAM.Services.PaperService
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
-
-                var duplicatePaper = await _unitOfWork.Papers.FindSingleAsync(
-                    p => p.Id == deduplicationResult.PaperId,
-                    isTracking: true,
-                    cancellationToken);
-                if (duplicatePaper != null)
-                {
-                    duplicatePaper.IsRemovedAsDuplicate = true;
-                    duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
-                }
             }
             else
             {
@@ -463,18 +453,8 @@ namespace SRSS.IAM.Services.PaperService
 
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
-                // Confirmed duplicate — PaperId is excluded
+                // Confirmed duplicate — PaperId is excluded from this process
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
-
-                var duplicatePaper = await _unitOfWork.Papers.FindSingleAsync(
-                    p => p.Id == deduplicationResult.PaperId,
-                    isTracking: true,
-                    cancellationToken);
-                if (duplicatePaper != null)
-                {
-                    duplicatePaper.IsRemovedAsDuplicate = true;
-                    duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
-                }
             }
             else
             {

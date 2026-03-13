@@ -81,16 +81,29 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
 		}
 
-        public static void AddCorsPolicy(this IServiceCollection services, string policyName)
+        public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)
         {
+            var allowedOrigins = configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>()
+                ?? [];
+
             services.AddCors(options =>
             {
                 options.AddPolicy(name: policyName,
                                   builder =>
                                   {
-                                      builder.AllowAnyOrigin()
-                                             .AllowAnyMethod()
-                                             .AllowAnyHeader();
+                                      if (allowedOrigins.Length == 0)
+                                      {
+                                          builder.AllowAnyOrigin()
+                                                 .AllowAnyMethod()
+                                                 .AllowAnyHeader();
+                                      }
+                                      else
+                                      {
+                                          builder.WithOrigins(allowedOrigins)
+                                                 .AllowAnyMethod()
+                                                 .AllowAnyHeader()
+                                                 .AllowCredentials();
+                                      }
                                   });
             });
         }

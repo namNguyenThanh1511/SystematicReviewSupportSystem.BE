@@ -26,6 +26,12 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.Property(x => x.PlannedDate)
 				.HasColumnName("planned_date");
 
+			builder.Property(x => x.CreatedAt)
+				.HasColumnName("created_at");
+
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.HasOne(x => x.Protocol)
 				.WithMany(x => x.Timetables)
 				.HasForeignKey(x => x.ProtocolId)

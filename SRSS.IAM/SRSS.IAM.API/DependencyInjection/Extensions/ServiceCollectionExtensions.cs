@@ -26,6 +26,7 @@ using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.TagService;
 using System.Text;
 using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
@@ -77,6 +78,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
+            services.AddScoped<ITagService, TagService>();
 
 
 		}

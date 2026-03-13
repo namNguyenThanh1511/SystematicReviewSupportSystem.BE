@@ -23,6 +23,12 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("name")
 				.IsRequired();
 
+			builder.Property(x => x.CreatedAt)
+				.HasColumnName("created_at");
+
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.HasOne(x => x.ExtractionStrategy)
 				.WithMany(x => x.Forms)
 				.HasForeignKey(x => x.ExtractionStrategyId)

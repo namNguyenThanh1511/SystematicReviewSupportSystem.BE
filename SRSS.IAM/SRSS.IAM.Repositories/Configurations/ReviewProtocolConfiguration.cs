@@ -49,6 +49,9 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("created_at")
 				.HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.Property(x => x.ApprovedAt)
 				.HasColumnName("approved_at");
 

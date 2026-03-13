@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260309030754_AddPaperTagsAndUserTagInventory")]
+    partial class AddPaperTagsAndUserTagInventory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -647,48 +650,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("identification_processes", (string)null);
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcessPaper", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Guid>("IdentificationProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("identification_process_id");
-
-                    b.Property<bool>("IncludedAfterDedup")
-                        .HasColumnType("boolean")
-                        .HasColumnName("included_after_dedup");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("paper_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IdentificationProcessId");
-
-                    b.HasIndex("IncludedAfterDedup");
-
-                    b.HasIndex("PaperId");
-
-                    b.HasIndex("IdentificationProcessId", "PaperId")
-                        .IsUnique()
-                        .HasDatabaseName("uq_identification_process_paper");
-
-                    b.ToTable("identification_process_papers", (string)null);
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -993,6 +954,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("internal_notes");
 
+                    b.Property<bool>("IsRemovedAsDuplicate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_removed_as_duplicate");
+
                     b.Property<string>("Issue")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
@@ -1103,6 +1070,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("DOI");
 
                     b.HasIndex("ImportBatchId");
+
+                    b.HasIndex("IsRemovedAsDuplicate")
+                        .HasDatabaseName("ix_papers_is_removed_as_duplicate");
 
                     b.HasIndex("ProjectId");
 
@@ -1869,10 +1839,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("project_id");
 
-                    b.Property<Guid?>("ProtocolId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("protocol_id");
-
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
@@ -1886,9 +1852,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("ProjectId")
                         .HasDatabaseName("idx_review_process_project_id");
-
-                    b.HasIndex("ProtocolId")
-                        .IsUnique();
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_review_process_status");
@@ -2374,9 +2337,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
-                    b.HasIndex("FullName")
-                        .HasDatabaseName("ix_users_full_name");
-
                     b.HasIndex("IsActive")
                         .HasDatabaseName("ix_users_is_active");
 
@@ -2644,25 +2604,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsRequired();
 
                     b.Navigation("ReviewProcess");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcessPaper", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.IdentificationProcess", "IdentificationProcess")
-                        .WithMany("IdentificationPapers")
-                        .HasForeignKey("IdentificationProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithMany("IdentificationProcessPapers")
-                        .HasForeignKey("PaperId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("IdentificationProcess");
-
-                    b.Navigation("Paper");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
@@ -2973,14 +2914,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProtocol", "Protocol")
-                        .WithOne("ReviewProcess")
-                        .HasForeignKey("SRSS.IAM.Repositories.Entities.ReviewProcess", "ProtocolId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Project");
-
-                    b.Navigation("Protocol");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProtocol", b =>
@@ -3124,8 +3058,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     b.Navigation("DeduplicationResults");
 
-                    b.Navigation("IdentificationPapers");
-
                     b.Navigation("SearchExecutions");
                 });
 
@@ -3137,8 +3069,6 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Paper", b =>
                 {
                     b.Navigation("DuplicateResults");
-
-                    b.Navigation("IdentificationProcessPapers");
 
                     b.Navigation("OriginalOfDuplicates");
 
@@ -3212,8 +3142,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ExtractionTemplates");
 
                     b.Navigation("QualityStrategies");
-
-                    b.Navigation("ReviewProcess");
 
                     b.Navigation("SearchSources");
 

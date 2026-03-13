@@ -27,6 +27,12 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("weight")
 				.HasColumnType("numeric");
 
+			builder.Property(x => x.CreatedAt)
+				.HasColumnName("created_at");
+
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			builder.HasOne(x => x.Checklist)
 				.WithMany(x => x.Criteria)
 				.HasForeignKey(x => x.ChecklistId)

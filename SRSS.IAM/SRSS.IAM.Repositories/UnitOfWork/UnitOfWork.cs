@@ -25,6 +25,8 @@ using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
+using SRSS.IAM.Repositories.PaperTagRepo;
+using SRSS.IAM.Repositories.UserTagInventoryRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -52,6 +54,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IStudySelectionProcessRepository? _studySelectionProcesses;
 		private IScreeningDecisionRepository? _screeningDecisions;
 		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
+		private IPaperTagRepository? _paperTags;
+		private IUserTagInventoryRepository? _userTagInventories;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -254,6 +258,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IIdentificationProcessPaperRepository IdentificationProcessPapers
 			=> _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
+		public IPaperTagRepository PaperTags
+			=> _paperTags ??= new PaperTagRepository(_dbContext);
+
+		public IUserTagInventoryRepository UserTagInventories
+			=> _userTagInventories ??= new UserTagInventoryRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

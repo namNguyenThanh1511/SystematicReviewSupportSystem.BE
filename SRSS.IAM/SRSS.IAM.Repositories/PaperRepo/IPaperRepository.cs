@@ -8,7 +8,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
     {
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
-
+        Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
             string? search,

@@ -230,7 +230,8 @@ namespace SRSS.IAM.Services.ReviewProcessService
             try
             {
                 reviewProcess.Start();
-
+                //Also start the identification process if it exists
+                reviewProcess.IdentificationProcess?.Start();
                 await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 

@@ -892,9 +892,9 @@ namespace SRSS.IAM.Services.IdentificationService
                        
                                     }
                                     //get orginal paper for deduplication 
-                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndProjectAsync(
+                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndIdentificationProcessAsync(
                                             risPaper.DOI,
-                                            identificationProcess.ReviewProcess.ProjectId,
+                                            identificationProcess.Id,
                                             cancellationToken);
                                     
                                 }

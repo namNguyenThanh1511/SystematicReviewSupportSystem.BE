@@ -29,6 +29,17 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        public async Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .Where(p => p.DOI == doi
+                    && p.ImportBatch != null
+                    && p.ImportBatch.SearchExecution != null
+                    && p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId)
+                .OrderBy(p => p.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
             string? search,

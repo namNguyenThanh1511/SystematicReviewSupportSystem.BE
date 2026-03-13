@@ -11,6 +11,10 @@
     <DockerfileContext>..\..\..</DockerfileContext>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Include="docs\grobid\Grobid-Header_processing-api.md" />
+  </ItemGroup>
+
 	<ItemGroup>
 		<PackageReference Include="DotNetEnv" Version="3.1.1" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">

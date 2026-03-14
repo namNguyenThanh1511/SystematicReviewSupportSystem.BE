@@ -54,6 +54,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     {
         /// <summary>External URL to the PDF (mutually exclusive with file upload)</summary>
         public string? PdfUrl { get; set; }
+        /// <summary>Original uploaded PDF filename</summary>
+        public string? PdfFileName { get; set; }
         /// <summary>External URL to the web source</summary>
         public string? Url { get; set; }
     }
@@ -144,6 +146,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? Language { get; set; }
         public string? Url { get; set; }
         public string? PdfUrl { get; set; }
+        public string? PdfFileName { get; set; }
         public string? ConferenceName { get; set; }
         public string? ConferenceLocation { get; set; }
         public string? JournalIssn { get; set; }

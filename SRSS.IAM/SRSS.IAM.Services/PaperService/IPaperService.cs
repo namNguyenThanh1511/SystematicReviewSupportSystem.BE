@@ -62,5 +62,9 @@ namespace SRSS.IAM.Services.PaperService
             Guid projectId,
             PaperSearchRequest request,
             CancellationToken cancellationToken = default);
+
+        Task AssignPapersAsync(
+            AssignPapersRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

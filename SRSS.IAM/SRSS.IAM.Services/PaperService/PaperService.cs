@@ -3,16 +3,20 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.NotificationService;
+using System.Text.Json;
 
 namespace SRSS.IAM.Services.PaperService
 {
     public class PaperService : IPaperService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly INotificationService _notificationService;
 
-        public PaperService(IUnitOfWork unitOfWork)
+        public PaperService(IUnitOfWork unitOfWork, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
+            _notificationService = notificationService;
         }
 
         public async Task<PaginatedResponse<PaperResponse>> GetPapersByProjectAsync(
@@ -52,6 +56,8 @@ namespace SRSS.IAM.Services.PaperService
                 request.Search,
                 request.Status,
                 request.Year,
+                request.AssignmentStatus,
+                request.Stage,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
@@ -153,6 +159,15 @@ namespace SRSS.IAM.Services.PaperService
                     // Selection status NOT stored in Paper - must query from ScreeningResolution
                     SelectionStatus = null,
                     SelectionStatusText = null,
+                    Stage = 0,
+                    StageText = "TitleAbstract",
+                    AssignmentStatus = paper.PaperAssignments?.Any() == true ? 1 : 0,
+                    AssignmentStatusText = paper.PaperAssignments?.Any() == true ? "Assigned" : "Unassigned",
+                    AssignedReviewers = paper.PaperAssignments?.Select(pa => new AssignedReviewerDto
+                    {
+                        Id = pa.ProjectMember.UserId,
+                        Name = pa.ProjectMember.User?.FullName ?? "Unknown"
+                    }).ToList() ?? new List<AssignedReviewerDto>(),
                     PdfUrl = paper.PdfUrl,
                     FullTextAvailable = paper.FullTextAvailable,
                     AccessType = paper.AccessType,
@@ -528,6 +543,22 @@ namespace SRSS.IAM.Services.PaperService
                 // SelectionStatus is NOT stored in Paper - must be queried from ScreeningResolution
                 SelectionStatus = null,
                 SelectionStatusText = null,
+
+                // Stage
+                Stage = 0,
+                StageText = "TitleAbstract",
+
+                // Assignment Status
+                AssignmentStatus = paper.PaperAssignments?.Any() == true ? 1 : 0,
+                AssignmentStatusText = paper.PaperAssignments?.Any() == true ? "Assigned" : "Unassigned",
+
+                // Assigned Reviewers
+                AssignedReviewers = paper.PaperAssignments?.Select(pa => new AssignedReviewerDto
+                {
+                    Id = pa.ProjectMember.UserId,
+                    Name = pa.ProjectMember.User?.FullName ?? "Unknown"
+                }).ToList() ?? new List<AssignedReviewerDto>(),
+
                 PdfUrl = paper.PdfUrl,
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,
@@ -535,6 +566,153 @@ namespace SRSS.IAM.Services.PaperService
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt
             };
+        }
+
+        public async Task AssignPapersAsync(
+            AssignPapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (!request.PaperIds.Any() || !request.MemberIds.Any())
+            {
+                return;
+            }
+
+            // 1. Get ProjectId from the first paper and validate all papers belong to the same project
+            // Optimize: Get all papers in request to check their ProjectId
+            var papers = await _unitOfWork.Papers.FindAllAsync(
+                p => request.PaperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (!papers.Any())
+            {
+                throw new ArgumentException("None of the specified papers were found.");
+            }
+
+            var projectIds = papers.Select(p => p.ProjectId).Distinct().ToList();
+            if (projectIds.Count > 1)
+            {
+                throw new ArgumentException("Papers must all belong to the same project for assignment.");
+            }
+
+            var projectId = projectIds.First();
+            var foundPaperIds = papers.Select(p => p.Id).ToHashSet();
+            var missingPaperIds = request.PaperIds.Where(id => !foundPaperIds.Contains(id)).ToList();
+
+            if (missingPaperIds.Any())
+            {
+                throw new ArgumentException($"The following papers were not found: {string.Join(", ", missingPaperIds)}");
+            }
+
+            // 2. Validate project exists
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            // 3. Resolve and validate all members belong to this project
+            // Note: ProjectMemberDto exposes UserId, so clients likely send UserIds
+            var allProjectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(projectId);
+            var userIdToMemberIdMap = allProjectMembers.ToDictionary(m => m.UserId, m => m.Id);
+            var projectMemberIdsSet = allProjectMembers.Select(m => m.Id).ToHashSet();
+
+            var resolvedMemberIds = new List<Guid>();
+            var invalidIds = new List<Guid>();
+
+            foreach (var id in request.MemberIds)
+            {
+                if (userIdToMemberIdMap.TryGetValue(id, out var memberId))
+                {
+                    resolvedMemberIds.Add(memberId);
+                }
+                else if (projectMemberIdsSet.Contains(id))
+                {
+                    resolvedMemberIds.Add(id);
+                }
+                else
+                {
+                    invalidIds.Add(id);
+                }
+            }
+
+            if (invalidIds.Any())
+            {
+                throw new ArgumentException($"The following IDs are not part of this project: {string.Join(", ", invalidIds)}");
+            }
+
+            // 4. Get existing assignments to prevent duplicates
+            var existingAssignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                pa => request.PaperIds.Contains(pa.PaperId) && resolvedMemberIds.Contains(pa.ProjectMemberId),
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var existingPairs = existingAssignments
+                .Select(pa => (pa.PaperId, pa.ProjectMemberId))
+                .ToHashSet();
+
+            // 5. Create new assignments
+            var newAssignments = new List<PaperAssignment>();
+            
+            foreach (var paperId in request.PaperIds)
+            {
+                foreach (var memberId in resolvedMemberIds)
+                {
+                    if (!existingPairs.Contains((paperId, memberId)))
+                    {
+                        newAssignments.Add(new PaperAssignment(paperId, memberId));
+                    }
+                }
+            }
+
+            // 6. Bulk insert new assignments if any
+            if (newAssignments.Any())
+            {
+                await _unitOfWork.PaperAssignments.AddRangeAsync(newAssignments, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // 7. Send notifications to assigned reviewers
+                // Using a try-catch as a fail-safe so notification failure doesn't roll back the assignment
+                try
+                {
+                    var assignedMemberIds = newAssignments.Select(pa => pa.ProjectMemberId).Distinct().ToList();
+                    var members = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(projectId);
+                    var membersDict = members.ToDictionary(m => m.Id);
+
+                    foreach (var memberId in assignedMemberIds)
+                    {
+                        if (membersDict.TryGetValue(memberId, out var member))
+                        {
+                            var paperCount = newAssignments.Count(pa => pa.ProjectMemberId == memberId);
+                            var title = "Paper Assignments";
+                            var message = $"You have been assigned {paperCount} paper(s) for review in project '{project.Title}'.";
+
+                            var metadata = JsonSerializer.Serialize(new
+                            {
+                                projectId = projectId,
+                                paperCount = paperCount,
+                                assignedAt = DateTimeOffset.UtcNow
+                            });
+
+                            await _notificationService.SendAsync(
+                                member.UserId,
+                                title,
+                                message,
+                                NotificationType.Review,
+                                projectId,
+                                NotificationEntityType.PaperAssignment,
+                                metadata);
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Fail-safe: Notification errors should not disrupt the application flow
+                }
+            }
         }
     }
 }

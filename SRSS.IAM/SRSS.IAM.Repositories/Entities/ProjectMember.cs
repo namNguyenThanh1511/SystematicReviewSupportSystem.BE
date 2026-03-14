@@ -26,6 +26,8 @@ namespace SRSS.IAM.Repositories.Entities
             JoinedAt = DateTimeOffset.UtcNow;
             CreatedAt = DateTimeOffset.UtcNow;
         }
+
+        public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
     }
     public enum ProjectRole
     {

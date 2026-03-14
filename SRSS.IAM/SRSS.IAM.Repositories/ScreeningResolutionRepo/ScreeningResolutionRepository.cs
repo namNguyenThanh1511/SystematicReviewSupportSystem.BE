@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.ScreeningResolutionRepo
 {
@@ -40,6 +41,21 @@ namespace SRSS.IAM.Repositories.ScreeningResolutionRepo
             return await _context.ScreeningResolutions
                 .Where(sr => sr.StudySelectionProcessId == studySelectionProcessId && sr.FinalDecision == decision)
                 .CountAsync(cancellationToken);
+        }
+
+        public async Task<List<Guid>> GetResolvedPaperIdsByPhaseAsync(
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            ScreeningDecisionType decision,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.ScreeningResolutions
+                .AsNoTracking()
+                .Where(sr => sr.StudySelectionProcessId == studySelectionProcessId
+                          && sr.Phase == phase
+                          && sr.FinalDecision == decision)
+                .Select(sr => sr.PaperId)
+                .ToListAsync(cancellationToken);
         }
     }
 }

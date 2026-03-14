@@ -24,6 +24,7 @@ using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
 using SRSS.IAM.Repositories.PaperAssignmentRepo;
+using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -98,5 +99,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IScreeningDecisionRepository ScreeningDecisions { get; }
 		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
 		IPaperAssignmentRepository PaperAssignments { get; }
+		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
 	}
 }

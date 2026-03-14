@@ -1,4 +1,5 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Services.DTOs.StudySelection
 {
@@ -17,6 +18,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public Guid ReviewerId { get; set; }
         public ScreeningDecisionType Decision { get; set; }
         public string? Reason { get; set; }
+        public ExclusionReasonCode? ExclusionReasonCode { get; set; }
+        public string? ReviewerNotes { get; set; }
     }
 
     public class ResolveScreeningConflictRequest
@@ -33,6 +36,26 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public PaperSortBy SortBy { get; set; } = PaperSortBy.TitleAsc;
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
+        // Issue 4 filters
+        public bool? HasFullText { get; set; }
+        public bool? HasConflict { get; set; }
+        public Guid? DecidedByReviewerId { get; set; }
+        /// <summary>
+        /// Screening phase filter. TitleAbstract = all eligible papers, FullText = only TA-included papers.
+        /// When null, defaults to TitleAbstract behavior.
+        /// </summary>
+        public ScreeningPhase? Phase { get; set; }
+    }
+
+    /// <summary>
+    /// Issue 2: Update full-text link or upload for a paper
+    /// </summary>
+    public class UpdatePaperFullTextRequest
+    {
+        /// <summary>External URL to the PDF (mutually exclusive with file upload)</summary>
+        public string? PdfUrl { get; set; }
+        /// <summary>External URL to the web source</summary>
+        public string? Url { get; set; }
     }
 
     // ============================================
@@ -50,8 +73,22 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
-        public SelectionStatisticsResponse SelectionStatistics { get; set; } 
+        public SelectionStatisticsResponse SelectionStatistics { get; set; }
+        public TitleAbstractScreeningResponse? TitleAbstractScreening { get; set; }
+    }
 
+    public class TitleAbstractScreeningResponse
+    {
+        public Guid Id { get; set; }
+        public Guid StudySelectionProcessId { get; set; }
+        public ScreeningPhaseStatus Status { get; set; }
+        public string StatusText { get; set; } = string.Empty;
+        public DateTimeOffset? StartedAt { get; set; }
+        public DateTimeOffset? CompletedAt { get; set; }
+        public int MinReviewersPerPaper { get; set; }
+        public int MaxReviewersPerPaper { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ModifiedAt { get; set; }
     }
 
     public class ScreeningDecisionResponse
@@ -64,7 +101,11 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string ReviewerName { get; set; } = string.Empty;
         public ScreeningDecisionType Decision { get; set; }
         public string DecisionText { get; set; } = string.Empty;
+        public ScreeningPhase Phase { get; set; }
+        public string PhaseText { get; set; } = string.Empty;
+        public ExclusionReasonCode? ExclusionReasonCode { get; set; }
         public string? Reason { get; set; }
+        public string? ReviewerNotes { get; set; }
         public DateTimeOffset DecidedAt { get; set; }
     }
 
@@ -76,6 +117,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string PaperTitle { get; set; } = string.Empty;
         public ScreeningDecisionType FinalDecision { get; set; }
         public string FinalDecisionText { get; set; } = string.Empty;
+        public ScreeningPhase Phase { get; set; }
+        public string PhaseText { get; set; } = string.Empty;
         public string? ResolutionNotes { get; set; }
         public Guid ResolvedBy { get; set; }
         public string ResolverName { get; set; } = string.Empty;
@@ -106,6 +149,12 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? JournalIssn { get; set; }
         public PaperSelectionStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
+        /// <summary>
+        /// Issue 5: Deterministic final decision. Non-null when status is Included/Excluded/Resolved.
+        /// Derived from resolution (if exists) or unanimous decisions.
+        /// </summary>
+        public ScreeningDecisionType? FinalDecision { get; set; }
+        public string? FinalDecisionText { get; set; }
         public List<ScreeningDecisionResponse> Decisions { get; set; } = new();
         public ScreeningResolutionResponse? Resolution { get; set; }
     }
@@ -127,6 +176,14 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public int ConflictCount { get; set; }
         public int PendingCount { get; set; }
         public double CompletionPercentage { get; set; }
+        public List<ExclusionReasonBreakdownItem> ExclusionReasonBreakdown { get; set; } = new();
+    }
+
+    public class ExclusionReasonBreakdownItem
+    {
+        public ExclusionReasonCode ReasonCode { get; set; }
+        public string ReasonText { get; set; } = string.Empty;
+        public int Count { get; set; }
     }
 
     // ============================================
@@ -147,6 +204,9 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         TitleAsc = 0,
         TitleDesc = 1,
         YearNewest = 2,
-        YearOldest = 3
+        YearOldest = 3,
+        /// <summary>Issue 3: Sort by decision count descending (most-reviewed first)</summary>
+        RelevanceDesc = 4
     }
 }
+

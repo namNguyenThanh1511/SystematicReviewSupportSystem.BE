@@ -26,6 +26,7 @@ using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
 using SRSS.IAM.Repositories.PaperAssignmentRepo;
+using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -54,6 +55,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IScreeningDecisionRepository? _screeningDecisions;
 		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
 		private IPaperAssignmentRepository? _paperAssignments;
+		private ITitleAbstractScreeningRepository? _titleAbstractScreenings;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -259,6 +261,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IPaperAssignmentRepository PaperAssignments
 			=> _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
+		public ITitleAbstractScreeningRepository TitleAbstractScreenings
+			=> _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

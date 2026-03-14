@@ -1071,6 +1071,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("pages");
 
+                    b.Property<string>("PdfFileName")
+                        .HasColumnType("text");
+
                     b.Property<string>("PdfUrl")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")

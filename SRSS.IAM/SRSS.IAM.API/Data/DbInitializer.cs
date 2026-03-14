@@ -178,12 +178,68 @@ namespace SRSS.IAM.API.Data
 					IsActive = true,
 					CreatedAt = DateTimeOffset.UtcNow,
 					ModifiedAt = DateTimeOffset.UtcNow
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "nguyenvana",
+					FullName = "Nguyễn Văn A",
+					Email = "nguyen.van.a@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-10),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-10)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "tran_thib",
+					FullName = "Trần Thị B",
+					Email = "tranthib.demo@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-8),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-7)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "hoang_le_c",
+					FullName = "Lê Hoàng C",
+					Email = "lehoangc@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-5),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-5)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "phamminhd",
+					FullName = "Phạm Minh D",
+					Email = "minh.pham@srss.com",
+					Role = Role.Client,
+					IsActive = false, // Giả định một user đang bị khóa để test logic UI
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-1)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "vuthie",
+					FullName = "Vũ Thị E",
+					Email = "vuthie.client@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
 				}
+
 			};
 
 			foreach (var user in users)
 			{
-				user.Password = passwordHasher.HashPassword(user, "P@ssw0rd123");
+				user.Password = passwordHasher.HashPassword(user, "123456");
 			}
 
 			await context.Users.AddRangeAsync(users);

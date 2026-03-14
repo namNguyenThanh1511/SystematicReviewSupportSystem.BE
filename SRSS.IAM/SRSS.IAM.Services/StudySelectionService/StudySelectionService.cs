@@ -675,6 +675,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                     Language = paper.Language,
                     Url = paper.Url,
                     PdfUrl = paper.PdfUrl,
+                    PdfFileName = paper.PdfFileName,
                     ConferenceName = paper.ConferenceName,
                     ConferenceLocation = paper.ConferenceLocation,
                     JournalIssn = paper.JournalIssn,
@@ -1027,6 +1028,11 @@ namespace SRSS.IAM.Services.StudySelectionService
                 paper.PdfUrl = request.PdfUrl;
             }
 
+            if (!string.IsNullOrWhiteSpace(request.PdfFileName))
+            {
+                paper.PdfFileName = request.PdfFileName;
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Url))
             {
                 paper.Url = request.Url;
@@ -1085,6 +1091,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Language = paper.Language,
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
+                PdfFileName = paper.PdfFileName,
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,

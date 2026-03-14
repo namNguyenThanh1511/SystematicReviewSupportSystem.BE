@@ -24,6 +24,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Keywords { get; set; }
         public string? Url { get; set; }
         public string? RawReference { get; set; }
+        public string? Md5 { get; set; }
 
         // ============================================
         // CONFERENCE METADATA
@@ -86,6 +87,12 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
 
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
+
+        // ============================================
+        // FULL-TEXT & EXTRACTED METADATA
+        // ============================================
+        public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
+        public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
     }
 
     public enum AccessType

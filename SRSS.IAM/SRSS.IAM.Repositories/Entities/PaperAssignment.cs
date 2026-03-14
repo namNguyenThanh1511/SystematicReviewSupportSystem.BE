@@ -20,8 +20,8 @@ namespace SRSS.IAM.Repositories.Entities
             Id = Guid.NewGuid();
             PaperId = paperId;
             ProjectMemberId = projectMemberId;
-            CreatedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
-            ModifiedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
+            CreatedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
         }
     }
 }

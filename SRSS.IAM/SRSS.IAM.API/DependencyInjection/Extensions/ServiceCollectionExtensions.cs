@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Shared.Cache;
@@ -32,6 +32,8 @@ using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.SupabaseService;
+using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.MetadataMergeService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -78,7 +80,11 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
-
+            // GROBID integration
+            services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));
+            services.AddHttpClient<IGrobidClient, GrobidClient>();
+            services.AddScoped<IGrobidService, GrobidService>();
+            services.AddScoped<IMetadataMergeService, MetadataMergeService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

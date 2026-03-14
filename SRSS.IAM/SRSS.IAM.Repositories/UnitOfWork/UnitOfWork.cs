@@ -27,6 +27,9 @@ using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
 using SRSS.IAM.Repositories.PaperAssignmentRepo;
 using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
+using SRSS.IAM.Repositories.PaperPdfRepo;
+using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
+using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -56,6 +59,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
 		private IPaperAssignmentRepository? _paperAssignments;
 		private ITitleAbstractScreeningRepository? _titleAbstractScreenings;
+		private IPaperPdfRepository? _paperPdfs;
+		private IPaperSourceMetadataRepository? _paperSourceMetadatas;
+		private IGrobidHeaderResultRepository? _grobidHeaderResults;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -263,6 +269,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 			=> _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
 		public ITitleAbstractScreeningRepository TitleAbstractScreenings
 			=> _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
+		public IPaperPdfRepository PaperPdfs
+			=> _paperPdfs ??= new PaperPdfRepository(_dbContext);
+		public IPaperSourceMetadataRepository PaperSourceMetadatas
+			=> _paperSourceMetadatas ??= new PaperSourceMetadataRepository(_dbContext);
+		public IGrobidHeaderResultRepository GrobidHeaderResults
+			=> _grobidHeaderResults ??= new GrobidHeaderResultRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

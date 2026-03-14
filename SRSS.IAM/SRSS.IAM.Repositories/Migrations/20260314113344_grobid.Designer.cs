@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260314113344_grobid")]
+    partial class grobid
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1115,9 +1118,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("language");
 
-                    b.Property<string>("Md5")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -1293,14 +1293,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("DOI")
                         .HasColumnType("text");
 
-                    b.Property<string>("EISSN")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("ExtractedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ISSN")
-                        .HasColumnType("text");
 
                     b.Property<string>("Issue")
                         .HasColumnType("text");
@@ -1309,12 +1303,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Keywords")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Language")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Md5")
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
@@ -1326,12 +1314,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("PaperId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("PublishedDate")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Publisher")
-                        .HasColumnType("text");
-
                     b.Property<int>("Source")
                         .HasColumnType("integer");
 
@@ -1340,9 +1322,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("Volume")
                         .HasColumnType("text");
-
-                    b.Property<int?>("Year")
-                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 

@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Configurations;
+using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories
@@ -80,5 +80,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperAssignment> PaperAssignments { get; set; } = default!;
 		public DbSet<TitleAbstractScreening> TitleAbstractScreenings { get; set; } = default!;
 		public DbSet<FullTextScreening> FullTextScreenings { get; set; } = default!;
+		public DbSet<PaperPdf> PaperPdfs { get; set; } = default!;
+		public DbSet<PaperSourceMetadata> PaperSourceMetadatas { get; set; } = default!;
+		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
 	}
 }

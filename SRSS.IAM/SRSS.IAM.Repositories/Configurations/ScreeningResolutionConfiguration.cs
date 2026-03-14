@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
@@ -31,6 +32,11 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(sr => sr.ResolutionNotes)
                 .HasColumnName("resolution_notes");
+
+            builder.Property(sr => sr.Phase)
+                .HasColumnName("screening_phase")
+                .HasConversion<string>()
+                .IsRequired();
 
             builder.Property(sr => sr.ResolvedBy)
                 .HasColumnName("resolved_by")

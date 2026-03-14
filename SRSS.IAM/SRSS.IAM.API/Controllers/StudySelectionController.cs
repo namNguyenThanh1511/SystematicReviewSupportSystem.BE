@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
+using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.StudySelectionService;
@@ -172,6 +173,10 @@ namespace SRSS.IAM.API.Controllers
             [FromQuery] PaperSortBy sortBy = PaperSortBy.TitleAsc,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
+            [FromQuery] bool? hasFullText = null,
+            [FromQuery] bool? hasConflict = null,
+            [FromQuery] Guid? decidedByReviewerId = null,
+            [FromQuery] ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
             var request = new PapersWithDecisionsRequest
@@ -180,7 +185,11 @@ namespace SRSS.IAM.API.Controllers
                 Status = status,
                 SortBy = sortBy,
                 PageNumber = pageNumber,
-                PageSize = pageSize
+                PageSize = pageSize,
+                HasFullText = hasFullText,
+                HasConflict = hasConflict,
+                DecidedByReviewerId = decidedByReviewerId,
+                Phase = phase
             };
 
             var result = await _studySelectionService.GetPapersWithDecisionsAsync(id, request, cancellationToken);
@@ -190,6 +199,72 @@ namespace SRSS.IAM.API.Controllers
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} papers (page {result.PageNumber}/{result.TotalPages}).";
 
             return Ok(result, message);
+        }
+
+        /// <summary>
+        /// Update full-text link (PDF URL / web URL) for a paper (Issue 2)
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/{paperId}/full-text")]
+        public async Task<ActionResult<ApiResponse<PaperWithDecisionsResponse>>> UpdatePaperFullText(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            [FromBody] UpdatePaperFullTextRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.UpdatePaperFullTextAsync(id, paperId, request, cancellationToken);
+            return Ok(result, "Paper full-text updated successfully.");
+        }
+
+        // ============================================
+        // Title-Abstract Screening Lifecycle
+        // ============================================
+
+        /// <summary>
+        /// Create Title/Abstract Screening phase for a Study Selection Process
+        /// </summary>
+        [HttpPost("study-selection/{id}/title-abstract")]
+        public async Task<ActionResult<ApiResponse<TitleAbstractScreeningResponse>>> CreateTitleAbstractScreening(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.CreateTitleAbstractScreeningAsync(id, cancellationToken);
+            return Created(result, "Title/Abstract screening created successfully.");
+        }
+
+        /// <summary>
+        /// Start Title/Abstract Screening (validates protocol, locks protocol, validates paper metadata)
+        /// </summary>
+        [HttpPost("study-selection/{id}/title-abstract/start")]
+        public async Task<ActionResult<ApiResponse<TitleAbstractScreeningResponse>>> StartTitleAbstractScreening(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.StartTitleAbstractScreeningAsync(id, cancellationToken);
+            return Ok(result, "Title/Abstract screening started successfully.");
+        }
+
+        /// <summary>
+        /// Complete Title/Abstract Screening (validates no unresolved conflicts)
+        /// </summary>
+        [HttpPost("study-selection/{id}/title-abstract/complete")]
+        public async Task<ActionResult<ApiResponse<TitleAbstractScreeningResponse>>> CompleteTitleAbstractScreening(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.CompleteTitleAbstractScreeningAsync(id, cancellationToken);
+            return Ok(result, "Title/Abstract screening completed successfully.");
+        }
+
+        /// <summary>
+        /// Get Title/Abstract Screening status
+        /// </summary>
+        [HttpGet("study-selection/{id}/title-abstract")]
+        public async Task<ActionResult<ApiResponse<TitleAbstractScreeningResponse>>> GetTitleAbstractScreening(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetTitleAbstractScreeningAsync(id, cancellationToken);
+            return Ok(result, "Title/Abstract screening retrieved successfully.");
         }
     }
 }

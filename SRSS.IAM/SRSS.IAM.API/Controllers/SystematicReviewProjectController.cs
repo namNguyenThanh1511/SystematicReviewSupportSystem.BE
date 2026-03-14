@@ -169,17 +169,23 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
-        /// Get all members of a project by project ID
+        /// Get members of a project by project ID with optional pagination and search
         /// </summary>
         /// <param name="projectId">Project ID</param>
+        /// <param name="search">Optional search term for name, email, or username</param>
+        /// <param name="pageNumber">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>List of project members</returns>
+        /// <returns>Paginated list of project members</returns>
         [HttpGet("{projectId}/members")]
-        public async Task<ActionResult<ApiResponse<List<ProjectMemberDto>>>> GetProjectMembers(
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<ProjectMemberDto>>>> GetProjectMembers(
             [FromRoute] Guid projectId,
-            CancellationToken cancellationToken)
+            [FromQuery] string? search,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _projectService.GetProjectMembersAsync(projectId, cancellationToken);
+            var result = await _projectService.GetProjectMembersAsync(projectId, search, pageNumber, pageSize, cancellationToken);
             return Ok(result, "Project members retrieved successfully.");
         }
 
@@ -198,6 +204,21 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _projectService.GetMyProjectsAsync(status, pageNumber, pageSize);
             return Ok(result, "Your projects retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get the membership of the current authenticated user in a project
+        /// </summary>
+        /// <param name="projectId">Project ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Current user's role in the project</returns>
+        [HttpGet("{projectId}/my-membership")]
+        public async Task<ActionResult<ApiResponse<ProjectMembershipResponse>>> GetMyProjectMembership(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _projectService.GetMyProjectMembershipAsync(projectId, cancellationToken);
+            return Ok(result, "Project membership retrieved successfully.");
         }
 
         /// <summary>

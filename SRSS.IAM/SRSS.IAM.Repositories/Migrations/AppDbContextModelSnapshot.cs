@@ -1091,6 +1091,42 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("papers", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid>("ProjectMemberId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_member_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("ProjectMemberId");
+
+                    b.HasIndex("PaperId", "ProjectMemberId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_paper_assignment_paper_member");
+
+                    b.ToTable("paper_assignments", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PicocElement", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2605,6 +2641,25 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperAssignment", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany("PaperAssignments")
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ProjectMember", "ProjectMember")
+                        .WithMany("PaperAssignments")
+                        .HasForeignKey("ProjectMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("ProjectMember");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PicocElement", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.ResearchQuestion", "ResearchQuestion")
@@ -2980,6 +3035,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("OriginalOfDuplicates");
 
+                    b.Navigation("PaperAssignments");
+
                     b.Navigation("ScreeningDecisions");
 
                     b.Navigation("ScreeningResolutions");
@@ -3001,6 +3058,11 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PrismaReport", b =>
                 {
                     b.Navigation("FlowRecords");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProjectMember", b =>
+                {
+                    b.Navigation("PaperAssignments");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProtocolReviewer", b =>

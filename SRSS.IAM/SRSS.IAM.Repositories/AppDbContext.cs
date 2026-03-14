@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Configurations;
+using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories
@@ -77,5 +77,6 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
 		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 		public DbSet<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = default!;
+		public DbSet<PaperAssignment> PaperAssignments { get; set; } = default!;
 	}
 }

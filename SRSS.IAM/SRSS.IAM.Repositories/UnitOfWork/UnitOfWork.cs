@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage;
 using Shared.Entities.BaseEntity;
@@ -25,6 +25,7 @@ using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
+using SRSS.IAM.Repositories.PaperAssignmentRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -52,6 +53,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IStudySelectionProcessRepository? _studySelectionProcesses;
 		private IScreeningDecisionRepository? _screeningDecisions;
 		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
+		private IPaperAssignmentRepository? _paperAssignments;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -254,6 +256,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public IIdentificationProcessPaperRepository IdentificationProcessPapers
 			=> _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
+
+		public IPaperAssignmentRepository PaperAssignments
+			=> _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

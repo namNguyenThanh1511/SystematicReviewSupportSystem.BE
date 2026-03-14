@@ -1,0 +1,267 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage;
+using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.IdentificationProcessRepo;
+using SRSS.IAM.Repositories.ImportBatchRepo;
+using SRSS.IAM.Repositories.PaperRepo;
+using SRSS.IAM.Repositories.SearchExecutionRepo;
+using SRSS.IAM.Repositories.CoreGovernRepo;
+using SRSS.IAM.Repositories.DataExtractionRepo;
+using SRSS.IAM.Repositories.ProtocolRepo;
+using SRSS.IAM.Repositories.QualityRepo;
+using SRSS.IAM.Repositories.ResearchQuestionRepo;
+using SRSS.IAM.Repositories.SearchStrategyRepo;
+using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
+using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.UserRepo;
+using SRSS.IAM.Repositories.NotificationRepo;
+using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
+using SRSS.IAM.Repositories.ReviewProcessRepo;
+using SRSS.IAM.Repositories.PrismaReportRepo;
+using SRSS.IAM.Repositories.DeduplicationResultRepo;
+using SRSS.IAM.Repositories.ScreeningResolutionRepo;
+using SRSS.IAM.Repositories.StudySelectionProcessRepo;
+using SRSS.IAM.Repositories.ScreeningDecisionRepo;
+using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
+
+namespace SRSS.IAM.Repositories.UnitOfWork
+{
+	public class UnitOfWork : IUnitOfWork
+	{
+		private readonly AppDbContext _dbContext;
+		private IDbContextTransaction? _currentTransaction;
+		private IUserRepository? _users;
+		private INotificationRepository? _notifications;
+		private IProjectMemberInvitationRepository? _projectMemberInvitations;
+		private ISystematicReviewProjectRepository? _systematicReviewProjects;
+		// Core Governance
+		private IReviewNeedRepository? _reviewNeeds;
+		private ICommissioningDocumentRepository? _commissioningDocuments;
+		private IReviewObjectiveRepository? _reviewObjectives;
+		private IQuestionTypeRepository? _questionTypes;
+		private IReviewProcessRepository? _reviewProcesses;
+		private IIdentificationProcessRepository? _identificationProcesses;
+		private ISearchExecutionRepository? _searchExecutions;
+		private IPaperRepository? _papers;
+		private IImportBatchRepository? _importBatches;
+		private IPrismaReportRepository? _prismaReports;
+		private IDeduplicationResultRepository? _deduplicationResults;
+		private IScreeningResolutionRepository? _screeningResolutions;
+		private IStudySelectionProcessRepository? _studySelectionProcesses;
+		private IScreeningDecisionRepository? _screeningDecisions;
+		// Protocol
+		private IReviewProtocolRepository? _protocols;
+		private IProtocolVersionRepository? _protocolVersions;
+		private IProtocolEvaluationRepository? _protocolEvaluations;
+
+		// Research Question
+		private IResearchQuestionRepository? _researchQuestions;
+		private IPicocElementRepository? _picocElements;
+		private IPopulationRepository? _populations;
+		private IInterventionRepository? _interventions;
+		private IComparisonRepository? _comparisons;
+		private IOutcomeRepository? _outcomes;
+		private IContextRepository? _contexts;
+
+		// Search Strategy
+		private ISearchSourceRepository? _searchSources;
+		private IStudySelectionCriteriaRepository? _selectionCriterias;
+		private IInclusionCriterionRepository? _inclusionCriteria;
+		private IExclusionCriterionRepository? _exclusionCriteria;
+		private IStudySelectionProcedureRepository? _selectionProcedures;
+		private IQualityAssessmentStrategyRepository? _qualityStrategies;
+		private IQualityChecklistRepository? _qualityChecklists;
+		private IQualityCriterionRepository? _qualityCriteria;
+		//private IDataExtractionStrategyRepository? _extractionStrategies;
+		//private IDataExtractionFormRepository? _extractionForms;
+		//private IDataItemDefinitionRepository? _dataItems;
+		// Data Extraction
+		private IExtractionTemplateRepository? _extractionTemplates;
+		private IExtractionSectionRepository? _extractionSections;
+		private IExtractionFieldRepository? _extractionFields;
+		private IFieldOptionRepository? _fieldOptions;
+		private IExtractedDataValueRepository? _extractedDataValues;
+
+		private IDataSynthesisStrategyRepository? _synthesisStrategies;
+		private IDisseminationStrategyRepository? _disseminationStrategies;
+		private IProjectTimetableRepository? _timetables;
+
+		public UnitOfWork(AppDbContext dbContext)
+		{
+			_dbContext = dbContext;
+		}
+		public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction != null) return;
+			_currentTransaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+		}
+
+		public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction == null) return;
+
+			try
+			{
+				await SaveChangesAsync(cancellationToken);
+				await _currentTransaction.CommitAsync(cancellationToken);
+			}
+			finally
+			{
+				await _currentTransaction.DisposeAsync();
+				_currentTransaction = null;
+			}
+		}
+
+		public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+		{
+			if (_currentTransaction == null) return;
+
+			try
+			{
+				await _currentTransaction.RollbackAsync(cancellationToken);
+			}
+			finally
+			{
+				await _currentTransaction.DisposeAsync();
+				_currentTransaction = null;
+			}
+		}
+
+		public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+		{
+			var date = DateTime.UtcNow;
+			foreach (var entry in _dbContext.ChangeTracker.Entries<IBaseEntity>())
+			{
+				if (entry.State == EntityState.Added)
+					entry.Entity.CreatedAt = date;
+
+				if (entry.State == EntityState.Added || entry.State == EntityState.Modified || entry.HasChangedOwnedEntities())
+					entry.Entity.ModifiedAt = date;
+			}
+
+			return await _dbContext.SaveChangesAsync(cancellationToken);
+		}
+
+		public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+		public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_dbContext);
+
+		// Core Governance
+		public IReviewNeedRepository ReviewNeeds => _reviewNeeds ??= new ReviewNeedRepository(_dbContext);
+		public ICommissioningDocumentRepository CommissioningDocuments => _commissioningDocuments ??= new CommissioningDocumentRepository(_dbContext);
+		public IReviewObjectiveRepository ReviewObjectives => _reviewObjectives ??= new ReviewObjectiveRepository(_dbContext);
+		public IQuestionTypeRepository QuestionTypes => _questionTypes ??= new QuestionTypeRepository(_dbContext);
+
+		// Protocol
+		public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);
+		public IProtocolVersionRepository ProtocolVersions => _protocolVersions ??= new ProtocolVersionRepository(_dbContext);
+		public IProtocolEvaluationRepository ProtocolEvaluations => _protocolEvaluations ??= new ProtocolEvaluationRepository(_dbContext);
+
+		// Research Question
+		public IResearchQuestionRepository ResearchQuestions => _researchQuestions ??= new ResearchQuestionRepository(_dbContext);
+		public IPicocElementRepository PicocElements => _picocElements ??= new PicocElementRepository(_dbContext);
+		public IPopulationRepository Populations => _populations ??= new PopulationRepository(_dbContext);
+		public IInterventionRepository Interventions => _interventions ??= new InterventionRepository(_dbContext);
+		public IComparisonRepository Comparisons => _comparisons ??= new ComparisonRepository(_dbContext);
+		public IOutcomeRepository Outcomes => _outcomes ??= new OutcomeRepository(_dbContext);
+		public IContextRepository Contexts => _contexts ??= new ContextRepository(_dbContext);
+
+		// Search Strategy
+		public ISearchSourceRepository SearchSources => _searchSources ??= new SearchSourceRepository(_dbContext);
+
+		public IStudySelectionCriteriaRepository SelectionCriterias =>
+			_selectionCriterias ??= new StudySelectionCriteriaRepository(_dbContext);
+
+		public IInclusionCriterionRepository InclusionCriteria =>
+			_inclusionCriteria ??= new InclusionCriterionRepository(_dbContext);
+
+		public IExclusionCriterionRepository ExclusionCriteria =>
+			_exclusionCriteria ??= new ExclusionCriterionRepository(_dbContext);
+
+		public IStudySelectionProcedureRepository SelectionProcedures =>
+			_selectionProcedures ??= new StudySelectionProcedureRepository(_dbContext);
+
+		public IQualityAssessmentStrategyRepository QualityStrategies =>
+			_qualityStrategies ??= new QualityAssessmentStrategyRepository(_dbContext);
+
+		public IQualityChecklistRepository QualityChecklists =>
+			_qualityChecklists ??= new QualityChecklistRepository(_dbContext);
+
+		public IQualityCriterionRepository QualityCriteria =>
+			_qualityCriteria ??= new QualityCriterionRepository(_dbContext);
+
+		// Data Extraction
+		public IExtractionTemplateRepository ExtractionTemplates =>
+			_extractionTemplates ??= new ExtractionTemplateRepository(_dbContext);
+
+		public IExtractionSectionRepository ExtractionSections =>
+			_extractionSections ??= new ExtractionSectionRepository(_dbContext);
+
+		public IExtractionFieldRepository ExtractionFields =>
+			_extractionFields ??= new ExtractionFieldRepository(_dbContext);
+
+		public IFieldOptionRepository FieldOptions =>
+			_fieldOptions ??= new FieldOptionRepository(_dbContext);
+
+		public IExtractedDataValueRepository ExtractedDataValues =>
+			_extractedDataValues ??= new ExtractedDataValueRepository(_dbContext);
+
+
+		public IDataSynthesisStrategyRepository SynthesisStrategies =>
+			_synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
+
+		public IDisseminationStrategyRepository DisseminationStrategies =>
+			_disseminationStrategies ??= new DisseminationStrategyRepository(_dbContext);
+
+
+
+		public IProjectTimetableRepository Timetables =>
+			_timetables ??= new ProjectTimetableRepository(_dbContext);
+
+		public ISystematicReviewProjectRepository SystematicReviewProjects
+			=> _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);
+
+		public IReviewProcessRepository ReviewProcesses
+			=> _reviewProcesses ??= new ReviewProcessRepository(_dbContext);
+
+		public IIdentificationProcessRepository IdentificationProcesses
+			=> _identificationProcesses ??= new IdentificationProcessRepository(_dbContext);
+
+		public ISearchExecutionRepository SearchExecutions
+			=> _searchExecutions ??= new SearchExecutionRepository(_dbContext);
+
+		public IPaperRepository Papers
+			=> _papers ??= new PaperRepository(_dbContext);
+
+		public IImportBatchRepository ImportBatches
+			=> _importBatches ??= new ImportBatchRepository(_dbContext);
+
+		public IPrismaReportRepository PrismaReports
+			=> _prismaReports ??= new PrismaReportRepository(_dbContext);
+
+		public IDeduplicationResultRepository DeduplicationResults
+			=> _deduplicationResults ??= new DeduplicationResultRepository(_dbContext);
+
+		public IScreeningResolutionRepository ScreeningResolutions
+			=> _screeningResolutions ??= new ScreeningResolutionRepository(_dbContext);
+
+		public IStudySelectionProcessRepository StudySelectionProcesses
+			=> _studySelectionProcesses ??= new StudySelectionProcessRepository(_dbContext);
+
+		public IScreeningDecisionRepository ScreeningDecisions
+			=> _screeningDecisions ??= new ScreeningDecisionRepository(_dbContext);
+
+		public IProjectMemberInvitationRepository ProjectMemberInvitations
+			=> _projectMemberInvitations ??= new ProjectMemberInvitationRepository(_dbContext);
+
+		public void Dispose() => _dbContext.Dispose();
+	}
+	public static class Extensions
+	{
+		public static bool HasChangedOwnedEntities(this EntityEntry entry) =>
+			entry.References.Any(r =>
+				r.TargetEntry != null &&
+				r.TargetEntry.Metadata.IsOwned() &&
+				(r.TargetEntry.State == EntityState.Added || r.TargetEntry.State == EntityState.Modified));
+	}
+}

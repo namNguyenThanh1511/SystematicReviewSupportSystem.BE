@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: srss-iam
+  namespace: amayakuro
+data:
+  appsettings.Production.json: |-
+    {
+      "JwtSettings": {
+        "ValidIssuer": "SRSS",
+        "ValidAudience": "SRSSUsers",
+        "ValidateAudience": true,
+        "AccessTokenExpirationMinutes": 15,
+        "RefreshTokenExpirationDays": 30,
+        "secretKey": "DhftOS5uphK3vmCJQrexST1RsyjZBjXWRgJMFPU4"
+      },
+      "ConnectionStrings": {
+        "SRSS_IAM_DB": "Host=srss-iam-db-service.amayakuro.svc.cluster.local; Port=5432; Username=postgres; Password=U0VDUkVUX1BBLMAOU1NXT1JE; Database=SRSS.IAM",
+        "Redis": "redis-service.amayakuro.svc.cluster.local:6379,allowAdmin=true,connectTimeout=10000,syncTimeout=10000,asyncTimeout=10000,connectRetry=5,abortConnect=false,keepAlive=60"
+      },
+      "GoogleAuthSettings": {
+        "ClientId": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+        "ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "AuthorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+        "Scope": "openid profile email"
+      }
+    }

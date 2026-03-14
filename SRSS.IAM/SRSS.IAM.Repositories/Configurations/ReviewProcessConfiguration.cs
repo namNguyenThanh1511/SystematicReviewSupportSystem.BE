@@ -1,0 +1,89 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SRSS.IAM.Repositories.Entities;
+
+namespace SRSS.IAM.Repositories.Configurations
+{
+    public class ReviewProcessConfiguration : IEntityTypeConfiguration<ReviewProcess>
+    {
+        public void Configure(EntityTypeBuilder<ReviewProcess> builder)
+        {
+            builder.ToTable("review_processes");
+
+            builder.HasKey(rp => rp.Id);
+
+            builder.Property(rp => rp.Id)
+                .HasColumnName("id")
+                .IsRequired();
+
+            builder.Property(rp => rp.Name)
+                .HasColumnName("name")
+                .HasMaxLength(255)
+                .IsRequired();
+
+            builder.Property(rp => rp.ProjectId)
+                .HasColumnName("project_id")
+                .IsRequired();
+
+            builder.Property(rp => rp.ProtocolId)
+                .HasColumnName("protocol_id");
+
+
+            builder.Property(rp => rp.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(rp => rp.CurrentPhase)
+                .HasColumnName("current_phase")
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(rp => rp.StartedAt)
+                .HasColumnName("started_at");
+
+            builder.Property(rp => rp.CompletedAt)
+                .HasColumnName("completed_at");
+
+            builder.Property(rp => rp.Notes)
+                .HasColumnName("notes")
+                .HasMaxLength(2000);
+
+            builder.Property(rp => rp.CreatedAt)
+                .HasColumnName("created_at")
+                .IsRequired();
+
+            builder.Property(rp => rp.ModifiedAt)
+                .HasColumnName("modified_at")
+                .IsRequired();
+
+            builder.HasOne(rp => rp.Project)
+                .WithMany(p => p.ReviewProcesses)
+                .HasForeignKey(rp => rp.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(rp => rp.Protocol)
+                .WithOne(p => p.ReviewProcess)
+                .HasForeignKey<ReviewProcess>(rp => rp.ProtocolId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.HasOne(rp => rp.IdentificationProcess)
+                .WithOne(ip => ip.ReviewProcess)
+                .HasForeignKey<IdentificationProcess>(ip => ip.ReviewProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(rp => rp.StudySelectionProcess)
+                .WithOne(ssp => ssp.ReviewProcess)
+                .HasForeignKey<StudySelectionProcess>(ssp => ssp.ReviewProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Indexes
+            builder.HasIndex(rp => rp.ProjectId)
+                .HasDatabaseName("idx_review_process_project_id");
+
+            builder.HasIndex(rp => rp.Status)
+                .HasDatabaseName("idx_review_process_status");
+
+        }
+    }
+}

@@ -58,6 +58,12 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? PdfFileName { get; set; }
         /// <summary>External URL to the web source</summary>
         public string? Url { get; set; }
+        
+        /// <summary>Whether to extract header metadata using GROBID</summary>
+        public bool ExtractWithGrobid { get; set; }
+        
+        /// <summary>PDF file stream for GROBID extraction</summary>
+        public System.IO.Stream? PdfStream { get; set; }
     }
 
     // ============================================
@@ -160,6 +166,38 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? FinalDecisionText { get; set; }
         public List<ScreeningDecisionResponse> Decisions { get; set; } = new();
         public ScreeningResolutionResponse? Resolution { get; set; }
+
+        public ExtractionStatusResponse? Extraction { get; set; }
+        public MetadataSourcesResponse? MetadataSources { get; set; }
+        public ExtractionResultResponse? ExtractionResult { get; set; }
+    }
+
+    public class ExtractionStatusResponse
+    {
+        public bool Requested { get; set; }
+        public string? Provider { get; set; }
+        public string Status { get; set; } = "not_requested"; // not_requested, succeeded, failed, partial
+        public string? Message { get; set; }
+        public string? RetryToken { get; set; }
+    }
+
+    public class MetadataSourcesResponse
+    {
+        public string? Title { get; set; }
+        public string? Authors { get; set; }
+        public string? Abstract { get; set; }
+        public string? DOI { get; set; }
+        public string? Journal { get; set; }
+    }
+
+    public class ExtractionResultResponse
+    {
+        public string? Title { get; set; }
+        public string? Authors { get; set; }
+        public string? Abstract { get; set; }
+        public string? DOI { get; set; }
+        public string? Journal { get; set; }
+        public List<string> UpdatedFields { get; set; } = new();
     }
 
     public class ConflictedPaperResponse

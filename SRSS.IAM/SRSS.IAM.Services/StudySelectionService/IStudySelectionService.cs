@@ -88,5 +88,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            RetryExtractionRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

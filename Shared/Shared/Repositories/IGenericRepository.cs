@@ -18,6 +18,16 @@ namespace Shared.Repositories
             bool isTracking = true,
             CancellationToken cancellationToken = default);
 
+        Task<TEntity?> FindSingleOrDefaultAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
+
+        Task<TEntity?> FindFirstOrDefaultAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
+
         Task<bool> AnyAsync(
             Expression<Func<TEntity, bool>>? predicate = null,
             bool isTracking = true,

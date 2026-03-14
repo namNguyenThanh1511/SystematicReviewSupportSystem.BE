@@ -72,10 +72,13 @@ public class GrobidClient : IGrobidClient
             content.Add(new StringContent(startPage.ToString()), "start");
             content.Add(new StringContent(endPage.ToString()), "end");
 
-            return new HttpRequestMessage(HttpMethod.Post, "api/processHeaderDocument")
+            var request = new HttpRequestMessage(HttpMethod.Post, "api/processHeaderDocument")
             {
                 Content = content
             };
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+            return request;
         };
     }
 
@@ -91,10 +94,13 @@ public class GrobidClient : IGrobidClient
             content.Add(new StringContent(consolidateFunders.ToString()), "consolidateFunders");
             content.Add(new StringContent(segmentSentences ? "1" : "0"), "segmentSentences");
 
-            return new HttpRequestMessage(HttpMethod.Post, "api/processFulltextDocument")
+            var request = new HttpRequestMessage(HttpMethod.Post, "api/processFulltextDocument")
             {
                 Content = content
             };
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
+            return request;
         };
     }
 
@@ -113,10 +119,14 @@ public class GrobidClient : IGrobidClient
                 Content = content
             };
 
+            request.Headers.Accept.Clear();
             if (returnBibtex)
             {
-                request.Headers.Accept.Clear();
                 request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/x-bibtex"));
+            }
+            else
+            {
+                request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
             }
 
             return request;

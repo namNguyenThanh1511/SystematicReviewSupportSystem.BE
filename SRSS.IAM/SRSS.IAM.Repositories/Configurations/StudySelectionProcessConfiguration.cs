@@ -58,6 +58,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(sr => sr.StudySelectionProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasMany(ssp => ssp.PaperAssignments)
+                .WithOne(pa => pa.StudySelectionProcess)
+                .HasForeignKey(pa => pa.StudySelectionProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // 1:1 child screening phases
             builder.HasOne(ssp => ssp.TitleAbstractScreening)
                 .WithOne(ta => ta.StudySelectionProcess)

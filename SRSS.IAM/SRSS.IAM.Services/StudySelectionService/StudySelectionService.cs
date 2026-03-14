@@ -60,7 +60,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             var studySelectionProcessResponse = MapToResponse(process);
-            
+
             studySelectionProcessResponse.SelectionStatistics = await GetSelectionStatisticsAsync(id, cancellationToken);
             return studySelectionProcessResponse;
         }
@@ -474,6 +474,28 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PendingCount = pendingCount,
                 CompletionPercentage = Math.Round(completionPercentage, 2),
                 ExclusionReasonBreakdown = exclusionBreakdown
+            };
+        }
+
+        public async Task<StudySelectionPhaseStatusResponse> GetPhaseStatusAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            return new StudySelectionPhaseStatusResponse
+            {
+                CurrentPhase = process.CurrentPhase,
+                CurrentPhaseText = process.CurrentPhase.ToString(),
+                TitleAbstractStarted = process.TitleAbstractScreening?.Status != ScreeningPhaseStatus.NotStarted,
+                TitleAbstractCompleted = process.TitleAbstractScreening?.Status == ScreeningPhaseStatus.Completed,
+                FullTextStarted = process.FullTextScreening?.Status != ScreeningPhaseStatus.NotStarted,
+                FullTextCompleted = process.FullTextScreening?.Status == ScreeningPhaseStatus.Completed
             };
         }
 

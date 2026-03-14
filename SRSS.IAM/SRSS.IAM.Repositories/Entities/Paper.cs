@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -56,6 +56,7 @@ namespace SRSS.IAM.Repositories.Entities
         // ACCESS & FULL-TEXT AVAILABILITY
         // ============================================
         public string? PdfUrl { get; set; }
+        public string? PdfFileName { get; set; }
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
 

@@ -64,5 +64,29 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             PapersWithDecisionsRequest request,
             CancellationToken cancellationToken = default);
+
+        // Title-Abstract Screening Lifecycle
+        Task<TitleAbstractScreeningResponse> CreateTitleAbstractScreeningAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<TitleAbstractScreeningResponse> StartTitleAbstractScreeningAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<TitleAbstractScreeningResponse> CompleteTitleAbstractScreeningAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<TitleAbstractScreeningResponse> GetTitleAbstractScreeningAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
+        // Issue 2: Full-text upload/link management
+        Task<PaperWithDecisionsResponse> UpdatePaperFullTextAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            UpdatePaperFullTextRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

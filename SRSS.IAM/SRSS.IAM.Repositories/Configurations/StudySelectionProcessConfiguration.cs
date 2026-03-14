@@ -58,6 +58,17 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(sr => sr.StudySelectionProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // 1:1 child screening phases
+            builder.HasOne(ssp => ssp.TitleAbstractScreening)
+                .WithOne(ta => ta.StudySelectionProcess)
+                .HasForeignKey<TitleAbstractScreening>(ta => ta.StudySelectionProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(ssp => ssp.FullTextScreening)
+                .WithOne(ft => ft.StudySelectionProcess)
+                .HasForeignKey<FullTextScreening>(ft => ft.StudySelectionProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Enforce 1:1 relationship at database level
             builder.HasIndex(ssp => ssp.ReviewProcessId)
                 .IsUnique()

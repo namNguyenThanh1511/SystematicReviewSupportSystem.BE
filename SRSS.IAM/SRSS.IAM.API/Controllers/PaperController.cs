@@ -4,6 +4,8 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.DTOs.Paper;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -12,10 +14,12 @@ namespace SRSS.IAM.API.Controllers
     public class PaperController : BaseController
     {
         private readonly IIdentificationService _identificationService;
+        private readonly IPaperService _paperService;
 
-        public PaperController(IIdentificationService identificationService)
+        public PaperController(IIdentificationService identificationService, IPaperService paperService)
         {
             _identificationService = identificationService;
+            _paperService = paperService;
         }
 
         /// <summary>
@@ -91,6 +95,23 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _identificationService.ImportPaperAsync(request, cancellationToken);
             return Ok(result, $"Successfully imported {result.TotalImported} papers.");
+        }
+
+        /// <summary>
+        /// Assign single/multiple papers to single/multiple project members.
+        /// Prevents duplicate assignments and ensures both papers and members belong to the project.
+        /// Project ID is inferred from the papers.
+        /// </summary>
+        /// <param name="request">Paper IDs and Member IDs to assign</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpPost("assign")]
+        public async Task<ActionResult<ApiResponse>> AssignPapers(
+            [FromBody] AssignPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.AssignPapersAsync(request, cancellationToken);
+            return Ok("Papers assigned successfully.");
         }
     }
 }

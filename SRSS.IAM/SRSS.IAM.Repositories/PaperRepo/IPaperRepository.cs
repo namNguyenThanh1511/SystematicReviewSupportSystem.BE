@@ -14,6 +14,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
             string? search,
             SelectionStatus? status,
             int? year,
+            string? assignmentStatus,
+            ScreeningStage? stage,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);

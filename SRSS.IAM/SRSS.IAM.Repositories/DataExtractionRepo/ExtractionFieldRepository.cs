@@ -15,20 +15,25 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 		public async Task<List<ExtractionField>> GetByTemplateIdAsync(Guid templateId)
 		{
 			return await _context.ExtractionFields
-				.Where(f => f.TemplateId == templateId)
+				.Where(f => f.SectionId == templateId)
 				.Include(f => f.Options)
 				.Include(f => f.SubFields)
 				.OrderBy(f => f.OrderIndex)
 				.ToListAsync();
 		}
 
-		public async Task<List<ExtractionField>> GetRootFieldsByTemplateIdAsync(Guid templateId)
+		public async Task<List<ExtractionField>> GetRootFieldsBySectioinIdAsync(Guid sectionId)
 		{
 			return await _context.ExtractionFields
-				.Where(f => f.TemplateId == templateId && f.ParentFieldId == null)
+				.Where(f => f.SectionId == sectionId && f.ParentFieldId == null)
 				.Include(f => f.Options)
 				.OrderBy(f => f.OrderIndex)
 				.ToListAsync();
 		}
-	}
+
+        public Task<List<ExtractionField>> GetRootFieldsByTemplateIdAsync(Guid templateId)
+        {
+            throw new NotImplementedException();
+        }
+    }
 }

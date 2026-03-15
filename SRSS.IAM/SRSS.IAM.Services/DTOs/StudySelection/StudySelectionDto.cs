@@ -139,7 +139,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string Title { get; set; } = string.Empty;
         public string? DOI { get; set; }
         public string? Authors { get; set; }
-        public int? PublicationYear { get; set; }
+        public string? PublicationYear { get; set; }
+        public string? PublicationDate { get; set; }
         public string? Abstract { get; set; }
         public string? Journal { get; set; }
         public string? Source { get; set; }
@@ -170,6 +171,33 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public ExtractionStatusResponse? Extraction { get; set; }
         public MetadataSourcesResponse? MetadataSources { get; set; }
         public ExtractionResultResponse? ExtractionResult { get; set; }
+        public ExtractionSuggestionResponse? ExtractionSuggestion { get; set; }
+    }
+
+    public class ExtractionSuggestionResponse
+    {
+        public Guid SourceMetadataId { get; set; }
+        public string? Title { get; set; }
+        public string? Authors { get; set; }
+        public string? Abstract { get; set; }
+        public string? DOI { get; set; }
+        public string? Journal { get; set; }
+        public string? Volume { get; set; }
+        public string? Issue { get; set; }
+        public string? Pages { get; set; }
+        public string? Keywords { get; set; }
+        public string? Publisher { get; set; }
+        public int? Year { get; set; }
+        public string? ISSN { get; set; }
+        public string? EISSN { get; set; }
+        public string? Md5 { get; set; }
+
+    }
+
+    public class ApplyMetadataRequest
+    {
+        public Guid SourceMetadataId { get; set; }
+        public List<string> Fields { get; set; } = new();
     }
 
     public class ExtractionStatusResponse
@@ -188,6 +216,17 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? Abstract { get; set; }
         public string? DOI { get; set; }
         public string? Journal { get; set; }
+        public string? Volume { get; set; }
+        public string? Issue { get; set; }
+        public string? Pages { get; set; }
+        public string? Keywords { get; set; }
+        public string? Publisher { get; set; }
+        public string? PublishedDate { get; set; }
+        public string? Year { get; set; }
+        public string? ISSN { get; set; }
+        public string? EISSN { get; set; }
+        public string? Language { get; set; }
+        public string? Md5 { get; set; }
     }
 
     public class ExtractionResultResponse
@@ -197,6 +236,17 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? Abstract { get; set; }
         public string? DOI { get; set; }
         public string? Journal { get; set; }
+        public string? Volume { get; set; }
+        public string? Issue { get; set; }
+        public string? Pages { get; set; }
+        public string? Keywords { get; set; }
+        public string? Publisher { get; set; }
+        public string? PublishedDate { get; set; }
+        public int? Year { get; set; }
+        public string? ISSN { get; set; }
+        public string? EISSN { get; set; }
+        public string? Language { get; set; }
+        public string? Md5 { get; set; }
         public List<string> UpdatedFields { get; set; } = new();
     }
 

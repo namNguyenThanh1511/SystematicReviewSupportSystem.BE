@@ -5,6 +5,7 @@ using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
+using Microsoft.Extensions.Logging;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -13,15 +14,18 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGrobidService _grobidService;
         private readonly IMetadataMergeService _metadataMergeService;
+        private readonly ILogger<StudySelectionService> _logger;
 
         public StudySelectionService(
             IUnitOfWork unitOfWork,
             IGrobidService grobidService,
-            IMetadataMergeService metadataMergeService)
+            IMetadataMergeService metadataMergeService,
+            ILogger<StudySelectionService> logger)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _metadataMergeService = metadataMergeService;
+            _logger = logger;
         }
 
         public async Task<StudySelectionProcessResponse> CreateStudySelectionProcessAsync(
@@ -649,7 +653,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                     Title = paperTitle,
                     DOI = paper.DOI,
                     Authors = paper.Authors,
-                    PublicationYear = paper.PublicationYearInt,
+                    PublicationYear = paper.PublicationYear,
+                    PublicationDate = paper.PublicationYear,
                     Abstract = paper.Abstract,
                     Journal = paper.Journal,
                     Source = paper.Source,
@@ -673,7 +678,10 @@ namespace SRSS.IAM.Services.StudySelectionService
                     Decisions = decisionResponses,
                     Resolution = resolution != null
                         ? await MapToResolutionResponse(resolution, paperTitle, userNames, cancellationToken)
-                        : null
+                        : null,
+                    Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
+                    MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken)
+
                 });
             }
 
@@ -1026,6 +1034,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             paper.ModifiedAt = DateTimeOffset.UtcNow;
+            
+            ExtractionSuggestionResponse? extractionSuggestion = null;
 
             // Grobid Integration
             PaperPdf? paperPdf = null;
@@ -1049,6 +1059,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             Console.WriteLine("PaperPdf: " + paperPdf);
             if (request.ExtractWithGrobid && request.PdfStream != null && paperPdf != null)
             {
+                _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paperId);
                 var grobidDto = await _grobidService.ExtractHeaderAsync(request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
 
                 if (!string.IsNullOrWhiteSpace(grobidDto.RawXml))
@@ -1099,7 +1110,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                     };
                     await _unitOfWork.PaperSourceMetadatas.AddAsync(sourceMeta, cancellationToken);
                     
-                    await _metadataMergeService.MergeAsync(paper, sourceMeta);
+                    // REMOVED automatic merge to preserve canonical Paper metadata
+                    // await _metadataMergeService.MergeAsync(paper, sourceMeta);
 
                     // Issue 3: Include ExtractionResult payloads dynamically based on modifications
                     var extractionResult = new ExtractionResultResponse
@@ -1109,6 +1121,17 @@ namespace SRSS.IAM.Services.StudySelectionService
                         Abstract = grobidDto.Abstract,
                         DOI = grobidDto.DOI,
                         Journal = grobidDto.Journal,
+                        Volume = grobidDto.Volume,
+                        Issue = grobidDto.Issue,
+                        Pages = grobidDto.Pages,
+                        Publisher = grobidDto.Publisher,
+                        PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
+                        Year = grobidDto.Year,
+                        ISSN = grobidDto.ISSN,
+                        EISSN = grobidDto.EISSN,
+                        Keywords = grobidDto.Keywords,
+                        Language = grobidDto.Language,
+                        Md5 = grobidDto.Md5,
                         UpdatedFields = new List<string>() // Idealy from MetadataMerge logic, keeping it simple for now
                     };
                     
@@ -1117,6 +1140,44 @@ namespace SRSS.IAM.Services.StudySelectionService
                     if (!string.IsNullOrEmpty(grobidDto.Abstract)) extractionResult.UpdatedFields.Add("Abstract");
                     if (!string.IsNullOrEmpty(grobidDto.DOI)) extractionResult.UpdatedFields.Add("DOI");
                     if (!string.IsNullOrEmpty(grobidDto.Journal)) extractionResult.UpdatedFields.Add("Journal");
+                    if (!string.IsNullOrEmpty(grobidDto.Volume)) extractionResult.UpdatedFields.Add("Volume");
+                    if (!string.IsNullOrEmpty(grobidDto.Issue)) extractionResult.UpdatedFields.Add("Issue");
+                    if (!string.IsNullOrEmpty(grobidDto.Pages)) extractionResult.UpdatedFields.Add("Pages");
+                    if (!string.IsNullOrEmpty(grobidDto.Keywords)) extractionResult.UpdatedFields.Add("Keywords");
+                    if (!string.IsNullOrEmpty(grobidDto.Language)) extractionResult.UpdatedFields.Add("Language");
+                    if (!string.IsNullOrEmpty(grobidDto.Md5)) extractionResult.UpdatedFields.Add("Md5");
+                    if (!string.IsNullOrEmpty(grobidDto.Publisher)) extractionResult.UpdatedFields.Add("Publisher");
+                    if (!string.IsNullOrEmpty(grobidDto.PublishedDate?.ToString())) extractionResult.UpdatedFields.Add("PublishedDate");
+                    if (!string.IsNullOrEmpty(grobidDto.Year?.ToString())) extractionResult.UpdatedFields.Add("Year");
+                    if (!string.IsNullOrEmpty(grobidDto.ISSN)) extractionResult.UpdatedFields.Add("ISSN");
+                    if (!string.IsNullOrEmpty(grobidDto.EISSN)) extractionResult.UpdatedFields.Add("EISSN");
+
+                    // Create extraction suggestion for the frontend
+                    var suggestion = new ExtractionSuggestionResponse
+                    {
+                        SourceMetadataId = sourceMeta.Id,
+                        Title = sourceMeta.Title,
+                        Authors = sourceMeta.Authors,
+                        Abstract = sourceMeta.Abstract,
+                        DOI = sourceMeta.DOI,
+                        Journal = sourceMeta.Journal,
+                        Volume = sourceMeta.Volume,
+                        Issue = sourceMeta.Issue,
+                        Pages = sourceMeta.Pages,
+                        Keywords = sourceMeta.Keywords,
+                        Publisher = sourceMeta.Publisher,
+                        Year = sourceMeta.Year,
+                        Md5 = sourceMeta.Md5,
+                        ISSN = sourceMeta.ISSN,
+                        EISSN = sourceMeta.EISSN
+                    };
+
+                    _logger.LogInformation("Created extraction suggestion {SourceMetadataId} for Paper {PaperId}", sourceMeta.Id, paperId);
+
+                    // Note: In an actual implementation with proper design, we would pass this suggestion nicely through the return DTO
+                    // For now, returning it by packing it in via context or similar depending on the existing architecture.
+                    // Let's modify the PaperWithDecisionsResponse return directly
+                    extractionSuggestion = suggestion;
 
                     // Stash it in HttpContext.Items to be mapped into the response DTO
                     // Not ideal domain design, but simplest for gap report resolution
@@ -1162,7 +1223,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Title = paper.Title,
                 DOI = paper.DOI,
                 Authors = paper.Authors,
-                PublicationYear = paper.PublicationYearInt,
+                PublicationYear = paper.PublicationYear,
+                PublicationDate = paper.PublicationYear,
                 Abstract = paper.Abstract,
                 Journal = paper.Journal,
                 Source = paper.Source,
@@ -1188,7 +1250,9 @@ namespace SRSS.IAM.Services.StudySelectionService
                     ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paperId, cancellationToken),
-                MetadataSources = await GetMetadataSourcesAsync(paperId, cancellationToken)
+                MetadataSources = await GetMetadataSourcesAsync(paperId, cancellationToken),
+                ExtractionSuggestion = extractionSuggestion
+                
             };
         }
 
@@ -1240,10 +1304,11 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         private async Task<ExtractionStatusResponse?> GetExtractionStatusAsync(Guid paperId, CancellationToken cancellationToken)
         {
-            var paperPdf = await _unitOfWork.PaperPdfs.FindFirstOrDefaultAsync(p => p.PaperId == paperId, isTracking: false, cancellationToken: cancellationToken);
-            var headerResult = await _unitOfWork.GrobidHeaderResults.FindFirstOrDefaultAsync(h => paperPdf != null && h.PaperPdfId == paperPdf.Id, isTracking: false, cancellationToken: cancellationToken);
+            var paperPdf = await _unitOfWork.PaperPdfs.GetLatestPaperPdfAsync(paperId, cancellationToken);
+            if(paperPdf == null) return null;
+            var headerResult = await _unitOfWork.GrobidHeaderResults.GetLatestGrobidHeaderResultAsync(paperPdf.Id, cancellationToken);
             
-            if (paperPdf == null || !paperPdf.GrobidProcessed)
+            if (!paperPdf.GrobidProcessed)
             {
                 return new ExtractionStatusResponse 
                 { 
@@ -1290,7 +1355,18 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Authors = grobidSource?.Authors != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
                 Abstract = grobidSource?.Abstract != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
                 DOI = grobidSource?.DOI != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
-                Journal = grobidSource?.Journal != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL")
+                Journal = grobidSource?.Journal != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Publisher = grobidSource?.Publisher != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                PublishedDate = grobidSource?.PublishedDate != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Year = grobidSource?.Year != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                ISSN = grobidSource?.ISSN != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                EISSN = grobidSource?.EISSN != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Language = grobidSource?.Language != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Md5 = grobidSource?.Md5 != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Volume = grobidSource?.Volume != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Issue = grobidSource?.Issue != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Pages = grobidSource?.Pages != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
+                Keywords = grobidSource?.Keywords != null ? "GROBID" : (risSource != null ? "RIS" : "MANUAL"),
             };
         }
 

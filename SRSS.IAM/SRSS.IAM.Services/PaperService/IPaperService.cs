@@ -1,5 +1,6 @@
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -65,6 +66,11 @@ namespace SRSS.IAM.Services.PaperService
 
         Task AssignPapersAsync(
             AssignPapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperResponse> ApplyMetadataAsync(
+            Guid paperId,
+            ApplyMetadataRequest request,
             CancellationToken cancellationToken = default);
     }
 }

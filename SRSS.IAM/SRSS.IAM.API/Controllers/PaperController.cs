@@ -6,6 +6,7 @@ using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -112,6 +113,23 @@ namespace SRSS.IAM.API.Controllers
         {
             await _paperService.AssignPapersAsync(request, cancellationToken);
             return Ok("Papers assigned successfully.");
+        }
+
+        /// <summary>
+        /// Apply selected metadata fields from a metadata source to the canonical paper record.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="request">The selected fields and source metadata ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The updated PaperResponse</returns>
+        [HttpPost("{paperId}/apply-metadata")]
+        public async Task<ActionResult<ApiResponse<PaperResponse>>> ApplyMetadata(
+            [FromRoute] Guid paperId,
+            [FromBody] ApplyMetadataRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.ApplyMetadataAsync(paperId, request, cancellationToken);
+            return Ok(result, "Selected metadata applied successfully.");
         }
     }
 }

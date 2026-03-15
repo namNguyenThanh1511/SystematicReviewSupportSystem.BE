@@ -3,8 +3,10 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.NotificationService;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -12,11 +14,19 @@ namespace SRSS.IAM.Services.PaperService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationService _notificationService;
+        private readonly MetadataMergeService.IMetadataMergeService _metadataMergeService;
+        private readonly ILogger<PaperService> _logger;
 
-        public PaperService(IUnitOfWork unitOfWork, INotificationService notificationService)
+        public PaperService(
+            IUnitOfWork unitOfWork, 
+            INotificationService notificationService, 
+            MetadataMergeService.IMetadataMergeService metadataMergeService,
+            ILogger<PaperService> logger)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
+            _metadataMergeService = metadataMergeService;
+            _logger = logger;
         }
 
         public async Task<PaginatedResponse<PaperResponse>> GetPapersByProjectAsync(
@@ -713,6 +723,44 @@ namespace SRSS.IAM.Services.PaperService
                     // Fail-safe: Notification errors should not disrupt the application flow
                 }
             }
+        }
+
+        public async Task<PaperResponse> ApplyMetadataAsync(
+            Guid paperId,
+            ApplyMetadataRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var sourceMetadata = await _unitOfWork.PaperSourceMetadatas.FindSingleAsync(
+                sm => sm.Id == request.SourceMetadataId && sm.PaperId == paperId,
+                cancellationToken: cancellationToken);
+
+            if (sourceMetadata == null)
+            {
+                throw new InvalidOperationException($"PaperSourceMetadata with ID {request.SourceMetadataId} not found for this Paper.");
+            }
+
+            // Apply selected fields
+            await _metadataMergeService.MergeSelectedFieldsAsync(paper, sourceMetadata, request.Fields);
+
+            _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}", 
+                request.Fields.Count, request.SourceMetadataId, paperId);
+
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+            
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToPaperResponse(paper);
         }
     }
 }

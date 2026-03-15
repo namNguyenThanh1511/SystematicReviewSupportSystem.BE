@@ -5,6 +5,67 @@ namespace SRSS.IAM.Services.MetadataMergeService
 {
     public class MetadataMergeService : IMetadataMergeService
     {
+        public Task MergeSelectedFieldsAsync(Paper paper, PaperSourceMetadata sourceMetadata, List<string> fields)
+        {
+            if (paper == null || sourceMetadata == null || fields == null || !fields.Any())
+            {
+                return Task.CompletedTask;
+            }
+
+            var lowerFields = fields.Select(f => f.ToLowerInvariant()).ToList();
+
+            if (lowerFields.Contains("title") && !string.IsNullOrWhiteSpace(sourceMetadata.Title))
+                paper.Title = sourceMetadata.Title;
+
+            if (lowerFields.Contains("authors") && !string.IsNullOrWhiteSpace(sourceMetadata.Authors))
+                paper.Authors = sourceMetadata.Authors;
+
+            if (lowerFields.Contains("abstract") && !string.IsNullOrWhiteSpace(sourceMetadata.Abstract))
+                paper.Abstract = sourceMetadata.Abstract;
+
+            if (lowerFields.Contains("doi") && !string.IsNullOrWhiteSpace(sourceMetadata.DOI))
+                paper.DOI = sourceMetadata.DOI;
+
+            if (lowerFields.Contains("journal") && !string.IsNullOrWhiteSpace(sourceMetadata.Journal))
+                paper.Journal = sourceMetadata.Journal;
+
+            if (lowerFields.Contains("volume") && !string.IsNullOrWhiteSpace(sourceMetadata.Volume))
+                paper.Volume = sourceMetadata.Volume;
+
+            if (lowerFields.Contains("issue") && !string.IsNullOrWhiteSpace(sourceMetadata.Issue))
+                paper.Issue = sourceMetadata.Issue;
+
+            if (lowerFields.Contains("pages") && !string.IsNullOrWhiteSpace(sourceMetadata.Pages))
+                paper.Pages = sourceMetadata.Pages;
+
+            if (lowerFields.Contains("publisher") && !string.IsNullOrWhiteSpace(sourceMetadata.Publisher))
+                paper.Publisher = sourceMetadata.Publisher;
+
+            if (lowerFields.Contains("year") && sourceMetadata.Year.HasValue)
+            {
+                paper.PublicationYearInt = sourceMetadata.Year.Value;
+                paper.PublicationYear = sourceMetadata.Year.Value.ToString();
+            }
+
+            // Note: If you want to support keywords, language, etc., you can add them here
+            if (lowerFields.Contains("keywords") && !string.IsNullOrWhiteSpace(sourceMetadata.Keywords))
+                paper.Keywords = sourceMetadata.Keywords;
+
+            if (lowerFields.Contains("language") && !string.IsNullOrWhiteSpace(sourceMetadata.Language))
+                paper.Language = sourceMetadata.Language;
+
+            if (lowerFields.Contains("issn") && !string.IsNullOrWhiteSpace(sourceMetadata.ISSN))
+                paper.JournalIssn = sourceMetadata.ISSN;
+
+            if (lowerFields.Contains("eissn") && !string.IsNullOrWhiteSpace(sourceMetadata.EISSN))
+                paper.JournalEIssn = sourceMetadata.EISSN;
+                
+            if (lowerFields.Contains("md5") && !string.IsNullOrWhiteSpace(sourceMetadata.Md5))
+                paper.Md5 = sourceMetadata.Md5;
+
+            return Task.CompletedTask;
+        }
+
         public Task MergeAsync(Paper paper, PaperSourceMetadata sourceMetadata)
         {
             if (paper == null || sourceMetadata == null)

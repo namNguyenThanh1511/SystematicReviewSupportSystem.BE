@@ -19,6 +19,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public IdentificationProcess? IdentificationProcess { get; set; }
         public StudySelectionProcess? StudySelectionProcess { get; set; }
+        public QualityAssessmentProcess? QualityAssessmentProcess { get; set; }
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods

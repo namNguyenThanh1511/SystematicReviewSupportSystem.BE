@@ -19,6 +19,22 @@ namespace SRSS.IAM.Repositories.QualityRepo
 		Task<IEnumerable<QualityCriterion>> GetByChecklistIdAsync(Guid checklistId, CancellationToken cancellationToken = default);
 	}
 
+    public interface IQualityAssessmentProcessRepository : IGenericRepository<QualityAssessmentProcess, Guid, AppDbContext>
+    {
+    }
+
+    public interface IQualityAssessmentAssignmentRepository : IGenericRepository<QualityAssessmentAssignment, Guid, AppDbContext>
+    {
+    }
+
+    public interface IQualityAssessmentDecisionRepository : IGenericRepository<QualityAssessmentDecision, Guid, AppDbContext>
+    {
+    }
+
+    public interface IQualityAssessmentResolutionRepository : IGenericRepository<QualityAssessmentResolution, Guid, AppDbContext>
+    {
+    }
+
 	public class QualityAssessmentStrategyRepository : GenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>, IQualityAssessmentStrategyRepository
 	{
 		public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
@@ -48,4 +64,24 @@ namespace SRSS.IAM.Repositories.QualityRepo
 			return await FindAllAsync(c => c.ChecklistId == checklistId, isTracking: false, cancellationToken);
 		}
 	}
+
+    public class QualityAssessmentProcessRepository : GenericRepository<QualityAssessmentProcess, Guid, AppDbContext>, IQualityAssessmentProcessRepository
+    {
+        public QualityAssessmentProcessRepository(AppDbContext context) : base(context) { }
+    }
+
+    public class QualityAssessmentAssignmentRepository : GenericRepository<QualityAssessmentAssignment, Guid, AppDbContext>, IQualityAssessmentAssignmentRepository
+    {
+        public QualityAssessmentAssignmentRepository(AppDbContext context) : base(context) { }
+    }
+
+    public class QualityAssessmentDecisionRepository : GenericRepository<QualityAssessmentDecision, Guid, AppDbContext>, IQualityAssessmentDecisionRepository
+    {
+        public QualityAssessmentDecisionRepository(AppDbContext context) : base(context) { }
+    }
+
+    public class QualityAssessmentResolutionRepository : GenericRepository<QualityAssessmentResolution, Guid, AppDbContext>, IQualityAssessmentResolutionRepository
+    {
+        public QualityAssessmentResolutionRepository(AppDbContext context) : base(context) { }
+    }
 }

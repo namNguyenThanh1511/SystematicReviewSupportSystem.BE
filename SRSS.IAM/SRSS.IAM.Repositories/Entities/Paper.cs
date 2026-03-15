@@ -83,6 +83,10 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Identification process snapshots where this paper is included
         public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
+
+        // Quality assessment Ref
+        public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
+        public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
     }
 
     public enum AccessType

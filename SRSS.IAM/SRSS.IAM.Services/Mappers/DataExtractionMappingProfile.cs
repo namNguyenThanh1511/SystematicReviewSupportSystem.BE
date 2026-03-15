@@ -6,6 +6,7 @@ namespace SRSS.IAM.Services.Mappers
 	public static class DataExtractionMappingProfile
 	{
 		// ==================== ExtractionTemplate ====================
+
 		public static ExtractionTemplateDto ToDto(this ExtractionTemplate entity)
 		{
 			return new ExtractionTemplateDto
@@ -14,60 +15,99 @@ namespace SRSS.IAM.Services.Mappers
 				ProtocolId = entity.ProtocolId,
 				Name = entity.Name,
 				Description = entity.Description,
-				Fields = entity.Fields
-					.Where(f => f.ParentFieldId == null) // Only root fields
-					.OrderBy(f => f.OrderIndex)
-					.Select(f => f.ToDto())
-					.ToList()
+				Sections = entity.Sections != null
+					? entity.Sections
+						.OrderBy(s => s.OrderIndex)
+						.Select(s => s.ToDto())
+						.ToList()
+					: new List<ExtractionSectionDto>()
 			};
 		}
 
 		public static ExtractionTemplate ToEntity(this ExtractionTemplateDto dto)
 		{
-			var entity = new ExtractionTemplate
+			return new ExtractionTemplate
 			{
 				Id = dto.TemplateId ?? Guid.NewGuid(),
 				ProtocolId = dto.ProtocolId,
 				Name = dto.Name,
-				Description = dto.Description
+				Description = dto.Description,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow,
+				Sections = new List<ExtractionSection>()
 			};
-
-			// Recursively convert fields
-			entity.Fields = dto.Fields
-				.SelectMany(fieldDto => fieldDto.ToEntitiesRecursive(entity.Id, null))
-				.ToList();
-
-			return entity;
 		}
 
 		public static void UpdateEntity(this ExtractionTemplateDto dto, ExtractionTemplate entity)
 		{
 			entity.Name = dto.Name;
 			entity.Description = dto.Description;
-			// Fields will be handled separately in service logic
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
+			// Sections/Fields will be handled separately in service logic
+		}
+
+		// ==================== ExtractionSection ====================
+
+		public static ExtractionSectionDto ToDto(this ExtractionSection entity)
+		{
+			return new ExtractionSectionDto
+			{
+				SectionId = entity.Id,
+				Name = entity.Name,
+				Description = entity.Description,
+				SectionType = (int)entity.SectionType,
+				OrderIndex = entity.OrderIndex,
+				Fields = entity.Fields != null
+					? entity.Fields
+						.Where(f => f.ParentFieldId == null) // Only root fields
+						.OrderBy(f => f.OrderIndex)
+						.Select(f => f.ToDto())
+						.ToList()
+					: new List<ExtractionFieldDto>()
+			};
+		}
+
+		public static ExtractionSection ToEntity(this ExtractionSectionDto dto, Guid templateId)
+		{
+			return new ExtractionSection
+			{
+				Id = dto.SectionId ?? Guid.NewGuid(),
+				TemplateId = templateId,
+				Name = dto.Name,
+				Description = dto.Description,
+				SectionType = (SectionType)dto.SectionType,
+				OrderIndex = dto.OrderIndex,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
+			};
 		}
 
 		// ==================== ExtractionField (Recursive) ====================
+
 		public static ExtractionFieldDto ToDto(this ExtractionField entity)
 		{
 			return new ExtractionFieldDto
 			{
 				FieldId = entity.Id,
-				TemplateId = entity.TemplateId,
+				SectionId = entity.SectionId,
 				ParentFieldId = entity.ParentFieldId,
 				Name = entity.Name,
 				Instruction = entity.Instruction,
-				FieldType = Enum.Parse<FieldTypeEnum>(entity.FieldType),
+				FieldType = (int)entity.FieldType,
 				IsRequired = entity.IsRequired,
 				OrderIndex = entity.OrderIndex,
-				Options = entity.Options
-					.OrderBy(o => o.DisplayOrder)
-					.Select(o => o.ToDto())
-					.ToList(),
-				SubFields = entity.SubFields
-					.OrderBy(sf => sf.OrderIndex)
-					.Select(sf => sf.ToDto()) // Recursive call
-					.ToList()
+				Options = entity.Options != null
+					? entity.Options
+						.OrderBy(o => o.DisplayOrder)
+						.Select(o => o.ToDto())
+						.ToList()
+					: new List<FieldOptionDto>(),
+				SubFields = entity.SubFields != null
+					? entity.SubFields
+						.OrderBy(sf => sf.OrderIndex)
+						.Select(sf => sf.ToDto()) // Recursive call
+						.ToList()
+					: new List<ExtractionFieldDto>()
 			};
 		}
 
@@ -76,7 +116,7 @@ namespace SRSS.IAM.Services.Mappers
 		/// </summary>
 		public static List<ExtractionField> ToEntitiesRecursive(
 			this ExtractionFieldDto dto,
-			Guid templateId,
+			Guid sectionId,
 			Guid? parentFieldId)
 		{
 			var entities = new List<ExtractionField>();
@@ -87,36 +127,54 @@ namespace SRSS.IAM.Services.Mappers
 			var field = new ExtractionField
 			{
 				Id = fieldId,
-				TemplateId = templateId,
+				SectionId = sectionId,
 				ParentFieldId = parentFieldId,
 				Name = dto.Name,
 				Instruction = dto.Instruction,
-				FieldType = dto.FieldType.ToString(),
+				FieldType = (FieldType)dto.FieldType,
 				IsRequired = dto.IsRequired,
-				OrderIndex = dto.OrderIndex
+				OrderIndex = dto.OrderIndex,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
 			};
 
 			// Add options
-			field.Options = dto.Options.Select(o => new FieldOption
+			if (dto.Options != null && dto.Options.Count > 0)
 			{
-				Id = o.OptionId ?? Guid.NewGuid(),
-				FieldId = fieldId,
-				Value = o.Value,
-				DisplayOrder = o.DisplayOrder
-			}).ToList();
+				field.Options = dto.Options
+					.Select(o => new FieldOption
+					{
+						Id = o.OptionId ?? Guid.NewGuid(),
+						FieldId = fieldId,
+						Value = o.Value,
+						DisplayOrder = o.DisplayOrder > 0 ? o.DisplayOrder : 0,
+						CreatedAt = DateTimeOffset.UtcNow,
+						ModifiedAt = DateTimeOffset.UtcNow
+					})
+					.ToList();
+			}
+			else
+			{
+				field.Options = new List<FieldOption>();
+			}
 
 			entities.Add(field);
 
 			// Recursively add sub-fields
-			foreach (var subFieldDto in dto.SubFields)
+			if (dto.SubFields != null && dto.SubFields.Count > 0)
 			{
-				entities.AddRange(subFieldDto.ToEntitiesRecursive(templateId, fieldId));
+				foreach (var subFieldDto in dto.SubFields)
+				{
+					var subEntities = subFieldDto.ToEntitiesRecursive(sectionId, fieldId);
+					entities.AddRange(subEntities);
+				}
 			}
 
 			return entities;
 		}
 
 		// ==================== FieldOption ====================
+
 		public static FieldOptionDto ToDto(this FieldOption entity)
 		{
 			return new FieldOptionDto
@@ -128,27 +186,35 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
-
-		// ==================== DataExtractionStrategy ====================
-		public static DataExtractionStrategyDto ToDto(this DataExtractionStrategy entity)
+		public static FieldOption ToEntity(this FieldOptionDto dto, Guid fieldId)
 		{
-			return new DataExtractionStrategyDto
+			return new FieldOption
 			{
-				ExtractionStrategyId = entity.Id,
-				ProtocolId = entity.ProtocolId,
-				Description = entity.Description
+				Id = dto.OptionId ?? Guid.NewGuid(),
+				FieldId = fieldId,
+				Value = dto.Value,
+				DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 0,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
 			};
 		}
 
-		// ==================== List Extensions ====================
+		// ==================== Batch Operations ====================
+
 		public static List<ExtractionTemplateDto> ToDtoList(this IEnumerable<ExtractionTemplate> entities)
 		{
-			return entities.Select(e => e.ToDto()).ToList();
+			return entities
+				.Where(e => e != null)
+				.Select(e => e.ToDto())
+				.ToList();
 		}
 
-		public static List<DataExtractionStrategyDto> ToDtoList(this IEnumerable<DataExtractionStrategy> entities)
+		public static List<ExtractionTemplate> ToEntityList(this IEnumerable<ExtractionTemplateDto> dtos)
 		{
-			return entities.Select(e => e.ToDto()).ToList();
+			return dtos
+				.Where(d => d != null)
+				.Select(d => d.ToEntity())
+				.ToList();
 		}
 	}
 }

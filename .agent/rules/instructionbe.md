@@ -193,4 +193,4 @@ var entity = new MyEntity
 - Avoid UI concerns
 - **DO NOT** add try-catch blocks in controllers
 - **DO** throw exceptions in service layer with clear messages
-- **ALWAYS** use `new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero)` instead of `DateTimeOffset.UtcNow`
+- **ALWAYS** use `DateTimeOffset.UtcNow`

@@ -25,6 +25,9 @@ using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
 using SRSS.IAM.Repositories.PaperAssignmentRepo;
 using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
+using SRSS.IAM.Repositories.PaperPdfRepo;
+using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
+using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -100,5 +103,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
 		IPaperAssignmentRepository PaperAssignments { get; }
 		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+		IPaperPdfRepository PaperPdfs { get; }
+		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
+		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
 	}
 }

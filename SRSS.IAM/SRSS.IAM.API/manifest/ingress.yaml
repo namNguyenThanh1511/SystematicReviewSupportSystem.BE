@@ -5,11 +5,6 @@ metadata:
   namespace: amayakuro
 
 spec:
-  tls:
-  - hosts:
-    - srss.amayakuro.com
-    - srss-db.amayakuro.com
-    secretName: secret-tls
   rules:
   - host: srss.amayakuro.com
     http:
@@ -29,6 +24,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: srss-db-service
+            name: srss-iam-db-service
             port:
-              number: 1433
+              number: 5432

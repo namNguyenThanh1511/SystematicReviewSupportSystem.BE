@@ -64,4 +64,35 @@ namespace SRSS.IAM.Repositories.Entities
 		FlatForm = 0,
 		MatrixGrid = 1
 	}
+
+	/// <summary>
+	/// Trạng thái của Data Extraction Process
+	/// </summary>
+	public enum ExtractionProcessStatus
+	{
+		NotStarted = 0,
+		InProgress = 1,
+		Completed = 2
+	}
+
+	/// <summary>
+	/// Trạng thái công việc của Reviewer trong ExtractionPaperTask
+	/// </summary>
+	public enum ReviewerTaskStatus
+	{
+		NotStarted = 0,
+		InProgress = 1,
+		Completed = 2
+	}
+
+	/// <summary>
+	/// Trạng thái tổng quát của Paper trong ExtractionPaperTask
+	/// </summary>
+	public enum PaperExtractionStatus
+	{
+		NotStarted = 0,
+		InProgress = 1,
+		AwaitingConsensus = 2,
+		Completed = 3
+	}
 }

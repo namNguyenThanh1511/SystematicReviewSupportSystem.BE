@@ -62,6 +62,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
             services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
             services.AddScoped<IDataExtractionService, DataExtractionService>();
+            services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
             services.AddScoped<ISynthesisService, SynthesisService>();
 
 

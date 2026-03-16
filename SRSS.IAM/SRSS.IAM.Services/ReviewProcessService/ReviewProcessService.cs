@@ -9,6 +9,7 @@ using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.DataExtraction;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -100,9 +101,20 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+                //Auto-create Data Extraction Process for the new ReviewProcess
+                var dataExtractionProcess = new Repositories.Entities.DataExtractionProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Notes = "Auto-created data extraction process",
+                    Status = Repositories.Entities.ExtractionProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
 
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
+                await _unitOfWork.DataExtractionProcesses.AddAsync(dataExtractionProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -142,6 +154,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             }
 
+            // if (reviewProcess.DataExtractionProcess != null)
+            // {
+            //     response.DataExtractionProcess!.DataExtractionStatistics = await _dataExtractionService.GetDataExtractionStatisticsAsync(reviewProcess.DataExtractionProcess.Id, cancellationToken);
+            // }
 
             return response;
         }
@@ -450,6 +466,20 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         Notes = reviewProcess.StudySelectionProcess.Notes,
                         CreatedAt = reviewProcess.StudySelectionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.StudySelectionProcess.ModifiedAt
+                    }
+                    : null,
+                DataExtractionProcess = reviewProcess.DataExtractionProcess != null
+                    ? new DataExtractionProcessResponse
+                    {
+                        Id = reviewProcess.DataExtractionProcess.Id,
+                        ReviewProcessId = reviewProcess.DataExtractionProcess.ReviewProcessId,
+                        Status = reviewProcess.DataExtractionProcess.Status,
+                        StatusText = reviewProcess.DataExtractionProcess.Status.ToString(),
+                        StartedAt = reviewProcess.DataExtractionProcess.StartedAt,
+                        CompletedAt = reviewProcess.DataExtractionProcess.CompletedAt,
+                        Notes = reviewProcess.DataExtractionProcess.Notes,
+                        CreatedAt = reviewProcess.DataExtractionProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.DataExtractionProcess.ModifiedAt
                     }
                     : null
             };

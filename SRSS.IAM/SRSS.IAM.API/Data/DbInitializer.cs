@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SRSS.IAM.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 using System.Text.Json;
 
 namespace SRSS.IAM.API.Data
@@ -22,6 +23,9 @@ namespace SRSS.IAM.API.Data
         // ── Study Selection Process IDs ─────────────────────────────────
 		private static readonly Guid HarStudySelectionProcessId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
+        // ── Data Extraction Process IDs ─────────────────────────────────
+		private static readonly Guid HarDataExtractionProcessId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+
         // ── Search Execution IDs ─────────────────────────────────────────
         private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
@@ -32,6 +36,11 @@ namespace SRSS.IAM.API.Data
 		private static readonly Guid Paper1Id = Guid.Parse("66666666-6666-6666-6666-666666666666");
 		private static readonly Guid Paper2Id = Guid.Parse("77777777-7777-7777-7777-777777777777");
 		private static readonly Guid Paper3Id = Guid.Parse("88888888-8888-8888-8888-888888888888");
+
+		// ── Screening Resolution IDs ─────────────────────────────────────
+		private static readonly Guid ScreeningRes1Id = Guid.Parse("d1111111-2222-3333-4444-555555555555");
+		private static readonly Guid ScreeningRes2Id = Guid.Parse("d2222222-2222-3333-4444-555555555555");
+		private static readonly Guid ScreeningRes3Id = Guid.Parse("d3333333-2222-3333-4444-555555555555");
 
 		// ── Core Governance IDs ──────────────────────────────────────────
 		private static readonly Guid ReviewNeed1Id = Guid.Parse("a1111111-1111-1111-1111-111111111111");
@@ -130,9 +139,11 @@ namespace SRSS.IAM.API.Data
 			await SeedReviewProcessesAsync(context);
 			await SeedIdentificationProcessesAsync(context);
 			await SeedStudySelectionProcessesAsync(context);
+			await SeedDataExtractionProcessesAsync(context);
             await SeedSearchExecutionsAsync(context);
 			await SeedImportBatchesAsync(context);
 			await SeedPapersAsync(context);
+			await SeedScreeningResolutionsAsync(context);
 			await SeedCoreGovernanceAsync(context);
 
 			// ── Protocol Planning Phase ─────────────────────────────
@@ -345,6 +356,25 @@ namespace SRSS.IAM.API.Data
 			await context.SaveChangesAsync();
         }
 
+		private static async Task SeedDataExtractionProcessesAsync(AppDbContext context)
+		{
+			if (await context.DataExtractionProcesses.AnyAsync(x => x.Id == HarDataExtractionProcessId))
+			{
+				return;
+			}
+			var dataExtractionProcess = new DataExtractionProcess
+			{
+				Id = HarDataExtractionProcessId,
+				ReviewProcessId = HarReviewProcessId,
+				Status = ExtractionProcessStatus.NotStarted,
+				Notes = "Auto-created data extraction process mock",
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
+			};
+			await context.DataExtractionProcesses.AddAsync(dataExtractionProcess);
+			await context.SaveChangesAsync();
+		}
+
         private static async Task SeedSearchExecutionsAsync(AppDbContext context)
 		{
 			if (await context.SearchExecutions.AnyAsync(x => x.Id == ScopusSearchExecutionId))
@@ -481,6 +511,62 @@ namespace SRSS.IAM.API.Data
 			};
 
 			await context.Papers.AddRangeAsync(papers);
+			await context.SaveChangesAsync();
+		}
+
+		private static async Task SeedScreeningResolutionsAsync(AppDbContext context)
+		{
+			if (await context.ScreeningResolutions.AnyAsync(x => x.Id == ScreeningRes1Id || x.Id == ScreeningRes2Id || x.Id == ScreeningRes3Id))
+			{
+				return;
+			}
+
+			// Mock that Paper1 and Paper2 PASSED the Full-Text Screening.
+			// Mock that Paper3 FAILED the Full-Text Screening.
+			var resolutions = new List<ScreeningResolution>
+			{
+				new ScreeningResolution
+				{
+					Id = ScreeningRes1Id,
+					StudySelectionProcessId = HarStudySelectionProcessId,
+					PaperId = Paper1Id,
+					Phase = ScreeningPhase.FullText,
+					FinalDecision = ScreeningDecisionType.Include,
+					ResolvedAt = DateTimeOffset.UtcNow,
+					ResolvedBy = AdminUserId,
+					ResolutionNotes = "Paper clearly matching all inclusion criteria",
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+				},
+				new ScreeningResolution
+				{
+					Id = ScreeningRes2Id,
+					StudySelectionProcessId = HarStudySelectionProcessId,
+					PaperId = Paper2Id,
+					Phase = ScreeningPhase.FullText,
+					FinalDecision = ScreeningDecisionType.Include,
+					ResolvedAt = DateTimeOffset.UtcNow,
+					ResolvedBy = AdminUserId,
+					ResolutionNotes = "Excellent empirical setup, full text looks great",
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+				},
+				new ScreeningResolution
+				{
+					Id = ScreeningRes3Id,
+					StudySelectionProcessId = HarStudySelectionProcessId,
+					PaperId = Paper3Id,
+					Phase = ScreeningPhase.FullText,
+					FinalDecision = ScreeningDecisionType.Exclude,
+					ResolvedAt = DateTimeOffset.UtcNow,
+					ResolvedBy = ClientUserId,
+					ResolutionNotes = "Failed on exclusion criteria #2",
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+				}
+			};
+
+			await context.ScreeningResolutions.AddRangeAsync(resolutions);
 			await context.SaveChangesAsync();
 		}
 

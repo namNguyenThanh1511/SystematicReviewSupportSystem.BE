@@ -6,6 +6,12 @@ metadata:
 data:
   appsettings.Production.json: |-
     {
+      "CorsSettings": {
+        "AllowedOrigins": [
+          "http://localhost:3000",
+          "https://systematic-review-support-system-we-woad.vercel.app"
+        ]
+      },
       "JwtSettings": {
         "ValidIssuer": "SRSS",
         "ValidAudience": "SRSSUsers",

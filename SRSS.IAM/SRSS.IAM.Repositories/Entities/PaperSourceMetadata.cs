@@ -17,7 +17,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Issue { get; set; }
         public string? Pages { get; set; }
         public string? Keywords { get; set; }
-        
         public string? Publisher { get; set; }
         public string? PublishedDate { get; set; }
         public int? Year { get; set; }
@@ -25,9 +24,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string? EISSN { get; set; }
         public string? Language { get; set; }
         public string? Md5 { get; set; }
-
+        public List<string> AppliedFields { get; set; } = new List<string>();
         public DateTimeOffset ExtractedAt { get; set; }
-
         public Paper? Paper { get; set; }
     }
 }

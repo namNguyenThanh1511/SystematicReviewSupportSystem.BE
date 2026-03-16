@@ -196,6 +196,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? Issue { get; set; }
         public string? Pages { get; set; }
         public string? Keywords { get; set; }
+        public string? Language { get; set; }
         public string? Publisher { get; set; }
         public int? Year { get; set; }
         public string? ISSN { get; set; }

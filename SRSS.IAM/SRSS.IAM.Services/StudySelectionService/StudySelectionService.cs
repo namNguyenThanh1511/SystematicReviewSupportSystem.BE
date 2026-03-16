@@ -702,7 +702,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                         ? await MapToResolutionResponse(resolution, paperTitle, userNames, cancellationToken)
                         : null,
                     Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
-                    MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken)
+                    MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
+                    ExtractionResult = await GetExtractionResultAsync(paper, cancellationToken)
 
                 });
             }
@@ -713,6 +714,36 @@ namespace SRSS.IAM.Services.StudySelectionService
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
+            };
+        }
+
+        private async Task<ExtractionResultResponse?> GetExtractionResultAsync(Paper paper, CancellationToken cancellationToken)
+        {
+            var grobidSource = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                paper.Id,
+                cancellationToken);
+
+            if (grobidSource == null) return null;
+
+            return new ExtractionResultResponse
+            {
+                Title = grobidSource.Title,
+                Authors = grobidSource.Authors,
+                Abstract = grobidSource.Abstract,
+                DOI = grobidSource.DOI,
+                Journal = grobidSource.Journal,
+                Volume = grobidSource.Volume,
+                Issue = grobidSource.Issue,
+                Pages = grobidSource.Pages,
+                Keywords = grobidSource.Keywords,
+                Publisher = grobidSource.Publisher,
+                PublishedDate = grobidSource.PublishedDate,
+                Year = grobidSource.Year,
+                ISSN = grobidSource.ISSN,
+                EISSN = grobidSource.EISSN,
+                Language = grobidSource.Language,
+                Md5 = grobidSource.Md5,
+                UpdatedFields = grobidSource.AppliedFields ?? new List<string>()
             };
         }
 
@@ -1084,6 +1115,16 @@ namespace SRSS.IAM.Services.StudySelectionService
                 _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paperId);
                 var grobidDto = await _grobidService.ExtractHeaderAsync(request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
 
+                var grobidDoi = grobidDto.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
+                var paperDoi = paper.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
+
+                if (!string.IsNullOrWhiteSpace(grobidDoi) &&
+                    !string.IsNullOrWhiteSpace(paperDoi) &&
+                    !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+                }
+
                 if (!string.IsNullOrWhiteSpace(grobidDto.RawXml))
                 {
                     var headerResult = new GrobidHeaderResult
@@ -1182,6 +1223,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                         Authors = sourceMeta.Authors,
                         Abstract = sourceMeta.Abstract,
                         DOI = sourceMeta.DOI,
+                        Language = sourceMeta.Language,
                         Journal = sourceMeta.Journal,
                         Volume = sourceMeta.Volume,
                         Issue = sourceMeta.Issue,

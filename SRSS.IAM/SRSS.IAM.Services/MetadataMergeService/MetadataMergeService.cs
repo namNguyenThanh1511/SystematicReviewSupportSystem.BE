@@ -13,56 +13,105 @@ namespace SRSS.IAM.Services.MetadataMergeService
             }
 
             var lowerFields = fields.Select(f => f.ToLowerInvariant()).ToList();
+            var applied = sourceMetadata.AppliedFields ?? new List<string>();
+
+            void MarkApplied(string fieldName)
+            {
+                if (!applied.Contains(fieldName)) applied.Add(fieldName);
+            }
 
             if (lowerFields.Contains("title") && !string.IsNullOrWhiteSpace(sourceMetadata.Title))
+            {
                 paper.Title = sourceMetadata.Title;
+                MarkApplied("Title");
+            }
 
             if (lowerFields.Contains("authors") && !string.IsNullOrWhiteSpace(sourceMetadata.Authors))
+            {
                 paper.Authors = sourceMetadata.Authors;
+                MarkApplied("Authors");
+            }
 
             if (lowerFields.Contains("abstract") && !string.IsNullOrWhiteSpace(sourceMetadata.Abstract))
+            {
                 paper.Abstract = sourceMetadata.Abstract;
+                MarkApplied("Abstract");
+            }
 
             if (lowerFields.Contains("doi") && !string.IsNullOrWhiteSpace(sourceMetadata.DOI))
+            {
                 paper.DOI = sourceMetadata.DOI;
+                MarkApplied("DOI");
+            }
 
             if (lowerFields.Contains("journal") && !string.IsNullOrWhiteSpace(sourceMetadata.Journal))
+            {
                 paper.Journal = sourceMetadata.Journal;
+                MarkApplied("Journal");
+            }
 
             if (lowerFields.Contains("volume") && !string.IsNullOrWhiteSpace(sourceMetadata.Volume))
+            {
                 paper.Volume = sourceMetadata.Volume;
+                MarkApplied("Volume");
+            }
 
             if (lowerFields.Contains("issue") && !string.IsNullOrWhiteSpace(sourceMetadata.Issue))
+            {
                 paper.Issue = sourceMetadata.Issue;
+                MarkApplied("Issue");
+            }
 
             if (lowerFields.Contains("pages") && !string.IsNullOrWhiteSpace(sourceMetadata.Pages))
+            {
                 paper.Pages = sourceMetadata.Pages;
+                MarkApplied("Pages");
+            }
 
             if (lowerFields.Contains("publisher") && !string.IsNullOrWhiteSpace(sourceMetadata.Publisher))
+            {
                 paper.Publisher = sourceMetadata.Publisher;
+                MarkApplied("Publisher");
+            }
 
             if (lowerFields.Contains("year") && sourceMetadata.Year.HasValue)
             {
                 paper.PublicationYearInt = sourceMetadata.Year.Value;
                 paper.PublicationYear = sourceMetadata.Year.Value.ToString();
+                MarkApplied("Year");
             }
 
-            // Note: If you want to support keywords, language, etc., you can add them here
             if (lowerFields.Contains("keywords") && !string.IsNullOrWhiteSpace(sourceMetadata.Keywords))
+            {
                 paper.Keywords = sourceMetadata.Keywords;
+                MarkApplied("Keywords");
+            }
 
             if (lowerFields.Contains("language") && !string.IsNullOrWhiteSpace(sourceMetadata.Language))
+            {
                 paper.Language = sourceMetadata.Language;
+                MarkApplied("Language");
+            }
 
             if (lowerFields.Contains("issn") && !string.IsNullOrWhiteSpace(sourceMetadata.ISSN))
+            {
                 paper.JournalIssn = sourceMetadata.ISSN;
+                MarkApplied("ISSN");
+            }
 
             if (lowerFields.Contains("eissn") && !string.IsNullOrWhiteSpace(sourceMetadata.EISSN))
+            {
                 paper.JournalEIssn = sourceMetadata.EISSN;
+                MarkApplied("EISSN");
+            }
                 
             if (lowerFields.Contains("md5") && !string.IsNullOrWhiteSpace(sourceMetadata.Md5))
+            {
                 paper.Md5 = sourceMetadata.Md5;
+                MarkApplied("Md5");
+            }
 
+            sourceMetadata.AppliedFields = applied;
             return Task.CompletedTask;
         }
 

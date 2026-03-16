@@ -1,7 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
-using System.Diagnostics;
 
 namespace SRSS.IAM.Repositories.ScreeningDecisionRepo
 {
@@ -44,8 +42,8 @@ namespace SRSS.IAM.Repositories.ScreeningDecisionRepo
             return await _context.ScreeningDecisions
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    sd => sd.StudySelectionProcessId == studySelectionProcessId 
-                        && sd.PaperId == paperId 
+                    sd => sd.StudySelectionProcessId == studySelectionProcessId
+                        && sd.PaperId == paperId
                         && sd.ReviewerId == reviewerId,
                     cancellationToken);
         }
@@ -58,8 +56,8 @@ namespace SRSS.IAM.Repositories.ScreeningDecisionRepo
         {
             return await _context.ScreeningDecisions
                 .AnyAsync(
-                    sd => sd.StudySelectionProcessId == studySelectionProcessId 
-                        && sd.PaperId == paperId 
+                    sd => sd.StudySelectionProcessId == studySelectionProcessId
+                        && sd.PaperId == paperId
                         && sd.ReviewerId == reviewerId,
                     cancellationToken);
         }

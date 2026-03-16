@@ -12,8 +12,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260314164331_AddMd5AndExtraGrobidFields")]
-    partial class AddMd5AndExtraGrobidFields
+    [Migration("20260316002203_merged")]
+    partial class merged
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1225,9 +1225,16 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("paper_id");
 
+                    b.Property<int>("Phase")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("ProjectMemberId")
                         .HasColumnType("uuid")
                         .HasColumnName("project_member_id");
+
+                    b.Property<Guid>("StudySelectionProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("study_selection_process_id");
 
                     b.HasKey("Id");
 
@@ -1235,9 +1242,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("ProjectMemberId");
 
-                    b.HasIndex("PaperId", "ProjectMemberId")
+                    b.HasIndex("StudySelectionProcessId");
+
+                    b.HasIndex("PaperId", "ProjectMemberId", "StudySelectionProcessId", "Phase")
                         .IsUnique()
-                        .HasDatabaseName("uq_paper_assignment_paper_member");
+                        .HasDatabaseName("uq_paper_assignment_paper_member_process_phase");
 
                     b.ToTable("paper_assignments", (string)null);
                 });
@@ -2413,6 +2422,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<int>("CurrentPhase")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -2975,9 +2987,17 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
+                        .WithMany("PaperAssignments")
+                        .HasForeignKey("StudySelectionProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("Paper");
 
                     b.Navigation("ProjectMember");
+
+                    b.Navigation("StudySelectionProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -3503,6 +3523,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionProcess", b =>
                 {
                     b.Navigation("FullTextScreening");
+
+                    b.Navigation("PaperAssignments");
 
                     b.Navigation("ScreeningDecisions");
 

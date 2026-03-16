@@ -5,6 +5,8 @@ using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.DTOs.Paper;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -16,10 +18,12 @@ namespace SRSS.IAM.API.Controllers
     public class StudySelectionController : BaseController
     {
         private readonly IStudySelectionService _studySelectionService;
+        private readonly IPaperService _paperService;
 
-        public StudySelectionController(IStudySelectionService studySelectionService)
+        public StudySelectionController(IStudySelectionService studySelectionService, IPaperService paperService)
         {
             _studySelectionService = studySelectionService;
+            _paperService = paperService;
         }
 
         /// <summary>
@@ -163,6 +167,18 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get the current screening phase status of a Study Selection Process
+        /// </summary>
+        [HttpGet("study-selection/{studySelectionProcessId}/phase-status")]
+        public async Task<ActionResult<ApiResponse<StudySelectionPhaseStatusResponse>>> GetPhaseStatus(
+            [FromRoute] Guid studySelectionProcessId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            return Ok(result, "Study Selection phase status retrieved successfully.");
+        }
+
+        /// <summary>
         /// Get all papers with their decisions and resolutions (paginated, with search/filter/sort)
         /// </summary>
         [HttpGet("study-selection/{id}/papers")]
@@ -265,6 +281,32 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _studySelectionService.GetTitleAbstractScreeningAsync(id, cancellationToken);
             return Ok(result, "Title/Abstract screening retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get papers eligible for Title/Abstract screening (Step 1)
+        /// </summary>
+        [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
+        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
+            [FromRoute] Guid studySelectionProcessId,
+            [FromQuery] CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetTitleAbstractEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
+            return Ok(result, "Title/Abstract eligible papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get papers eligible for Full-Text screening (Step 2)
+        /// </summary>
+        [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
+        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
+            [FromRoute] Guid studySelectionProcessId,
+            [FromQuery] CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetFullTextEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
+            return Ok(result, "Full-Text eligible papers retrieved successfully.");
         }
     }
 }

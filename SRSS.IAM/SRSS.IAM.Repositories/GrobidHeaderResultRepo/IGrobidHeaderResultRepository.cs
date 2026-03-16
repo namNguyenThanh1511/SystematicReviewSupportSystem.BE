@@ -6,5 +6,6 @@ namespace SRSS.IAM.Repositories.GrobidHeaderResultRepo
 {
     public interface IGrobidHeaderResultRepository : IGenericRepository<GrobidHeaderResult, Guid, AppDbContext>
     {
+        Task<GrobidHeaderResult?> GetLatestGrobidHeaderResultAsync(Guid paperId, CancellationToken cancellationToken = default);
     }
 }

@@ -6,5 +6,6 @@ namespace SRSS.IAM.Repositories.PaperPdfRepo
 {
     public interface IPaperPdfRepository : IGenericRepository<PaperPdf, Guid, AppDbContext>
     {
+        Task<PaperPdf?> GetLatestPaperPdfAsync(Guid paperId, CancellationToken cancellationToken = default);
     }
 }

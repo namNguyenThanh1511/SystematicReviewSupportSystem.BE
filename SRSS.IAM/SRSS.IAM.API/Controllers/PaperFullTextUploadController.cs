@@ -17,13 +17,16 @@ namespace SRSS.IAM.API.Controllers
     {
         private readonly ISupabaseStorageService _storageService;
         private readonly IStudySelectionService _studySelectionService;
+        private readonly ILogger<PaperFullTextUploadController> _logger;
 
         public PaperFullTextUploadController(
             ISupabaseStorageService storageService,
-            IStudySelectionService studySelectionService)
+            IStudySelectionService studySelectionService,
+            ILogger<PaperFullTextUploadController> logger)
         {
             _storageService = storageService;
             _studySelectionService = studySelectionService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -60,7 +63,9 @@ namespace SRSS.IAM.API.Controllers
             }
 
             // Step 1: Upload PDF to Supabase Storage
+            _logger.LogInformation("Uploading PDF for Paper {PaperId} in Process {ProcessId}", request.PaperId, request.ProcessId);
             var uploadedUrl = await _storageService.UploadArticlePdfAsync(request.File, request.ProjectId, request.ProcessId);
+            _logger.LogInformation("Successfully uploaded PDF for Paper {PaperId} to {Url}", request.PaperId, uploadedUrl);
 
             // Step 2: Update Paper.PdfUrl in the database and optionally extract metadata
             await using var stream = request.ExtractWithGrobid ? request.File.OpenReadStream() : null;

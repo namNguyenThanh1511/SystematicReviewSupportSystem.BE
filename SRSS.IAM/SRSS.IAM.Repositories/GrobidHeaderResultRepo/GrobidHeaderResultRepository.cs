@@ -9,5 +9,11 @@ namespace SRSS.IAM.Repositories.GrobidHeaderResultRepo
         public GrobidHeaderResultRepository(AppDbContext dbContext) : base(dbContext)
         {
         }
+
+        public async Task<GrobidHeaderResult?> GetLatestGrobidHeaderResultAsync(Guid paperId, CancellationToken cancellationToken = default)
+        {
+            return await _context.GrobidHeaderResults.OrderByDescending(ghr => ghr.CreatedAt).FirstOrDefaultAsync(ghr => ghr.PaperPdfId == paperId, cancellationToken);
+        }
+        
     }
 }

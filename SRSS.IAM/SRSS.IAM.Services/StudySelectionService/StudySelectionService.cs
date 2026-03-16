@@ -693,6 +693,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                     ConferenceName = paper.ConferenceName,
                     ConferenceLocation = paper.ConferenceLocation,
                     JournalIssn = paper.JournalIssn,
+                    JournalEIssn = paper.JournalEIssn,
+                    Md5 = paper.Md5,
                     Status = status,
                     StatusText = status.ToString(),
                     FinalDecision = finalDecision,

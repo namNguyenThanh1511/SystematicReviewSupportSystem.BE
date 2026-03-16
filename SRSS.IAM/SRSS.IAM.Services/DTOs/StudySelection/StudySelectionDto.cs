@@ -167,6 +167,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? ConferenceName { get; set; }
         public string? ConferenceLocation { get; set; }
         public string? JournalIssn { get; set; }
+        public string? JournalEIssn { get; set; }
+        public string? Md5 { get; set; }
         public PaperSelectionStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         /// <summary>

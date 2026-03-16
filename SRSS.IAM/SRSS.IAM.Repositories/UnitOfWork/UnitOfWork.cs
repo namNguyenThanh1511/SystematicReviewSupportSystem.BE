@@ -81,6 +81,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		//private IDataExtractionFormRepository? _extractionForms;
 		//private IDataItemDefinitionRepository? _dataItems;
 		// Data Extraction
+
+		// Quality Assessment
+		private IQualityAssessmentProcessRepository? _qualityAssessmentProcesses;
+		private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
+		private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
+		private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
+
 		private IExtractionTemplateRepository? _extractionTemplates;
 		private IExtractionFieldRepository? _extractionFields;
 		private IFieldOptionRepository? _fieldOptions;
@@ -259,6 +266,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
 		public ITitleAbstractScreeningRepository TitleAbstractScreenings
 			=> _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
+
+		// Quality Assessment
+		public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
+		public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
+		public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
+		public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

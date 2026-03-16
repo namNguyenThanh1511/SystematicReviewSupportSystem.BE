@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
@@ -98,5 +99,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IScreeningDecisionRepository ScreeningDecisions { get; }
 		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
 		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+
+		// Quality Assessment
+		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
+		IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
+		IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
+		IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
+
 	}
 }

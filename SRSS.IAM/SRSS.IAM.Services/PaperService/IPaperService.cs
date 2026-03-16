@@ -1,6 +1,7 @@
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -72,5 +73,23 @@ namespace SRSS.IAM.Services.PaperService
             Guid paperId,
             ApplyMetadataRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
+            Guid studySelectionProcessId,
+            CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
+            Guid studySelectionProcessId,
+            CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperResponse>> GetAssignedPapersByPhaseAsync(
+            Guid studySelectionProcessId,
+            Guid userId,
+            ScreeningPhase phase,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default);
+
     }
 }

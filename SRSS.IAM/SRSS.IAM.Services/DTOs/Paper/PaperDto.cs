@@ -1,4 +1,6 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.Common;
 
 namespace SRSS.IAM.Services.DTOs.Paper
 {
@@ -70,6 +72,12 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string Name { get; set; } = string.Empty;
     }
 
+    public class CheckedDuplicatePapersResponse : PaginatedResponse<PaperResponse>
+    {
+        public ScreeningPhase CurrentPhase { get; set; }
+        public string CurrentPhaseText { get; set; } = string.Empty;
+    }
+
     public class PaperListRequest
     {
         public string? Search { get; set; }
@@ -77,6 +85,14 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public int? Year { get; set; }
         public string? AssignmentStatus { get; set; }
         public ScreeningStage? Stage { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public class CheckedDuplicatePapersRequest
+    {
+        public string? Search { get; set; }
+        public string? AssignmentStatus { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }

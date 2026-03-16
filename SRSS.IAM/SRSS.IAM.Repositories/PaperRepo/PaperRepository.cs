@@ -90,7 +90,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     query = query.Where(p => !p.PaperAssignments.Any());
                 }
             }
- 
+
             // Apply stage filter
             if (stage.HasValue)
             {
@@ -256,6 +256,55 @@ namespace SRSS.IAM.Repositories.PaperRepo
             // Apply ordering and pagination
             var papers = await query
                 .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
+
+        public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            string? search,
+            string? assignmentStatus,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Where(p => paperIds.Contains(p.Id));
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(p =>
+                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply assignment status filter
+            if (!string.IsNullOrWhiteSpace(assignmentStatus))
+            {
+                if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => p.PaperAssignments.Any());
+                }
+                else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => !p.PaperAssignments.Any());
+                }
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderBy(p => p.Title)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);

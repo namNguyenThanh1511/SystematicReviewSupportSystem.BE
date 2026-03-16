@@ -85,6 +85,16 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public TitleAbstractScreeningResponse? TitleAbstractScreening { get; set; }
     }
 
+    public class StudySelectionPhaseStatusResponse
+    {
+        public ScreeningPhase CurrentPhase { get; set; }
+        public string CurrentPhaseText { get; set; } = string.Empty;
+        public bool TitleAbstractStarted { get; set; }
+        public bool TitleAbstractCompleted { get; set; }
+        public bool FullTextStarted { get; set; }
+        public bool FullTextCompleted { get; set; }
+    }
+
     public class TitleAbstractScreeningResponse
     {
         public Guid Id { get; set; }

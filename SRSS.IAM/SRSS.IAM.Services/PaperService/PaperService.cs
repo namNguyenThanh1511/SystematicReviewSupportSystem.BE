@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.NotificationService;
+using SRSS.IAM.Services.StudySelectionService;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -16,16 +18,19 @@ namespace SRSS.IAM.Services.PaperService
         private readonly INotificationService _notificationService;
         private readonly MetadataMergeService.IMetadataMergeService _metadataMergeService;
         private readonly ILogger<PaperService> _logger;
+        private readonly IStudySelectionService _studySelectionService;
 
         public PaperService(
             IUnitOfWork unitOfWork, 
             INotificationService notificationService, 
             MetadataMergeService.IMetadataMergeService metadataMergeService,
+            IStudySelectionService studySelectionService,
             ILogger<PaperService> logger)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _metadataMergeService = metadataMergeService;
+            _studySelectionService = studySelectionService;
             _logger = logger;
         }
 
@@ -73,7 +78,7 @@ namespace SRSS.IAM.Services.PaperService
                 cancellationToken);
 
             // Map to response DTOs
-            var paperResponses = papers.Select(MapToPaperResponse).ToList();
+            var paperResponses = papers.Select(p => MapToPaperResponse(p)).ToList();
 
             return new PaginatedResponse<PaperResponse>
             {
@@ -267,7 +272,7 @@ namespace SRSS.IAM.Services.PaperService
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = papers.Select(MapToPaperResponse).ToList();
+            var paperResponses = papers.Select(p => MapToPaperResponse(p)).ToList();
 
             return new PaginatedResponse<PaperResponse>
             {
@@ -521,8 +526,10 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
-        private static PaperResponse MapToPaperResponse(Paper paper)
+        private static PaperResponse MapToPaperResponse(Paper paper, ScreeningPhase? phase = null)
         {
+            var effectivePhase = phase ?? ScreeningPhase.TitleAbstract;
+
             return new PaperResponse
             {
                 Id = paper.Id,
@@ -555,8 +562,8 @@ namespace SRSS.IAM.Services.PaperService
                 SelectionStatusText = null,
 
                 // Stage
-                Stage = 0,
-                StageText = "TitleAbstract",
+                Stage = (int)effectivePhase,
+                StageText = effectivePhase.ToString(),
 
                 // Assignment Status
                 AssignmentStatus = paper.PaperAssignments?.Any() == true ? 1 : 0,
@@ -656,7 +663,10 @@ namespace SRSS.IAM.Services.PaperService
 
             // 4. Get existing assignments to prevent duplicates
             var existingAssignments = await _unitOfWork.PaperAssignments.FindAllAsync(
-                pa => request.PaperIds.Contains(pa.PaperId) && resolvedMemberIds.Contains(pa.ProjectMemberId),
+                pa => request.PaperIds.Contains(pa.PaperId)
+                    && resolvedMemberIds.Contains(pa.ProjectMemberId)
+                    && pa.StudySelectionProcessId == request.StudySelectionProcessId
+                    && pa.Phase == request.Phase,
                 isTracking: false,
                 cancellationToken: cancellationToken);
 
@@ -666,14 +676,14 @@ namespace SRSS.IAM.Services.PaperService
 
             // 5. Create new assignments
             var newAssignments = new List<PaperAssignment>();
-            
+
             foreach (var paperId in request.PaperIds)
             {
                 foreach (var memberId in resolvedMemberIds)
                 {
                     if (!existingPairs.Contains((paperId, memberId)))
                     {
-                        newAssignments.Add(new PaperAssignment(paperId, memberId));
+                        newAssignments.Add(new PaperAssignment(paperId, memberId, request.StudySelectionProcessId, request.Phase));
                     }
                 }
             }
@@ -761,6 +771,149 @@ namespace SRSS.IAM.Services.PaperService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToPaperResponse(paper);
+        }
+        
+
+        public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
+            Guid studySelectionProcessId,
+            CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Papers that passed deduplication (eligible for Step 1: Title/Abstract)
+            var eligiblePaperIds = await _studySelectionService.GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+
+            if (!eligiblePaperIds.Any())
+            {
+                return new CheckedDuplicatePapersResponse
+                {
+                    Items = new List<PaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize,
+                    CurrentPhase = ScreeningPhase.TitleAbstract,
+                    CurrentPhaseText = ScreeningPhase.TitleAbstract.ToString()
+                };
+            }
+
+            // 2. Fetch papers with pagination and filtering
+            var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
+                eligiblePaperIds,
+                request.Search,
+                request.AssignmentStatus,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            var paperResponses = papers.Select(p => MapToPaperResponse(p, ScreeningPhase.TitleAbstract)).ToList();
+
+            return new CheckedDuplicatePapersResponse
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                CurrentPhase = ScreeningPhase.TitleAbstract,
+                CurrentPhaseText = ScreeningPhase.TitleAbstract.ToString()
+            };
+        }
+
+        public async Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
+            Guid studySelectionProcessId,
+            CheckedDuplicatePapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Papers included after Title/Abstract screening (eligible for Step 2: Full-Text)
+            var eligiblePaperIds = await _unitOfWork.ScreeningResolutions.GetResolvedPaperIdsByPhaseAsync(
+                studySelectionProcessId,
+                ScreeningPhase.TitleAbstract,
+                ScreeningDecisionType.Include,
+                cancellationToken);
+
+            // Ensure distinct IDs
+            eligiblePaperIds = eligiblePaperIds.Distinct().ToList();
+
+            if (!eligiblePaperIds.Any())
+            {
+                return new CheckedDuplicatePapersResponse
+                {
+                    Items = new List<PaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize,
+                    CurrentPhase = ScreeningPhase.FullText,
+                    CurrentPhaseText = ScreeningPhase.FullText.ToString()
+                };
+            }
+
+            // 2. Fetch papers with pagination and filtering
+            var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
+                eligiblePaperIds,
+                request.Search,
+                request.AssignmentStatus,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            var paperResponses = papers.Select(p => MapToPaperResponse(p, ScreeningPhase.FullText)).ToList();
+
+            return new CheckedDuplicatePapersResponse
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize,
+                CurrentPhase = ScreeningPhase.FullText,
+                CurrentPhaseText = ScreeningPhase.FullText.ToString()
+            };
+        }
+
+        public async Task<PaginatedResponse<PaperResponse>> GetAssignedPapersByPhaseAsync(
+            Guid studySelectionProcessId,
+            Guid userId,
+            ScreeningPhase phase,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Get assignments for this user in this phase within the study selection process
+            // EF Core translates the navigation property access into a JOIN in the SQL query.
+            var assignments = await _unitOfWork.PaperAssignments
+                .FindAllAsync(pa => pa.StudySelectionProcessId == studySelectionProcessId 
+                                    && pa.ProjectMember.UserId == userId 
+                                    && pa.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var paperIds = assignments.Select(pa => pa.PaperId).ToList();
+
+            if (!paperIds.Any())
+            {
+                return new PaginatedResponse<PaperResponse>
+                {
+                    Items = new List<PaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize
+                };
+            }
+
+            // 2. Fetch papers with pagination and search
+            var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
+                paperIds,
+                request.Search,
+                null, // Filtered implicitly by paperIds
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            var paperResponses = papers.Select(p => MapToPaperResponse(p, phase)).ToList();
+
+            return new PaginatedResponse<PaperResponse>
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
         }
     }
 }

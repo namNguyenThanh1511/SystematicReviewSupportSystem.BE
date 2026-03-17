@@ -936,7 +936,7 @@ namespace SRSS.IAM.Services.IdentificationService
                                 ProjectId = identificationProcess.ReviewProcess.ProjectId,
 
                                 // Import tracking
-                                Source = "RIS",
+                                Source = source,
                                 ImportBatchId = importBatch.Id,
                                 ImportedAt = importBatch.ImportedAt,
                                 ImportedBy = importBatch.ImportedBy,

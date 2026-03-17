@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -12,9 +13,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260316150555_AddSnowballingFeature")]
+    partial class AddSnowballingFeature
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,15 +52,15 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("OriginPaperId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("PublicationYear")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("RawReference")
                         .HasColumnType("text");
-
-                    b.Property<Guid>("ReviewProcessId")
-                        .HasColumnType("uuid");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -71,7 +74,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("OriginPaperId");
 
-                    b.HasIndex("ReviewProcessId");
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("CandidatePapers", (string)null);
                 });
@@ -820,12 +823,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("paper_id");
 
-                    b.Property<int>("SourceType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("source_type");
-
                     b.HasKey("Id");
 
                     b.HasIndex("IdentificationProcessId");
@@ -1229,10 +1226,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
 
-                    b.Property<Guid?>("ReviewProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_process_id");
-
                     b.Property<string>("Source")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -1269,8 +1262,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ImportBatchId");
 
                     b.HasIndex("ProjectId");
-
-                    b.HasIndex("ReviewProcessId");
 
                     b.ToTable("papers", (string)null);
                 });
@@ -2730,15 +2721,15 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
                         .WithMany()
-                        .HasForeignKey("ReviewProcessId")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("OriginPaper");
 
-                    b.Navigation("ReviewProcess");
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
@@ -3060,16 +3051,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany()
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("ImportBatch");
 
                     b.Navigation("Project");
-
-                    b.Navigation("ReviewProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperAssignment", b =>

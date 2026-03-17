@@ -51,5 +51,33 @@ namespace SRSS.IAM.Services.GrobidClient
             
             return dto;
         }
+
+        public async Task<List<GrobidReferenceDto>> ExtractReferencesAsync(Stream pdfStream, string fileName, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting GROBID reference extraction for file {FileName}", fileName);
+            string teiXml = string.Empty;
+
+            try
+            {
+                teiXml = await _grobidClient.ProcessReferencesAsync(
+                    pdfStream: pdfStream,
+                    consolidateCitations: 1,
+                    includeRawCitations: true,
+                    returnBibtex: false
+                );
+                
+                _logger.LogInformation("Successfully received TEI XML references from GROBID for {FileName}", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to extract references from GROBID for file {FileName}", fileName);
+                return new List<GrobidReferenceDto>();
+            }
+
+            var dtos = GrobidTeiParser.ParseReferences(teiXml);
+            _logger.LogInformation("Successfully parsed {Count} references from TEI XML for {FileName}", dtos.Count, fileName);
+            
+            return dtos;
+        }
     }
 }

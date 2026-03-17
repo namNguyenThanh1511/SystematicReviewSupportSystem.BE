@@ -12,6 +12,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? Notes { get; set; }
         [JsonConverter(typeof(JsonStringEnumConverter))]
         public QualityAssessmentProcessStatus Status { get; set; }
+        public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         // Keep these simplified for basic response, allow expansion

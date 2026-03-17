@@ -20,7 +20,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		// Quality Assessment Processes
 		Task<QualityAssessmentProcessResponse> GetProcessByReviewProcessIdAsync(Guid reviewProcessId);
         Task<QualityAssessmentProcessResponse> CreateProcessAsync(CreateQualityAssessmentProcessDto dto);
-        Task<QualityAssessmentProcessResponse> UpdateProcessAsync(Guid id, UpdateQualityAssessmentProcessDto dto);
+		Task<QualityAssessmentProcessResponse> StartProcessAsync(Guid qaId);
+		Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid qaId);
 
         // Assignments
         Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto);

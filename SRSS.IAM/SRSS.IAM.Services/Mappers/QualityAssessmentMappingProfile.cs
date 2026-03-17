@@ -137,19 +137,20 @@ namespace SRSS.IAM.Services.Mappers
         public static QualityAssessmentProcessResponse ToResponse(this QualityAssessmentProcess entity)
         {
             if (entity == null) return null!;
-            
+
             return new QualityAssessmentProcessResponse
             {
                 Id = entity.Id,
                 ReviewProcessId = entity.ReviewProcessId,
                 Notes = entity.Notes,
                 Status = entity.Status,
+                StatusText = entity.Status.ToString(),
                 StartedAt = entity.StartedAt,
                 CompletedAt = entity.CompletedAt
             };
         }
-
-        public static void UpdateStatus(this QualityAssessmentProcess entity, QualityAssessmentProcessStatus newStatus)
+		
+		public static void UpdateStatus(this QualityAssessmentProcess entity, QualityAssessmentProcessStatus newStatus)
         {
             if (newStatus != entity.Status)
             {

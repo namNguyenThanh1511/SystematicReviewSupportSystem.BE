@@ -101,8 +101,20 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
+                //Auto-create Quality Assessment Process for the new ReviewProcess
+                var qualityAssessmentProcess = new Repositories.Entities.QualityAssessmentProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Notes = "Auto-created quality assessment process",
+                    Status = Repositories.Entities.Enums.QualityAssessmentProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
+                await _unitOfWork.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -450,6 +462,18 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         Notes = reviewProcess.StudySelectionProcess.Notes,
                         CreatedAt = reviewProcess.StudySelectionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.StudySelectionProcess.ModifiedAt
+                    }
+                    : null,
+                QualityAssessmentProcess = reviewProcess.QualityAssessmentProcess != null
+                    ? new DTOs.QualityAssessment.QualityAssessmentProcessResponse
+                    {
+                        Id = reviewProcess.QualityAssessmentProcess.Id,
+                        ReviewProcessId = reviewProcess.QualityAssessmentProcess.ReviewProcessId,
+                        Status = reviewProcess.QualityAssessmentProcess.Status,
+                        StatusText = reviewProcess.QualityAssessmentProcess.Status.ToString(),
+                        StartedAt = reviewProcess.QualityAssessmentProcess.StartedAt,
+                        CompletedAt = reviewProcess.QualityAssessmentProcess.CompletedAt,
+                        Notes = reviewProcess.QualityAssessmentProcess.Notes
                     }
                     : null
             };

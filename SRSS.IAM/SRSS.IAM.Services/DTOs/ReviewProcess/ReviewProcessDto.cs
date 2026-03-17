@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.DTOs.QualityAssessment;
 
 namespace SRSS.IAM.Services.DTOs.ReviewProcess
 {
@@ -36,5 +37,6 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
 
         public IdentificationProcessResponse? IdentificationProcess { get; set; }
         public StudySelectionProcessResponse? StudySelectionProcess { get; set; }
+        public QualityAssessmentProcessResponse? QualityAssessmentProcess { get; set; }
     }
 }

@@ -106,21 +106,28 @@ namespace SRSS.IAM.API.Controllers
 			var result = await _service.GetProcessByReviewProcessIdAsync(reviewProcessId);
 			if (result == null)
 				return NotFound(new ApiResponse<QualityAssessmentProcessResponse> { IsSuccess = false, Message = "Process not found" });
-			return Ok(result, "Lấy thông tin process thành công");
+			return Ok(result, "Lấy thông tin QA process thành công");
 		}
 
 		[HttpPost("process")]
 		public async Task<ActionResult<ApiResponse<QualityAssessmentProcessResponse>>> CreateProcess([FromBody] CreateQualityAssessmentProcessDto dto)
 		{
 			var result = await _service.CreateProcessAsync(dto);
-			return Ok(result, "Tạo process thành công");
+			return Ok(result, "Tạo QA process thành công");
 		}
 
-        [HttpPut("process/{id}")]
-		public async Task<ActionResult<ApiResponse<QualityAssessmentProcessResponse>>> UpdateProcess(Guid id, [FromBody] UpdateQualityAssessmentProcessDto dto)
+		[HttpPost("{id}/start")]
+		public async Task<ActionResult<ApiResponse<QualityAssessmentProcessResponse>>> StartProcess(Guid id)
 		{
-			var result = await _service.UpdateProcessAsync(id, dto);
-			return Ok(result, "Cập nhật process thành công");
+			var result = await _service.StartProcessAsync(id);
+			return Ok(result, "Khởi động Quality Assessment Process thành công");
+		}
+
+		[HttpPost("{id}/complete")]
+		public async Task<ActionResult<ApiResponse<QualityAssessmentProcessResponse>>> CompleteProcess(Guid id)
+		{
+			var result = await _service.CompleteProcessAsync(id);
+			return Ok(result, "Kết thúc Quality Assessment Process thành công");
 		}
 
 		// ==================== Assignments ====================

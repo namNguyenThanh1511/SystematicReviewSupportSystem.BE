@@ -178,23 +178,31 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return entity.ToResponse();
         }
 
-        public async Task<QualityAssessmentProcessResponse> UpdateProcessAsync(Guid id, UpdateQualityAssessmentProcessDto dto)
+        public async Task<QualityAssessmentProcessResponse> StartProcessAsync(Guid id)
         {
             var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
-                ?? throw new KeyNotFoundException($"Process {id} not found");
+                ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
 
-            dto.UpdateEntity(entity);
-            
-            // No revert to InProgress or NotStarted once Completed
-            if (dto.Status == QualityAssessmentProcessStatus.InProgress && entity.Status != QualityAssessmentProcessStatus.Completed)
-                entity.Start();
-            else if (dto.Status == QualityAssessmentProcessStatus.Completed) entity.Complete();
+            entity.Start();
 
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
             return entity.ToResponse();
         }
+
+        public async Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid id)
+        {
+            var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
+                ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
+
+            entity.Complete();
+
+            await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
+            await _unitOfWork.SaveChangesAsync();
+
+            return entity.ToResponse();
+        }       
 
         // ==================== Assignments ====================
         public async Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto)

@@ -37,14 +37,6 @@ spec:
             items:
               - key: appsettings.Production.json
                 path: appsettings.Production.json
-
-      topologySpreadConstraints:
-        - maxSkew: 2
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              topology.kubernetes.io/zone: sgmy
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

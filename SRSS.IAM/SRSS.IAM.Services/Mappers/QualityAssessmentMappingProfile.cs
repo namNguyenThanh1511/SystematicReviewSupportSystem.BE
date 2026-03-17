@@ -1,4 +1,5 @@
 ﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
 
@@ -125,5 +126,145 @@ namespace SRSS.IAM.Services.Mappers
 		{
 			return entities.Select(e => e.ToDto()).ToList();
 		}
+
+        // ==================== QualityAssessmentProcess ====================
+        public static void UpdateEntity(this UpdateQualityAssessmentProcessDto dto, QualityAssessmentProcess entity)
+        {
+            entity.Notes = dto.Notes;
+            // Status transitions handled by domain entity methods
+        }
+
+        public static QualityAssessmentProcessResponse ToResponse(this QualityAssessmentProcess entity)
+        {
+            if (entity == null) return null!;
+            
+            return new QualityAssessmentProcessResponse
+            {
+                Id = entity.Id,
+                ReviewProcessId = entity.ReviewProcessId,
+                Notes = entity.Notes,
+                Status = entity.Status,
+                StartedAt = entity.StartedAt,
+                CompletedAt = entity.CompletedAt
+            };
+        }
+
+        public static void UpdateStatus(this QualityAssessmentProcess entity, QualityAssessmentProcessStatus newStatus)
+        {
+            if (newStatus != entity.Status)
+            {
+                entity.Status = newStatus;
+                if (newStatus == QualityAssessmentProcessStatus.InProgress && entity.StartedAt == null)
+                    entity.StartedAt = DateTimeOffset.UtcNow;
+                if (newStatus == QualityAssessmentProcessStatus.Completed && entity.CompletedAt == null)
+                    entity.CompletedAt = DateTimeOffset.UtcNow;
+            }
+        }
+
+        // ==================== QualityAssessmentDecision ====================
+        public static QualityAssessmentDecision ToEntity(this CreateQualityAssessmentDecisionDto dto, Guid reviewerId)
+        {
+            return new QualityAssessmentDecision
+            {
+                ReviewerId = reviewerId,
+                PaperId = dto.PaperId,
+                QualityCriterionId = dto.QualityCriterionId,
+                Value = dto.Value,
+                Comment = dto.Comment
+            };
+        }
+
+        public static QualityAssessmentDecision ToEntity(this CreateQualityAssessmentDecisionItemDto dto, Guid reviewerId, Guid paperId)
+        {
+            return new QualityAssessmentDecision
+            {
+                ReviewerId = reviewerId,
+                PaperId = paperId,
+                QualityCriterionId = dto.QualityCriterionId,
+                Value = dto.Value,
+                Comment = dto.Comment
+            };
+        }
+
+        public static void UpdateEntity(this UpdateQualityAssessmentDecisionDto dto, QualityAssessmentDecision entity)
+        {
+            entity.Value = dto.Value;
+            entity.Comment = dto.Comment;
+        }
+
+        public static void UpdateEntity(this UpdateQualityAssessmentDecisionItemDto dto, QualityAssessmentDecision entity)
+        {
+            entity.Value = dto.Value;
+            entity.Comment = dto.Comment;
+        }
+
+        public static QualityAssessmentDecision ToEntity(this UpdateQualityAssessmentDecisionItemDto dto, Guid reviewerId, Guid paperId)
+        {
+            return new QualityAssessmentDecision
+            {
+                ReviewerId = reviewerId,
+                PaperId = paperId,
+                QualityCriterionId = dto.QualityCriterionId,
+                Value = dto.Value,
+                Comment = dto.Comment
+            };
+        }
+
+        public static QualityAssessmentDecisionDto ToDto(this QualityAssessmentDecision entity)
+        {
+            if (entity == null) return null!;
+            
+            return new QualityAssessmentDecisionDto
+            {
+                Id = entity.Id,
+                ReviewerId = entity.ReviewerId,
+                ReviewerName = entity.Reviewer?.FullName,
+                PaperId = entity.PaperId,
+                QualityCriterionId = entity.QualityCriterionId,
+                CriterionQuestion = entity.QualityCriterion?.Question,
+                Value = entity.Value,
+                Comment = entity.Comment,
+            };
+        }
+
+        // ==================== QualityAssessmentResolution ====================
+        public static QualityAssessmentResolution ToEntity(this CreateQualityAssessmentResolutionDto dto)
+        {
+            return new QualityAssessmentResolution
+            {
+                QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
+                PaperId = dto.PaperId,
+                ResolvedBy = dto.ResolvedBy,
+                FinalDecision = dto.FinalDecision,
+                FinalScore = dto.FinalScore,
+                ResolutionNotes = dto.ResolutionNotes,
+                ResolvedAt = DateTimeOffset.UtcNow
+            };
+        }
+
+        public static void UpdateEntity(this UpdateQualityAssessmentResolutionDto dto, QualityAssessmentResolution entity)
+        {
+            entity.FinalDecision = dto.FinalDecision;
+            entity.FinalScore = dto.FinalScore;
+            entity.ResolutionNotes = dto.ResolutionNotes;
+        }
+
+        public static QualityAssessmentResolutionResponse ToResponse(this QualityAssessmentResolution entity)
+        {
+            if (entity == null) return null!;
+            
+            return new QualityAssessmentResolutionResponse
+            {
+                Id = entity.Id,
+                QualityAssessmentProcessId = entity.QualityAssessmentProcessId,
+                PaperId = entity.PaperId,
+                FinalDecision = entity.FinalDecision,
+                FinalScore = entity.FinalScore,
+                ResolutionNotes = entity.ResolutionNotes,
+                ResolvedBy = entity.ResolvedBy,
+                ResolvedByName = entity.ResolvedBy.ToString(),
+                ResolvedAt = entity.ResolvedAt
+            };
+        }
 	}
 }

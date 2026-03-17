@@ -155,18 +155,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 
             if (process == null) return null;
             
-            // Should verify includes? For now assume lazy loading or explicit loading if needed later
-            // Or better yet, implement mapping
-            
-            return new QualityAssessmentProcessResponse
-            {
-                Id = process.Id,
-                ReviewProcessId = process.ReviewProcessId,
-                Notes = process.Notes,
-                Status = process.Status,
-                StartedAt = process.StartedAt,
-                CompletedAt = process.CompletedAt
-            };
+            return process.ToResponse();
         }        
 		
 		public async Task<QualityAssessmentProcessResponse> CreateProcessAsync(CreateQualityAssessmentProcessDto dto)
@@ -186,15 +175,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.QualityAssessmentProcesses.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             
-            return new QualityAssessmentProcessResponse
-            {
-                Id = entity.Id,
-                ReviewProcessId = entity.ReviewProcessId,
-                Notes = entity.Notes,
-                Status = entity.Status,
-                StartedAt = entity.StartedAt,
-                CompletedAt = entity.CompletedAt
-            };
+            return entity.ToResponse();
         }
 
         public async Task<QualityAssessmentProcessResponse> UpdateProcessAsync(Guid id, UpdateQualityAssessmentProcessDto dto)
@@ -202,30 +183,17 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException($"Process {id} not found");
 
-            entity.Notes = dto.Notes;
+            dto.UpdateEntity(entity);
             
-            // Handle status transitions
-            if (dto.Status != entity.Status)
-            {
-                entity.Status = dto.Status;
-                if (dto.Status == QualityAssessmentProcessStatus.InProgress && entity.StartedAt == null)
-                    entity.StartedAt = DateTimeOffset.UtcNow;
-                if (dto.Status == QualityAssessmentProcessStatus.Completed && entity.CompletedAt == null)
-                    entity.CompletedAt = DateTimeOffset.UtcNow;
-            }
+            // No revert to InProgress or NotStarted once Completed
+            if (dto.Status == QualityAssessmentProcessStatus.InProgress && entity.Status != QualityAssessmentProcessStatus.Completed)
+                entity.Start();
+            else if (dto.Status == QualityAssessmentProcessStatus.Completed) entity.Complete();
 
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
-            return new QualityAssessmentProcessResponse
-            {
-                Id = entity.Id,
-                ReviewProcessId = entity.ReviewProcessId,
-                Notes = entity.Notes,
-                Status = entity.Status,
-                StartedAt = entity.StartedAt,
-                CompletedAt = entity.CompletedAt
-            };
+            return entity.ToResponse();
         }
 
         // ==================== Assignments ====================
@@ -383,14 +351,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (existing != null)
                 throw new InvalidOperationException("Decision for this criterion already exists. Use update instead.");
 
-            var decision = new QualityAssessmentDecision
-            {
-                ReviewerId = userId,
-                PaperId = dto.PaperId,
-                QualityCriterionId = dto.QualityCriterionId,
-                Value = dto.Value,
-                Comment = dto.Comment,
-            };
+            var decision = dto.ToEntity(userId);
             
             await _unitOfWork.QualityAssessmentDecisions.AddAsync(decision);
             await _unitOfWork.SaveChangesAsync();
@@ -425,14 +386,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     throw new InvalidOperationException($"Decision for criterion {dto.QualityCriterionId} already exists. Use update instead.");
                 }
 
-                var decision = new QualityAssessmentDecision
-                {
-                    ReviewerId = userId,
-                    PaperId = paperId,
-                    QualityCriterionId = dto.QualityCriterionId,
-                    Value = dto.Value,
-                    Comment = dto.Comment,
-                };
+                var decision = dto.ToEntity(userId, paperId);
                 
                 await _unitOfWork.QualityAssessmentDecisions.AddAsync(decision);
             }
@@ -460,8 +414,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (decision == null)
                 throw new KeyNotFoundException("Decision not found.");
 
-            decision.Value = dto.Value;
-            decision.Comment = dto.Comment;
+            dto.UpdateEntity(decision);
 
             await _unitOfWork.QualityAssessmentDecisions.UpdateAsync(decision);
             await _unitOfWork.SaveChangesAsync();
@@ -487,21 +440,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
                 if (decision != null)
                 {
-                    decision.Value = dto.Value;
-                    decision.Comment = dto.Comment;
+                    dto.UpdateEntity(decision);
                     await _unitOfWork.QualityAssessmentDecisions.UpdateAsync(decision);
                 }
                 else
                 {
                     // Create if it doesn't exist to allow upsert-like behavior in batch
-                    var newDecision = new QualityAssessmentDecision
-                    {
-                        ReviewerId = userId,
-                        PaperId = paperId,
-                        QualityCriterionId = dto.QualityCriterionId,
-                        Value = dto.Value,
-                        Comment = dto.Comment,
-                    };
+                    var newDecision = dto.ToEntity(userId, paperId);
                     await _unitOfWork.QualityAssessmentDecisions.AddAsync(newDecision);
                 }
             }
@@ -512,17 +457,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         {
             var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdWithDetailsAsync(paperId);
 
-            return decisions.Select(d => new QualityAssessmentDecisionDto
-            {
-                Id = d.Id,
-                ReviewerId = d.ReviewerId,
-                ReviewerName = d.Reviewer.FullName, // Assuming User has FullName
-                PaperId = d.PaperId,
-                QualityCriterionId = d.QualityCriterionId,
-                CriterionQuestion = d.QualityCriterion.Question,
-                Value = d.Value,
-                Comment = d.Comment,
-            }).ToList();
+            return decisions.Select(d => d.ToDto()).ToList();
         }
 
         // ==================== Resolutions ====================
@@ -534,32 +469,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             
             if (existing != null) throw new InvalidOperationException("Resolution already exists for this paper");
 
-            var entity = new QualityAssessmentResolution
-            {
-                QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
-                PaperId = dto.PaperId,
-                FinalDecision = dto.FinalDecision,
-                FinalScore = dto.FinalScore,
-                ResolutionNotes = dto.ResolutionNotes,
-                ResolvedBy = dto.ResolvedBy,
-                ResolvedAt = DateTimeOffset.UtcNow
-            };
+            var entity = dto.ToEntity();
 
             await _unitOfWork.QualityAssessmentResolutions.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync();
             
-            return new QualityAssessmentResolutionResponse
-            {
-                Id = entity.Id,
-                QualityAssessmentProcessId = entity.QualityAssessmentProcessId,
-                PaperId = entity.PaperId,
-                FinalDecision = entity.FinalDecision,
-                FinalScore = entity.FinalScore,
-                ResolutionNotes = entity.ResolutionNotes,
-                ResolvedBy = entity.ResolvedBy,
-                ResolvedByName = entity.ResolvedBy.ToString(), // TODO: Fetch user name
-                ResolvedAt = entity.ResolvedAt
-            };
+            return entity.ToResponse();
         }
 
         public async Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionDto dto)
@@ -567,27 +482,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var entity = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.Id == id)
                 ?? throw new KeyNotFoundException("Resolution not found");
 
-            entity.FinalDecision = dto.FinalDecision;
-            entity.FinalScore = dto.FinalScore;
-            entity.ResolutionNotes = dto.ResolutionNotes;
+            dto.UpdateEntity(entity);
             // ResolvedBy / At usually stay with creator or update? Let's assume update logic if needed
             // But Resolution is often final.
             
             await _unitOfWork.QualityAssessmentResolutions.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
-            return new QualityAssessmentResolutionResponse
-            {
-                Id = entity.Id,
-                QualityAssessmentProcessId = entity.QualityAssessmentProcessId,
-                PaperId = entity.PaperId,
-                FinalDecision = entity.FinalDecision,
-                FinalScore = entity.FinalScore,
-                ResolutionNotes = entity.ResolutionNotes,
-                ResolvedBy = entity.ResolvedBy,
-                ResolvedByName = entity.ResolvedBy.ToString(), // Placeholder
-                ResolvedAt = entity.ResolvedAt
-            };
+            return entity.ToResponse();
         }
         
         public async Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId)
@@ -595,18 +497,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.PaperId == paperId);
             if (res == null) return null!;
             
-            return new QualityAssessmentResolutionResponse
-            {
-                Id = res.Id,
-                QualityAssessmentProcessId = res.QualityAssessmentProcessId,
-                PaperId = res.PaperId,
-                FinalDecision = res.FinalDecision,
-                FinalScore = res.FinalScore,
-                ResolutionNotes = res.ResolutionNotes,
-                ResolvedBy = res.ResolvedBy,
-                ResolvedByName = res.ResolvedBy.ToString(), // Placeholder
-                ResolvedAt = res.ResolvedAt
-            };
+            return res.ToResponse();
         }
     }
 }

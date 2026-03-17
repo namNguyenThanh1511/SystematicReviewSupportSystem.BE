@@ -1,4 +1,5 @@
 using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -12,6 +13,7 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid IdentificationProcessId { get; set; }
         public Guid PaperId { get; set; }
         public bool IncludedAfterDedup { get; set; }
+        public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
 
         // Navigation Properties
         public IdentificationProcess IdentificationProcess { get; set; } = null!;

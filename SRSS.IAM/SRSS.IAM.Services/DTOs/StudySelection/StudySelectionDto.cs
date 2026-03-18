@@ -81,7 +81,9 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+        [Obsolete("Use PhaseStatistics instead for phase-specific counts.")]
         public SelectionStatisticsResponse SelectionStatistics { get; set; }
+        public PhaseStatisticsResponse PhaseStatistics { get; set; } = new();
         public TitleAbstractScreeningResponse? TitleAbstractScreening { get; set; }
     }
 
@@ -281,6 +283,12 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public int PendingCount { get; set; }
         public double CompletionPercentage { get; set; }
         public List<ExclusionReasonBreakdownItem> ExclusionReasonBreakdown { get; set; } = new();
+    }
+
+    public class PhaseStatisticsResponse
+    {
+        public SelectionStatisticsResponse TitleAbstract { get; set; } = new();
+        public SelectionStatisticsResponse FullText { get; set; } = new();
     }
 
     public class ExclusionReasonBreakdownItem

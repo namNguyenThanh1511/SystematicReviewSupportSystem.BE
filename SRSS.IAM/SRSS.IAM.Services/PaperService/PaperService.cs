@@ -823,10 +823,8 @@ namespace SRSS.IAM.Services.PaperService
             CancellationToken cancellationToken = default)
         {
             // 1. Papers included after Title/Abstract screening (eligible for Step 2: Full-Text)
-            var eligiblePaperIds = await _unitOfWork.ScreeningResolutions.GetResolvedPaperIdsByPhaseAsync(
+            var eligiblePaperIds = await _studySelectionService.GetFullTextEligiblePapersAsync(
                 studySelectionProcessId,
-                ScreeningPhase.TitleAbstract,
-                ScreeningDecisionType.Include,
                 cancellationToken);
 
             // Ensure distinct IDs

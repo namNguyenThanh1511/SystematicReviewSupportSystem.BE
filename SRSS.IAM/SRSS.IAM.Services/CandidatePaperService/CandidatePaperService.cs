@@ -15,6 +15,8 @@ using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.GrobidClient.DTOs;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.ReferenceMatchingService;
+using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
 
 namespace SRSS.IAM.Services.CandidatePaperService
 {
@@ -24,17 +26,20 @@ namespace SRSS.IAM.Services.CandidatePaperService
         private readonly IGrobidService _grobidService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<CandidatePaperService> _logger;
+        private readonly IReferenceMatchingService _referenceMatchingService;
 
         public CandidatePaperService(
             IUnitOfWork unitOfWork,
             IGrobidService grobidService,
             IHttpClientFactory httpClientFactory,
-            ILogger<CandidatePaperService> logger)
+            ILogger<CandidatePaperService> logger,
+            IReferenceMatchingService referenceMatchingService)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _referenceMatchingService = referenceMatchingService;
         }
 
         public async Task ExtractReferencesFromPaperAsync(Guid processId, Guid paperId, CancellationToken cancellationToken = default)
@@ -144,7 +149,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 {
                     CandidateId = c.Id,
                     ReviewProcessId = c.ReviewProcessId,
-                    OriginPaperId = c.OriginPaperId,
+                    OriginPaperId = c.OriginPaperId ?? Guid.Empty,
                     OriginPaperTitle = c.OriginPaper.Title,
                     OriginPaperAuthors = c.OriginPaper.Authors,
                     Title = c.Title,
@@ -217,16 +222,32 @@ namespace SRSS.IAM.Services.CandidatePaperService
             {
                 foreach (var candidate in candidates)
                 {
-                    // Scoped deduplication by ReviewProcessId
-                    var hasDoiMatch = !string.IsNullOrWhiteSpace(candidate.DOI) &&
-                        await _unitOfWork.Papers.AnyAsync(p => p.ReviewProcessId == processId && p.DOI == candidate.DOI, isTracking: false, cancellationToken);
-
-                    var hasTitleMatch = !string.IsNullOrWhiteSpace(candidate.Title) &&
-                        await _unitOfWork.Papers.AnyAsync(p => p.ReviewProcessId == processId && p.Title.ToLower() == candidate.Title.ToLower(), isTracking: false, cancellationToken);
-
-                    if (hasDoiMatch || hasTitleMatch)
+                    var reference = new ExtractedReference
                     {
-                        candidate.Status = CandidateStatus.Duplicate;
+                        Title = candidate.Title,
+                        Authors = candidate.Authors,
+                        DOI = candidate.DOI,
+                        PublishedYear = candidate.PublicationYear,
+                        RawReference = candidate.RawReference
+                    };
+
+                    var match = await _referenceMatchingService.MatchAsync(reference, cancellationToken);
+
+                    Guid targetPaperId;
+
+                    if (match.MatchedPaper != null && match.ConfidenceScore >= 0.6m)
+                    {
+                        if (match.ConfidenceScore >= 0.85m)
+                        {
+                            candidate.Status = CandidateStatus.Duplicate;
+                        }
+                        else
+                        {
+                            candidate.Status = CandidateStatus.Duplicate;
+                            _logger.LogWarning("Medium confidence match ({Score}) for Candidate {CandidateId} with Paper {PaperId}.", match.ConfidenceScore, candidate.Id, match.MatchedPaper.Id);
+                        }
+
+                        targetPaperId = match.MatchedPaper.Id;
                     }
                     else
                     {
@@ -270,6 +291,34 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         };
 
                         await _unitOfWork.IdentificationProcessPapers.AddAsync(snapshotPaper, cancellationToken);
+
+                        targetPaperId = newPaper.Id;
+                    }
+
+                    if (candidate.OriginPaperId.HasValue && candidate.OriginPaperId.Value != targetPaperId)
+                    {
+                        var sourceId = candidate.OriginPaperId.Value;
+                        var exists = await _unitOfWork.PaperCitations.AnyAsync(
+                            x => x.SourcePaperId == sourceId && x.TargetPaperId == targetPaperId,
+                            isTracking: false,
+                            cancellationToken);
+
+                        if (!exists)
+                        {
+                            var citation = new PaperCitation
+                            {
+                                Id = Guid.NewGuid(),
+                                SourcePaperId = sourceId,
+                                TargetPaperId = targetPaperId,
+                                RawReference = candidate.RawReference,
+                                ConfidenceScore = match.ConfidenceScore > 0 ? match.ConfidenceScore : 0.9m,
+                                Source = CitationSource.Grobid,
+                                CreatedAt = DateTimeOffset.UtcNow,
+                                ModifiedAt = DateTimeOffset.UtcNow
+                            };
+
+                            await _unitOfWork.PaperCitations.AddAsync(citation, cancellationToken);
+                        }
                     }
 
                     candidate.ModifiedAt = DateTimeOffset.UtcNow;

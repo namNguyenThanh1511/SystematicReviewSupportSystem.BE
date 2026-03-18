@@ -49,10 +49,19 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
-            string? search,
-            string? assignmentStatus,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+          List<Guid> paperIds,
+          string? search,
+          string? assignmentStatus,
+          int pageNumber,
+          int pageSize,
+          CancellationToken cancellationToken = default);
+
+        Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
+        Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default);
     }
 }

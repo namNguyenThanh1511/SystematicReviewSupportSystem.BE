@@ -31,6 +31,7 @@ using SRSS.IAM.Repositories.PaperPdfRepo;
 using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
+using SRSS.IAM.Repositories.PaperCitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -64,6 +65,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IPaperSourceMetadataRepository? _paperSourceMetadatas;
 		private IGrobidHeaderResultRepository? _grobidHeaderResults;
 		private ICandidatePaperRepository? _candidatePapers;
+		private IPaperCitationRepository? _paperCitations;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -279,6 +281,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 			=> _grobidHeaderResults ??= new GrobidHeaderResultRepository(_dbContext);
 		public ICandidatePaperRepository CandidatePapers
 			=> _candidatePapers ??= new CandidatePaperRepository(_dbContext);
+		public IPaperCitationRepository PaperCitations
+			=> _paperCitations ??= new PaperCitationRepository(_dbContext);
 
 		public void Dispose() => _dbContext.Dispose();
 	}

@@ -26,6 +26,7 @@ using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
@@ -42,7 +43,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
         public static void AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddHttpContextAccessor();
-
+            services.AddHttpClient();
             services.AddSignalR();
 			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 			services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
@@ -73,6 +74,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();
+            services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();

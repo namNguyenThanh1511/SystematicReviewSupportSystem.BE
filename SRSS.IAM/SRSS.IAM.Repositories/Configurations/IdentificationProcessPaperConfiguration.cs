@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
@@ -27,6 +28,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(ipp => ipp.IncludedAfterDedup)
                 .HasColumnName("included_after_dedup")
                 .IsRequired();
+
+            builder.Property(ipp => ipp.SourceType)
+                .HasColumnName("source_type")
+                .IsRequired()
+                .HasDefaultValue(PaperSourceType.DatabaseSearch);
 
             builder.Property(ipp => ipp.CreatedAt)
                 .HasColumnName("created_at")

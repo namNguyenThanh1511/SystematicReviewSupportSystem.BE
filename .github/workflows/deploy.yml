@@ -41,33 +41,19 @@ jobs:
               push: true
               tags: ${{ steps.meta.outputs.tags }}
 
-   # deploy-to-k8s:
-   #    needs: build-and-push
-   #    runs-on: ubuntu-latest
-   #    steps:
-   #       - name: Checkout code
-   #         uses: actions/checkout@v5
+   deploy-to-k8s:
+      needs: build-and-push
+      runs-on: [self-hosted, kubernetes-hosting]
+      timeout-minutes: 10
+      steps:
+         - name: Checkout code
+           uses: actions/checkout@v5
 
-   #       - uses: azure/setup-kubectl@v4
+         - name: Set image SHA tag in deployment manifest
+           run: |
+              SHA_TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+              sed -i "s|image: ghcr.io/${{ github.repository_owner }}/srss-be-api:.*|image: ghcr.io/${{ github.repository_owner }}/srss-be-api:${SHA_TAG}|" SRSS.IAM/SRSS.IAM.API/manifest/deployment.yaml
 
-   #       - uses: Azure/k8s-set-context@v4
-   #         with:
-   #            kubeconfig: ${{ secrets.KUBE_CONFIG }}
-
-   #       - uses: Azure/k8s-create-secret@v4
-   #         with:
-   #            container-registry-url: ghcr.io
-   #            container-registry-username: ${{ github.actor }}
-   #            container-registry-password: ${{ secrets.GITHUB_TOKEN }}
-   #            secret-name: ghcr-secret
-
-   #       - uses: Azure/k8s-deploy@v4
-   #         with:
-   #            action: deploy
-   #            manifests: |
-   #               manifests/deployment.yml
-   #               manifests/service.yml
-   #            images: |
-   #               ghcr.io/${{ github.repository_owner }}/srss-iam-api:${{ github.sha }}
-   #            imagepullsecrets: |
-   #               ghcr-secret
+         - name: Apply manifests
+           run: |
+              kubectl apply -f SRSS.IAM/SRSS.IAM.API/manifest/deployment.yaml

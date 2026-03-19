@@ -1,4 +1,5 @@
 using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -49,7 +50,10 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public string? Source { get; set; }
         public string? SourceRecordId { get; set; }
+        public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
+        public Guid? OriginPaperId { get; set; }
         public Guid? ImportBatchId { get; set; }
+        public Guid? ReviewProcessId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 
@@ -70,6 +74,7 @@ namespace SRSS.IAM.Repositories.Entities
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }
+        public ReviewProcess? ReviewProcess { get; set; }
 
         public Guid ProjectId { get; set; }
         public SystematicReviewProject? Project { get; set; }

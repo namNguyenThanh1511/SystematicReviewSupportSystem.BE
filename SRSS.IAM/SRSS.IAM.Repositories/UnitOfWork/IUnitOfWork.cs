@@ -28,6 +28,7 @@ using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
 using SRSS.IAM.Repositories.PaperPdfRepo;
 using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
+using SRSS.IAM.Repositories.CandidatePaperRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -89,26 +90,27 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractionPaperTaskRepository ExtractionPaperTasks { get; }
         IExtractedDataValueRepository ExtractedDataValues { get; }
 
-        // Synthesis
-        IDataSynthesisStrategyRepository SynthesisStrategies { get; }
-        IDisseminationStrategyRepository DisseminationStrategies { get; }
-        IProjectTimetableRepository Timetables { get; }
-        ISystematicReviewProjectRepository SystematicReviewProjects { get; }
-        IReviewProcessRepository ReviewProcesses { get; }
-        IIdentificationProcessRepository IdentificationProcesses { get; }
-        ISearchExecutionRepository SearchExecutions { get; }
-        IPaperRepository Papers { get; }
-        IImportBatchRepository ImportBatches { get; }
-        IPrismaReportRepository PrismaReports { get; }
-        IDeduplicationResultRepository DeduplicationResults { get; }
-        IScreeningResolutionRepository ScreeningResolutions { get; }
-        IStudySelectionProcessRepository StudySelectionProcesses { get; }
-        IScreeningDecisionRepository ScreeningDecisions { get; }
-        IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
-        IPaperAssignmentRepository PaperAssignments { get; }
-        ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
-        IPaperPdfRepository PaperPdfs { get; }
-        IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
-        IGrobidHeaderResultRepository GrobidHeaderResults { get; }
-    }
+		// Synthesis
+		IDataSynthesisStrategyRepository SynthesisStrategies { get; }
+		IDisseminationStrategyRepository DisseminationStrategies { get; }
+		IProjectTimetableRepository Timetables { get; }
+		ISystematicReviewProjectRepository SystematicReviewProjects { get; }
+		IReviewProcessRepository ReviewProcesses { get; }
+		IIdentificationProcessRepository IdentificationProcesses { get; }
+		ISearchExecutionRepository SearchExecutions { get; }
+		IPaperRepository Papers { get; }
+		IImportBatchRepository ImportBatches { get; }
+		IPrismaReportRepository PrismaReports { get; }
+		IDeduplicationResultRepository DeduplicationResults { get; }
+		IScreeningResolutionRepository ScreeningResolutions { get; }
+		IStudySelectionProcessRepository StudySelectionProcesses { get; }
+		IScreeningDecisionRepository ScreeningDecisions { get; }
+		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
+		IPaperAssignmentRepository PaperAssignments { get; }
+		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+		IPaperPdfRepository PaperPdfs { get; }
+		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
+		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
+		ICandidatePaperRepository CandidatePapers { get; }
+	}
 }

@@ -171,5 +171,97 @@ namespace SRSS.IAM.Services.GrobidClient
 
             return dto;
         }
+
+        public static List<GrobidReferenceDto> ParseReferences(string teiXml)
+        {
+            var dtos = new List<GrobidReferenceDto>();
+            if (string.IsNullOrWhiteSpace(teiXml))
+                return dtos;
+
+            try
+            {
+                var doc = XDocument.Parse(teiXml);
+                XNamespace tei = "http://www.tei-c.org/ns/1.0";
+
+                var listBibl = doc.Descendants(tei + "listBibl").FirstOrDefault();
+                if (listBibl == null) return dtos;
+
+                var biblStructs = listBibl.Elements(tei + "biblStruct");
+                foreach (var bibl in biblStructs)
+                {
+                    var dto = new GrobidReferenceDto();
+                    var analytic = bibl.Element(tei + "analytic");
+                    var monogr = bibl.Element(tei + "monogr");
+
+                    // Title
+                    dto.Title = (string?)analytic?.Element(tei + "title")
+                                ?? (string?)monogr?.Element(tei + "title") 
+                                ?? string.Empty;
+
+                    // Authors
+                    var authorsElem = analytic?.Elements(tei + "author");
+                    if (authorsElem == null || !authorsElem.Any())
+                    {
+                        authorsElem = monogr?.Elements(tei + "author");
+                    }
+                    
+                    if (authorsElem != null)
+                    {
+                        var authorNames = authorsElem.Select(a =>
+                        {
+                            var persName = a.Element(tei + "persName");
+                            if (persName == null) return string.Empty;
+                            
+                            var forenames = persName.Elements(tei + "forename").Select(f => (string?)f).Where(f => !string.IsNullOrEmpty(f)).Select(f => f!);
+                            var surname = (string?)persName.Element(tei + "surname");
+                            
+                            var nameParts = forenames.ToList();
+                            if (!string.IsNullOrWhiteSpace(surname))
+                                nameParts.Add(surname!);
+                            
+                            return string.Join(" ", nameParts);
+                        }).Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+
+                        if (authorNames.Any())
+                        {
+                            dto.Authors = string.Join("; ", authorNames);
+                        }
+                    }
+
+                    // DOI
+                    var idnoDoi = (string?)analytic?.Elements(tei + "idno").FirstOrDefault(i => (string?)i.Attribute("type") == "DOI")
+                                  ?? (string?)bibl.Elements(tei + "idno").FirstOrDefault(i => (string?)i.Attribute("type") == "DOI");
+                    dto.DOI = idnoDoi;
+
+                    // PublishedDate / Year
+                    var imprintDate = (string?)monogr?.Element(tei + "imprint")?.Element(tei + "date")?.Attribute("when");
+                    if (!string.IsNullOrWhiteSpace(imprintDate))
+                    {
+                        if (imprintDate.Length >= 4)
+                        {
+                            dto.PublishedYear = imprintDate.Substring(0, 4);
+                        }
+                    }
+
+                    // Note / Raw Reference
+                    var note = bibl.Element(tei + "note");
+                    if (note != null && (string?)note.Attribute("type") == "raw_reference")
+                    {
+                        dto.RawReference = (string?)note;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(dto.Title) || !string.IsNullOrWhiteSpace(dto.RawReference))
+                    {
+                        dtos.Add(dto);
+                    }
+                }
+            }
+            catch
+            {
+                // Return whatever we managed to parse
+            }
+
+            return dtos;
+        }
     }
 }

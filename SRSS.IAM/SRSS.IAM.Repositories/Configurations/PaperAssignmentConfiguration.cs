@@ -24,6 +24,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("project_member_id")
                 .IsRequired();
 
+            builder.Property(pa => pa.StudySelectionProcessId)
+                .HasColumnName("study_selection_process_id")
+                .IsRequired();
+
             builder.Property(pa => pa.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
@@ -43,14 +47,20 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(pa => pa.ProjectMemberId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Unique constraint: A paper can be assigned to the same reviewer only once
-            builder.HasIndex(pa => new { pa.PaperId, pa.ProjectMemberId })
+            builder.HasOne(pa => pa.StudySelectionProcess)
+                .WithMany(ssp => ssp.PaperAssignments)
+                .HasForeignKey(pa => pa.StudySelectionProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Unique constraint: A paper can be assigned to the same reviewer only once per study selection process per phase
+            builder.HasIndex(pa => new { pa.PaperId, pa.ProjectMemberId, pa.StudySelectionProcessId, pa.Phase })
                 .IsUnique()
-                .HasDatabaseName("uq_paper_assignment_paper_member");
+                .HasDatabaseName("uq_paper_assignment_paper_member_process_phase");
 
             // Additional indexes for performance
             builder.HasIndex(pa => pa.PaperId);
             builder.HasIndex(pa => pa.ProjectMemberId);
+            builder.HasIndex(pa => pa.StudySelectionProcessId);
         }
     }
 }

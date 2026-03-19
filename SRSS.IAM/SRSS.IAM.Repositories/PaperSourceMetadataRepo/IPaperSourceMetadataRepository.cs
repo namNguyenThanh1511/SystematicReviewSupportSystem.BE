@@ -6,5 +6,8 @@ namespace SRSS.IAM.Repositories.PaperSourceMetadataRepo
 {
     public interface IPaperSourceMetadataRepository : IGenericRepository<PaperSourceMetadata, Guid, AppDbContext>
     {
+        Task<PaperSourceMetadata?> GetLatestWithGrobidHeaderByPaperIdAsync(
+            Guid paperId,
+            CancellationToken cancellationToken = default);
     }
 }

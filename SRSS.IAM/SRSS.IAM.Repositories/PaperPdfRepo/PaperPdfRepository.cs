@@ -9,5 +9,13 @@ namespace SRSS.IAM.Repositories.PaperPdfRepo
         public PaperPdfRepository(AppDbContext dbContext) : base(dbContext)
         {
         }
+
+        public async Task<PaperPdf?> GetLatestPaperPdfAsync(Guid paperId, CancellationToken cancellationToken = default)
+        {
+            return await _context.PaperPdfs
+                .Where(p => p.PaperId == paperId)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
     }
 }

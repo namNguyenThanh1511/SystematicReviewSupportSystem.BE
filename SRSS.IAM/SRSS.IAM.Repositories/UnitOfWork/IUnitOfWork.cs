@@ -28,6 +28,7 @@ using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
 using SRSS.IAM.Repositories.PaperPdfRepo;
 using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
+using SRSS.IAM.Repositories.CandidatePaperRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -106,5 +107,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IPaperPdfRepository PaperPdfs { get; }
 		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
 		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
+		ICandidatePaperRepository CandidatePapers { get; }
 	}
 }

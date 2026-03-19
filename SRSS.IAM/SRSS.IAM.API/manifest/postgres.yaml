@@ -36,7 +36,7 @@ spec:
               name: tcppostgres
           envFrom:
             - configMapRef:
-              name: srss-iam-db
+                name: srss-iam-db
             # volumeMounts:
             # - name: srss
             #   mountPath: "/var/opt/mssql"

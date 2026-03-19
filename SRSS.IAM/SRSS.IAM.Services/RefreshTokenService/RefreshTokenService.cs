@@ -55,8 +55,10 @@ namespace SRSS.IAM.Services.RefreshTokenService
 
         public async Task RevokeAsync(string refreshToken)
         {
-            var user = await _unitOfWork.Users.FindSingleAsync(u => u.RefreshToken == refreshToken)
-                       ?? throw new UnauthorizedAccessException("User not found");
+            var user = await _unitOfWork.Users.FindSingleAsync(u => u.RefreshToken == refreshToken);
+            
+            if (user == null) { return; }
+
             user.IsRefreshTokenRevoked = true;
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = null;

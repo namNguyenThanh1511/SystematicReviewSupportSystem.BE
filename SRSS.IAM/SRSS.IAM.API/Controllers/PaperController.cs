@@ -4,8 +4,12 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.DTOs.Identification;
-using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -15,11 +19,13 @@ namespace SRSS.IAM.API.Controllers
     {
         private readonly IIdentificationService _identificationService;
         private readonly IPaperService _paperService;
-
-        public PaperController(IIdentificationService identificationService, IPaperService paperService)
+        private readonly ICurrentUserService _currentUserService;
+ 
+        public PaperController(IIdentificationService identificationService, IPaperService paperService, ICurrentUserService currentUserService)
         {
             _identificationService = identificationService;
             _paperService = paperService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -113,5 +119,63 @@ namespace SRSS.IAM.API.Controllers
             await _paperService.AssignPapersAsync(request, cancellationToken);
             return Ok("Papers assigned successfully.");
         }
+
+        /// <summary>
+        /// Apply selected metadata fields from a metadata source to the canonical paper record.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="request">The selected fields and source metadata ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The updated PaperResponse</returns>
+        [HttpPost("{paperId}/apply-metadata")]
+        public async Task<ActionResult<ApiResponse<PaperResponse>>> ApplyMetadata(
+            [FromRoute] Guid paperId,
+            [FromBody] ApplyMetadataRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.ApplyMetadataAsync(paperId, request, cancellationToken);
+            return Ok(result, "Selected metadata applied successfully.");
+        }
+
+        /// <summary>
+        /// Get assigned papers for the current user in Title/Abstract screening phase
+        /// </summary>
+        [Authorize]
+        [HttpGet("assigned/title-abstract")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetAssignedPapersTitleAbstract(
+            [FromQuery] Guid studySelectionId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _paperService.GetAssignedPapersByPhaseAsync(
+                studySelectionId,
+                userId,
+                ScreeningPhase.TitleAbstract,
+                request,
+                cancellationToken);
+            return Ok(result, "Assigned papers for Title/Abstract screening retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get assigned papers for the current user in Full-Text screening phase
+        /// </summary>
+        [Authorize]
+        [HttpGet("assigned/full-text")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetAssignedPapersFullText(
+            [FromQuery] Guid studySelectionId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _paperService.GetAssignedPapersByPhaseAsync(
+                studySelectionId,
+                userId,
+                ScreeningPhase.FullText,
+                request,
+                cancellationToken);
+            return Ok(result, "Assigned papers for Full-Text screening retrieved successfully.");
+        }
+
     }
 }

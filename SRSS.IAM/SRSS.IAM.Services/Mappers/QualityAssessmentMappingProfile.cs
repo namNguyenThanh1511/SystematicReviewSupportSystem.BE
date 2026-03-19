@@ -35,9 +35,9 @@ namespace SRSS.IAM.Services.Mappers
 		}
 
 		// ==================== QualityChecklist ====================
-		public static QualityChecklistDto ToDto(this QualityChecklist entity)
+		public static QualityAssessmentChecklistDto ToDto(this QualityChecklist entity)
 		{
-			return new QualityChecklistDto
+			return new QualityAssessmentChecklistDto
 			{
 				ChecklistId = entity.Id,
 				QaStrategyId = entity.QaStrategyId,
@@ -45,7 +45,7 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
-		public static QualityChecklist ToEntity(this QualityChecklistDto dto)
+		public static QualityChecklist ToEntity(this QualityAssessmentChecklistDto dto)
 		{
 			return new QualityChecklist
 			{
@@ -55,36 +55,36 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
-		public static void UpdateEntity(this QualityChecklistDto dto, QualityChecklist entity)
+		public static void UpdateEntity(this QualityAssessmentChecklistDto dto, QualityChecklist entity)
 		{
 			entity.QaStrategyId = dto.QaStrategyId;
 			entity.Name = dto.Name;
 		}
 
 		// ==================== QualityCriterion ====================
-		public static QualityCriterionDto ToDto(this QualityCriterion entity)
+		public static QualityAssessmentCriterionDto ToDto(this QualityCriterion entity)
 		{
-			return new QualityCriterionDto
+			return new QualityAssessmentCriterionDto
 			{
-				QualityCriterionId = entity.Id,
+				CriterionId = entity.Id,
 				ChecklistId = entity.ChecklistId,
 				Question = entity.Question,
 				Weight = entity.Weight
 			};
 		}
 
-		public static QualityCriterion ToEntity(this QualityCriterionDto dto)
+		public static QualityCriterion ToEntity(this QualityAssessmentCriterionDto dto)
 		{
 			return new QualityCriterion
 			{
-				Id = dto.QualityCriterionId ?? Guid.Empty,
+				Id = dto.CriterionId ?? Guid.Empty,
 				ChecklistId = dto.ChecklistId,
 				Question = dto.Question,
 				Weight = dto.Weight
 			};
 		}
 
-		public static void UpdateEntity(this QualityCriterionDto dto, QualityCriterion entity)
+		public static void UpdateEntity(this QualityAssessmentCriterionDto dto, QualityCriterion entity)
 		{
 			entity.ChecklistId = dto.ChecklistId;
 			entity.Question = dto.Question;
@@ -97,12 +97,12 @@ namespace SRSS.IAM.Services.Mappers
 			return entities.Select(e => e.ToDto()).ToList();
 		}
 
-		public static List<QualityChecklistDto> ToDtoList(this IEnumerable<QualityChecklist> entities)
+		public static List<QualityAssessmentChecklistDto> ToDtoList(this IEnumerable<QualityChecklist> entities)
 		{
 			return entities.Select(e => e.ToDto()).ToList();
 		}
 
-		public static List<QualityCriterionDto> ToDtoList(this IEnumerable<QualityCriterion> entities)
+		public static List<QualityAssessmentCriterionDto> ToDtoList(this IEnumerable<QualityCriterion> entities)
 		{
 			return entities.Select(e => e.ToDto()).ToList();
 		}
@@ -199,18 +199,6 @@ namespace SRSS.IAM.Services.Mappers
             entity.Comment = dto.Comment;
         }
 
-        public static QualityAssessmentDecision ToEntity(this UpdateQualityAssessmentDecisionItemDto dto, Guid reviewerId, Guid paperId)
-        {
-            return new QualityAssessmentDecision
-            {
-                ReviewerId = reviewerId,
-                PaperId = paperId,
-                QualityCriterionId = dto.QualityCriterionId,
-                Value = dto.Value,
-                Comment = dto.Comment
-            };
-        }
-
         public static QualityAssessmentDecisionDto ToDto(this QualityAssessmentDecision entity)
         {
             if (entity == null) return null!;
@@ -229,13 +217,13 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         // ==================== QualityAssessmentResolution ====================
-        public static QualityAssessmentResolution ToEntity(this CreateQualityAssessmentResolutionDto dto)
+        public static QualityAssessmentResolution ToEntity(this CreateQualityAssessmentResolutionDto dto, Guid resolvedBy)
         {
             return new QualityAssessmentResolution
             {
                 QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
                 PaperId = dto.PaperId,
-                ResolvedBy = dto.ResolvedBy,
+                ResolvedBy = resolvedBy,
                 FinalDecision = dto.FinalDecision,
                 FinalScore = dto.FinalScore,
                 ResolutionNotes = dto.ResolutionNotes,

@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
-using SRSS.IAM.Services.DTOs.Paper;
 
 namespace SRSS.IAM.Services.DTOs.QualityAssessment
 {
@@ -62,7 +61,6 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }
-        public Guid ResolvedBy { get; set; }
     }
 
     public class UpdateQualityAssessmentResolutionDto
@@ -106,24 +104,96 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 
     public class UpdateQualityAssessmentDecisionItemDto
     {
-        public Guid QualityCriterionId { get; set; }
+        public Guid Id { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
     }
 
-    public class MyAssignedPaperDto : PaperResponse
+public class PaperResponse
     {
-        public double CompletionPercentage { get; set; }
-        public string? ResolutionDecision { get; set; }
+        public Guid Id { get; set; }
+
+        // Core Metadata
+        public string Title { get; set; } = string.Empty;
+        public string? Authors { get; set; }
+        public string? Abstract { get; set; }
+        public string? DOI { get; set; }
+        public string? PublicationType { get; set; }
+        public string? PublicationYear { get; set; }
+        public int? PublicationYearInt { get; set; }
+        public DateTimeOffset? PublicationDate { get; set; }
+        public string? Volume { get; set; }
+        public string? Issue { get; set; }
+        public string? Pages { get; set; }
+        public string? Publisher { get; set; }
+        public string? Language { get; set; }
+        public string? Keywords { get; set; }
+        public string? Url { get; set; }
+
+        // Conference Metadata
+        public string? ConferenceName { get; set; }
+        public string? ConferenceLocation { get; set; }
+        public string? ConferenceCountry { get; set; }
+        public int? ConferenceYear { get; set; }
+
+        // Journal Metadata
+        public string? Journal { get; set; }
+        public string? JournalIssn { get; set; }
+
+        // Source Tracking
+        public string? Source { get; set; }
+        public DateTimeOffset? ImportedAt { get; set; }
+        public string? ImportedBy { get; set; }
+
+        // Selection Status (derived dynamically from ScreeningResolution)
+        public SelectionStatus? SelectionStatus { get; set; }
+        public string? SelectionStatusText { get; set; }
+
+        // Access
+        public string? PdfUrl { get; set; }
+        public bool? FullTextAvailable { get; set; }
+        public AccessType? AccessType { get; set; }
+        public string? AccessTypeText { get; set; }
+
+        // Audit
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ModifiedAt { get; set; }
     }
 
-    public class QualityAssessmentSummaryDto
+    /// <summary>
+    /// For reviewer
+    /// </summary>
+    public class AssignedPaperDto : PaperResponse
     {
-        public Guid PaperId { get; set; }
-        public string PaperTitle { get; set; } = string.Empty;
+        /// <summary>
+        /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
+        /// </summary>
+        public double CompletionPercentage { get; set; }
+        public string? Resolution { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public List<QualityAssessmentDecisionDto> Decisions { get; set; } = new();
+    }
+
+    public class QualityAssessmentReviewerDto
+    {
+        public Guid Id { get; set; }
+        public string? Username { get; set; }
+        public string? FullName { get; set; }
+    }
+
+    /// <summary>
+    ///  For leader
+    /// </summary>
+    public class QualityAssessmentPaperDto : PaperResponse
+    {
+        public List<QualityAssessmentReviewerDto> Reviewers { get; set; } = new();
         public List<QualityAssessmentDecisionDto> Decisions { get; set; } = new();
         public QualityAssessmentResolutionDto? Resolution { get; set; }
+        /// <summary>
+        /// Tính theo số lượng reviewer đã hoàn thành trên tổng số reviewer được phân công
+        /// </summary>
         public double CompletionPercentage { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 
     public class QualityAssessmentResolutionDto

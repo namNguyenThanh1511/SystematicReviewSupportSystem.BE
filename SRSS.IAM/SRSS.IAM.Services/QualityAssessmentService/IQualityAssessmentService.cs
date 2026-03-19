@@ -7,15 +7,16 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		// Quality Assessment Strategies
 		Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto);
 		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId);
+		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId);
 		Task DeleteStrategyAsync(Guid strategyId);
 
 		// Quality Checklists
-		Task<List<QualityChecklistDto>> BulkUpsertChecklistsAsync(List<QualityChecklistDto> dtos);
-		Task<List<QualityChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId);
+		Task<List<QualityAssessmentChecklistDto>> BulkUpsertChecklistsAsync(List<QualityAssessmentChecklistDto> dtos);
+		Task<List<QualityAssessmentChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId);
 
 		// Quality Criteria
-		Task<List<QualityCriterionDto>> BulkUpsertCriteriaAsync(List<QualityCriterionDto> dtos);
-		Task<List<QualityCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId);
+		Task<List<QualityAssessmentCriterionDto>> BulkUpsertCriteriaAsync(List<QualityAssessmentCriterionDto> dtos);
+		Task<List<QualityAssessmentCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId);
 
 		// Quality Assessment Processes
 		Task<QualityAssessmentProcessResponse> GetProcessByReviewProcessIdAsync(Guid reviewProcessId);
@@ -23,15 +24,18 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		Task<QualityAssessmentProcessResponse> StartProcessAsync(Guid qaId);
 		Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid qaId);
 
-        // Assignments
-        Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto);
-        Task<List<MyAssignedPaperDto>> GetMyAssignedPapersAsync(Guid userId, Guid reviewProcessId);
+		// Papers
+		Task<List<QualityAssessmentPaperDto>> GetAllPapersAsync(Guid qaId);
+
+		// Assignments
+		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto);
+        Task<List<AssignedPaperDto>> GetMyAssignedPapersAsync(Guid reviewProcessId);
 
         // Decisions
-        Task CreateDecisionAsync(Guid userId, CreateQualityAssessmentDecisionDto dto);
-        Task CreateDecisionsForPaperAsync(Guid userId, Guid paperId, List<CreateQualityAssessmentDecisionItemDto> dtos);
-        Task UpdateDecisionAsync(Guid userId, Guid paperId, Guid criterionId, UpdateQualityAssessmentDecisionDto dto);
-        Task UpdateDecisionsForPaperAsync(Guid userId, Guid paperId, List<UpdateQualityAssessmentDecisionItemDto> dtos);
+        Task CreateDecisionAsync(CreateQualityAssessmentDecisionDto dto);
+        Task CreateDecisionsForPaperAsync(Guid paperId, List<CreateQualityAssessmentDecisionItemDto> dtos);
+        Task UpdateDecisionAsync(Guid id, UpdateQualityAssessmentDecisionDto dto);
+        Task UpdateDecisionsBatchAsync(List<UpdateQualityAssessmentDecisionItemDto> dtos);
         Task<List<QualityAssessmentDecisionDto>> GetDecisionsByPaperIdAsync(Guid paperId);
 
         // Resolutions

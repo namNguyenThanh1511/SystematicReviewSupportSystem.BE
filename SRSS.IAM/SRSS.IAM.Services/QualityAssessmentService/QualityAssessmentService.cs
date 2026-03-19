@@ -8,6 +8,7 @@ using SRSS.IAM.Repositories.Entities.Enums;
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.DTOs.Notification;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -15,11 +16,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 	{
 		private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public QualityAssessmentService(IUnitOfWork unitOfWork, INotificationService notificationService)
+        public QualityAssessmentService(IUnitOfWork unitOfWork, INotificationService notificationService, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
             _notificationService = notificationService;
+            _currentUserService = currentUserService;
 		}
 
 		// ==================== Quality Assessment Strategies ====================
@@ -51,6 +54,35 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			return entities.ToDtoList();  
 		}
 
+        /// <summary>
+        /// Given a QualityAssessmentProcess id, return the full QA strategies for the underlying protocol
+        /// including checklists and criteria.
+        /// </summary>
+        public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId)
+        {
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
+            if (process == null) return new List<QualityAssessmentStrategyDto>();
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId);
+            if (reviewProcess == null || reviewProcess.ProtocolId == null) return new List<QualityAssessmentStrategyDto>();
+
+            var strategies = await GetStrategiesByProtocolIdAsync(reviewProcess.ProtocolId.Value);
+
+            // For each strategy, populate checklists and criteria
+            foreach (var strat in strategies)
+            {
+                var checklists = await GetChecklistsByStrategyIdAsync(strat.QaStrategyId ?? Guid.Empty);
+                foreach (var cl in checklists)
+                {
+                    var criteria = await GetCriteriaByChecklistIdAsync(cl.ChecklistId ?? Guid.Empty);
+                    cl.Criteria = criteria;
+                }
+                strat.Checklists = checklists;
+            }
+
+            return strategies;
+        }
+
 		public async Task DeleteStrategyAsync(Guid strategyId)
 		{
 			var entity = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId);
@@ -62,7 +94,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		}
 
 		// ==================== Quality Checklists ====================
-		public async Task<List<QualityChecklistDto>> BulkUpsertChecklistsAsync(List<QualityChecklistDto> dtos)
+		public async Task<List<QualityAssessmentChecklistDto>> BulkUpsertChecklistsAsync(List<QualityAssessmentChecklistDto> dtos)
 		{
 			var results = new List<QualityChecklist>();
 
@@ -98,14 +130,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			return results.ToDtoList();  
 		}
 
-		public async Task<List<QualityChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId)
+		public async Task<List<QualityAssessmentChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId)
 		{
 			var entities = await _unitOfWork.QualityChecklists.GetByStrategyIdAsync(strategyId);
 			return entities.ToDtoList();  
 		}
 
 		// ==================== Quality Criteria ====================
-		public async Task<List<QualityCriterionDto>> BulkUpsertCriteriaAsync(List<QualityCriterionDto> dtos)
+		public async Task<List<QualityAssessmentCriterionDto>> BulkUpsertCriteriaAsync(List<QualityAssessmentCriterionDto> dtos)
 		{
 			var results = new List<QualityCriterion>();
 
@@ -113,9 +145,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			{
 				QualityCriterion entity;
 
-				if (dto.QualityCriterionId.HasValue && dto.QualityCriterionId.Value != Guid.Empty)
+				if (dto.CriterionId.HasValue && dto.CriterionId.Value != Guid.Empty)
 				{
-					entity = await _unitOfWork.QualityCriteria.FindSingleAsync(c => c.Id == dto.QualityCriterionId.Value);
+					entity = await _unitOfWork.QualityCriteria.FindSingleAsync(c => c.Id == dto.CriterionId.Value);
 
 					if (entity != null)
 					{
@@ -141,7 +173,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 			return results.ToDtoList();  
 		}
 
-		public async Task<List<QualityCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId)
+		public async Task<List<QualityAssessmentCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId)
 		{
 			var entities = await _unitOfWork.QualityCriteria.GetByChecklistIdAsync(checklistId);
 			return entities.ToDtoList();  
@@ -193,18 +225,137 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid id)
         {
-            var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
-                ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
+				?? throw new KeyNotFoundException("Quality Assessment Process not found");
 
-            entity.Complete();
+			process.Status = QualityAssessmentProcessStatus.Completed;
+			process.CompletedAt = DateTimeOffset.UtcNow;
+			await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(process);
+			await _unitOfWork.SaveChangesAsync();
 
-            await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
+			return process.ToResponse();
+		}		
+        public async Task<List<QualityAssessmentPaperDto>> GetAllPapersAsync(Guid id)
+		{
+			var result = new List<QualityAssessmentPaperDto>();
 
-            return entity.ToResponse();
-        }       
+			var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
+			if (process == null) return result;
 
-        // ==================== Assignments ====================
+            // TODO: Implement the correct logic later, now we query all paper
+            var eligiblePaper = await _unitOfWork.Papers.FindAllAsync();
+            var eligiblePaperIds = eligiblePaper.Select(p => p.Id).ToList();
+			// var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(ssp => ssp.ReviewProcessId == process.ReviewProcessId);
+			// var eligiblePaperIds = new List<Guid>();
+
+			// if (studySelectionProcess != null)
+			// {
+			// 	var resolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(r => 
+			// 		r.StudySelectionProcessId == studySelectionProcess.Id && 
+			// 		r.Phase == ScreeningPhase.FullText && 
+			// 		r.FinalDecision == ScreeningDecisionType.Include);
+			// 	eligiblePaperIds = resolutions.Select(r => r.PaperId).ToList();
+			// }
+			
+			// Also include any papers that are already assigned or have resolutions just in case
+			var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
+			var assignedPaperIds = assignments.SelectMany(a => a.Paper).Select(p => p.Id).ToList();
+			var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
+			var resolvedPaperIds = processResolutions.Select(r => r.PaperId).ToList();
+
+			var allPaperIds = eligiblePaperIds.Union(assignedPaperIds).Union(resolvedPaperIds).Distinct().ToList();
+
+			// Calculate criteria count to compute percentage
+			var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
+			var criteriaCount = 0;
+			if (protocolId != null) 
+			{
+				var strategies = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId.Value);
+				foreach(var strat in strategies)
+				{
+					var checklists = await _unitOfWork.QualityChecklists.GetByStrategyIdAsync(strat.Id);
+					foreach(var cl in checklists)
+					{
+						var criteria = await _unitOfWork.QualityCriteria.GetByChecklistIdAsync(cl.Id);
+						criteriaCount += criteria.Count();
+					}
+				}
+			}
+
+			foreach (var paperId in allPaperIds)
+			{
+				var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId);
+				if (paper == null) continue;
+
+				var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdWithDetailsAsync(paperId);
+
+				var reviewersAssignedToPaper = assignments
+					.Where(a => a.Paper.Any(p => p.Id == paperId))
+					.Select(a => a.User)
+					.Where(u => u != null)
+					.GroupBy(u => u.Id)
+					.Select(g => g.First())
+					.ToList();
+
+                // All criteria == all assigned reviewers * criteria count 
+				var expectedDecisions = reviewersAssignedToPaper.Count * criteriaCount;
+				var actualDecisions = paperDecisions.Count;
+				var percentage = expectedDecisions > 0 ? (double)actualDecisions / expectedDecisions * 100 : 0;
+				if (percentage > 100) percentage = 100;
+
+				var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paperId);
+
+				var summary = new QualityAssessmentPaperDto
+				{
+					Id = paper.Id,
+					Title = paper.Title,
+					Authors = paper.Authors,
+					PublicationYear = paper.PublicationYear,
+					CompletionPercentage = Math.Round(percentage, 2),
+					Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
+					Reviewers = reviewersAssignedToPaper.Select(u => new QualityAssessmentReviewerDto
+					{
+						Id = u.Id,
+						Username = u.Username,
+						FullName = u.FullName
+					}).ToList(),
+					Decisions = paperDecisions.Select(d => new QualityAssessmentDecisionDto
+					{
+						Id = d.Id,
+						ReviewerId = d.ReviewerId,
+						ReviewerName = d.Reviewer?.FullName ?? d.Reviewer?.Username,
+						PaperId = d.PaperId,
+						QualityCriterionId = d.QualityCriterionId,
+						CriterionQuestion = d.QualityCriterion?.Question ?? "Unknown",
+						Value = d.Value,
+						Comment = d.Comment
+					}).ToList()
+				};
+
+				if (resolution != null)
+				{
+					var resolutionReviewer = await _unitOfWork.Users.FindSingleAsync(u => u.Id == resolution.ResolvedBy);
+					summary.Resolution = new QualityAssessmentResolutionDto
+					{
+						Id = resolution.Id,
+						QualityAssessmentProcessId = resolution.QualityAssessmentProcessId,
+						PaperId = resolution.PaperId,
+						FinalDecision = resolution.FinalDecision,
+						FinalScore = resolution.FinalScore,
+						ResolutionNotes = resolution.ResolutionNotes,
+						ResolvedBy = resolution.ResolvedBy,
+						ResolvedByName = resolutionReviewer?.FullName ?? resolutionReviewer?.Username,
+						ResolvedAt = resolution.ResolvedAt
+					};
+				}
+
+				result.Add(summary);
+			}
+
+			return result;
+		}
+
+		// ==================== Assignments ====================
         public async Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto)
         {
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
@@ -280,19 +431,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<List<MyAssignedPaperDto>> GetMyAssignedPapersAsync(Guid userId, Guid reviewProcessId)
+        public async Task<List<AssignedPaperDto>> GetMyAssignedPapersAsync(Guid id)
         {
-            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.ReviewProcessId == reviewProcessId);
-            if (process == null) return new List<MyAssignedPaperDto>();
+            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+            var userId = Guid.Parse(currentUserIdStr);
+
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
+            if (process == null) return new List<AssignedPaperDto>();
 
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(process.Id, userId);
 
-            if (assignment == null || assignment.Paper == null) return new List<MyAssignedPaperDto>();
+            if (assignment == null || assignment.Paper == null) return new List<AssignedPaperDto>();
 
             // Need to calculate completion percentage.
             // 1. Get Protocol -> QA Strategy -> Checklists -> Criteria count
-            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == reviewProcessId))?.ProtocolId;
-            if (protocolId == null) return new List<MyAssignedPaperDto>(); // Should not happen if configured correctly
+            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
+            if (protocolId == null) return new List<AssignedPaperDto>(); // Should not happen if configured correctly
 
             var strategies = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId.Value);
             var criteriaCount = 0;
@@ -306,7 +460,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
             }
 
-            var result = new List<MyAssignedPaperDto>();
+            var result = new List<AssignedPaperDto>();
             foreach (var paper in assignment.Paper)
             {
                 // Check for resolution
@@ -314,14 +468,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     r => r.PaperId == paper.Id && r.QualityAssessmentProcessId == process.Id);
 
                 // Calculate decisions count for this paper by this user
-                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.FindAllAsync(
-                    d => d.ReviewerId == userId && d.PaperId == paper.Id);
-                var userDecisionsCount = paperDecisions.Count();
-                
+                var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdAndUserIdWithDetailsAsync(paper.Id, userId);
+                var userDecisionsCount = userDecisions.Count;
+
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = new MyAssignedPaperDto
+                var dto = new AssignedPaperDto
                 {
                     Id = paper.Id,
                     Title = paper.Title,
@@ -329,7 +482,19 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     PublicationYear = paper.PublicationYear,
                      // Map other paper properties as needed...
                     CompletionPercentage = Math.Round(percentage, 2),
-                    ResolutionDecision = resolution?.FinalDecision != null ? resolution.FinalDecision.ToString() : null
+                    Resolution = resolution?.FinalDecision != null ? resolution.FinalDecision.ToString() : null,
+                    Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
+                    Decisions = userDecisions.Select(d => new QualityAssessmentDecisionDto
+                    {
+                          Id = d.Id,
+                          ReviewerId = d.ReviewerId,
+                          ReviewerName = d.Reviewer?.FullName ?? d.Reviewer?.Username,
+                          PaperId = d.PaperId,
+                          QualityCriterionId = d.QualityCriterionId,
+                          CriterionQuestion = d.QualityCriterion?.Question ?? "Unknown",
+                          Value = d.Value,
+                          Comment = d.Comment
+                    }).ToList()
                 };
                 result.Add(dto);
             }
@@ -337,8 +502,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         }
 
         // ==================== Decisions ====================
-        public async Task CreateDecisionAsync(Guid userId, CreateQualityAssessmentDecisionDto dto)
+        public async Task CreateDecisionAsync(CreateQualityAssessmentDecisionDto dto)
         {
+             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+             var userId = Guid.Parse(currentUserIdStr);
+
              // Validate and find assignment
              var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, dto.PaperId);
              if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user and paper");
@@ -365,8 +533,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task CreateDecisionsForPaperAsync(Guid userId, Guid paperId, List<CreateQualityAssessmentDecisionItemDto> dtos)
+        public async Task CreateDecisionsForPaperAsync(Guid paperId, List<CreateQualityAssessmentDecisionItemDto> dtos)
         {
+             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+             var userId = Guid.Parse(currentUserIdStr);
+
              // Validate and find assignment
              var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, paperId);
              if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user and paper");
@@ -402,8 +573,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateDecisionAsync(Guid userId, Guid paperId, Guid criterionId, UpdateQualityAssessmentDecisionDto dto)
+        public async Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionDto dto)
         {
+             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+             var userId = Guid.Parse(currentUserIdStr);
+
+             var decision = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
+                 d => d.Id == decisionId);
+            
+             if (decision == null)
+                 throw new KeyNotFoundException("Decision not found.");
+
+             if (decision.ReviewerId != userId)
+                 throw new UnauthorizedAccessException("You can only update your own decisions.");
+
+             var paperId = decision.PaperId;
+
              // Get assignment (to get process ID for resolution check)
              var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, paperId);
              if (assignment == null) throw new KeyNotFoundException("Assignment not found");
@@ -416,46 +601,45 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 throw new InvalidOperationException("Cannot update decision because a resolution exists.");
             }
 
-            var decision = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                d => d.ReviewerId == userId && d.PaperId == paperId && d.QualityCriterionId == criterionId);
-            
-            if (decision == null)
-                throw new KeyNotFoundException("Decision not found.");
-
             dto.UpdateEntity(decision);
 
             await _unitOfWork.QualityAssessmentDecisions.UpdateAsync(decision);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task UpdateDecisionsForPaperAsync(Guid userId, Guid paperId, List<UpdateQualityAssessmentDecisionItemDto> dtos)
+        public async Task UpdateDecisionsBatchAsync(List<UpdateQualityAssessmentDecisionItemDto> dtos)
         {
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, paperId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found");
-
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == paperId);
-            
-            if (resolution != null)
-            {
-                throw new InvalidOperationException("Cannot update decisions because a resolution exists.");
-            }
+            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+            var userId = Guid.Parse(currentUserIdStr);
 
             foreach (var dto in dtos)
             {
                 var decision = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                    d => d.ReviewerId == userId && d.PaperId == paperId && d.QualityCriterionId == dto.QualityCriterionId);
+                    d => d.Id == dto.Id);
 
                 if (decision != null)
                 {
+                    if (decision.ReviewerId != userId)
+                        throw new UnauthorizedAccessException("You can only update your own decisions.");
+
+                    var paperId = decision.PaperId;
+                    var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, paperId);
+                    if (assignment == null) throw new KeyNotFoundException("Assignment not found");
+
+                    var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                        r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == paperId);
+                    
+                    if (resolution != null)
+                    {
+                        throw new InvalidOperationException("Cannot update decisions because a resolution exists.");
+                    }
+
                     dto.UpdateEntity(decision);
                     await _unitOfWork.QualityAssessmentDecisions.UpdateAsync(decision);
                 }
                 else
                 {
-                    // Create if it doesn't exist to allow upsert-like behavior in batch
-                    var newDecision = dto.ToEntity(userId, paperId);
-                    await _unitOfWork.QualityAssessmentDecisions.AddAsync(newDecision);
+                    throw new KeyNotFoundException($"Decision with Id {dto.Id} not found.");
                 }
             }
             await _unitOfWork.SaveChangesAsync();
@@ -471,13 +655,17 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Resolutions ====================
         public async Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionDto dto)
         {
+             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+             var userId = Guid.Parse(currentUserIdStr);
+
              // Verify existing
              var existing = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
                  r => r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId && r.PaperId == dto.PaperId);
             
             if (existing != null) throw new InvalidOperationException("Resolution already exists for this paper");
 
-            var entity = dto.ToEntity();
+            // set the resolved by using current user
+            var entity = dto.ToEntity(userId);
 
             await _unitOfWork.QualityAssessmentResolutions.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync();
@@ -487,12 +675,16 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionDto dto)
         {
+            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+            var userId = Guid.Parse(currentUserIdStr);
+
             var entity = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.Id == id)
                 ?? throw new KeyNotFoundException("Resolution not found");
 
             dto.UpdateEntity(entity);
-            // ResolvedBy / At usually stay with creator or update? Let's assume update logic if needed
-            // But Resolution is often final.
+            // Optionally update ResolvedBy or ResolvedAt here if desired:
+            entity.ResolvedBy = userId;
+            entity.ResolvedAt = DateTimeOffset.UtcNow;
             
             await _unitOfWork.QualityAssessmentResolutions.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();

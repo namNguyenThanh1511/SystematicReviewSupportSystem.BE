@@ -57,8 +57,8 @@ namespace SRSS.IAM.API.Controllers
 		/// Bulk Upsert Quality Checklists
 		/// </summary>
 		[HttpPost("checklists/bulk")]
-		public async Task<ActionResult<ApiResponse<List<QualityChecklistDto>>>> BulkUpsertChecklists(
-			[FromBody] List<QualityChecklistDto> dtos)
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentChecklistDto>>>> BulkUpsertChecklists(
+			[FromBody] List<QualityAssessmentChecklistDto> dtos)
 		{
 			var result = await _service.BulkUpsertChecklistsAsync(dtos);
 			return Ok(result, $"Lưu {result.Count} checklists thành công");
@@ -68,7 +68,7 @@ namespace SRSS.IAM.API.Controllers
 		/// Lấy Checklists theo Strategy ID
 		/// </summary>
 		[HttpGet("strategies/{strategyId}/checklists")]
-		public async Task<ActionResult<ApiResponse<List<QualityChecklistDto>>>> GetChecklistsByStrategyId(
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentChecklistDto>>>> GetChecklistsByStrategyId(
 			Guid strategyId)
 		{
 			var result = await _service.GetChecklistsByStrategyIdAsync(strategyId);
@@ -81,8 +81,8 @@ namespace SRSS.IAM.API.Controllers
 		/// Bulk Upsert Quality Criteria
 		/// </summary>
 		[HttpPost("criteria/bulk")]
-		public async Task<ActionResult<ApiResponse<List<QualityCriterionDto>>>> BulkUpsertCriteria(
-			[FromBody] List<QualityCriterionDto> dtos)
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentCriterionDto>>>> BulkUpsertCriteria(
+			[FromBody] List<QualityAssessmentCriterionDto> dtos)
 		{
 			var result = await _service.BulkUpsertCriteriaAsync(dtos);
 			return Ok(result, $"Lưu {result.Count} quality criteria thành công");
@@ -92,7 +92,7 @@ namespace SRSS.IAM.API.Controllers
 		/// Lấy Criteria theo Checklist ID
 		/// </summary>
 		[HttpGet("checklists/{checklistId}/criteria")]
-		public async Task<ActionResult<ApiResponse<List<QualityCriterionDto>>>> GetCriteriaByChecklistId(
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentCriterionDto>>>> GetCriteriaByChecklistId(
 			Guid checklistId)
 		{
 			var result = await _service.GetCriteriaByChecklistIdAsync(checklistId);
@@ -138,39 +138,56 @@ namespace SRSS.IAM.API.Controllers
 			return Ok("Phân công thành công");
 		}
 
-		[HttpGet("assignments/my")]
-		public async Task<ActionResult<ApiResponse<List<MyAssignedPaperDto>>>> GetMyAssignedPapers([FromQuery] Guid userId, [FromQuery] Guid reviewProcessId)
+		[HttpGet("{id}/assignments/my")]
+		public async Task<ActionResult<ApiResponse<List<AssignedPaperDto>>>> GetMyAssignedPapers(Guid id)
 		{
-			var result = await _service.GetMyAssignedPapersAsync(userId, reviewProcessId);
+			var result = await _service.GetMyAssignedPapersAsync(id);
 			return Ok(result, "Lấy danh sách bài báo được phân công thành công");
+		}
+
+		[HttpGet("{id}/papers")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentPaperDto>>>> GetAllPapersByProcessId(Guid id)
+		{
+			var result = await _service.GetAllPapersAsync(id);
+			return Ok(result, "Lấy danh sách bài báo thành công");
+		}
+
+		/// <summary>
+		/// Lấy full QA Strategy (checklists + criteria) theo QA Process ID
+		/// </summary>
+		[HttpGet("process/{processId}/strategies")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByProcessId(Guid processId)
+		{
+			var result = await _service.GetStrategiesByProcessIdAsync(processId);
+			return Ok(result, "Lấy chiến lược QA đầy đủ thành công");
 		}
 
 		// ==================== Decisions ====================
 		[HttpPost("decisions")]
-		public async Task<ActionResult<ApiResponse>> CreateDecision([FromQuery] Guid userId, [FromBody] CreateQualityAssessmentDecisionDto dto)
+		public async Task<ActionResult<ApiResponse>> CreateDecision([FromBody] CreateQualityAssessmentDecisionDto dto)
 		{
-			await _service.CreateDecisionAsync(userId, dto);
+			await _service.CreateDecisionAsync(dto);
 			return Ok("Lưu quyết định thành công");
 		}
 
         [HttpPost("decisions/papers/{paperId}/batch")]
-		public async Task<ActionResult<ApiResponse>> CreateDecisionsBatch([FromQuery] Guid userId, Guid paperId, [FromBody] List<CreateQualityAssessmentDecisionItemDto> dtos)
+		public async Task<ActionResult<ApiResponse>> CreateDecisionsBatch(Guid paperId, [FromBody] List<CreateQualityAssessmentDecisionItemDto> dtos)
 		{
-			await _service.CreateDecisionsForPaperAsync(userId, paperId, dtos);
+			await _service.CreateDecisionsForPaperAsync(paperId, dtos);
 			return Ok("Lưu danh sách quyết định thành công");
 		}
 
-        [HttpPut("decisions/papers/{paperId}/criteria/{criterionId}")]
-		public async Task<ActionResult<ApiResponse>> UpdateDecision([FromQuery] Guid userId, Guid paperId, Guid criterionId, [FromBody] UpdateQualityAssessmentDecisionDto dto)
+        [HttpPut("decisions/{id}")]
+		public async Task<ActionResult<ApiResponse>> UpdateDecision(Guid id, [FromBody] UpdateQualityAssessmentDecisionDto dto)
 		{
-			await _service.UpdateDecisionAsync(userId, paperId, criterionId, dto);
+			await _service.UpdateDecisionAsync(id, dto);
 			return Ok("Cập nhật quyết định thành công");
 		}
 
-        [HttpPut("decisions/papers/{paperId}/batch")]
-		public async Task<ActionResult<ApiResponse>> UpdateDecisionsBatch([FromQuery] Guid userId, Guid paperId, [FromBody] List<UpdateQualityAssessmentDecisionItemDto> dtos)
+        [HttpPut("decisions/batch")]
+		public async Task<ActionResult<ApiResponse>> UpdateDecisionsBatch([FromBody] List<UpdateQualityAssessmentDecisionItemDto> dtos)
 		{
-			await _service.UpdateDecisionsForPaperAsync(userId, paperId, dtos);
+			await _service.UpdateDecisionsBatchAsync(dtos);
 			return Ok("Cập nhật danh sách quyết định thành công");
 		}
 

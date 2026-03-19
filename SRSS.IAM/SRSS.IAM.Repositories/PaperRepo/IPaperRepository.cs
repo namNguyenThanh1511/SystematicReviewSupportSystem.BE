@@ -44,5 +44,14 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get papers with their Quality Assessment details (assignments and decisions)
+        /// Avoids N+1 query problem when listing papers in QA process
+        /// </summary>
+        Task<List<Paper>> GetPapersWithQaDetailsByIdsAsync(
+            IEnumerable<Guid> paperIds,
+            Guid qaProcessId,
+            CancellationToken cancellationToken = default);
     }
 }

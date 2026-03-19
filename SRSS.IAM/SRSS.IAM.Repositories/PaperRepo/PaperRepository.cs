@@ -217,5 +217,21 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
             return (papers, totalCount);
         }
+
+        public async Task<List<Paper>> GetPapersWithQaDetailsByIdsAsync(
+            IEnumerable<Guid> paperIds,
+            Guid qaProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .Include(p => p.QualityAssessmentAssignments.Where(a => a.QualityAssessmentProcessId == qaProcessId))
+                    .ThenInclude(a => a.User)
+                .Include(p => p.QualityAssessmentDecisions)
+                    .ThenInclude(d => d.Reviewer)
+                .Include(p => p.QualityAssessmentDecisions)
+                    .ThenInclude(d => d.QualityCriterion)
+                .Where(p => paperIds.Contains(p.Id))
+                .ToListAsync(cancellationToken);
+        }
     }
 }

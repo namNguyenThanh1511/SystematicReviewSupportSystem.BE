@@ -81,6 +81,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             PapersWithDecisionsRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<PaperWithDecisionsResponse> GetPaperDetailsAsync(Guid studySelectionProcessId, Guid paperId,
+            CancellationToken cancellationToken = default);
+
         Task<PaginatedResponse<PaperWithDecisionsResponse>> GetAssignedPapersAsync(
             Guid studySelectionProcessId,
             Guid userId,

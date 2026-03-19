@@ -40,6 +40,8 @@ namespace SRSS.IAM.Services.CitationService
                 Id = c.SourcePaper.Id,
                 Title = c.SourcePaper.Title,
                 Year = c.SourcePaper.PublicationYearInt,
+                Authors = c.SourcePaper.Authors,
+                Doi = c.SourcePaper.DOI,
                 CitationCount = c.SourcePaper.IncomingCitations.Count
             })
             .DistinctBy(x => x.Id)
@@ -55,6 +57,8 @@ namespace SRSS.IAM.Services.CitationService
                 Id = c.TargetPaper.Id,
                 Title = c.TargetPaper.Title,
                 Year = c.TargetPaper.PublicationYearInt,
+                Authors = c.TargetPaper.Authors,
+                Doi = c.TargetPaper.DOI,
                 CitationCount = c.TargetPaper.IncomingCitations.Count
             })
             .DistinctBy(x => x.Id)
@@ -122,6 +126,8 @@ namespace SRSS.IAM.Services.CitationService
                 Id = p.Id,
                 Title = p.Title,
                 Year = p.PublicationYearInt,
+                Authors = p.Authors,
+                Doi = p.DOI,
                 CitationCount = p.IncomingCitations.Count
             }).ToList();
 
@@ -144,9 +150,44 @@ namespace SRSS.IAM.Services.CitationService
                 Id = p.Id,
                 Title = p.Title,
                 Year = p.PublicationYearInt,
+                Authors = p.Authors,
+                Doi = p.DOI,
                 CitationCount = p.IncomingCitations.Count
             }).ToList();
         }
+
+        public async Task<List<PaperNodeDto>> GetSuggestedPapersAsync(Guid paperId, int limit = 5, CancellationToken cancellationToken = default)
+        {
+            // Giới hạn limit
+            limit = Math.Clamp(limit, 1, 50);
+
+            // Chạy tuần tự để tránh lỗi "Second operation started..."
+            var references = await _unitOfWork.PaperCitations.GetReferencesWithTargetPaperAsync(paperId, cancellationToken);
+            var citations = await _unitOfWork.PaperCitations.GetCitationsWithSourcePaperAsync(paperId, cancellationToken);
+
+            var referencedPapers = references.Select(x => x.TargetPaper);
+            var citingPapers = citations.Select(x => x.SourcePaper);
+
+            var allAdjacent = referencedPapers.Concat(citingPapers)
+                .Where(p => p != null && p.Id != paperId)
+                .GroupBy(p => p.Id)
+                .Select(g => g.First())
+                // Sắp xếp theo số lượng trích dẫn (đã được Include ở tầng Repository)
+                .OrderByDescending(p => p.IncomingCitations?.Count ?? 0)
+                .Take(limit)
+                .ToList();
+
+            return allAdjacent.Select(p => new PaperNodeDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Year = p.PublicationYearInt,
+                Authors = p.Authors,
+                Doi = p.DOI,
+                CitationCount = p.IncomingCitations?.Count ?? 0
+            }).ToList();
+        }
+
 
         private class CitationEdgeComparer : IEqualityComparer<CitationEdgeDto>
         {

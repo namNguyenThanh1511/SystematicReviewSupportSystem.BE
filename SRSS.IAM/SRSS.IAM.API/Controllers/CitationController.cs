@@ -67,5 +67,12 @@ namespace SRSS.IAM.API.Controllers
             var result = await _citationService.GetTopCitedPapersAsync(topN, cancellationToken);
             return Ok(result, "Top cited papers retrieved successfully.");
         }
+
+        [HttpGet("{id}/suggestions")]
+        public async Task<ActionResult<ApiResponse<List<PaperNodeDto>>>> GetSuggestedPapers(Guid id, [FromQuery] int limit = 5, CancellationToken cancellationToken = default)
+        {
+            var result = await _citationService.GetSuggestedPapersAsync(id, limit, cancellationToken);
+            return Ok(result, "Suggested papers retrieved successfully.");
+        }
     }
 }

@@ -14,5 +14,6 @@ namespace SRSS.IAM.Services.CitationService
         Task<int> GetReferenceCountAsync(Guid paperId, CancellationToken cancellationToken = default);
         Task<CitationGraphDto> GetCitationGraphAsync(Guid paperId, int depth, decimal minConfidence, CancellationToken cancellationToken = default);
         Task<List<PaperNodeDto>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
+        Task<List<PaperNodeDto>> GetSuggestedPapersAsync(Guid paperId, int limit = 5, CancellationToken cancellationToken = default);
     }
 }

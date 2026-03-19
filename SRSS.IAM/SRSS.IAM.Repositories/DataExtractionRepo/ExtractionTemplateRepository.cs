@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using Shared.Repositories;
 
@@ -16,6 +16,8 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 		{
 			return await _context.ExtractionTemplates
 				.Where(t => t.ProtocolId == protocolId)
+				.Include(t => t.Sections)
+					.ThenInclude(s => s.MatrixColumns)
 				.Include(t => t.Sections) // Root fields only
 					.ThenInclude(f => f.Fields)
 						.ThenInclude(f => f.Options)
@@ -27,6 +29,8 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 		{
 			return await _context.ExtractionTemplates
 				.Where(t => t.Id == templateId)
+				.Include(t => t.Sections)
+					.ThenInclude(s => s.MatrixColumns)
 				.Include(t => t.Sections) // Root fields
 					.ThenInclude(f => f.Fields)
 				.Include(t => t.Sections)

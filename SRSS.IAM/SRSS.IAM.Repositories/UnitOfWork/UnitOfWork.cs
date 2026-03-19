@@ -92,6 +92,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
         private IExtractionFieldRepository? _extractionFields;
+        private IExtractionMatrixColumnRepository? _extractionMatrixColumns;
         private IFieldOptionRepository? _fieldOptions;
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
@@ -213,6 +214,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IExtractionFieldRepository ExtractionFields =>
             _extractionFields ??= new ExtractionFieldRepository(_dbContext);
+
+        public IExtractionMatrixColumnRepository ExtractionMatrixColumns =>
+            _extractionMatrixColumns ??= new ExtractionMatrixColumnRepository(_dbContext);
 
         public IFieldOptionRepository FieldOptions =>
             _fieldOptions ??= new FieldOptionRepository(_dbContext);

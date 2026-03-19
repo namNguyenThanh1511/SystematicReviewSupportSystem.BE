@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SRSS.IAM.Services.DTOs.DataExtraction
 {
@@ -44,6 +44,19 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         /// Danh sách fields trong section (recursive tree structure)
         /// </summary>
         public List<ExtractionFieldDto> Fields { get; set; } = new();
+
+        /// <summary>
+        /// Danh sách cột cho MatrixGrid section
+        /// </summary>
+        public List<ExtractionMatrixColumnDto> MatrixColumns { get; set; } = new();
+    }
+
+    public class ExtractionMatrixColumnDto
+    {
+        public Guid? ColumnId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int OrderIndex { get; set; }
     }
 
     public class ExtractionFieldDto

@@ -42,5 +42,40 @@ namespace SRSS.IAM.API.Controllers
 			var result = await _extractionService.StartAsync(extractionProcessId);
 			return Ok(result, "Data extraction process started successfully.");
 		}
+
+		[HttpPost("{extractionProcessId}/papers/{paperId}/submit")]
+		public async Task<ActionResult<ApiResponse<object>>> SubmitExtraction(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId,
+			[FromBody] SubmitExtractionRequestDto request)
+		{
+			await _extractionService.SubmitExtractionAsync(extractionProcessId, paperId, request);
+			return Ok<object>(new object(), "Data extraction submitted successfully.");
+		}
+
+		[HttpGet("{extractionProcessId}/papers/{paperId}/consensus")]
+		public async Task<ActionResult<ApiResponse<ConsensusWorkspaceDto>>> GetConsensusWorkspace(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId)
+		{
+			var result = await _extractionService.GetConsensusWorkspaceAsync(extractionProcessId, paperId);
+			return Ok(result, "Consensus workspace retrieved successfully.");
+		}
+
+		[HttpPost("{extractionProcessId}/papers/{paperId}/consensus/submit")]
+		public async Task<ActionResult<ApiResponse<object>>> SubmitConsensus(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId,
+			[FromBody] SubmitConsensusRequestDto request)
+		{
+			await _extractionService.SubmitConsensusAsync(extractionProcessId, paperId, request);
+			return Ok<object>(new object(), "Consensus data submitted successfully.");
+		}
+		[HttpGet("{extractionProcessId}/export")]
+		public async Task<IActionResult> ExportExtractedData([FromRoute] Guid extractionProcessId)
+		{
+			var fileContent = await _extractionService.ExportExtractedDataAsync(extractionProcessId);
+			return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"extraction_data_{extractionProcessId}.xlsx");
+		}
 	}
 }

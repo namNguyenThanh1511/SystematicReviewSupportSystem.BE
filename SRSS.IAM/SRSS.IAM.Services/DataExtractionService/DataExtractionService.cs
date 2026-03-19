@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.Mappers;
@@ -75,6 +75,16 @@ namespace SRSS.IAM.Services.DataExtractionService
 						{
 							await _unitOfWork.ExtractionFields.AddAsync(field);
 						}
+					}
+				}
+
+				// Add matrix columns for this section
+				if (sectionDto.MatrixColumns != null && sectionDto.MatrixColumns.Count > 0)
+				{
+					foreach (var columnDto in sectionDto.MatrixColumns)
+					{
+						var columnEntity = columnDto.ToEntity(section.Id);
+						await _unitOfWork.ExtractionMatrixColumns.AddAsync(columnEntity);
 					}
 				}
 			}
@@ -322,6 +332,18 @@ namespace SRSS.IAM.Services.DataExtractionService
 						}
 
 						await _unitOfWork.ExtractionFields.RemoveAsync(field);
+					}
+				}
+
+				// Delete matrix columns in this section
+				var matrixColumns = await _unitOfWork.ExtractionMatrixColumns
+					.FindAllAsync(c => c.SectionId == section.Id);
+
+				if (matrixColumns != null)
+				{
+					foreach (var column in matrixColumns)
+					{
+						await _unitOfWork.ExtractionMatrixColumns.RemoveAsync(column);
 					}
 				}
 

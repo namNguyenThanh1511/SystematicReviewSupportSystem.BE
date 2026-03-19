@@ -83,6 +83,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractionTemplateRepository ExtractionTemplates { get; }
         IExtractionSectionRepository ExtractionSections { get; }
         IExtractionFieldRepository ExtractionFields { get; }
+        IExtractionMatrixColumnRepository ExtractionMatrixColumns { get; }
         IFieldOptionRepository FieldOptions { get; }
         IDataExtractionProcessRepository DataExtractionProcesses { get; }
         IExtractionPaperTaskRepository ExtractionPaperTasks { get; }

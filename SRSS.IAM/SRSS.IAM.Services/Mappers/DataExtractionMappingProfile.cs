@@ -63,7 +63,13 @@ namespace SRSS.IAM.Services.Mappers
 						.OrderBy(f => f.OrderIndex)
 						.Select(f => f.ToDto())
 						.ToList()
-					: new List<ExtractionFieldDto>()
+					: new List<ExtractionFieldDto>(),
+				MatrixColumns = entity.MatrixColumns != null
+					? entity.MatrixColumns
+						.OrderBy(c => c.OrderIndex)
+						.Select(c => c.ToDto())
+						.ToList()
+					: new List<ExtractionMatrixColumnDto>()
 			};
 		}
 
@@ -76,6 +82,33 @@ namespace SRSS.IAM.Services.Mappers
 				Name = dto.Name,
 				Description = dto.Description,
 				SectionType = (SectionType)dto.SectionType,
+				OrderIndex = dto.OrderIndex,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
+			};
+		}
+
+		// ==================== ExtractionMatrixColumn ====================
+
+		public static ExtractionMatrixColumnDto ToDto(this ExtractionMatrixColumn entity)
+		{
+			return new ExtractionMatrixColumnDto
+			{
+				ColumnId = entity.Id,
+				Name = entity.Name,
+				Description = entity.Description,
+				OrderIndex = entity.OrderIndex
+			};
+		}
+
+		public static ExtractionMatrixColumn ToEntity(this ExtractionMatrixColumnDto dto, Guid sectionId)
+		{
+			return new ExtractionMatrixColumn
+			{
+				Id = dto.ColumnId ?? Guid.NewGuid(),
+				SectionId = sectionId,
+				Name = dto.Name,
+				Description = dto.Description,
 				OrderIndex = dto.OrderIndex,
 				CreatedAt = DateTimeOffset.UtcNow,
 				ModifiedAt = DateTimeOffset.UtcNow

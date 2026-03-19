@@ -29,6 +29,7 @@ using SRSS.IAM.Repositories.PaperPdfRepo;
 using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
+using SRSS.IAM.Repositories.PaperCitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -108,5 +109,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
 		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
 		ICandidatePaperRepository CandidatePapers { get; }
+		IPaperCitationRepository PaperCitations { get; }
 	}
 }

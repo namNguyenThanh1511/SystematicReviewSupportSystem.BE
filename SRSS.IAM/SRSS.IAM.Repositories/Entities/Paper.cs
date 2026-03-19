@@ -98,6 +98,12 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
         public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
+
+        // Citations where this paper is the source (it cites other papers)
+        public ICollection<PaperCitation> OutgoingCitations { get; set; } = new List<PaperCitation>();
+
+        // Citations where this paper is the target (it is cited by other papers)
+        public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
     }
 
     public enum AccessType

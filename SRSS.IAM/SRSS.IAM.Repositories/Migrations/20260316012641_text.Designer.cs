@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -12,9 +13,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260316012641_text")]
+    partial class text
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,59 +25,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CandidatePaper", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Authors")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DOI")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("NormalizedReference")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("OriginPaperId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PublicationYear")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("RawReference")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ReviewProcessId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OriginPaperId");
-
-                    b.HasIndex("ReviewProcessId");
-
-                    b.ToTable("CandidatePapers", (string)null);
-                });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
                 {
@@ -820,12 +770,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("paper_id");
 
-                    b.Property<int>("SourceType")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("source_type");
-
                     b.HasKey("Id");
 
                     b.HasIndex("IdentificationProcessId");
@@ -1182,9 +1126,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid?>("OriginPaperId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Pages")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -1229,10 +1170,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
 
-                    b.Property<Guid?>("ReviewProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_process_id");
-
                     b.Property<string>("Source")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -1242,9 +1179,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("source_record_id");
-
-                    b.Property<int>("SourceType")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -1269,8 +1203,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ImportBatchId");
 
                     b.HasIndex("ProjectId");
-
-                    b.HasIndex("ReviewProcessId");
 
                     b.ToTable("papers", (string)null);
                 });
@@ -2722,25 +2654,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CandidatePaper", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "OriginPaper")
-                        .WithMany()
-                        .HasForeignKey("OriginPaperId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany()
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OriginPaper");
-
-                    b.Navigation("ReviewProcess");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
@@ -3060,16 +2973,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany()
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("ImportBatch");
 
                     b.Navigation("Project");
-
-                    b.Navigation("ReviewProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperAssignment", b =>

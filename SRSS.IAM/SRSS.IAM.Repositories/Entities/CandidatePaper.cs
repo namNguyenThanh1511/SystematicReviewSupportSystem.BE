@@ -6,7 +6,7 @@ namespace SRSS.IAM.Repositories.Entities
     public class CandidatePaper : BaseEntity<Guid>
     {
         public Guid ReviewProcessId { get; set; }
-        public Guid OriginPaperId { get; set; }
+        public Guid? OriginPaperId { get; set; }
 
         public string Title { get; set; } = string.Empty;
         public string? Authors { get; set; }

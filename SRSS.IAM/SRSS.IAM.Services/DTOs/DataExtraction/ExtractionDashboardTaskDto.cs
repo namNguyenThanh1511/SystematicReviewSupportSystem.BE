@@ -10,5 +10,6 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
 		public Guid? Reviewer1Id { get; set; }
 		public Guid? Reviewer2Id { get; set; }
 		public string Status { get; set; } = string.Empty;
+		public string? PdfUrl { get; set; }
 	}
 }

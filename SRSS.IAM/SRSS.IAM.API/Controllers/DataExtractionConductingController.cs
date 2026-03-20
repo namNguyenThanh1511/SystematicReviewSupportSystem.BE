@@ -77,5 +77,14 @@ namespace SRSS.IAM.API.Controllers
 			var fileContent = await _extractionService.ExportExtractedDataAsync(extractionProcessId);
 			return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"extraction_data_{extractionProcessId}.xlsx");
 		}
+
+		[HttpPost("{extractionProcessId}/papers/{paperId}/auto-extract")]
+		public async Task<ActionResult<ApiResponse<List<ExtractedValueDto>>>> AutoExtractWithAi(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId)
+		{
+			var result = await _extractionService.AutoExtractWithAiAsync(extractionProcessId, paperId);
+			return Ok(result, "Auto-extracted data retrieved successfully.");
+		}
 	}
 }

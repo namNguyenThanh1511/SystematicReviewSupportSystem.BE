@@ -1,4 +1,9 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SRSS.IAM.Services.GrobidClient;
 using Shared.Models;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
@@ -6,6 +11,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using ClosedXML.Excel;
 using SRSS.IAM.Services.UserService;
+using System.Xml.Linq;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -13,11 +19,22 @@ namespace SRSS.IAM.Services.DataExtractionService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IGrobidService _grobidService;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IConfiguration _configuration;
 
-        public DataExtractionConductingService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        public DataExtractionConductingService(
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IGrobidService grobidService,
+            IHttpClientFactory httpClientFactory,
+            IConfiguration configuration)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _grobidService = grobidService;
+            _httpClientFactory = httpClientFactory;
+            _configuration = configuration;
         }
 
         private async Task SyncEligiblePapersAsync(Guid extractionProcessId)
@@ -120,7 +137,8 @@ namespace SRSS.IAM.Services.DataExtractionService
                     PublicationYear = t.Paper.PublicationYearInt,
                     Reviewer1Id = t.Reviewer1Id,
                     Reviewer2Id = t.Reviewer2Id,
-                    Status = t.Status.ToString()
+                    Status = t.Status.ToString(),
+                    PdfUrl = t.Paper.PdfUrl
                 })
                 .ToListAsync();
 
@@ -811,6 +829,212 @@ namespace SRSS.IAM.Services.DataExtractionService
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
             return stream.ToArray();
+        }
+
+        public async Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId)
+        {
+            // 1. Fetch paper & PDF URL
+            var extractionTask = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId);
+
+            if (extractionTask == null)
+            {
+                throw new InvalidOperationException($"Extraction task for paper {paperId} not found.");
+            }
+
+            var pdfUrl = extractionTask.Paper.PdfUrl;
+            if (string.IsNullOrWhiteSpace(pdfUrl))
+            {
+                throw new InvalidOperationException("Paper does not have a valid PdfUrl.");
+            }
+
+            // 2. Download PDF
+            var httpClient = _httpClientFactory.CreateClient();
+            var pdfResponse = await httpClient.GetAsync(pdfUrl);
+            if (!pdfResponse.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException("Failed to download PDF from url.");
+            }
+            using var networkStream = await pdfResponse.Content.ReadAsStreamAsync();
+
+            // BỔ SUNG ĐOẠN NÀY: Copy sang MemoryStream để an toàn tuyệt đối
+            using var memoryStream = new MemoryStream();
+            await networkStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0; // Đặt con trỏ về đầu file
+
+            // 3. Extract text from Grobid (Dùng memoryStream)
+            var paperText = await _grobidService.ProcessFulltextDocumentAsync(memoryStream);
+
+            if (string.IsNullOrWhiteSpace(paperText))
+            {
+                throw new InvalidOperationException("Failed to extract full text from the PDF using Grobid. Check Backend Console Logs for details.");
+            }
+
+            var doc = XDocument.Parse(paperText);
+            // Lấy tất cả text nằm trong thẻ <p> (paragraph) và <head> (heading)
+            var cleanTextNodes = doc.Descendants()
+                                    .Where(x => x.Name.LocalName == "p" || x.Name.LocalName == "head")
+                                    .Select(x => x.Value);
+
+            var cleanPaperText = string.Join("\n", cleanTextNodes);
+
+            // 4. Fetch Schema
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+
+            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
+                throw new InvalidOperationException("Protocol not found.");
+
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == extractionProcess.ReviewProcess.ProtocolId.Value);
+            var templateEntity = templateList.FirstOrDefault();
+
+            if (templateEntity == null)
+                throw new InvalidOperationException("Extraction template not found.");
+
+            var template = await _unitOfWork.ExtractionTemplates.GetByIdWithFieldsAsync(templateEntity.Id);
+            if (template == null)
+                throw new InvalidOperationException("Extraction template details not found.");
+
+            // Flatten and build schema for LLM
+            var schemaObj = new
+            {
+                TemplateName = template.Name,
+                Sections = template.Sections.OrderBy(s => s.OrderIndex).Select(s => new
+                {
+                    SectionName = s.Name,
+                    Description = s.Description,
+                    SectionType = s.SectionType.ToString(),
+                    MatrixColumns = s.MatrixColumns?.OrderBy(c => c.OrderIndex).Select(c => new { c.Id, c.Name }).ToList(),
+                    Fields = GetSimplifiedFields(s.Fields.Where(f => f.ParentFieldId == null).OrderBy(f => f.OrderIndex).ToList())
+                })
+            };
+
+            var schemaJson = JsonSerializer.Serialize(schemaObj, new JsonSerializerOptions { WriteIndented = true });
+
+            // 5. Call Gemini
+            var apiKey = _configuration["GeminiApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                throw new InvalidOperationException("Gemini API key is not configured.");
+            }
+
+            string prompt = $@"
+You are an expert academic researcher. 
+I will provide you with a PAPER TEXT and an extraction SCHEMA.
+Your task is to extract the correct answers from the PAPER TEXT according to the SCHEMA.
+For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' provided in the schema.
+You MUST return ONLY a JSON array that exactly matches the following structure:
+[
+  {{
+    ""FieldId"": ""uuid"",
+    ""OptionId"": ""uuid or null"",
+    ""StringValue"": ""extracted text or null"",
+    ""NumericValue"": decimal or null,
+    ""BooleanValue"": boolean or null,
+    ""MatrixColumnId"": ""uuid or null"",
+    ""MatrixRowIndex"": int or null
+  }}
+]
+Do not include any other markdown formatting like ```json or comments. 
+If no data is found for a field, omit it or leave values as null.
+
+=== SCHEMA ===
+{schemaJson}
+
+=== PAPER TEXT ===
+{cleanPaperText}
+";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[]
+                        {
+                            new { text = prompt }
+                        }
+                    }
+                },
+                generationConfig = new
+                {
+                    responseMimeType = "application/json"
+                }
+            };
+
+            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload);
+
+            if (!geminiResponse.IsSuccessStatusCode)
+            {
+                var errorStr = await geminiResponse.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"Gemini API error: {errorStr}");
+            }
+
+            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>();
+            try
+            {
+                var responseText = geminiResult?.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text").GetString();
+
+                if (string.IsNullOrWhiteSpace(responseText))
+                    return new List<ExtractedValueDto>();
+
+                responseText = responseText.Trim();
+                if (responseText.StartsWith("```json"))
+                {
+                    responseText = responseText.Substring(7);
+                }
+                if (responseText.StartsWith("```"))
+                {
+                    responseText = responseText.Substring(3);
+                }
+                if (responseText.EndsWith("```"))
+                {
+                    responseText = responseText.Substring(0, responseText.Length - 3);
+                }
+                responseText = responseText.Trim();
+
+                var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                // var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
+                // {
+                //     PropertyNameCaseInsensitive = true
+                // });
+
+                return extractedValues ?? new List<ExtractedValueDto>();
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to parse Gemini response.", ex);
+            }
+        }
+
+        private object GetSimplifiedFields(IEnumerable<ExtractionField> fields)
+        {
+            var result = new List<object>();
+            foreach (var f in fields)
+            {
+                result.Add(new
+                {
+                    f.Id,
+                    f.Name,
+                    f.Instruction,
+                    FieldType = f.FieldType.ToString(),
+                    Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new { o.Id, o.Value }).ToList(),
+                    SubFields = f.SubFields != null && f.SubFields.Any() ? GetSimplifiedFields(f.SubFields.OrderBy(sf => sf.OrderIndex)) : null
+                });
+            }
+            return result;
         }
     }
 }

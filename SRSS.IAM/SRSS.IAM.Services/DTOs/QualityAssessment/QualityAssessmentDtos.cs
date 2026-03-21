@@ -9,7 +9,6 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid Id { get; set; }
         public Guid ReviewProcessId { get; set; }
         public string? Notes { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         public QualityAssessmentProcessStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset? StartedAt { get; set; }
@@ -23,14 +22,13 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? Notes { get; set; }
     }
 
-    public class UpdateQualityAssessmentProcessDto
+    public class UpdateQualityAssessmentProcessRequest
     {
         public string? Notes { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         public QualityAssessmentProcessStatus Status { get; set; }
     }
 
-    public class QualityAssessmentAssignmentDto
+    public class QualityAssessmentAssignmentRequest
     {
         public Guid? Id { get; set; }
         public Guid QualityAssessmentProcessId { get; set; }
@@ -38,23 +36,29 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? UserName { get; set; }
         public DateTimeOffset AssignedAt { get; set; }
         public List<PaperResponse>? Papers { get; set; }
-        public List<QualityAssessmentDecisionDto>? Decisions { get; set; }
+        public List<QualityAssessmentDecisionResponse>? Decisions { get; set; }
     }
 
-    public class QualityAssessmentDecisionDto
+    public class QualityAssessmentDecisionResponse
     {
         public Guid? Id { get; set; }
         public Guid ReviewerId { get; set; }
         public string? ReviewerName { get; set; }
         public Guid PaperId { get; set; }
+        public decimal? Score { get; set; }
+        public List<QualityAssessmentDecisionItemResponse> DecisionItems { get; set; } = new();
+    }
+
+    public class QualityAssessmentDecisionItemResponse
+    {
+        public Guid? Id { get; set; }
         public Guid QualityCriterionId { get; set; }
         public string? CriterionQuestion { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
     }
 
-    public class CreateQualityAssessmentResolutionDto
+    public class CreateQualityAssessmentResolutionRequest
     {
         public Guid QualityAssessmentProcessId { get; set; }
         public Guid PaperId { get; set; }
@@ -63,53 +67,54 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? ResolutionNotes { get; set; }
     }
 
-    public class UpdateQualityAssessmentResolutionDto
+    public class UpdateQualityAssessmentResolutionRequest
     {
+        public Guid? Id { get; set; }
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }
     }
 
-    public class QualityAssessmentResolutionResponse : QualityAssessmentResolutionDto
-    {
-    }
-
-    public class CreateQualityAssessmentAssignmentDto
+    public class CreateQualityAssessmentAssignmentRequest
     {
         public Guid QualityAssessmentProcessId { get; set; }
         public List<Guid> UserIds { get; set; } = new();
         public List<Guid> PaperIds { get; set; } = new();
     }
 
-    public class CreateQualityAssessmentDecisionDto
+    public class CreateQualityAssessmentDecisionRequest
     {
+        public Guid QualityAssessmentProcessId { get; set; }
         public Guid PaperId { get; set; }
-        public Guid QualityCriterionId { get; set; }
-        public QualityAssessmentDecisionValue? Value { get; set; }
-        public string? Comment { get; set; }
+        public decimal? Score { get; set; }
+        public string? Notes { get; set; }
+        public List<CreateQualityAssessmentDecisionItemRequest> DecisionItems { get; set; } = new();
     }
 
-    public class CreateQualityAssessmentDecisionItemDto
+    public class CreateQualityAssessmentDecisionItemRequest
     {
         public Guid QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
     }
 
-    public class UpdateQualityAssessmentDecisionDto
+    public class UpdateQualityAssessmentDecisionRequest
     {
+        public Guid? Id { get; set; }
+        public decimal? Score { get; set; }
+        public string? Notes { get; set; }
+        public List<UpdateQualityAssessmentDecisionItemRequest> DecisionItems { get; set; } = new();
+    }
+
+    public class UpdateQualityAssessmentDecisionItemRequest
+    {
+        public Guid? Id { get; set; }
+        public Guid? QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
     }
 
-    public class UpdateQualityAssessmentDecisionItemDto
-    {
-        public Guid Id { get; set; }
-        public QualityAssessmentDecisionValue? Value { get; set; }
-        public string? Comment { get; set; }
-    }
-
-public class PaperResponse
+    public class PaperResponse
     {
         public Guid Id { get; set; }
 
@@ -163,7 +168,7 @@ public class PaperResponse
     /// <summary>
     /// For reviewer
     /// </summary>
-    public class AssignedPaperDto : PaperResponse
+    public class AssignedPaperResponse : PaperResponse
     {
         /// <summary>
         /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
@@ -171,24 +176,17 @@ public class PaperResponse
         public double CompletionPercentage { get; set; }
         public string? Resolution { get; set; }
         public string Status { get; set; } = string.Empty;
-        public List<QualityAssessmentDecisionDto> Decisions { get; set; } = new();
-    }
-
-    public class QualityAssessmentReviewerDto
-    {
-        public Guid Id { get; set; }
-        public string? Username { get; set; }
-        public string? FullName { get; set; }
+        public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();
     }
 
     /// <summary>
     ///  For leader
     /// </summary>
-    public class QualityAssessmentPaperDto : PaperResponse
+    public class QualityAssessmentPaperResponse : PaperResponse
     {
-        public List<QualityAssessmentReviewerDto> Reviewers { get; set; } = new();
-        public List<QualityAssessmentDecisionDto> Decisions { get; set; } = new();
-        public QualityAssessmentResolutionDto? Resolution { get; set; }
+        public List<QualityAssessmentReviewerResponse> Reviewers { get; set; } = new();
+        public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();
+        public QualityAssessmentResolutionResponse? Resolution { get; set; }
         /// <summary>
         /// Tính theo số lượng reviewer đã hoàn thành trên tổng số reviewer được phân công
         /// </summary>
@@ -196,30 +194,23 @@ public class PaperResponse
         public string Status { get; set; } = string.Empty;
     }
 
-    public class QualityAssessmentResolutionDto
+    public class QualityAssessmentReviewerResponse
+    {
+        public Guid Id { get; set; }
+        public string? Username { get; set; }
+        public string? FullName { get; set; }
+    }
+
+    public class QualityAssessmentResolutionResponse
     {
         public Guid? Id { get; set; }
         public Guid QualityAssessmentProcessId { get; set; }
         public Guid PaperId { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }
         public Guid ResolvedBy { get; set; }
         public string? ResolvedByName { get; set; }
         public DateTimeOffset ResolvedAt { get; set; }
-    }
-
-    public class QualityAssessmentProcessDto
-    {
-        public Guid? Id { get; set; }
-        public Guid ReviewProcessId { get; set; }
-        public string? Notes { get; set; }
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public QualityAssessmentProcessStatus Status { get; set; }
-        public DateTimeOffset? StartedAt { get; set; }
-        public DateTimeOffset? CompletedAt { get; set; }
-        public List<QualityAssessmentAssignmentDto> Assignments { get; set; } = new();
-        public List<QualityAssessmentResolutionDto> Resolutions { get; set; } = new();
     }
 }

@@ -18,6 +18,7 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         No = 1,
         Unclear = 2,
     }
+
     public enum QualityAssessmentResolutionDecision
     {
         LowQuality = 0,

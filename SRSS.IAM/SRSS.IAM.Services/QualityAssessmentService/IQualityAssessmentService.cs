@@ -25,22 +25,20 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid qaId);
 
 		// Papers
-		Task<List<QualityAssessmentPaperDto>> GetAllPapersAsync(Guid qaId);
+		Task<List<QualityAssessmentPaperResponse>> GetAllPapersAsync(Guid qaId);
 
 		// Assignments
-		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentDto dto);
-        Task<List<AssignedPaperDto>> GetMyAssignedPapersAsync(Guid reviewProcessId);
+		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto);
+        Task<List<AssignedPaperResponse>> GetMyAssignedPapersAsync(Guid reviewProcessId);
 
         // Decisions
-        Task CreateDecisionAsync(CreateQualityAssessmentDecisionDto dto);
-        Task CreateDecisionsForPaperAsync(Guid paperId, List<CreateQualityAssessmentDecisionItemDto> dtos);
-        Task UpdateDecisionAsync(Guid id, UpdateQualityAssessmentDecisionDto dto);
-        Task UpdateDecisionsBatchAsync(List<UpdateQualityAssessmentDecisionItemDto> dtos);
-        Task<List<QualityAssessmentDecisionDto>> GetDecisionsByPaperIdAsync(Guid paperId);
+        Task CreateDecisionAsync(CreateQualityAssessmentDecisionRequest dto);
+        Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto);
+        Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByPaperIdAsync(Guid paperId);
 
         // Resolutions
-        Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionDto dto);
-        Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionDto dto);
+        Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionRequest dto);
+        Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId);
 	}
 }

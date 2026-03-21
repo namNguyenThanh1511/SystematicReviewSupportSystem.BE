@@ -229,7 +229,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Include(p => p.QualityAssessmentDecisions)
                     .ThenInclude(d => d.Reviewer)
                 .Include(p => p.QualityAssessmentDecisions)
-                    .ThenInclude(d => d.QualityCriterion)
+                    .ThenInclude(d => d.DecisionItems)
                 .Where(p => paperIds.Contains(p.Id))
                 .ToListAsync(cancellationToken);
         }

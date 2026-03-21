@@ -16,6 +16,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("id")
                 .IsRequired();
 
+            builder.Property(d => d.QualityAssessmentProcessId)
+                .HasColumnName("quality_assessment_process_id")
+                .IsRequired();
+
             builder.Property(d => d.ReviewerId)
                 .HasColumnName("reviewer_id")
                 .IsRequired();
@@ -24,24 +28,26 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("paper_id")
                 .IsRequired();
 
-            builder.Property(d => d.QualityCriterionId)
-                .HasColumnName("quality_criterion_id")
-                .IsRequired();
+            builder.Property(d => d.Score)
+                .HasColumnName("score")
+                .HasColumnType("decimal(5,2)");
 
-            builder.Property(d => d.Value)
-                .HasColumnName("value");
-
-            builder.Property(d => d.Comment)
-                .HasColumnName("comment");
+            // builder.Property(d => d.Notes)
+            //     .HasColumnName("notes");
 
             builder.Property(u => u.CreatedAt)
                .HasColumnName("created_at")
                .IsRequired();
 
-			builder.Property(x => x.ModifiedAt)
-				.HasColumnName("modified_at");
+            builder.Property(x => x.ModifiedAt)
+                .HasColumnName("modified_at");
 
             // Relationships
+            builder.HasOne(d => d.QualityAssessmentProcess)
+                .WithMany(p => p.QualityAssessmentDecisions)
+                .HasForeignKey(d => d.QualityAssessmentProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(d => d.Reviewer)
                 .WithMany()
                 .HasForeignKey(d => d.ReviewerId)
@@ -52,10 +58,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(d => d.PaperId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(d => d.QualityCriterion)
-                .WithMany()
-                .HasForeignKey(d => d.QualityCriterionId)
-                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(d => d.DecisionItems)
+                .WithOne(di => di.QualityAssessmentDecision)
+                .HasForeignKey(di => di.QualityAssessmentDecisionId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

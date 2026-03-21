@@ -105,6 +105,5 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
 		IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
 		IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
-
 	}
 }

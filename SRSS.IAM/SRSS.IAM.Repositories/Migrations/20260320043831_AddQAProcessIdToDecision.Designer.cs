@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -11,9 +12,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260320043831_AddQAProcessIdToDecision")]
+    partial class AddQAProcessIdToDecision
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1613,6 +1616,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1629,51 +1636,13 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("quality_assessment_process_id");
 
-                    b.Property<Guid>("ReviewerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("reviewer_id");
-
-                    b.Property<decimal?>("Score")
-                        .HasColumnType("decimal(5,2)")
-                        .HasColumnName("score");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperId");
-
-                    b.HasIndex("QualityAssessmentProcessId");
-
-                    b.HasIndex("ReviewerId");
-
-                    b.ToTable("quality_assessment_decisions", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecisionItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("text")
-                        .HasColumnName("comment");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("QualityAssessmentDecisionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("quality_assessment_decision_id");
-
                     b.Property<Guid>("QualityCriterionId")
                         .HasColumnType("uuid")
                         .HasColumnName("quality_criterion_id");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_id");
 
                     b.Property<int?>("Value")
                         .HasColumnType("integer")
@@ -1681,11 +1650,15 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QualityAssessmentDecisionId");
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("QualityAssessmentProcessId");
 
                     b.HasIndex("QualityCriterionId");
 
-                    b.ToTable("quality_assessment_decision_items", (string)null);
+                    b.HasIndex("ReviewerId");
+
+                    b.ToTable("quality_assessment_decisions", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
@@ -3138,6 +3111,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityCriterion", "QualityCriterion")
+                        .WithMany()
+                        .HasForeignKey("QualityCriterionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer")
                         .WithMany()
                         .HasForeignKey("ReviewerId")
@@ -3148,26 +3127,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("QualityAssessmentProcess");
 
-                    b.Navigation("Reviewer");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecisionItem", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", "QualityAssessmentDecision")
-                        .WithMany("DecisionItems")
-                        .HasForeignKey("QualityAssessmentDecisionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityCriterion", "QualityCriterion")
-                        .WithMany()
-                        .HasForeignKey("QualityCriterionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("QualityAssessmentDecision");
-
                     b.Navigation("QualityCriterion");
+
+                    b.Navigation("Reviewer");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
@@ -3502,11 +3464,6 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ProtocolReviewer", b =>
                 {
                     b.Navigation("Evaluations");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", b =>
-                {
-                    b.Navigation("DecisionItems");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>

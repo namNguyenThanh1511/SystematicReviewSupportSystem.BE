@@ -7,6 +7,7 @@ namespace SRSS.IAM.Repositories.QualityRepo
 	public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
 	{
 		Task<IEnumerable<QualityAssessmentStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
 	}
 
 	public interface IQualityChecklistRepository : IGenericRepository<QualityChecklist, Guid, AppDbContext>
@@ -34,7 +35,8 @@ namespace SRSS.IAM.Repositories.QualityRepo
     public interface IQualityAssessmentDecisionRepository : IGenericRepository<QualityAssessmentDecision, Guid, AppDbContext>
     {
         Task<List<QualityAssessmentDecision>> GetByPaperIdWithDetailsAsync(Guid paperId, CancellationToken cancellationToken = default);
-        Task<List<QualityAssessmentDecision>> GetByPaperIdAndUserIdWithDetailsAsync(Guid paperId, Guid userId, CancellationToken cancellationToken = default);
+        Task<QualityAssessmentDecision?> GetByPaperIdAndUserIdWithDetailsAsync(Guid paperId, Guid userId, CancellationToken cancellationToken = default);
+        Task<QualityAssessmentDecision?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
     }
 
     public interface IQualityAssessmentResolutionRepository : IGenericRepository<QualityAssessmentResolution, Guid, AppDbContext>
@@ -49,6 +51,16 @@ namespace SRSS.IAM.Repositories.QualityRepo
 		{
 			return await FindAllAsync(s => s.ProtocolId == protocolId, isTracking: false, cancellationToken);
 		}
+
+        public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<QualityAssessmentStrategy>()
+                .Include(s => s.Checklists)
+                .ThenInclude(c => c.Criteria)
+                .AsNoTracking()
+                .Where(s => s.ProtocolId == protocolId)
+                .ToListAsync(cancellationToken);
+        }
 	}
 
 	public class QualityChecklistRepository : GenericRepository<QualityChecklist, Guid, AppDbContext>, IQualityChecklistRepository
@@ -120,18 +132,27 @@ namespace SRSS.IAM.Repositories.QualityRepo
         {
             return await _context.Set<QualityAssessmentDecision>()
                 .Include(d => d.Reviewer)
-                .Include(d => d.QualityCriterion)
+                .Include(d => d.DecisionItems)
                 .Where(d => d.PaperId == paperId)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<List<QualityAssessmentDecision>> GetByPaperIdAndUserIdWithDetailsAsync(Guid paperId, Guid userId, CancellationToken cancellationToken = default)
+        public async Task<QualityAssessmentDecision?> GetByPaperIdAndUserIdWithDetailsAsync(Guid paperId, Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentDecision>()
                 .Include(d => d.Reviewer)
-                .Include(d => d.QualityCriterion)
+                .Include(d => d.DecisionItems)
                 .Where(d => d.PaperId == paperId && d.ReviewerId == userId)
-                .ToListAsync(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<QualityAssessmentDecision?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<QualityAssessmentDecision>()
+                .Include(d => d.Reviewer)
+                .Include(d => d.DecisionItems)
+                .Where(d => d.Id == id)
+                .FirstOrDefaultAsync(cancellationToken);
         }
     }
 

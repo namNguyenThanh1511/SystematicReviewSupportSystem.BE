@@ -4,6 +4,12 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -12,10 +18,14 @@ namespace SRSS.IAM.API.Controllers
     public class PaperController : BaseController
     {
         private readonly IIdentificationService _identificationService;
-
-        public PaperController(IIdentificationService identificationService)
+        private readonly IPaperService _paperService;
+        private readonly ICurrentUserService _currentUserService;
+ 
+        public PaperController(IIdentificationService identificationService, IPaperService paperService, ICurrentUserService currentUserService)
         {
             _identificationService = identificationService;
+            _paperService = paperService;
+            _currentUserService = currentUserService;
         }
 
         /// <summary>
@@ -92,5 +102,80 @@ namespace SRSS.IAM.API.Controllers
             var result = await _identificationService.ImportPaperAsync(request, cancellationToken);
             return Ok(result, $"Successfully imported {result.TotalImported} papers.");
         }
+
+        /// <summary>
+        /// Assign single/multiple papers to single/multiple project members.
+        /// Prevents duplicate assignments and ensures both papers and members belong to the project.
+        /// Project ID is inferred from the papers.
+        /// </summary>
+        /// <param name="request">Paper IDs and Member IDs to assign</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpPost("assign")]
+        public async Task<ActionResult<ApiResponse>> AssignPapers(
+            [FromBody] AssignPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.AssignPapersAsync(request, cancellationToken);
+            return Ok("Papers assigned successfully.");
+        }
+
+        /// <summary>
+        /// Apply selected metadata fields from a metadata source to the canonical paper record.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="request">The selected fields and source metadata ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The updated PaperResponse</returns>
+        [HttpPost("{paperId}/apply-metadata")]
+        public async Task<ActionResult<ApiResponse<PaperResponse>>> ApplyMetadata(
+            [FromRoute] Guid paperId,
+            [FromBody] ApplyMetadataRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.ApplyMetadataAsync(paperId, request, cancellationToken);
+            return Ok(result, "Selected metadata applied successfully.");
+        }
+
+        /// <summary>
+        /// Get assigned papers for the current user in Title/Abstract screening phase
+        /// </summary>
+        [Authorize]
+        [HttpGet("assigned/title-abstract")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetAssignedPapersTitleAbstract(
+            [FromQuery] Guid studySelectionId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _paperService.GetAssignedPapersByPhaseAsync(
+                studySelectionId,
+                userId,
+                ScreeningPhase.TitleAbstract,
+                request,
+                cancellationToken);
+            return Ok(result, "Assigned papers for Title/Abstract screening retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get assigned papers for the current user in Full-Text screening phase
+        /// </summary>
+        [Authorize]
+        [HttpGet("assigned/full-text")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetAssignedPapersFullText(
+            [FromQuery] Guid studySelectionId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _paperService.GetAssignedPapersByPhaseAsync(
+                studySelectionId,
+                userId,
+                ScreeningPhase.FullText,
+                request,
+                cancellationToken);
+            return Ok(result, "Assigned papers for Full-Text screening retrieved successfully.");
+        }
+
     }
 }

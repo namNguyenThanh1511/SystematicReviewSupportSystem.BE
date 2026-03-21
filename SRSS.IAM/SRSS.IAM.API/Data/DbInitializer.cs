@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SRSS.IAM.Repositories;
@@ -19,11 +19,11 @@ namespace SRSS.IAM.API.Data
 		// ── Identification Process IDs ───────────────────────────────────
 		private static readonly Guid HarIdentificationProcessId = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-        // ── Study Selection Process IDs ─────────────────────────────────
+		// ── Study Selection Process IDs ─────────────────────────────────
 		private static readonly Guid HarStudySelectionProcessId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
-        // ── Search Execution IDs ─────────────────────────────────────────
-        private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+		// ── Search Execution IDs ─────────────────────────────────────────
+		private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
 
 		// ── Import Batch IDs ─────────────────────────────────────────────
 		private static readonly Guid ScopusImportBatchId = Guid.Parse("55555555-5555-5555-5555-555555555555");
@@ -130,7 +130,7 @@ namespace SRSS.IAM.API.Data
 			await SeedReviewProcessesAsync(context);
 			await SeedIdentificationProcessesAsync(context);
 			await SeedStudySelectionProcessesAsync(context);
-            await SeedSearchExecutionsAsync(context);
+			await SeedSearchExecutionsAsync(context);
 			await SeedImportBatchesAsync(context);
 			await SeedPapersAsync(context);
 			await SeedCoreGovernanceAsync(context);
@@ -178,12 +178,68 @@ namespace SRSS.IAM.API.Data
 					IsActive = true,
 					CreatedAt = DateTimeOffset.UtcNow,
 					ModifiedAt = DateTimeOffset.UtcNow
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "nguyenvana",
+					FullName = "Nguyễn Văn A",
+					Email = "nguyen.van.a@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-10),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-10)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "tran_thib",
+					FullName = "Trần Thị B",
+					Email = "tranthib.demo@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-8),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-7)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "hoang_le_c",
+					FullName = "Lê Hoàng C",
+					Email = "lehoangc@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-5),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-5)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "phamminhd",
+					FullName = "Phạm Minh D",
+					Email = "minh.pham@srss.com",
+					Role = Role.Client,
+					IsActive = false, // Giả định một user đang bị khóa để test logic UI
+					CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
+					ModifiedAt = DateTimeOffset.UtcNow.AddDays(-1)
+				},
+				new User
+				{
+					Id = Guid.NewGuid(),
+					Username = "vuthie",
+					FullName = "Vũ Thị E",
+					Email = "vuthie.client@srss.com",
+					Role = Role.Client,
+					IsActive = true,
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
 				}
+
 			};
 
 			foreach (var user in users)
 			{
-				user.Password = passwordHasher.HashPassword(user, "P@ssw0rd123");
+				user.Password = passwordHasher.HashPassword(user, "123456");
 			}
 
 			await context.Users.AddRangeAsync(users);
@@ -287,9 +343,9 @@ namespace SRSS.IAM.API.Data
 			};
 			await context.StudySelectionProcesses.AddAsync(studySelectionProcess);
 			await context.SaveChangesAsync();
-        }
+		}
 
-        private static async Task SeedSearchExecutionsAsync(AppDbContext context)
+		private static async Task SeedSearchExecutionsAsync(AppDbContext context)
 		{
 			if (await context.SearchExecutions.AnyAsync(x => x.Id == ScopusSearchExecutionId))
 			{

@@ -24,7 +24,13 @@ using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
+using SRSS.IAM.Repositories.PaperAssignmentRepo;
 using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
+using SRSS.IAM.Repositories.PaperPdfRepo;
+using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
+using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
+using SRSS.IAM.Repositories.CandidatePaperRepo;
+using SRSS.IAM.Repositories.PaperCitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -98,7 +104,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IStudySelectionProcessRepository StudySelectionProcesses { get; }
 		IScreeningDecisionRepository ScreeningDecisions { get; }
 		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
+		IPaperAssignmentRepository PaperAssignments { get; }
 		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+		IPaperPdfRepository PaperPdfs { get; }
+		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
+		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
+		ICandidatePaperRepository CandidatePapers { get; }
+		IPaperCitationRepository PaperCitations { get; }
 
 		// Quality Assessment
 		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }

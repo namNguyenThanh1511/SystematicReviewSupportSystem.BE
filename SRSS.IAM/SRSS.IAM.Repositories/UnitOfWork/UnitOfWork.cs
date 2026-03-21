@@ -25,7 +25,13 @@ using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
+using SRSS.IAM.Repositories.PaperAssignmentRepo;
 using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
+using SRSS.IAM.Repositories.PaperPdfRepo;
+using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
+using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
+using SRSS.IAM.Repositories.CandidatePaperRepo;
+using SRSS.IAM.Repositories.PaperCitationRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -53,7 +59,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		private IStudySelectionProcessRepository? _studySelectionProcesses;
 		private IScreeningDecisionRepository? _screeningDecisions;
 		private IIdentificationProcessPaperRepository? _identificationProcessPapers;
+		private IPaperAssignmentRepository? _paperAssignments;
 		private ITitleAbstractScreeningRepository? _titleAbstractScreenings;
+		private IPaperPdfRepository? _paperPdfs;
+		private IPaperSourceMetadataRepository? _paperSourceMetadatas;
+		private IGrobidHeaderResultRepository? _grobidHeaderResults;
+		private ICandidatePaperRepository? _candidatePapers;
+		private IPaperCitationRepository? _paperCitations;
 		// Protocol
 		private IReviewProtocolRepository? _protocols;
 		private IProtocolVersionRepository? _protocolVersions;
@@ -264,8 +276,20 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		public IIdentificationProcessPaperRepository IdentificationProcessPapers
 			=> _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
 
+		public IPaperAssignmentRepository PaperAssignments
+			=> _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
 		public ITitleAbstractScreeningRepository TitleAbstractScreenings
 			=> _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
+		public IPaperPdfRepository PaperPdfs
+			=> _paperPdfs ??= new PaperPdfRepository(_dbContext);
+		public IPaperSourceMetadataRepository PaperSourceMetadatas
+			=> _paperSourceMetadatas ??= new PaperSourceMetadataRepository(_dbContext);
+		public IGrobidHeaderResultRepository GrobidHeaderResults
+			=> _grobidHeaderResults ??= new GrobidHeaderResultRepository(_dbContext);
+		public ICandidatePaperRepository CandidatePapers
+			=> _candidatePapers ??= new CandidatePaperRepository(_dbContext);
+		public IPaperCitationRepository PaperCitations
+			=> _paperCitations ??= new PaperCitationRepository(_dbContext);
 
 		// Quality Assessment
 		public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);

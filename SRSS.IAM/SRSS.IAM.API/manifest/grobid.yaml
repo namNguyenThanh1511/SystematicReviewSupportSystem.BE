@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: srss-grobid
+  namespace: amayakuro
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      srss: grobid
+  template:
+    metadata:
+      labels:
+        srss: grobid
+    spec:
+      containers:
+      - image: lfoppiano/grobid:0.8.1
+        name: grobid
+        ports:
+        - containerPort: 8070
+          protocol: TCP
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - sgmy
+            weight: 50
+          - preference:
+              matchExpressions:
+              - key: k8s.badaimweeb.me/zone-tier1
+                operator: In
+                values:
+                - asia-se
+            weight: 10

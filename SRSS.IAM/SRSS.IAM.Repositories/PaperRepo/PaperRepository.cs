@@ -45,12 +45,18 @@ namespace SRSS.IAM.Repositories.PaperRepo
             string? search,
             SelectionStatus? status,
             int? year,
+            string? assignmentStatus,
+            ScreeningStage? stage,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
             var query = _context.Papers
                 .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Include(p => p.ScreeningResolutions)
                 .Where(p => p.ProjectId == projectId);
 
             // Apply search filter
@@ -70,6 +76,36 @@ namespace SRSS.IAM.Repositories.PaperRepo
             if (year.HasValue)
             {
                 query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            // Apply assignment status filter
+            if (!string.IsNullOrWhiteSpace(assignmentStatus))
+            {
+                if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => p.PaperAssignments.Any());
+                }
+                else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => !p.PaperAssignments.Any());
+                }
+            }
+
+            // Apply stage filter
+            if (stage.HasValue)
+            {
+                if (stage == ScreeningStage.FullText)
+                {
+                    // FullText papers are those that have been "Included" in a screening resolution
+                    query = query.Where(p => _context.ScreeningResolutions
+                        .Any(sr => sr.PaperId == p.Id && sr.FinalDecision == ScreeningDecisionType.Include));
+                }
+                else if (stage == ScreeningStage.TitleAbstract)
+                {
+                    // Papers that have NOT yet moved to FullText stage (not resolved as Included)
+                    query = query.Where(p => !_context.ScreeningResolutions
+                        .Any(sr => sr.PaperId == p.Id && sr.FinalDecision == ScreeningDecisionType.Include));
+                }
             }
 
             // Get total count
@@ -104,6 +140,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
             var query = _context.DeduplicationResults
                 .AsNoTracking()
                 .Include(dr => dr.Paper)
+                    .ThenInclude(p => p.PaperAssignments)
+                        .ThenInclude(pa => pa.ProjectMember)
+                            .ThenInclude(pm => pm.User)
+                .Include(dr => dr.Paper)
+                    .ThenInclude(p => p.ScreeningResolutions)
                 .Include(dr => dr.DuplicateOfPaper)
                 .Where(dr => dr.IdentificationProcessId == identificationProcessId);
 
@@ -179,6 +220,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
             var query = _context.Papers
                 .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Include(p => p.ScreeningResolutions)
                 .Where(p =>
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
@@ -216,6 +261,100 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .ToListAsync(cancellationToken);
 
             return (papers, totalCount);
+        }
+
+        public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            string? search,
+            string? assignmentStatus,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Where(p => paperIds.Contains(p.Id));
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(p =>
+                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply assignment status filter
+            if (!string.IsNullOrWhiteSpace(assignmentStatus))
+            {
+                if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => p.PaperAssignments.Any());
+                }
+                else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(p => !p.PaperAssignments.Any());
+                }
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
+
+        public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Where(p => paperIds.Contains(p.Id));
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
+
+
+
+        public async Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.IncomingCitations)
+                .OrderByDescending(p => p.IncomingCitations.Count)
+                .Take(topN)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.IncomingCitations)
+                .Where(p => paperIds.Contains(p.Id))
+                .ToListAsync(cancellationToken);
         }
 
         public async Task<List<Paper>> GetPapersWithQaDetailsByIdsAsync(

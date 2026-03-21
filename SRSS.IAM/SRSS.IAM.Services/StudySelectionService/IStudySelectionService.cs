@@ -1,3 +1,4 @@
+using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 
@@ -27,12 +28,18 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default);
 
+        Task<List<Guid>> GetFullTextEligiblePapersAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
         // Decision Management
         Task<ScreeningDecisionResponse> SubmitScreeningDecisionAsync(
             Guid studySelectionProcessId,
             Guid paperId,
             SubmitScreeningDecisionRequest request,
             CancellationToken cancellationToken = default);
+
+    
 
         Task<List<ScreeningDecisionResponse>> GetDecisionsByPaperAsync(
             Guid studySelectionProcessId,
@@ -49,7 +56,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             ResolveScreeningConflictRequest request,
             CancellationToken cancellationToken = default);
-
+            
         // Status and Statistics
         Task<PaperSelectionStatus> GetPaperSelectionStatusAsync(
             Guid studySelectionProcessId,
@@ -60,8 +67,26 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default);
 
+        Task<SelectionStatisticsResponse> GetPhaseStatisticsAsync(
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default);
+
+        Task<StudySelectionPhaseStatusResponse> GetPhaseStatusAsync(
+            Guid studySelectionProcessId,
+            CancellationToken cancellationToken = default);
+
         Task<PaginatedResponse<PaperWithDecisionsResponse>> GetPapersWithDecisionsAsync(
             Guid studySelectionProcessId,
+            PapersWithDecisionsRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperWithDecisionsResponse> GetPaperDetailsAsync(Guid studySelectionProcessId, Guid paperId,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperWithDecisionsResponse>> GetAssignedPapersAsync(
+            Guid studySelectionProcessId,
+            Guid userId,
             PapersWithDecisionsRequest request,
             CancellationToken cancellationToken = default);
 
@@ -87,6 +112,12 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             Guid paperId,
             UpdatePaperFullTextRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            RetryExtractionRequest request,
             CancellationToken cancellationToken = default);
     }
 }

@@ -222,30 +222,60 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             return true;
         }
 
-        public async Task<List<ProjectMemberDto>> GetProjectMembersAsync(
+        public async Task<PaginatedResponse<ProjectMemberDto>> GetProjectMembersAsync(
             Guid projectId,
+            string? search,
+            int pageNumber,
+            int pageSize,
             CancellationToken cancellationToken = default)
         {
             var project = await _unitOfWork.SystematicReviewProjects
                 .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
-
+ 
             if (project == null)
             {
                 throw new NotFoundException("Project not found.");
             }
-
-            var members = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(projectId);
-
-            return members.Select(m => new ProjectMemberDto
+ 
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+ 
+            var query = _unitOfWork.SystematicReviewProjects.GetProjectMembersQueryable(projectId);
+ 
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                UserId = m.UserId,
-                ProjectId = m.ProjectId,
-                Role = m.Role,
-                JoinedAt = m.JoinedAt,
-                UserName = m.User.Username,
-                FullName = m.User.FullName,
-                Email = m.User.Email
-            }).ToList();
+                var searchLower = search.ToLower();
+                query = query.Where(m =>
+                    m.User.FullName.ToLower().Contains(searchLower) ||
+                    m.User.Email.ToLower().Contains(searchLower) ||
+                    m.User.Username.ToLower().Contains(searchLower));
+            }
+ 
+            var totalCount = await query.CountAsync(cancellationToken);
+ 
+            var members = await query
+                .OrderBy(m => m.User.FullName)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+ 
+            return new PaginatedResponse<ProjectMemberDto>
+            {
+                Items = members.Select(m => new ProjectMemberDto
+                {
+                    UserId = m.UserId,
+                    ProjectId = m.ProjectId,
+                    Role = m.Role,
+                    JoinedAt = m.JoinedAt,
+                    UserName = m.User.Username,
+                    FullName = m.User.FullName,
+                    Email = m.User.Email
+                }).ToList(),
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<PaginatedResponse<MyProjectResponse>> GetMyProjectsAsync(
@@ -294,6 +324,32 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
+            };
+        }
+
+        public async Task<ProjectMembershipResponse> GetMyProjectMembershipAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+
+            var userIdGuid = Guid.Parse(userId);
+            var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid)
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId, cancellationToken);
+
+            if (membership == null)
+            {
+                throw new NotFoundException($"User is not a member of project with ID {projectId}.");
+            }
+
+            return new ProjectMembershipResponse
+            {
+                Role = membership.Role,
+                RoleText = membership.Role.ToString()
             };
         }
 

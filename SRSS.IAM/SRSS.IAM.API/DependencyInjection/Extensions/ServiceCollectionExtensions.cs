@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Shared.Cache;
@@ -25,13 +25,17 @@ using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
 using SRSS.IAM.Services.CoreGovernService;
 using SRSS.IAM.Services.DataExtractionService;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.SupabaseService;
+using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.MetadataMergeService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -40,7 +44,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
         public static void AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddHttpContextAccessor();
-
+            services.AddHttpClient();
             services.AddSignalR();
 			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 			services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
@@ -70,15 +74,23 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();
+            services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
-
+            // GROBID integration
+            services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));
+            services.AddHttpClient<IGrobidClient, GrobidClient>();
+			services.AddScoped<IGrobidService, GrobidService>();
+			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
+			services.AddScoped<SRSS.IAM.Services.ReferenceMatchingService.IReferenceMatchingService, SRSS.IAM.Services.ReferenceMatchingService.ReferenceMatchingService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

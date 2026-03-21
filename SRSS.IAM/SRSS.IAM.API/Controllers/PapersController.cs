@@ -31,6 +31,8 @@ namespace SRSS.IAM.API.Controllers
             [FromQuery] string? search,
             [FromQuery] SelectionStatus? status,
             [FromQuery] int? year,
+            [FromQuery] string? assignmentStatus,
+            [FromQuery] ScreeningStage? stage,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -40,6 +42,8 @@ namespace SRSS.IAM.API.Controllers
                 Search = search,
                 Status = status,
                 Year = year,
+                AssignmentStatus = assignmentStatus,
+                Stage = stage,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
@@ -91,8 +95,8 @@ namespace SRSS.IAM.API.Controllers
             };
 
             var result = await _paperService.GetDuplicatePapersByIdentificationProcessAsync(
-                identificationProcessId, 
-                request, 
+                identificationProcessId,
+                request,
                 cancellationToken);
 
             var message = result.TotalCount == 0

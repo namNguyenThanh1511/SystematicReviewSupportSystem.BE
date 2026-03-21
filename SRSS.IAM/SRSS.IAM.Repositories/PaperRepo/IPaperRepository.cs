@@ -14,6 +14,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
             string? search,
             SelectionStatus? status,
             int? year,
+            string? assignmentStatus,
+            ScreeningStage? stage,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
@@ -44,6 +46,23 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+          List<Guid> paperIds,
+          string? search,
+          string? assignmentStatus,
+          int pageNumber,
+          int pageSize,
+          CancellationToken cancellationToken = default);
+
+        Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
+        Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get papers with their Quality Assessment details (assignments and decisions)

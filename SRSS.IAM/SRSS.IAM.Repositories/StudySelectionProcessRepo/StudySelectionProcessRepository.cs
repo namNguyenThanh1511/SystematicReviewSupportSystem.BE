@@ -52,5 +52,14 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                 .Include(ssp => ssp.ScreeningResolutions)
                 .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
         }
+
+        public Task<StudySelectionProcess?> GetPhaseStatusAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return _context.StudySelectionProcesses
+                .AsNoTracking()
+                .Include(ssp => ssp.TitleAbstractScreening)
+                .Include(ssp => ssp.FullTextScreening)
+                .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
+        }
     }
 }

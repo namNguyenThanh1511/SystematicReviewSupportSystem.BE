@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Entities.BaseEntity;
 using System.Linq.Expressions;
 
@@ -46,6 +46,38 @@ namespace Shared.Repositories
                 query = query.Where(predicate);
 
             return await query.SingleOrDefaultAsync(cancellationToken);
+        }
+
+        public virtual async Task<TEntity?> FindSingleOrDefaultAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = _context.Set<TEntity>();
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return await query.SingleOrDefaultAsync(cancellationToken);
+        }
+
+        public virtual async Task<TEntity?> FindFirstOrDefaultAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = _context.Set<TEntity>();
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return await query.FirstOrDefaultAsync(cancellationToken);
         }
 
         public virtual async Task<bool> AnyAsync(

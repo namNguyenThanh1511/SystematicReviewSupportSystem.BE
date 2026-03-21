@@ -17,6 +17,10 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
             Guid id,
             CancellationToken cancellationToken = default);
 
+        Task<StudySelectionProcess?> GetPhaseStatusAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
+
         Task<bool> HasActiveProcessAsync(
             Guid reviewProcessId,
             CancellationToken cancellationToken = default);

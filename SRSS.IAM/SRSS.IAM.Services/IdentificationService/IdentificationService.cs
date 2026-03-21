@@ -1,4 +1,4 @@
-﻿using Shared.Exceptions;
+using Shared.Exceptions;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
@@ -16,7 +16,7 @@ namespace SRSS.IAM.Services.IdentificationService
         }
 
         public async Task<IdentificationProcessResponse> CreateIdentificationProcessAsync(
-            CreateIdentificationProcessRequest request, 
+            CreateIdentificationProcessRequest request,
             CancellationToken cancellationToken = default)
         {
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
@@ -90,7 +90,8 @@ namespace SRSS.IAM.Services.IdentificationService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
                 rp => rp.Id == identificationProcess.ReviewProcessId,
                 cancellationToken: cancellationToken);
-            if (reviewProcess == null) {
+            if (reviewProcess == null)
+            {
                 throw new InvalidOperationException($"Associated ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
             }
             reviewProcess.CurrentPhase = ProcessPhase.Identification;
@@ -464,7 +465,7 @@ namespace SRSS.IAM.Services.IdentificationService
         }
 
         public async Task<SearchExecutionResponse> CreateSearchExecutionAsync(
-            CreateSearchExecutionRequest request, 
+            CreateSearchExecutionRequest request,
             CancellationToken cancellationToken = default)
         {
             var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
@@ -603,7 +604,7 @@ namespace SRSS.IAM.Services.IdentificationService
         }
 
         private async Task<SearchExecutionResponse> MapToSearchExecutionResponseAsync(
-            SearchExecution searchExecution, 
+            SearchExecution searchExecution,
             CancellationToken cancellationToken = default)
         {
             var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
@@ -650,7 +651,7 @@ namespace SRSS.IAM.Services.IdentificationService
         }
 
         public async Task<ImportPaperResponse> ImportPaperAsync(
-            ImportPaperRequest request, 
+            ImportPaperRequest request,
             CancellationToken cancellationToken = default)
         {
             if (request.Papers == null || !request.Papers.Any())
@@ -696,7 +697,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
                 await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
-                
+
 
                 // Create papers linked to ImportBatch
                 var papers = new List<Paper>();
@@ -771,238 +772,238 @@ namespace SRSS.IAM.Services.IdentificationService
 
             if (identificationProcess == null)
             {
-                
+
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
+            try
+            {
+                // Begin transaction to ensure atomicity
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+
                 try
                 {
-                    // Begin transaction to ensure atomicity
-                    await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-                    try
+                    // Validate SearchExecution if provided
+                    SearchExecution? searchExecution = null;
+                    if (searchExecutionId.HasValue)
                     {
-                        // Validate SearchExecution if provided
-                        SearchExecution? searchExecution = null;
-                        if (searchExecutionId.HasValue)
-                        {
-                            searchExecution = await _unitOfWork.SearchExecutions.GetByIdWithProjectAsync(
-                                searchExecutionId.Value,
-                                cancellationToken);
+                        searchExecution = await _unitOfWork.SearchExecutions.GetByIdWithProjectAsync(
+                            searchExecutionId.Value,
+                            cancellationToken);
 
-                            if (searchExecution == null)
-                            {
-                               
-                                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                                throw new InvalidOperationException($"SearchExecution with ID {searchExecutionId.Value} not found.");
-                            }
-                        }
-                        else
+                        if (searchExecution == null)
                         {
-                            // Create a new SearchExecution for this import
-                            searchExecution = new SearchExecution
-                            {
-                                Id = Guid.NewGuid(),
-                                IdentificationProcessId = identificationProcessId,
-                                SearchSource = source ?? "Manual Import",
-                                ExecutedAt = DateTimeOffset.UtcNow,
-                                ResultCount = 0,
-                                Type = SearchExecutionType.ManualImport,
-                                CreatedAt = DateTimeOffset.UtcNow,
-                                ModifiedAt = DateTimeOffset.UtcNow
-                            };
 
-                            await _unitOfWork.SearchExecutions.AddAsync(searchExecution, cancellationToken);
-                            searchExecutionId = searchExecution.Id;
-                        }
-
-                        // Parse RIS file before creating ImportBatch
-                        List<RisPaperDto> risPapers;
-                        try
-                        {
-                            risPapers = RisParser.Parse(fileStream);
-                        }
-                        catch (Exception ex)
-                        {
-                           
                             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            throw new InvalidOperationException($"Failed to parse RIS file: {ex.Message}", ex);
-                    
+                            throw new InvalidOperationException($"SearchExecution with ID {searchExecutionId.Value} not found.");
                         }
-
-                        if (!risPapers.Any())
-                        {
-                            
-                            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            throw new InvalidOperationException("No valid records found in the RIS file.");
-          
-                        }
-
-                        result.TotalRecords = risPapers.Count;
-
-                        // Create ImportBatch to track this import
-                        var importBatch = new ImportBatch
+                    }
+                    else
+                    {
+                        // Create a new SearchExecution for this import
+                        searchExecution = new SearchExecution
                         {
                             Id = Guid.NewGuid(),
-                            FileName = fileName,
-                            FileType = "RIS",
-                            Source = source ?? "Manual Upload",
-                            TotalRecords = risPapers.Count,
-                            ImportedBy = importedBy,
-                            ImportedAt = DateTimeOffset.UtcNow,
-                            SearchExecutionId = searchExecutionId,
+                            IdentificationProcessId = identificationProcessId,
+                            SearchSource = source ?? "Manual Import",
+                            ExecutedAt = DateTimeOffset.UtcNow,
+                            ResultCount = 0,
+                            Type = SearchExecutionType.ManualImport,
                             CreatedAt = DateTimeOffset.UtcNow,
                             ModifiedAt = DateTimeOffset.UtcNow
                         };
 
-                        await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
-                        await _unitOfWork.SaveChangesAsync(cancellationToken);
-                        result.ImportBatchId = importBatch.Id;
+                        await _unitOfWork.SearchExecutions.AddAsync(searchExecution, cancellationToken);
+                        searchExecutionId = searchExecution.Id;
+                    }
 
-                        // Process each paper
-                        foreach (var risPaper in risPapers)
+                    // Parse RIS file before creating ImportBatch
+                    List<RisPaperDto> risPapers;
+                    try
+                    {
+                        risPapers = RisParser.Parse(fileStream);
+                    }
+                    catch (Exception ex)
+                    {
+
+                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                        throw new InvalidOperationException($"Failed to parse RIS file: {ex.Message}", ex);
+
+                    }
+
+                    if (!risPapers.Any())
+                    {
+
+                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                        throw new InvalidOperationException("No valid records found in the RIS file.");
+
+                    }
+
+                    result.TotalRecords = risPapers.Count;
+
+                    // Create ImportBatch to track this import
+                    var importBatch = new ImportBatch
+                    {
+                        Id = Guid.NewGuid(),
+                        FileName = fileName,
+                        FileType = "RIS",
+                        Source = source ?? "Manual Upload",
+                        TotalRecords = risPapers.Count,
+                        ImportedBy = importedBy,
+                        ImportedAt = DateTimeOffset.UtcNow,
+                        SearchExecutionId = searchExecutionId,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    };
+
+                    await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    result.ImportBatchId = importBatch.Id;
+
+                    // Process each paper
+                    foreach (var risPaper in risPapers)
+                    {
+                        try
                         {
-                            try
+                            // Validate required field (Title)
+                            if (string.IsNullOrWhiteSpace(risPaper.Title))
                             {
-                                // Validate required field (Title)
-                                if (string.IsNullOrWhiteSpace(risPaper.Title))
-                                {
-                                    result.SkippedRecords++;
-                                    result.Errors.Add("Skipped record: Missing title.");
-                                    continue;
-                                }
+                                result.SkippedRecords++;
+                                result.Errors.Add("Skipped record: Missing title.");
+                                continue;
+                            }
 
-                                // Check for duplicate by DOI
-                                Paper? existingPaper = null;
-                                if (!string.IsNullOrWhiteSpace(risPaper.DOI))
+                            // Check for duplicate by DOI
+                            Paper? existingPaper = null;
+                            if (!string.IsNullOrWhiteSpace(risPaper.DOI))
+                            {
+                                // When importing with a search execution ID, check within that search execution
+                                if (searchExecutionId.HasValue)
                                 {
-                                    // When importing with a search execution ID, check within that search execution
-                                    if (searchExecutionId.HasValue)
+                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndSearchExecutionAsync(
+                                        risPaper.DOI,
+                                        searchExecutionId.Value,
+                                        cancellationToken);
+
+                                    if (existingPaper != null)
                                     {
-                                        existingPaper = await _unitOfWork.Papers.GetByDoiAndSearchExecutionAsync(
-                                            risPaper.DOI,
-                                            searchExecutionId.Value,
-                                            cancellationToken);
-
-                                        if (existingPaper != null)
-                                        {
-                                            throw new InvalidOperationException("Duplicate record detected within the same search execution based on DOI. Import aborted to prevent duplicates. Please review the RIS file and remove duplicates before importing.");
-                                        }
-                       
+                                        throw new InvalidOperationException("Duplicate record detected within the same search execution based on DOI. Import aborted to prevent duplicates. Please review the RIS file and remove duplicates before importing.");
                                     }
-                                    //get orginal paper for deduplication 
-                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndIdentificationProcessAsync(
-                                            risPaper.DOI,
-                                            identificationProcess.Id,
-                                            cancellationToken);
-                                    
-                                }
 
-                                // Parse PublicationYear to int
-                                int? publicationYearInt = null;
-                                if (!string.IsNullOrWhiteSpace(risPaper.PublicationYear) &&
-                                    int.TryParse(risPaper.PublicationYear, out var year))
-                                {
-                                    publicationYearInt = year;
                                 }
+                                //get orginal paper for deduplication 
+                                existingPaper = await _unitOfWork.Papers.GetByDoiAndIdentificationProcessAsync(
+                                        risPaper.DOI,
+                                        identificationProcess.Id,
+                                        cancellationToken);
 
-                                // Create new paper (or track duplication when no search execution ID)
-                                var newPaper = new Paper
+                            }
+
+                            // Parse PublicationYear to int
+                            int? publicationYearInt = null;
+                            if (!string.IsNullOrWhiteSpace(risPaper.PublicationYear) &&
+                                int.TryParse(risPaper.PublicationYear, out var year))
+                            {
+                                publicationYearInt = year;
+                            }
+
+                            // Create new paper (or track duplication when no search execution ID)
+                            var newPaper = new Paper
+                            {
+                                Id = Guid.NewGuid(),
+                                Title = risPaper.Title,
+                                Authors = risPaper.Authors,
+                                Abstract = risPaper.Abstract,
+                                DOI = risPaper.DOI,
+                                PublicationType = risPaper.PublicationType,
+                                PublicationYear = risPaper.PublicationYear,
+                                PublicationYearInt = publicationYearInt,
+                                PublicationDate = risPaper.PublicationDate,
+                                Volume = risPaper.Volume,
+                                Issue = risPaper.Issue,
+                                Pages = risPaper.Pages,
+                                Publisher = risPaper.Publisher,
+                                ConferenceLocation = risPaper.ConferenceLocation,
+                                ConferenceName = risPaper.ConferenceName,
+                                Journal = risPaper.Journal,
+                                JournalIssn = risPaper.JournalIssn,
+                                Url = risPaper.Url,
+                                Keywords = risPaper.Keywords,
+                                RawReference = risPaper.RawReference,
+
+                                // Link to Project
+                                ProjectId = identificationProcess.ReviewProcess.ProjectId,
+
+                                // Import tracking
+                                Source = source,
+                                ImportBatchId = importBatch.Id,
+                                ImportedAt = importBatch.ImportedAt,
+                                ImportedBy = importBatch.ImportedBy,
+
+                                // Paper is immutable bibliographic record - no workflow state
+                                // Audit fields
+                                CreatedAt = DateTimeOffset.UtcNow,
+                                ModifiedAt = DateTimeOffset.UtcNow
+                            };
+
+                            await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+                            result.ImportedRecords++;
+                            result.ImportedPaperIds.Add(newPaper.Id);
+
+                            // If duplicate detected (no search execution ID case), create deduplication result
+                            if (existingPaper != null)
+                            {
+                                var deduplicationResult = new DeduplicationResult
                                 {
                                     Id = Guid.NewGuid(),
-                                    Title = risPaper.Title,
-                                    Authors = risPaper.Authors,
-                                    Abstract = risPaper.Abstract,
-                                    DOI = risPaper.DOI,
-                                    PublicationType = risPaper.PublicationType,
-                                    PublicationYear = risPaper.PublicationYear,
-                                    PublicationYearInt = publicationYearInt,
-                                    PublicationDate = risPaper.PublicationDate,
-                                    Volume = risPaper.Volume,
-                                    Issue = risPaper.Issue,
-                                    Pages = risPaper.Pages,
-                                    Publisher = risPaper.Publisher,
-                                    ConferenceLocation = risPaper.ConferenceLocation,
-                                    ConferenceName = risPaper.ConferenceName,
-                                    Journal = risPaper.Journal,
-                                    JournalIssn = risPaper.JournalIssn,
-                                    Url = risPaper.Url,
-                                    Keywords = risPaper.Keywords,
-                                    RawReference = risPaper.RawReference,
-
-                                    // Link to Project
-                                    ProjectId = identificationProcess.ReviewProcess.ProjectId,
-
-                                    // Import tracking
-                                    Source = "RIS",
-                                    ImportBatchId = importBatch.Id,
-                                    ImportedAt = importBatch.ImportedAt,
-                                    ImportedBy = importBatch.ImportedBy,
-
-                                    // Paper is immutable bibliographic record - no workflow state
-                                    // Audit fields
+                                    IdentificationProcessId = identificationProcessId,
+                                    PaperId = newPaper.Id,
+                                    DuplicateOfPaperId = existingPaper.Id,
+                                    Method = DeduplicationMethod.DOI_MATCH,
+                                    ConfidenceScore = 1.0m, // DOI match = 100% confidence
+                                    Notes = $"Duplicate detected by DOI: {risPaper.DOI}",
                                     CreatedAt = DateTimeOffset.UtcNow,
                                     ModifiedAt = DateTimeOffset.UtcNow
                                 };
 
-                                await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                                result.ImportedRecords++;
-                                result.ImportedPaperIds.Add(newPaper.Id);
-
-                                // If duplicate detected (no search execution ID case), create deduplication result
-                                if (existingPaper != null)
-                                {
-                                    var deduplicationResult = new DeduplicationResult
-                                    {
-                                        Id = Guid.NewGuid(),
-                                        IdentificationProcessId = identificationProcessId,
-                                        PaperId = newPaper.Id,
-                                        DuplicateOfPaperId = existingPaper.Id,
-                                        Method = DeduplicationMethod.DOI_MATCH,
-                                        ConfidenceScore = 1.0m, // DOI match = 100% confidence
-                                        Notes = $"Duplicate detected by DOI: {risPaper.DOI}",
-                                        CreatedAt = DateTimeOffset.UtcNow,
-                                        ModifiedAt = DateTimeOffset.UtcNow
-                                    };
-
-                                    await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
-                                    result.DuplicateRecords++;
-                                }
+                                await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+                                result.DuplicateRecords++;
                             }
-                            catch (Exception ex)
-                            {
-                               throw new InvalidOperationException($"Error importing record with title '{risPaper.Title}': {ex.Message}", ex);
                         }
-                        }
-
-                        // Update SearchExecution result count if provided
-                        if (searchExecution != null)
+                        catch (Exception ex)
                         {
-                            searchExecution.ResultCount += result.ImportedRecords;
-                            searchExecution.ModifiedAt = DateTimeOffset.UtcNow;
-                            await _unitOfWork.SearchExecutions.UpdateAsync(searchExecution, cancellationToken);
+                            throw new InvalidOperationException($"Error importing record with title '{risPaper.Title}': {ex.Message}", ex);
                         }
-
-                        // Update ImportBatch with final statistics
-                        importBatch.TotalRecords = result.TotalRecords;
-                        importBatch.ModifiedAt = DateTimeOffset.UtcNow;
-                        await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
-
-                        // Commit transaction - all changes persisted atomically
-                        await _unitOfWork.CommitTransactionAsync(cancellationToken);
                     }
-                    catch (Exception ex)
+
+                    // Update SearchExecution result count if provided
+                    if (searchExecution != null)
                     {
-                        // Rollback transaction on any error
-                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                        throw new Exception("An error occurred during RIS import. See inner exception for details.", ex);
-             
+                        searchExecution.ResultCount += result.ImportedRecords;
+                        searchExecution.ModifiedAt = DateTimeOffset.UtcNow;
+                        await _unitOfWork.SearchExecutions.UpdateAsync(searchExecution, cancellationToken);
                     }
+
+                    // Update ImportBatch with final statistics
+                    importBatch.TotalRecords = result.TotalRecords;
+                    importBatch.ModifiedAt = DateTimeOffset.UtcNow;
+                    await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
+
+                    // Commit transaction - all changes persisted atomically
+                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("An unexpected error occurred during RIS import. See inner exception for details.", ex);
+                    // Rollback transaction on any error
+                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    throw new Exception("An error occurred during RIS import. See inner exception for details.", ex);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("An unexpected error occurred during RIS import. See inner exception for details.", ex);
 
             }
 

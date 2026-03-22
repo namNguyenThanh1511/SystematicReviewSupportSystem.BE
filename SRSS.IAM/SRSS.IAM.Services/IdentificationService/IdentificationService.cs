@@ -2,17 +2,27 @@ using Shared.Exceptions;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
+using SRSS.IAM.Services.EmbeddingService;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
     public class IdentificationService : IIdentificationService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IReferenceMatchingService _matchingService;
+        private readonly IEmbeddingService _embeddingService;
 
-        public IdentificationService(IUnitOfWork unitOfWork)
+        public IdentificationService(
+            IUnitOfWork unitOfWork, 
+            IReferenceMatchingService matchingService,
+            IEmbeddingService embeddingService)
         {
             _unitOfWork = unitOfWork;
+            _matchingService = matchingService;
+            _embeddingService = embeddingService;
         }
 
         public async Task<IdentificationProcessResponse> CreateIdentificationProcessAsync(
@@ -862,120 +872,13 @@ namespace SRSS.IAM.Services.IdentificationService
                     result.ImportBatchId = importBatch.Id;
 
                     // Process each paper
-                    foreach (var risPaper in risPapers)
-                    {
-                        try
-                        {
-                            // Validate required field (Title)
-                            if (string.IsNullOrWhiteSpace(risPaper.Title))
-                            {
-                                result.SkippedRecords++;
-                                result.Errors.Add("Skipped record: Missing title.");
-                                continue;
-                            }
-
-                            // Check for duplicate by DOI
-                            Paper? existingPaper = null;
-                            if (!string.IsNullOrWhiteSpace(risPaper.DOI))
-                            {
-                                // When importing with a search execution ID, check within that search execution
-                                if (searchExecutionId.HasValue)
-                                {
-                                    existingPaper = await _unitOfWork.Papers.GetByDoiAndSearchExecutionAsync(
-                                        risPaper.DOI,
-                                        searchExecutionId.Value,
-                                        cancellationToken);
-
-                                    if (existingPaper != null)
-                                    {
-                                        throw new InvalidOperationException("Duplicate record detected within the same search execution based on DOI. Import aborted to prevent duplicates. Please review the RIS file and remove duplicates before importing.");
-                                    }
-
-                                }
-                                //get orginal paper for deduplication 
-                                existingPaper = await _unitOfWork.Papers.GetByDoiAndIdentificationProcessAsync(
-                                        risPaper.DOI,
-                                        identificationProcess.Id,
-                                        cancellationToken);
-
-                            }
-
-                            // Parse PublicationYear to int
-                            int? publicationYearInt = null;
-                            if (!string.IsNullOrWhiteSpace(risPaper.PublicationYear) &&
-                                int.TryParse(risPaper.PublicationYear, out var year))
-                            {
-                                publicationYearInt = year;
-                            }
-
-                            // Create new paper (or track duplication when no search execution ID)
-                            var newPaper = new Paper
-                            {
-                                Id = Guid.NewGuid(),
-                                Title = risPaper.Title,
-                                Authors = risPaper.Authors,
-                                Abstract = risPaper.Abstract,
-                                DOI = risPaper.DOI,
-                                PublicationType = risPaper.PublicationType,
-                                PublicationYear = risPaper.PublicationYear,
-                                PublicationYearInt = publicationYearInt,
-                                PublicationDate = risPaper.PublicationDate,
-                                Volume = risPaper.Volume,
-                                Issue = risPaper.Issue,
-                                Pages = risPaper.Pages,
-                                Publisher = risPaper.Publisher,
-                                ConferenceLocation = risPaper.ConferenceLocation,
-                                ConferenceName = risPaper.ConferenceName,
-                                Journal = risPaper.Journal,
-                                JournalIssn = risPaper.JournalIssn,
-                                Url = risPaper.Url,
-                                Keywords = risPaper.Keywords,
-                                RawReference = risPaper.RawReference,
-
-                                // Link to Project
-                                ProjectId = identificationProcess.ReviewProcess.ProjectId,
-
-                                // Import tracking
-                                Source = source,
-                                ImportBatchId = importBatch.Id,
-                                ImportedAt = importBatch.ImportedAt,
-                                ImportedBy = importBatch.ImportedBy,
-
-                                // Paper is immutable bibliographic record - no workflow state
-                                // Audit fields
-                                CreatedAt = DateTimeOffset.UtcNow,
-                                ModifiedAt = DateTimeOffset.UtcNow
-                            };
-
-                            await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                            result.ImportedRecords++;
-                            result.ImportedPaperIds.Add(newPaper.Id);
-
-                            // If duplicate detected (no search execution ID case), create deduplication result
-                            if (existingPaper != null)
-                            {
-                                var deduplicationResult = new DeduplicationResult
-                                {
-                                    Id = Guid.NewGuid(),
-                                    IdentificationProcessId = identificationProcessId,
-                                    PaperId = newPaper.Id,
-                                    DuplicateOfPaperId = existingPaper.Id,
-                                    Method = DeduplicationMethod.DOI_MATCH,
-                                    ConfidenceScore = 1.0m, // DOI match = 100% confidence
-                                    Notes = $"Duplicate detected by DOI: {risPaper.DOI}",
-                                    CreatedAt = DateTimeOffset.UtcNow,
-                                    ModifiedAt = DateTimeOffset.UtcNow
-                                };
-
-                                await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
-                                result.DuplicateRecords++;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new InvalidOperationException($"Error importing record with title '{risPaper.Title}': {ex.Message}", ex);
-                        }
-                    }
+                    await ProcessPapersAsync(
+                        risPapers, 
+                        identificationProcess, 
+                        importBatch, 
+                        result, 
+                        searchExecution, 
+                        cancellationToken);
 
                     // Update SearchExecution result count if provided
                     if (searchExecution != null)
@@ -997,18 +900,187 @@ namespace SRSS.IAM.Services.IdentificationService
                 {
                     // Rollback transaction on any error
                     await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    throw new Exception("An error occurred during RIS import. See inner exception for details.", ex);
+                    throw new Exception(ex.Message, ex);
 
                 }
             }
             catch (Exception ex)
             {
-                throw new Exception("An unexpected error occurred during RIS import. See inner exception for details.", ex);
+                throw new Exception(ex.Message, ex);
 
             }
 
             return result;
         }
+        private async Task ProcessPapersAsync(
+            List<RisPaperDto> risPapers,
+            IdentificationProcess identificationProcess,
+            ImportBatch importBatch,
+            RisImportResultDto result,
+            SearchExecution? searchExecution,
+            CancellationToken cancellationToken)
+        {
+            // Prepare references for matching service
+            var referencesForMatching = risPapers.Select(p => new ExtractedReference
+            {
+                Title = p.Title,
+                Authors = p.Authors,
+                DOI = DoiHelper.Normalize(p.DOI) ?? p.DOI,
+                PublishedYear = p.PublicationYear,
+                RawReference = p.RawReference
+            }).ToList();
+
+            // Pre-fetch batch match results against existing database papers
+            var dbMatchResults = (await _matchingService.MatchBatchAsync(
+                referencesForMatching, 
+                identificationProcess.Id, 
+                cancellationToken)).ToList();
+
+            // Track processed references within this batch for intra-batch detection
+            var processedReferences = new List<ProcessedReference>();
+
+            // Process each record
+            for (int i = 0; i < risPapers.Count; i++)
+            {
+                var risPaper = risPapers[i];
+                var currentReference = referencesForMatching[i];
+                
+                // Skip records without titles
+                if (string.IsNullOrWhiteSpace(risPaper.Title)) continue;
+
+                // 4. Generate Semantic Embedding (AI)
+                // We do this BEFORE matching so the matching service can use it
+                var embeddingInput = GenerateEmbeddingInput(risPaper.Title, risPaper.Authors, risPaper.PublicationYear, risPaper.Journal);
+                currentReference.TitleEmbedding = await _embeddingService.GetEmbeddingAsync(embeddingInput, cancellationToken);
+
+                // 1. Get best match from DB (pre-fetched)
+                var dbMatch = dbMatchResults[i];
+
+                // 2. Get best match from already processed papers in this batch
+                var batchMatch = _matchingService.MatchAgainstProcessed(currentReference, processedReferences);
+                
+                // (Matches are selected and Paper entity created below...)
+
+                // 3. Select the best match overall
+                MatchResult? bestMatch = null;
+                bool isBatchLevelMatch = false;
+
+                if (dbMatch.ConfidenceScore >= batchMatch.ConfidenceScore && dbMatch.ConfidenceScore > 0)
+                {
+                    bestMatch = dbMatch;
+                    isBatchLevelMatch = false;
+                }
+                else if (batchMatch.ConfidenceScore > 0)
+                {
+                    bestMatch = batchMatch;
+                    isBatchLevelMatch = true;
+                }
+
+                int? publicationYearInt = null;
+                if (int.TryParse(risPaper.PublicationYear, out var year)) publicationYearInt = year;
+
+                // Create Paper entity
+                var newPaper = new Paper
+                {
+                    Id = Guid.NewGuid(),
+                    Title = risPaper.Title,
+                    Authors = risPaper.Authors,
+                    Abstract = risPaper.Abstract,
+                    DOI = DoiHelper.Normalize(risPaper.DOI) ?? risPaper.DOI,
+                    PublicationType = risPaper.PublicationType,
+                    PublicationYear = risPaper.PublicationYear,
+                    PublicationYearInt = publicationYearInt,
+                    Volume = risPaper.Volume,
+                    Issue = risPaper.Issue,
+                    Pages = risPaper.Pages,
+                    Publisher = risPaper.Publisher,
+                    Journal = risPaper.Journal,
+                    JournalIssn = risPaper.JournalIssn,
+                    Url = risPaper.Url,
+                    Keywords = risPaper.Keywords,
+                    RawReference = risPaper.RawReference,
+                    ProjectId = identificationProcess.ReviewProcess.ProjectId,
+                    Source = searchExecution?.SearchSource ?? "Manual Upload",
+                    ImportBatchId = importBatch.Id,
+                    ImportedAt = importBatch.ImportedAt,
+                    ImportedBy = importBatch.ImportedBy,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+                
+                // 5. Save Embedding to separate entity
+                if (currentReference.TitleEmbedding != null)
+                {
+                    var paperEmbedding = new PaperEmbedding
+                    {
+                        Id = Guid.NewGuid(),
+                        PaperId = newPaper.Id,
+                        Embedding = currentReference.TitleEmbedding,
+                        Model = _embeddingService.ModelName,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    };
+                    // Assuming we'll add PaperEmbeddings to UnitOfWork or use Paper's navigation
+                    newPaper.TitleEmbedding = paperEmbedding;
+                }
+
+                result.ImportedRecords++;
+                result.ImportedPaperIds.Add(newPaper.Id);
+
+                // Handle duplication results
+                if (bestMatch != null && bestMatch.ConfidenceScore >= 0.7m)
+                {
+                    var deduplicationResult = new DeduplicationResult
+                    {
+                        Id = Guid.NewGuid(),
+                        IdentificationProcessId = identificationProcess.Id,
+                        PaperId = newPaper.Id,
+                        DuplicateOfPaperId = isBatchLevelMatch ? (bestMatch.MatchedPaperId ?? Guid.Empty) : (bestMatch.MatchedPaper?.Id ?? Guid.Empty),
+                        Method = bestMatch.Strategy switch {
+                            MatchStrategy.DOI => DeduplicationMethod.DOI_MATCH,
+                            MatchStrategy.TitleExact => DeduplicationMethod.TITLE_AUTHOR,
+                            MatchStrategy.TitleFuzzy => DeduplicationMethod.TITLE_FUZZY,
+                            MatchStrategy.Semantic => DeduplicationMethod.SEMANTIC,
+                            _ => DeduplicationMethod.HYBRID
+                        },
+                        ConfidenceScore = bestMatch.ConfidenceScore,
+                        Notes = isBatchLevelMatch 
+                            ? $"Intra-batch duplicate detected ({bestMatch.Strategy} match)." 
+                            : $"Database duplicate detected ({bestMatch.Strategy} match).",
+                        ReviewStatus = bestMatch.ConfidenceScore >= 0.95m 
+                            ? DeduplicationReviewStatus.Confirmed 
+                            : DeduplicationReviewStatus.Pending,
+                        ResolvedDecision = bestMatch.ConfidenceScore >= 0.95m 
+                            ? DuplicateResolutionDecision.CANCEL 
+                            : null,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    };
+
+                    await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+                    result.DuplicateRecords++;
+                }
+
+                // Add to processed list for incremental detection of subsequent records
+                processedReferences.Add(new ProcessedReference
+                {
+                    Reference = currentReference,
+                    PaperId = newPaper.Id
+                });
+            }
+        }
+
+        private string GenerateEmbeddingInput(string? title, string? authors, string? year, string? journal)
+        {
+            var sb = new System.Text.StringBuilder();
+            if (!string.IsNullOrWhiteSpace(title)) sb.Append($"Title: {title.Trim()} ");
+            if (!string.IsNullOrWhiteSpace(authors)) sb.Append($"| Authors: {authors.Trim()} ");
+            if (!string.IsNullOrWhiteSpace(year)) sb.Append($"| Year: {year.Trim()} ");
+            if (!string.IsNullOrWhiteSpace(journal)) sb.Append($"| Source: {journal.Trim()}");
+            
+            return sb.ToString().Trim();
+        }
     }
 }
-

@@ -263,7 +263,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
                             DOI = candidate.DOI,
                             PublicationYear = candidate.PublicationYear,
                             SourceType = PaperSourceType.Snowballing,
-                            OriginPaperId = candidate.OriginPaperId,
                             Source = "Snowballing (GROBID)",
                             ImportedAt = DateTimeOffset.UtcNow,
                             ImportedBy = userId.ToString(),

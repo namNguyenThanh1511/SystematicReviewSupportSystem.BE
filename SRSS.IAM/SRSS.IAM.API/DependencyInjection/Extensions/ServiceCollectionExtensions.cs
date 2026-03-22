@@ -36,6 +36,8 @@ using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
+using SRSS.IAM.Services.EmbeddingService;
+using SRSS.IAM.Services.ReferenceMatchingService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -90,7 +92,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpClient<IGrobidClient, GrobidClient>();
 			services.AddScoped<IGrobidService, GrobidService>();
 			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
-			services.AddScoped<SRSS.IAM.Services.ReferenceMatchingService.IReferenceMatchingService, SRSS.IAM.Services.ReferenceMatchingService.ReferenceMatchingService>();
+			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
+            services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

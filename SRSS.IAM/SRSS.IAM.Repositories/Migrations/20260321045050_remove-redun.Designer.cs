@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -12,9 +13,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260321045050_remove-redun")]
+    partial class removeredun
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1354,44 +1357,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsUnique();
 
                     b.ToTable("paper_citations", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperEmbedding", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<float[]>("Embedding")
-                        .IsRequired()
-                        .HasColumnType("real[]")
-                        .HasColumnName("embedding");
-
-                    b.Property<string>("Model")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("model");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("paper_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperId")
-                        .IsUnique();
-
-                    b.ToTable("paper_embeddings", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -3191,17 +3156,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("TargetPaper");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperEmbedding", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithOne("TitleEmbedding")
-                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperEmbedding", "PaperId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Paper");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
@@ -3623,8 +3577,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ScreeningResolutions");
 
                     b.Navigation("SourceMetadatas");
-
-                    b.Navigation("TitleEmbedding");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>

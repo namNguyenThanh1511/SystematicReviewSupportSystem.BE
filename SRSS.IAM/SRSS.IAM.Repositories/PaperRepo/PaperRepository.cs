@@ -356,5 +356,21 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Where(p => paperIds.Contains(p.Id))
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Paper> query = _context.Papers.Include(p => p.TitleEmbedding);
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return await query.ToListAsync(cancellationToken);
+        }
     }
 }

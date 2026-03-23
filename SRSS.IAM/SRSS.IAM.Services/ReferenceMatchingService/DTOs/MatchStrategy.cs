@@ -8,6 +8,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService.DTOs
         DOI = 1,
         TitleExact = 2,
         TitleFuzzy = 3,
-        AuthorYear = 4
+        AuthorYear = 4,
+        Semantic = 5
     }
 }

@@ -26,6 +26,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Url { get; set; }
         public string? RawReference { get; set; }
         public string? Md5 { get; set; }
+        public PaperEmbedding? TitleEmbedding { get; set; }
 
         // ============================================
         // CONFERENCE METADATA
@@ -51,7 +52,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Source { get; set; }
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
-        public Guid? OriginPaperId { get; set; }
         public Guid? ImportBatchId { get; set; }
         public Guid? ReviewProcessId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }

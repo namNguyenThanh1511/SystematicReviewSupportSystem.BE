@@ -63,6 +63,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
         Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default);
+        
+        Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get papers with their Quality Assessment details (assignments and decisions)

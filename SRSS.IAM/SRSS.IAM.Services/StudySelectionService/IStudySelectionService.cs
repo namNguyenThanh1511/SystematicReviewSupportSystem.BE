@@ -39,7 +39,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             SubmitScreeningDecisionRequest request,
             CancellationToken cancellationToken = default);
 
-    
+
 
         Task<List<ScreeningDecisionResponse>> GetDecisionsByPaperAsync(
             Guid studySelectionProcessId,
@@ -51,12 +51,23 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedResponse<PhaseConflictedPaperResponse>> GetConflictedPapersByPhaseAsync(
+            Guid studySelectionProcessId,
+            ConflictedPapersRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<ScreeningResolutionResponse> ResolveConflictAsync(
             Guid studySelectionProcessId,
             Guid paperId,
             ResolveScreeningConflictRequest request,
             CancellationToken cancellationToken = default);
-            
+
+        Task<ConflictPaperDetailResponse> GetConflictPaperDetailAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default);
+
         // Status and Statistics
         Task<PaperSelectionStatus> GetPaperSelectionStatusAsync(
             Guid studySelectionProcessId,

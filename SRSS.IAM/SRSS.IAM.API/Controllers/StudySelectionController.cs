@@ -131,6 +131,55 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get papers with conflicting decisions grouped by phase (Title/Abstract and Full Text)
+        /// Supports pagination, filtering by status, and search by title/authors/doi
+        /// </summary>
+        [HttpGet("study-selection/{id}/conflicts-by-phase")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PhaseConflictedPaperResponse>>>> GetConflictedPapersByPhase(
+            [FromRoute] Guid id,
+            [FromQuery] ScreeningPhase? phase,
+            [FromQuery] PaperSelectionStatus? status,
+            [FromQuery] string? search,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new ConflictedPapersRequest
+            {
+                Phase = phase,
+                Status = status,
+                Search = search,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _studySelectionService.GetConflictedPapersByPhaseAsync(id, request, cancellationToken);
+
+            var message = result.TotalCount == 0
+                ? "No conflicted papers found matching the criteria."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} conflicted papers (page {result.PageNumber}).";
+
+            return Ok(result, message);
+        }
+
+        /// <summary>
+        /// Get detailed information of a conflicted paper for resolution
+        /// Includes core metadata, metadata sources, decisions, and full-text links.
+        /// Phase TitleAbstract: includes Abstract and Keywords.
+        /// Phase FullText: includes Full-Text access links.
+        /// </summary>
+        [HttpGet("study-selection/{id}/papers/{paperId}/conflict-detail")]
+        public async Task<ActionResult<ApiResponse<ConflictPaperDetailResponse>>> GetConflictPaperDetail(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            [FromQuery] ScreeningPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetConflictPaperDetailAsync(id, paperId, phase, cancellationToken);
+            return Ok(result, "Conflicted paper detail retrieved successfully.");
+        }
+
+        /// <summary>
         /// Resolve a conflicted paper with final decision
         /// </summary>
         [HttpPost("study-selection/{id}/papers/{paperId}/resolve")]

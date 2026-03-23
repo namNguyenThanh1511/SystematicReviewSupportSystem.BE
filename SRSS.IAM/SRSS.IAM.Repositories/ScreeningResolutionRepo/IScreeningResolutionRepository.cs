@@ -9,10 +9,12 @@ namespace SRSS.IAM.Repositories.ScreeningResolutionRepo
         Task<ScreeningResolution?> GetByProcessAndPaperAsync(
             Guid studySelectionProcessId,
             Guid paperId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default);
 
         Task<List<ScreeningResolution>> GetByProcessAsync(
             Guid studySelectionProcessId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default);
 
         Task<int> CountByProcessAndDecisionAsync(

@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
+using SRSS.IAM.Repositories.Entities.Enums;
+
 namespace SRSS.IAM.Repositories.PaperRepo
 {
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
@@ -51,6 +53,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
             List<Guid> paperIds,
             string? search,
             string? assignmentStatus,
+            ScreeningPhase? phase,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);

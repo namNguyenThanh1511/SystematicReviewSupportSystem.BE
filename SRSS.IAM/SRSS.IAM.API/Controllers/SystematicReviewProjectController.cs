@@ -236,5 +236,22 @@ namespace SRSS.IAM.API.Controllers
             await _invitationService.CreateInvitationsAsync(projectId, Guid.Parse(userId), request);
             return Ok("Invitations created successfully.");
         }
+
+        /// <summary>
+        /// Get all project members except Leader who are not assigned to a specific paper
+        /// </summary>
+        /// <param name="projectId">Project ID</param>
+        /// <param name="paperId">Paper ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of available project members</returns>
+        [HttpGet("{projectId}/papers/{paperId}/available-members")]
+        public async Task<ActionResult<ApiResponse<List<ProjectMemberDto>>>> GetAvailableMembersForPaper(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _projectService.GetAvailableMembersForPaperAsync(projectId, paperId, cancellationToken);
+            return Ok(result, "Available project members retrieved successfully.");
+        }
     }
 }

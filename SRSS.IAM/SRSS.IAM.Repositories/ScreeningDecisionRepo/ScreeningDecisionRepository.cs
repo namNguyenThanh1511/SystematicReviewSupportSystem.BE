@@ -1,5 +1,6 @@
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.ScreeningDecisionRepo
 {
@@ -24,51 +25,77 @@ namespace SRSS.IAM.Repositories.ScreeningDecisionRepo
         public async Task<List<ScreeningDecision>> GetByPaperAsync(
             Guid studySelectionProcessId,
             Guid paperId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
-            return await _context.ScreeningDecisions
+            var query = _context.ScreeningDecisions
                 .AsNoTracking()
-                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.PaperId == paperId)
-                .OrderBy(sd => sd.DecidedAt)
-                .ToListAsync(cancellationToken);
+                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.PaperId == paperId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sd => sd.Phase == phase.Value);
+            }
+
+            return await query.OrderBy(sd => sd.DecidedAt).ToListAsync(cancellationToken);
         }
 
         public async Task<ScreeningDecision?> GetByReviewerAndPaperAsync(
             Guid studySelectionProcessId,
             Guid paperId,
             Guid reviewerId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
-            return await _context.ScreeningDecisions
+            var query = _context.ScreeningDecisions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    sd => sd.StudySelectionProcessId == studySelectionProcessId
-                        && sd.PaperId == paperId
-                        && sd.ReviewerId == reviewerId,
-                    cancellationToken);
+                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId
+                    && sd.PaperId == paperId
+                    && sd.ReviewerId == reviewerId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sd => sd.Phase == phase.Value);
+            }
+
+            return await query.FirstOrDefaultAsync(cancellationToken);
         }
 
         public async Task<bool> HasDecisionAsync(
             Guid studySelectionProcessId,
             Guid paperId,
             Guid reviewerId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
-            return await _context.ScreeningDecisions
-                .AnyAsync(
-                    sd => sd.StudySelectionProcessId == studySelectionProcessId
-                        && sd.PaperId == paperId
-                        && sd.ReviewerId == reviewerId,
-                    cancellationToken);
+            var query = _context.ScreeningDecisions
+                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId
+                    && sd.PaperId == paperId
+                    && sd.ReviewerId == reviewerId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sd => sd.Phase == phase.Value);
+            }
+
+            return await query.AnyAsync(cancellationToken);
         }
 
         public async Task<List<Guid>> GetPapersWithConflictsAsync(
             Guid studySelectionProcessId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
+            var query = _context.ScreeningDecisions
+                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sd => sd.Phase == phase.Value);
+            }
+
             // Papers with conflicting decisions (Include AND Exclude from different reviewers)
-            var papersWithConflicts = await _context.ScreeningDecisions
-                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId)
+            var papersWithConflicts = await query
                 .GroupBy(sd => sd.PaperId)
                 .Where(g => g.Select(d => d.Decision).Distinct().Count() > 1) // Has both Include and Exclude
                 .Select(g => g.Key)

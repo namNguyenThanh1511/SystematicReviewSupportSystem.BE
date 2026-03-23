@@ -36,6 +36,11 @@ namespace SRSS.IAM.Repositories.Entities
         /// Display order in the flow diagram
         /// </summary>
         public int DisplayOrder { get; set; }
+        
+        /// <summary>
+        /// Structured metadata for breakdown and reasons (JSON)
+        /// </summary>
+        public string? MetadataJson { get; set; }
 
         // Navigation Properties
         public PrismaReport PrismaReport { get; set; } = null!;

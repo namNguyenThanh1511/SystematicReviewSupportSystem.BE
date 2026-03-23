@@ -353,6 +353,39 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             };
         }
 
+        public async Task<List<ProjectMemberDto>> GetAvailableMembersForPaperAsync(
+            Guid projectId,
+            Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var query = _unitOfWork.SystematicReviewProjects.GetProjectMembersQueryable(projectId)
+                .Where(m => m.Role != ProjectRole.Leader)
+                .Where(m => !m.PaperAssignments.Any(pa => pa.PaperId == paperId));
+
+            var members = await query
+                .OrderBy(m => m.User.FullName)
+                .ToListAsync(cancellationToken);
+
+            return members.Select(m => new ProjectMemberDto
+            {
+                UserId = m.UserId,
+                ProjectId = m.ProjectId,
+                Role = m.Role,
+                JoinedAt = m.JoinedAt,
+                UserName = m.User.Username,
+                FullName = m.User.FullName,
+                Email = m.User.Email
+            }).ToList();
+        }
+
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)
         {
             return new SystematicReviewProjectResponse

@@ -14,23 +14,36 @@ namespace SRSS.IAM.Repositories.ScreeningResolutionRepo
         public async Task<ScreeningResolution?> GetByProcessAndPaperAsync(
             Guid studySelectionProcessId,
             Guid paperId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
-            return await _context.ScreeningResolutions
+            var query = _context.ScreeningResolutions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(
-                    sr => sr.StudySelectionProcessId == studySelectionProcessId && sr.PaperId == paperId,
-                    cancellationToken);
+                .Where(sr => sr.StudySelectionProcessId == studySelectionProcessId && sr.PaperId == paperId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sr => sr.Phase == phase.Value);
+            }
+
+            return await query.FirstOrDefaultAsync(cancellationToken);
         }
 
         public async Task<List<ScreeningResolution>> GetByProcessAsync(
             Guid studySelectionProcessId,
+            ScreeningPhase? phase = null,
             CancellationToken cancellationToken = default)
         {
-            return await _context.ScreeningResolutions
+            var query = _context.ScreeningResolutions
                 .AsNoTracking()
-                .Where(sr => sr.StudySelectionProcessId == studySelectionProcessId)
-                .ToListAsync(cancellationToken);
+                .Where(sr => sr.StudySelectionProcessId == studySelectionProcessId);
+
+            if (phase.HasValue)
+            {
+                query = query.Where(sr => sr.Phase == phase.Value);
+            }
+
+            return await query.ToListAsync(cancellationToken);
         }
 
         public async Task<int> CountByProcessAndDecisionAsync(

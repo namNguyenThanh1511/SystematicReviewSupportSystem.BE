@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace SRSS.IAM.Services.SupabaseService
@@ -41,8 +42,12 @@ namespace SRSS.IAM.Services.SupabaseService
 				// Khởi tạo kết nối client (bắt buộc trước khi gọi các API)
 				await _supabaseClient.InitializeAsync();
 
+				// 1. Làm sạch tên file: Xóa ký tự đặc biệt, dấu ~ và khoảng trắng
+                string rawFileName = Path.GetFileName(file.FileName);
+                string cleanFileName = Regex.Replace(rawFileName, @"[^a-zA-Z0-9\._-]", "_");
+
 				// Tạo đường dẫn file lưu trên Supabase (ví dụ: papers/project-id/process-id/ten-file-random.pdf)
-				var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
+				var fileName = $"{Guid.NewGuid()}_{cleanFileName}";
 				var storagePath = $"papers/{projectId}/{processId}/{fileName}";
 
 				// Đọc IFormFile thành mảng byte để upload lên Supabase

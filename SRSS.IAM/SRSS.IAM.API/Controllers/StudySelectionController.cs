@@ -269,6 +269,18 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, message);
         }
 
+        [HttpGet("study-selection/{id}/papers/{paperId}")]
+        public async Task<ActionResult<ApiResponse<PaperWithDecisionsResponse>>> GetPaperWithDecisions(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetPaperDetailsAsync(id, paperId, cancellationToken);
+            return Ok(result, "Paper with decisions retrieved successfully.");
+        }
+
+
+
         /// <summary>
         /// Get papers assigned to the current user (reviewer) (paginated, with search/filter/sort)
         /// </summary>

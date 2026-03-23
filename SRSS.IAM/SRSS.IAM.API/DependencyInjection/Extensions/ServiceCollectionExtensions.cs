@@ -25,6 +25,7 @@ using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
 using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
@@ -35,6 +36,8 @@ using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
+using SRSS.IAM.Services.EmbeddingService;
+using SRSS.IAM.Services.ReferenceMatchingService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -78,15 +81,19 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
             services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));
             services.AddHttpClient<IGrobidClient, GrobidClient>();
-            services.AddScoped<IGrobidService, GrobidService>();
-            services.AddScoped<IMetadataMergeService, MetadataMergeService>();
+			services.AddScoped<IGrobidService, GrobidService>();
+			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
+			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
+            services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

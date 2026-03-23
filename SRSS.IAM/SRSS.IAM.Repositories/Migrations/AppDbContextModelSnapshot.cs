@@ -46,7 +46,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("NormalizedReference")
                         .HasColumnType("text");
 
-                    b.Property<Guid>("OriginPaperId")
+                    b.Property<Guid?>("OriginPaperId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("PublicationYear")
@@ -1182,9 +1182,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid?>("OriginPaperId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Pages")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -1318,6 +1315,83 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasDatabaseName("uq_paper_assignment_paper_member_process_phase");
 
                     b.ToTable("paper_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ConfidenceScore")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RawReference")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SourcePaperId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TargetPaperId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourcePaperId");
+
+                    b.HasIndex("TargetPaperId");
+
+                    b.HasIndex("SourcePaperId", "TargetPaperId")
+                        .IsUnique();
+
+                    b.ToTable("paper_citations", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperEmbedding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<float[]>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("real[]")
+                        .HasColumnName("embedding");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("model");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId")
+                        .IsUnique();
+
+                    b.ToTable("paper_embeddings", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -2727,8 +2801,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "OriginPaper")
                         .WithMany()
                         .HasForeignKey("OriginPaperId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
                         .WithMany()
@@ -3097,6 +3170,36 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ProjectMember");
 
                     b.Navigation("StudySelectionProcess");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "SourcePaper")
+                        .WithMany("OutgoingCitations")
+                        .HasForeignKey("SourcePaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "TargetPaper")
+                        .WithMany("IncomingCitations")
+                        .HasForeignKey("TargetPaperId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SourcePaper");
+
+                    b.Navigation("TargetPaper");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperEmbedding", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithOne("TitleEmbedding")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperEmbedding", "PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -3505,7 +3608,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("IdentificationProcessPapers");
 
+                    b.Navigation("IncomingCitations");
+
                     b.Navigation("OriginalOfDuplicates");
+
+                    b.Navigation("OutgoingCitations");
 
                     b.Navigation("PaperAssignments");
 
@@ -3516,6 +3623,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ScreeningResolutions");
 
                     b.Navigation("SourceMetadatas");
+
+                    b.Navigation("TitleEmbedding");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>

@@ -84,5 +84,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperSourceMetadata> PaperSourceMetadatas { get; set; } = default!;
 		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
+		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
+		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 	}
 }

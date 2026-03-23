@@ -188,6 +188,10 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         /// </summary>
         public ScreeningDecisionType? FinalDecision { get; set; }
         public string? FinalDecisionText { get; set; }
+
+        public int CitationCount { get; set; }
+        public int ReferenceCount { get; set; }
+
         public List<ScreeningDecisionResponse> Decisions { get; set; } = new();
         public ScreeningResolutionResponse? Resolution { get; set; }
 

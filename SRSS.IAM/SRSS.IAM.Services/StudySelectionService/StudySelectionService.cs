@@ -1,3 +1,5 @@
+using Azure.Core;
+using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
@@ -5,7 +7,6 @@ using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
-using Microsoft.Extensions.Logging;
 using SRSS.IAM.Services.NotificationService;
 
 namespace SRSS.IAM.Services.StudySelectionService
@@ -1089,12 +1090,19 @@ namespace SRSS.IAM.Services.StudySelectionService
                 .Take(request.PageSize)
                 .ToList();
 
+            var pagedPaperIds = pagedPapers.Select(p => p.Id).ToList();
+            var citationCounts = await _unitOfWork.PaperCitations.CountByTargetsAsync(pagedPaperIds, cancellationToken);
+            var referenceCounts = await _unitOfWork.PaperCitations.CountBySourcesAsync(pagedPaperIds, cancellationToken);
+
             var items = new List<PaperWithDecisionsResponse>();
             foreach (var paper in pagedPapers)
             {
                 var pDecisions = decisionMap.TryGetValue(paper.Id, out var list) ? list : new List<ScreeningDecision>();
                 var pResolution = resolutionMap.TryGetValue(paper.Id, out var r) ? r : null;
-                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, cancellationToken));
+                var citationCount = citationCounts.TryGetValue(paper.Id, out var cc) ? cc : 0;
+                var referenceCount = referenceCounts.TryGetValue(paper.Id, out var rc) ? rc : 0;
+
+                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, citationCount, referenceCount, cancellationToken));
             }
 
             return new PaginatedResponse<PaperWithDecisionsResponse>
@@ -1112,6 +1120,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             PaperSelectionStatus status,
             List<ScreeningDecision> decisions,
             ScreeningResolution? resolution,
+            int citationCount,
+            int referenceCount,
             CancellationToken cancellationToken,
             ExtractionSuggestionResponse? extractionSuggestion = null)
         {
@@ -1171,6 +1181,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 StatusText = status.ToString(),
                 FinalDecision = finalDecision,
                 FinalDecisionText = finalDecision?.ToString(),
+                CitationCount = citationCount,
+                ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
                     ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
@@ -1200,6 +1212,9 @@ namespace SRSS.IAM.Services.StudySelectionService
                 paper.Id,
                 null,
                 cancellationToken);
+
+            var citationCount = await _unitOfWork.PaperCitations.CountByTargetAsync(paper.Id, cancellationToken);
+            var referenceCount = await _unitOfWork.PaperCitations.CountBySourceAsync(paper.Id, cancellationToken);
 
             // Batch-resolve user names for decisions + resolution
             var allUserIds = decisions.Select(d => d.ReviewerId).ToList();
@@ -1257,6 +1272,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 StatusText = status.ToString(),
                 FinalDecision = finalDecision,
                 FinalDecisionText = finalDecision?.ToString(),
+                CitationCount = citationCount,
+                ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
                     ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
@@ -2046,6 +2063,37 @@ namespace SRSS.IAM.Services.StudySelectionService
                 _logger.LogError(ex, "Failed to send auto-resolution notifications for paper {PaperId}", paperId);
                 // Don't throw - notification failure shouldn't break resolution success
             }
+        }
+
+        public async Task<PaperWithDecisionsResponse> GetPaperDetailsAsync(Guid studySelectionProcessId, Guid paperId, CancellationToken cancellationToken = default)
+        {
+            var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken);
+
+            if (studySelectionProcess == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: false,
+                cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
+
+            return await MapToPaperWithDecisionsResponseAsync(
+                paper,
+                studySelectionProcessId,
+                status,
+                cancellationToken);
         }
     }
 }

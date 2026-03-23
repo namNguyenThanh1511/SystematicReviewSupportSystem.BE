@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
@@ -61,7 +62,7 @@ namespace SRSS.IAM.API.Controllers
             {
                 throw new ArgumentException("File size must not exceed 20 MB.");
             }
-
+            
             // Step 1: Upload PDF to Supabase Storage
             _logger.LogInformation("Uploading PDF for Paper {PaperId} in Process {ProcessId}", request.PaperId, request.ProcessId);
             var uploadedUrl = await _storageService.UploadArticlePdfAsync(request.File, request.ProjectId, request.ProcessId);

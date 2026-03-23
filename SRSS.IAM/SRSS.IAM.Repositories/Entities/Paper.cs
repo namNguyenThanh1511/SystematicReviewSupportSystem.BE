@@ -26,6 +26,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Url { get; set; }
         public string? RawReference { get; set; }
         public string? Md5 { get; set; }
+        public PaperEmbedding? TitleEmbedding { get; set; }
 
         // ============================================
         // CONFERENCE METADATA
@@ -51,7 +52,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Source { get; set; }
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
-        public Guid? OriginPaperId { get; set; }
         public Guid? ImportBatchId { get; set; }
         public Guid? ReviewProcessId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
@@ -98,6 +98,12 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
         public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
+
+        // Citations where this paper is the source (it cites other papers)
+        public ICollection<PaperCitation> OutgoingCitations { get; set; } = new List<PaperCitation>();
+
+        // Citations where this paper is the target (it is cited by other papers)
+        public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
     }
 
     public enum AccessType

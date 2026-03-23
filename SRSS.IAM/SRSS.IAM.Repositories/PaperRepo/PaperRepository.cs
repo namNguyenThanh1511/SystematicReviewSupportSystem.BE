@@ -317,5 +317,66 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
             return (papers, totalCount);
         }
+
+        public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                        .ThenInclude(pm => pm.User)
+                .Where(p => paperIds.Contains(p.Id));
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
+
+
+
+        public async Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.IncomingCitations)
+                .OrderByDescending(p => p.IncomingCitations.Count)
+                .Take(topN)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.IncomingCitations)
+                .Where(p => paperIds.Contains(p.Id))
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Paper> query = _context.Papers.Include(p => p.TitleEmbedding);
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return await query.ToListAsync(cancellationToken);
+        }
     }
 }

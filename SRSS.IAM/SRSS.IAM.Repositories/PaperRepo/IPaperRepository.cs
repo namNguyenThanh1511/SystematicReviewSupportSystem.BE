@@ -57,5 +57,19 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+          List<Guid> paperIds,
+          int pageNumber,
+          int pageSize,
+          CancellationToken cancellationToken = default);
+
+        Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
+        Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default);
+
+        Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
     }
 }

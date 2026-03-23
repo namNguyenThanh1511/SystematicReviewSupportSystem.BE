@@ -86,9 +86,43 @@ namespace SRSS.IAM.Services.DataExtractionService
         {
             await SyncEligiblePapersAsync(extractionProcessId);
 
+            // --- Role-Based Filtering ---
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+            {
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+            }
+
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+
+            if (extractionProcess?.ReviewProcess == null)
+            {
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+            }
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId);
+
+            if (currentUserProjectMember == null)
+            {
+                throw new UnauthorizedAccessException($"User is not a member of project {projectId}.");
+            }
+
             var query = _unitOfWork.ExtractionPaperTasks.GetTasksByProcessQueryable(extractionProcessId);
 
-            // Calculate Summary on the entire dataset
+            // Reviewers only see papers assigned to them
+            if (currentUserProjectMember.Role == ProjectRole.Member)
+            {
+                query = query.Where(t => t.Reviewer1Id == currentUserId || t.Reviewer2Id == currentUserId);
+            }
+
+            // Calculate Summary on the (potentially filtered) dataset
             var totalIncluded = await query.CountAsync();
             var inProgressCount = await query.CountAsync(t => t.Status == PaperExtractionStatus.InProgress);
             var awaitingConsensusCount = await query.CountAsync(t => t.Status == PaperExtractionStatus.AwaitingConsensus);
@@ -138,6 +172,8 @@ namespace SRSS.IAM.Services.DataExtractionService
                     Reviewer1Id = t.Reviewer1Id,
                     Reviewer2Id = t.Reviewer2Id,
                     Status = t.Status.ToString(),
+                    Reviewer1Status = t.Reviewer1Status.ToString(),
+                    Reviewer2Status = t.Reviewer2Status.ToString(),
                     PdfUrl = t.Paper.PdfUrl
                 })
                 .ToListAsync();
@@ -365,8 +401,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (task == null)
                 throw new InvalidOperationException($"Extraction task for paper {paperId} not found.");
 
-            if (task.Status != PaperExtractionStatus.AwaitingConsensus)
-                throw new InvalidOperationException($"Task is not awaiting consensus. Current status: {task.Status}");
+            if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed)
+                throw new InvalidOperationException($"Task is not in a valid state to view consensus. Current status: {task.Status}");
 
             if (!task.Reviewer1Id.HasValue || !task.Reviewer2Id.HasValue)
                 throw new InvalidOperationException("Consensus requires two reviewers.");
@@ -395,7 +431,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             // Fetch extracted answers
             var extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
                 e.PaperId == paperId &&
-                (e.ReviewerId == task.Reviewer1Id.Value || e.ReviewerId == task.Reviewer2Id.Value));
+                (e.ReviewerId == task.Reviewer1Id.Value || e.ReviewerId == task.Reviewer2Id.Value || e.IsConsensusFinal == true));
 
             var valuesList = extractedValues.ToList();
 
@@ -462,15 +498,17 @@ namespace SRSS.IAM.Services.DataExtractionService
             foreach (var group in groupedValues)
             {
                 // For MultiSelect, there might be multiple records per reviewer.
-                var r1Records = group.Where(v => v.ReviewerId == r1Id).ToList();
-                var r2Records = group.Where(v => v.ReviewerId == r2Id).ToList();
+                var r1Records = group.Where(v => v.ReviewerId == r1Id && v.IsConsensusFinal != true).ToList();
+                var r2Records = group.Where(v => v.ReviewerId == r2Id && v.IsConsensusFinal != true).ToList();
+                var finalRecords = group.Where(v => v.IsConsensusFinal == true).ToList();
 
                 fieldDto.Answers.Add(new ExtractedAnswerDto
                 {
                     MatrixColumnId = group.Key.MatrixColumnId,
                     MatrixRowIndex = group.Key.MatrixRowIndex,
                     Reviewer1Answer = BuildAnswerDetail(r1Records, field),
-                    Reviewer2Answer = BuildAnswerDetail(r2Records, field)
+                    Reviewer2Answer = BuildAnswerDetail(r2Records, field),
+                    FinalAnswer = BuildAnswerDetail(finalRecords, field)
                 });
             }
 
@@ -586,7 +624,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             // Add new consensus values
-            var consensusValues = request.FinalValues.Select(v => new ExtractedDataValue
+            var consensusValues = request.Values.Select(v => new ExtractedDataValue
             {
                 Id = Guid.NewGuid(),
                 PaperId = paperId,
@@ -613,9 +651,9 @@ namespace SRSS.IAM.Services.DataExtractionService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<byte[]> ExportExtractedDataAsync(Guid extractionProcessId)
+        public async Task<ExtractionPreviewDto> GetPivotedExtractionDataAsync(Guid extractionProcessId)
         {
-            // 1. Generate/Setup
+            // 1. Fetch extraction process and protocol
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
@@ -625,7 +663,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
 
-            // Fetch Template
+            // 2. Fetch Template
             var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
             var templateEntity = templateList.FirstOrDefault();
 
@@ -637,7 +675,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (template == null)
                 throw new InvalidOperationException("Extraction template not found.");
 
-            // Fetch completed tasks
+            // 3. Fetch completed tasks
             var completedTasks = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
                 .Include(t => t.Paper)
                 .Where(t => t.DataExtractionProcessId == extractionProcessId && t.Status == PaperExtractionStatus.Completed)
@@ -648,24 +686,14 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (!completedPaperIds.Any())
                 throw new InvalidOperationException("No completed papers found for this extraction process to export.");
 
-            // Fetch extracted answers
+            // 4. Fetch extracted answers
             var allValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e => completedPaperIds.Contains(e.PaperId));
             var valuesList = allValues.ToList();
 
-            using var workbook = new XLWorkbook();
-            var worksheet = workbook.Worksheets.Add("Extracted Data");
+            // 5. Build headers list and column map
+            var headers = new List<string> { "Study ID (System)", "Citation", "Title", "Authors", "Year" };
+            var colMap = new Dictionary<(Guid FieldId, Guid? MatrixColumnId), string>();
 
-            // Setup Headers
-            int colIndex = 1;
-            worksheet.Cell(1, colIndex++).Value = "Study ID (System)";
-            worksheet.Cell(1, colIndex++).Value = "Citation";
-            worksheet.Cell(1, colIndex++).Value = "Title";
-            worksheet.Cell(1, colIndex++).Value = "Authors";
-            worksheet.Cell(1, colIndex++).Value = "Year";
-
-            var colMap = new Dictionary<(Guid FieldId, Guid? MatrixColumnId), int>();
-
-            // Build mapping from field hierarchy
             Action<ExtractionField, List<ExtractionField>> flatten = null!;
             flatten = (f, list) =>
             {
@@ -691,8 +719,8 @@ namespace SRSS.IAM.Services.DataExtractionService
                     foreach (var f in sectionFields)
                     {
                         string headerName = $"{section.Name} - {f.Name}";
-                        worksheet.Cell(1, colIndex).Value = headerName;
-                        colMap[(f.Id, null)] = colIndex++;
+                        headers.Add(headerName);
+                        colMap[(f.Id, null)] = headerName;
                     }
                 }
                 else if (section.SectionType == SectionType.MatrixGrid)
@@ -703,28 +731,26 @@ namespace SRSS.IAM.Services.DataExtractionService
                         foreach (var f in sectionFields)
                         {
                             string headerName = $"{section.Name} - {mc.Name} - {f.Name}";
-                            worksheet.Cell(1, colIndex).Value = headerName;
-                            colMap[(f.Id, mc.Id)] = colIndex++;
+                            headers.Add(headerName);
+                            colMap[(f.Id, mc.Id)] = headerName;
                         }
                     }
                 }
             }
 
-            // Style headers
-            var headerRow = worksheet.Row(1);
-            headerRow.Style.Font.Bold = true;
-
-            int rowIndex = 2;
-
+            // 6. Build unified fields dictionary
             var allTemplateFields = template.Sections.SelectMany(s => s.Fields).ToList();
             var allSubFields = allTemplateFields.SelectMany(f => f.SubFields ?? new List<ExtractionField>()).ToList();
             var unifiedFieldsDict = allTemplateFields.Concat(allSubFields).ToDictionary(f => f.Id);
+
+            // 7. Build rows
+            var rows = new List<Dictionary<string, string>>();
 
             foreach (var task in completedTasks)
             {
                 var paperValues = valuesList.Where(v => v.PaperId == task.PaperId).ToList();
 
-                // Filter Golden Record
+                // Golden Record filtering
                 if (paperValues.Any(v => v.IsConsensusFinal))
                 {
                     paperValues = paperValues.Where(v => v.IsConsensusFinal).ToList();
@@ -734,93 +760,117 @@ namespace SRSS.IAM.Services.DataExtractionService
                     paperValues = paperValues.Where(v => v.ReviewerId == task.Reviewer1Id).ToList();
                 }
 
-                var matrixRows = paperValues
-                    .Where(v => v.MatrixRowIndex.HasValue)
-                    .Select(v => v.MatrixRowIndex!.Value)
-                    .Distinct()
-                    .OrderBy(x => x)
-                    .ToList();
-
-                if (!matrixRows.Any())
-                    matrixRows.Add(-1);
-
-                foreach (var mRowIndex in matrixRows)
+                // Generate Citation string
+                string firstAuthor = "Unknown";
+                if (!string.IsNullOrWhiteSpace(task.Paper.Authors))
                 {
-                    // Generate Citation string
-                    string firstAuthor = "Unknown";
-                    if (!string.IsNullOrWhiteSpace(task.Paper.Authors))
+                    var authorParts = task.Paper.Authors.Split(',');
+                    if (authorParts.Any() && !string.IsNullOrWhiteSpace(authorParts[0]))
                     {
-                        var authorParts = task.Paper.Authors.Split(',');
-                        if (authorParts.Any() && !string.IsNullOrWhiteSpace(authorParts[0]))
-                        {
-                            firstAuthor = authorParts[0].Trim();
-                        }
+                        firstAuthor = authorParts[0].Trim();
                     }
-                    string yearStr = task.Paper.PublicationYearInt?.ToString() ?? "Unknown";
-                    string citationStr = $"{firstAuthor} et al., {yearStr}";
+                }
+                string yearStr = task.Paper.PublicationYearInt?.ToString() ?? "Unknown";
+                string citationStr = $"{firstAuthor} et al., {yearStr}";
 
-                    worksheet.Cell(rowIndex, 1).Value = task.PaperId.ToString();
-                    worksheet.Cell(rowIndex, 2).Value = citationStr;
-                    worksheet.Cell(rowIndex, 3).Value = task.Paper.Title ?? "";
-                    worksheet.Cell(rowIndex, 4).Value = task.Paper.Authors ?? "";
-                    worksheet.Cell(rowIndex, 5).Value = task.Paper.PublicationYearInt?.ToString() ?? "";
+                var row = new Dictionary<string, string>
+                {
+                    ["Study ID (System)"] = task.PaperId.ToString(),
+                    ["Citation"] = citationStr,
+                    ["Title"] = task.Paper.Title ?? "",
+                    ["Authors"] = task.Paper.Authors ?? "",
+                    ["Year"] = task.Paper.PublicationYearInt?.ToString() ?? ""
+                };
 
-                    var rowGroups = paperValues.GroupBy(v => new { v.FieldId, v.MatrixColumnId, v.MatrixRowIndex }).ToList();
+                // Group by FieldId and MatrixColumnId, ignoring MatrixRowIndex,
+                // so that all data for a single paper collapses into one row.
+                var rowGroups = paperValues.GroupBy(v => new { v.FieldId, v.MatrixColumnId }).ToList();
 
-                    foreach (var group in rowGroups)
+                foreach (var group in rowGroups)
+                {
+                    if (colMap.TryGetValue((group.Key.FieldId, group.Key.MatrixColumnId), out string? headerName))
                     {
-                        // Skip if this group belongs to a different matrix row
-                        if (group.Key.MatrixRowIndex.HasValue && mRowIndex != -1 && group.Key.MatrixRowIndex.Value != mRowIndex)
+                        if (!unifiedFieldsDict.TryGetValue(group.Key.FieldId, out var field))
                             continue;
 
-                        // Skip if this is a flat field and we are on subsequent matrix rows, unless required.
-                        // Wait, flat fields need to be duplicated. If group.Key.MatrixRowIndex is null, it applies to all matrix rows.
+                        string valueStr = "";
 
-                        if (colMap.TryGetValue((group.Key.FieldId, group.Key.MatrixColumnId), out int excelColIndex))
+                        if (field.FieldType == FieldType.MultiSelect)
                         {
-                            if (!unifiedFieldsDict.TryGetValue(group.Key.FieldId, out var field))
-                                continue;
+                            var optionIds = group.Where(v => v.OptionId.HasValue).Select(v => v.OptionId!.Value).ToList();
+                            var optionValues = field.Options?
+                                .Where(o => optionIds.Contains(o.Id))
+                                .Select(o => o.Value)
+                                .ToList() ?? new List<string>();
 
-                            string valueStr = "";
-
-                            if (field.FieldType == FieldType.MultiSelect)
-                            {
-                                var optionIds = group.Where(v => v.OptionId.HasValue).Select(v => v.OptionId!.Value).ToList();
-                                var optionValues = field.Options?
-                                    .Where(o => optionIds.Contains(o.Id))
-                                    .Select(o => o.Value)
-                                    .ToList() ?? new List<string>();
-
-                                valueStr = string.Join(", ", optionValues);
-                            }
-                            else
-                            {
-                                var record = group.First();
-                                switch (field.FieldType)
-                                {
-                                    case FieldType.Text:
-                                        valueStr = record.StringValue ?? "";
-                                        break;
-                                    case FieldType.Integer:
-                                    case FieldType.Decimal:
-                                        valueStr = record.NumericValue?.ToString() ?? "";
-                                        break;
-                                    case FieldType.Boolean:
-                                        valueStr = record.BooleanValue.HasValue ? (record.BooleanValue.Value ? "Yes" : "No") : "";
-                                        break;
-                                    case FieldType.SingleSelect:
-                                        if (record.OptionId.HasValue)
-                                        {
-                                            valueStr = field.Options?.FirstOrDefault(o => o.Id == record.OptionId.Value)?.Value ?? "";
-                                        }
-                                        break;
-                                }
-                            }
-
-                            worksheet.Cell(rowIndex, excelColIndex).Value = valueStr;
+                            valueStr = string.Join(", ", optionValues);
                         }
+                        else
+                        {
+                            var record = group.First();
+                            switch (field.FieldType)
+                            {
+                                case FieldType.Text:
+                                    valueStr = record.StringValue ?? "";
+                                    break;
+                                case FieldType.Integer:
+                                case FieldType.Decimal:
+                                    valueStr = record.NumericValue?.ToString() ?? "";
+                                    break;
+                                case FieldType.Boolean:
+                                    valueStr = record.BooleanValue.HasValue ? (record.BooleanValue.Value ? "Yes" : "No") : "";
+                                    break;
+                                case FieldType.SingleSelect:
+                                    if (record.OptionId.HasValue)
+                                    {
+                                        valueStr = field.Options?.FirstOrDefault(o => o.Id == record.OptionId.Value)?.Value ?? "";
+                                    }
+                                    break;
+                            }
+                        }
+
+                        row[headerName] = valueStr;
                     }
-                    rowIndex++;
+                }
+
+                rows.Add(row);
+            }
+
+            return new ExtractionPreviewDto
+            {
+                Headers = headers,
+                Rows = rows
+            };
+        }
+
+        public async Task<byte[]> ExportExtractedDataAsync(Guid extractionProcessId)
+        {
+            var data = await GetPivotedExtractionDataAsync(extractionProcessId);
+
+            using var workbook = new XLWorkbook();
+            var worksheet = workbook.Worksheets.Add("Extracted Data");
+
+            // Write headers
+            for (int i = 0; i < data.Headers.Count; i++)
+            {
+                worksheet.Cell(1, i + 1).Value = data.Headers[i];
+            }
+
+            // Style headers
+            var headerRow = worksheet.Row(1);
+            headerRow.Style.Font.Bold = true;
+
+            // Write rows
+            for (int r = 0; r < data.Rows.Count; r++)
+            {
+                var row = data.Rows[r];
+                for (int c = 0; c < data.Headers.Count; c++)
+                {
+                    var header = data.Headers[c];
+                    if (row.TryGetValue(header, out var value))
+                    {
+                        worksheet.Cell(r + 2, c + 1).Value = value;
+                    }
                 }
             }
 
@@ -829,6 +879,80 @@ namespace SRSS.IAM.Services.DataExtractionService
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
             return stream.ToArray();
+        }
+
+        public async Task ReopenExtractionAsync(Guid extractionProcessId, Guid paperId, ReopenExtractionRequestDto request)
+        {
+            // 1. Authorization: Ensure the current user is the Project Leader
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+            {
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+            }
+
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+
+            if (extractionProcess?.ReviewProcess == null)
+            {
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+            }
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+            }
+
+            // 2. Validation: Verify the ExtractionPaperTask exists
+            var task = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId);
+
+            if (task == null)
+            {
+                throw new InvalidOperationException($"Extraction task for paper {paperId} in process {extractionProcessId} not found.");
+            }
+
+            if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen extraction from status '{task.Status}'. Task must be in AwaitingConsensus or Completed status.");
+            }
+
+            // 3. State Reversal
+            if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
+            {
+                task.Reviewer1Status = ReviewerTaskStatus.InProgress;
+            }
+
+            if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+            {
+                task.Reviewer2Status = ReviewerTaskStatus.InProgress;
+            }
+
+            task.Status = PaperExtractionStatus.InProgress;
+
+            // 4. Data Cleanup: Remove any existing consensus data (IsConsensusFinal == true)
+            var consensusValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                e.PaperId == paperId && e.IsConsensusFinal == true);
+
+            if (consensusValues != null && consensusValues.Any())
+            {
+                foreach (var val in consensusValues)
+                {
+                    await _unitOfWork.ExtractedDataValues.RemoveAsync(val);
+                }
+            }
+
+            // 5. Save
+            task.ModifiedAt = DateTimeOffset.UtcNow;
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId)
@@ -919,6 +1043,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 throw new InvalidOperationException("Gemini API key is not configured.");
             }
+
+            Console.WriteLine("clear text: " + cleanPaperText);
 
             string prompt = $@"
 You are an expert academic researcher. 

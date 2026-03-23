@@ -30,6 +30,15 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Get unique papers for a specific data extraction process
+        /// Returns papers that have an extraction paper task in this process
+        /// </summary>
+        Task<PaginatedResponse<PaperResponse>> GetUniquePapersByDataExtractionProcessAsync(
+            Guid dataExtractionProcessId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<PaperResponse> GetPaperByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default);

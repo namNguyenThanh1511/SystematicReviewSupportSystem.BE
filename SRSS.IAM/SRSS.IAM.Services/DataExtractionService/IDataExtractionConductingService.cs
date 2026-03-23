@@ -11,6 +11,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 		Task<ConsensusWorkspaceDto> GetConsensusWorkspaceAsync(Guid extractionProcessId, Guid paperId);
 		Task SubmitConsensusAsync(Guid extractionProcessId, Guid paperId, SubmitConsensusRequestDto request);
 		Task<byte[]> ExportExtractedDataAsync(Guid extractionProcessId);
+		Task<ExtractionPreviewDto> GetPivotedExtractionDataAsync(Guid extractionProcessId);
+		Task ReopenExtractionAsync(Guid extractionProcessId, Guid paperId, ReopenExtractionRequestDto request);
 		Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId);
 	}
 }

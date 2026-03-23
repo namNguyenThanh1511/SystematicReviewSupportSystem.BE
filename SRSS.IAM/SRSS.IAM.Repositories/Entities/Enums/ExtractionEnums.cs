@@ -95,4 +95,14 @@ namespace SRSS.IAM.Repositories.Entities
 		AwaitingConsensus = 2,
 		Completed = 3
 	}
+
+	/// <summary>
+	/// Target reviewer(s) for reopen/revision request
+	/// </summary>
+	public enum TargetReviewer
+	{
+		Reviewer1 = 0,
+		Reviewer2 = 1,
+		Both = 2
+	}
 }

@@ -30,7 +30,7 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public int FieldType { get; set; }
         public bool IsRequired { get; set; }
         public int OrderIndex { get; set; }
-        
+
         public List<FieldOptionDto> Options { get; set; } = new();
         public List<ExtractedAnswerDto> Answers { get; set; } = new();
         public List<ConsensusFieldDto> SubFields { get; set; } = new();
@@ -42,6 +42,7 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public int? MatrixRowIndex { get; set; }
         public AnswerDetailDto? Reviewer1Answer { get; set; }
         public AnswerDetailDto? Reviewer2Answer { get; set; }
+        public AnswerDetailDto? FinalAnswer { get; set; }
     }
 
     public class AnswerDetailDto
@@ -55,6 +56,6 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
 
     public class SubmitConsensusRequestDto
     {
-        public List<ExtractedValueDto> FinalValues { get; set; } = new();
+        public List<ExtractedValueDto> Values { get; set; } = new();
     }
 }

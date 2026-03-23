@@ -78,6 +78,23 @@ namespace SRSS.IAM.API.Controllers
 			return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"extraction_data_{extractionProcessId}.xlsx");
 		}
 
+		[HttpGet("{extractionProcessId}/export/preview")]
+		public async Task<ActionResult<ApiResponse<ExtractionPreviewDto>>> PreviewExtractedData([FromRoute] Guid extractionProcessId)
+		{
+			var result = await _extractionService.GetPivotedExtractionDataAsync(extractionProcessId);
+			return Ok(result, "Extraction preview data retrieved successfully.");
+		}
+
+		[HttpPost("{extractionProcessId}/papers/{paperId}/reopen")]
+		public async Task<ActionResult<ApiResponse<object>>> ReopenExtraction(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId,
+			[FromBody] ReopenExtractionRequestDto request)
+		{
+			await _extractionService.ReopenExtractionAsync(extractionProcessId, paperId, request);
+			return Ok<object>(new object(), "Extraction reopened successfully for revision.");
+		}
+
 		[HttpPost("{extractionProcessId}/papers/{paperId}/auto-extract")]
 		public async Task<ActionResult<ApiResponse<List<ExtractedValueDto>>>> AutoExtractWithAi(
 			[FromRoute] Guid extractionProcessId,

@@ -185,12 +185,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (existing != null)
                 throw new InvalidOperationException($"Quality Assessment Process for Review Process {dto.ReviewProcessId} already exists.");
 
-            var entity = new QualityAssessmentProcess
-            {
-                ReviewProcessId = dto.ReviewProcessId,
-                Notes = dto.Notes,
-                Status = QualityAssessmentProcessStatus.NotStarted
-            };
+            var entity = dto.ToEntity();
 
             await _unitOfWork.QualityAssessmentProcesses.AddAsync(entity);
             await _unitOfWork.SaveChangesAsync();
@@ -296,40 +291,21 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 if (percentage > 100) percentage = 100;
 
                 var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paperId);
-
-                var summary = new QualityAssessmentPaperResponse
-                {
-                    Id = paper.Id,
-                    Title = paper.Title,
-                    Authors = paper.Authors,
-                    PublicationYear = paper.PublicationYear,
-                    CompletionPercentage = Math.Round(percentage, 2),
-                    Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
-                    Reviewers = reviewersAssignedToPaper.Select(u => new QualityAssessmentReviewerResponse
-                    {
-                        Id = u.Id,
-                        Username = u.Username,
-                        FullName = u.FullName
-                    }).ToList(),
-                    Decisions = paperDecisions.Select(d => d.ToDto()).ToList()
-                };
-
+                
+                string? resolvedByName = null;
                 if (resolution != null)
                 {
                     var resolutionReviewer = await _unitOfWork.Users.FindSingleAsync(u => u.Id == resolution.ResolvedBy);
-                    summary.Resolution = new QualityAssessmentResolutionResponse
-                    {
-                        Id = resolution.Id,
-                        QualityAssessmentProcessId = resolution.QualityAssessmentProcessId,
-                        PaperId = resolution.PaperId,
-                        FinalDecision = resolution.FinalDecision,
-                        FinalScore = resolution.FinalScore,
-                        ResolutionNotes = resolution.ResolutionNotes,
-                        ResolvedBy = resolution.ResolvedBy,
-                        ResolvedByName = resolutionReviewer?.FullName ?? resolutionReviewer?.Username,
-                        ResolvedAt = resolution.ResolvedAt
-                    };
+                    resolvedByName = resolutionReviewer?.FullName ?? resolutionReviewer?.Username;
                 }
+
+                var summary = paper.ToQualityAssessmentPaperResponse(
+                    percentage,
+                    resolution,
+                    reviewersAssignedToPaper,
+                    paperDecisions,
+                    resolvedByName
+                );
 
                 result.Add(summary);
             }
@@ -354,12 +330,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 if (assignment == null)
                 {
                     // isNewAssignment = true;
-                    assignment = new QualityAssessmentAssignment
-                    {
-                        QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
-                        UserId = userId,
-                        AssignedAt = DateTimeOffset.UtcNow
-                    };
+                    assignment = dto.ToEntity(userId);
                     await _unitOfWork.QualityAssessmentAssignments.AddAsync(assignment);
                     await _unitOfWork.SaveChangesAsync(); // Save to get ID
                 }
@@ -454,18 +425,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = new AssignedPaperResponse
-                {
-                    Id = paper.Id,
-                    Title = paper.Title,
-                    Authors = paper.Authors,
-                    PublicationYear = paper.PublicationYear,
-                    // Map other paper properties as needed...
-                    CompletionPercentage = Math.Round(percentage, 2),
-                    Resolution = resolution?.FinalDecision != null ? resolution.FinalDecision.ToString() : null,
-                    Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
-                    Decisions = userDecisions != null ? new List<QualityAssessmentDecisionResponse> { userDecisions.ToDto() } : new List<QualityAssessmentDecisionResponse>()
-                };
+                var dto = paper.ToAssignedPaperResponse(percentage, resolution, userDecisions);
                 result.Add(dto);
             }
             return result;
@@ -498,14 +458,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 throw new InvalidOperationException("Decision for this paper already exists. Use update instead.");
 
             // Construct new decision
-            var decision = new QualityAssessmentDecision
-            {
-                QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
-                ReviewerId = userId,
-                PaperId = dto.PaperId,
-                Score = dto.Score,
-                // Notes = dto.Notes
-            };
+            var decision = dto.ToEntity(userId);
 
             if (dto.DecisionItems != null && dto.DecisionItems.Any())
             {
@@ -517,11 +470,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                         throw new KeyNotFoundException($"Quality Criterion not found: {item.QualityCriterionId}");
                     }
 
-                    decision.DecisionItems.Add(new QualityAssessmentDecisionItem
-                    {
-                        QualityCriterionId = item.QualityCriterionId,
-                        Value = item.Value
-                    });
+                    decision.DecisionItems.Add(item.ToEntity());
                 }
             }
 
@@ -586,12 +535,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     }
 
                     // If item does not exist, add new
-                    decision.DecisionItems.Add(new QualityAssessmentDecisionItem
-                    {
-                        QualityCriterionId = itemDto.QualityCriterionId.Value,
-                        Value = itemDto.Value,
-                        Comment = itemDto.Comment
-                    });
+                    decision.DecisionItems.Add(itemDto.ToEntity());
                 }
                 else
                 {

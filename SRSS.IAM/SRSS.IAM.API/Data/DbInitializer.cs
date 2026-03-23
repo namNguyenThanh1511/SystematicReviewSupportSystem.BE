@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SRSS.IAM.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 using System.Text.Json;
 
 namespace SRSS.IAM.API.Data
@@ -21,6 +22,9 @@ namespace SRSS.IAM.API.Data
 
 		// ── Study Selection Process IDs ─────────────────────────────────
 		private static readonly Guid HarStudySelectionProcessId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+
+		// ── Quality Assessment Process IDs ──────────────────────────────
+		private static readonly Guid HarQualityAssessmentProcessId = Guid.Parse("55555555-5555-5555-5555-555555555555");
 
 		// ── Search Execution IDs ─────────────────────────────────────────
 		private static readonly Guid ScopusSearchExecutionId = Guid.Parse("44444444-4444-4444-4444-444444444444");
@@ -130,6 +134,7 @@ namespace SRSS.IAM.API.Data
 			await SeedReviewProcessesAsync(context);
 			await SeedIdentificationProcessesAsync(context);
 			await SeedStudySelectionProcessesAsync(context);
+			await SeedQualityAssessmentProcessesAsync(context);
 			await SeedSearchExecutionsAsync(context);
 			await SeedImportBatchesAsync(context);
 			await SeedPapersAsync(context);
@@ -345,6 +350,24 @@ namespace SRSS.IAM.API.Data
 			await context.SaveChangesAsync();
 		}
 
+
+		private static async Task SeedQualityAssessmentProcessesAsync(AppDbContext context)
+		{
+			if (await context.QualityAssessmentProcesses.AnyAsync(x => x.Id == HarQualityAssessmentProcessId))
+			{
+				return;
+			}
+			var qualityAssessmentProcess = new QualityAssessmentProcess
+			{
+				Id = HarQualityAssessmentProcessId,
+				ReviewProcessId = HarReviewProcessId,
+				Status = QualityAssessmentProcessStatus.NotStarted,
+				CreatedAt = DateTimeOffset.UtcNow,
+				ModifiedAt = DateTimeOffset.UtcNow
+			};
+			await context.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess);
+			await context.SaveChangesAsync();
+		}
 		private static async Task SeedSearchExecutionsAsync(AppDbContext context)
 		{
 			if (await context.SearchExecutions.AnyAsync(x => x.Id == ScopusSearchExecutionId))

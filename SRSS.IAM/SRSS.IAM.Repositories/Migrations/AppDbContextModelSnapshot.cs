@@ -2347,9 +2347,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("StudySelectionProcessId");
 
-                    b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId")
+                    b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId", "Phase")
                         .IsUnique()
-                        .HasDatabaseName("uq_screening_decision_process_paper_reviewer");
+                        .HasDatabaseName("uq_screening_decision_process_paper_reviewer_phase");
 
                     b.ToTable("screening_decisions", (string)null);
                 });
@@ -2405,8 +2405,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("ResolvedBy");
 
-                    b.HasIndex("StudySelectionProcessId", "PaperId")
-                        .IsUnique();
+                    b.HasIndex("StudySelectionProcessId", "PaperId", "Phase")
+                        .IsUnique()
+                        .HasDatabaseName("uq_screening_resolution_process_paper_phase");
 
                     b.ToTable("screening_resolutions", (string)null);
                 });

@@ -78,6 +78,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 		public DbSet<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = default!;
 		public DbSet<PaperAssignment> PaperAssignments { get; set; } = default!;
+		public DbSet<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = default!;
 		public DbSet<TitleAbstractScreening> TitleAbstractScreenings { get; set; } = default!;
 		public DbSet<FullTextScreening> FullTextScreenings { get; set; } = default!;
 		public DbSet<PaperPdf> PaperPdfs { get; set; } = default!;

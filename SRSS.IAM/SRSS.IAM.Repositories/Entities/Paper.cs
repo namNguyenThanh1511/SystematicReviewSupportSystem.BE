@@ -90,6 +90,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Identification process snapshots where this paper is included
         public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
+        public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
 
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
 

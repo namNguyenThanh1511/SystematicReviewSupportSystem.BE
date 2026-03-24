@@ -38,6 +38,11 @@ using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.EmbeddingService;
 using SRSS.IAM.Services.ReferenceMatchingService;
+using SRSS.IAM.Services.OpenAlex;
+using Polly;
+using Polly.Extensions.Http;
+using System.Net;
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -80,6 +85,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
+            services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
@@ -94,6 +100,17 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
 			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
+
+            // OpenAlex integration
+            services.Configure<OpenAlexSettings>(configuration.GetSection(OpenAlexSettings.SectionName));
+            services.AddHttpClient<IOpenAlexService, OpenAlexService>(client =>
+            {
+                client.BaseAddress = new Uri("https://api.openalex.org/");
+            })
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == HttpStatusCode.TooManyRequests)
+                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

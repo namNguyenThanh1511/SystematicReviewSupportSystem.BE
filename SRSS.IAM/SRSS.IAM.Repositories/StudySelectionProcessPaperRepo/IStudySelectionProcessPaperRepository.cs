@@ -6,5 +6,6 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessPaperRepo
     public interface IStudySelectionProcessPaperRepository : IGenericRepository<StudySelectionProcessPaper, Guid, AppDbContext>
     {
         Task DeleteByProcessAsync(Guid processId, CancellationToken cancellationToken = default);
+        Task<List<StudySelectionProcessPaper>> GetWithPaperByProcessAsync(Guid processId, CancellationToken cancellationToken = default);
     }
 }

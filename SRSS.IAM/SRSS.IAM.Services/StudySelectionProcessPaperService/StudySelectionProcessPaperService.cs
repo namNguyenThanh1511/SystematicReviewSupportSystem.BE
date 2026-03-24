@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.StudySelectionProcessPaperService
 {
@@ -40,6 +41,22 @@ namespace SRSS.IAM.Services.StudySelectionProcessPaperService
             {
                 await _unitOfWork.StudySelectionProcessPapers.AddRangeAsync(newProcessPapers, cancellationToken);
             }
+        }
+
+        public async Task<List<IncludedPaperResponse>> GetIncludedPapersByProcessIdAsync(Guid processId, CancellationToken cancellationToken)
+        {
+            var includedPapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(processId, cancellationToken);
+
+            return includedPapers.Select(ip => new IncludedPaperResponse
+            {
+                Id = ip.Id,
+                PaperId = ip.PaperId,
+                Title = ip.Paper.Title,
+                DOI = ip.Paper.DOI,
+                Authors = ip.Paper.Authors,
+                PublicationYear = ip.Paper.PublicationYear,
+                CreatedAt = ip.CreatedAt
+            }).ToList();
         }
     }
 }

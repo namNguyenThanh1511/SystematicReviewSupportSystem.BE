@@ -18,5 +18,14 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessPaperRepo
 
             _context.StudySelectionProcessPapers.RemoveRange(existing);
         }
+
+        public async Task<List<StudySelectionProcessPaper>> GetWithPaperByProcessAsync(Guid processId, CancellationToken cancellationToken = default)
+        {
+            return await _context.StudySelectionProcessPapers
+                .AsNoTracking()
+                .Include(p => p.Paper)
+                .Where(p => p.StudySelectionProcessId == processId)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

@@ -2607,6 +2607,42 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("study_selection_processes", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionProcessPaper", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid>("StudySelectionProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("study_selection_process_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("StudySelectionProcessId");
+
+                    b.HasIndex("StudySelectionProcessId", "PaperId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_study_selection_process_paper");
+
+                    b.ToTable("study_selection_process_papers", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SystematicReviewProject", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3560,6 +3596,25 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ReviewProcess");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionProcessPaper", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany("StudySelectionProcessPapers")
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
+                        .WithMany("StudySelectionProcessPapers")
+                        .HasForeignKey("StudySelectionProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("StudySelectionProcess");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.TitleAbstractScreening", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
@@ -3628,6 +3683,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ScreeningResolutions");
 
                     b.Navigation("SourceMetadatas");
+
+                    b.Navigation("StudySelectionProcessPapers");
 
                     b.Navigation("TitleEmbedding");
                 });
@@ -3742,6 +3799,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ScreeningDecisions");
 
                     b.Navigation("ScreeningResolutions");
+
+                    b.Navigation("StudySelectionProcessPapers");
 
                     b.Navigation("TitleAbstractScreening");
                 });

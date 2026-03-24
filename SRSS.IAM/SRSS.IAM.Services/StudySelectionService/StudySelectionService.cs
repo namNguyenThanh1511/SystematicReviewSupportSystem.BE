@@ -8,6 +8,7 @@ using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.NotificationService;
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -17,6 +18,7 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly IGrobidService _grobidService;
         private readonly IMetadataMergeService _metadataMergeService;
         private readonly INotificationService _notificationService;
+        private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
         private readonly ILogger<StudySelectionService> _logger;
 
         public StudySelectionService(
@@ -24,12 +26,14 @@ namespace SRSS.IAM.Services.StudySelectionService
             IGrobidService grobidService,
             IMetadataMergeService metadataMergeService,
             INotificationService notificationService,
+            IStudySelectionProcessPaperService studySelectionProcessPaperService,
             ILogger<StudySelectionService> logger)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _metadataMergeService = metadataMergeService;
             _notificationService = notificationService;
+            _studySelectionProcessPaperService = studySelectionProcessPaperService;
             _logger = logger;
         }
 
@@ -161,6 +165,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Cannot complete process with {unresolvedConflicts.Count} unresolved conflicts.");
             }
 
+            //Save included papers snapshot in phase fulltext resolution
+            await _studySelectionProcessPaperService.SaveFinalIncludedPapersAsync(id, cancellationToken);
             // Use domain method for state transition
             process.Complete();
 

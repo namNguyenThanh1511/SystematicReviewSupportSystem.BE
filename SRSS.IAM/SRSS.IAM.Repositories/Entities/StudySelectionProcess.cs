@@ -21,6 +21,7 @@ namespace SRSS.IAM.Repositories.Entities
         public FullTextScreening? FullTextScreening { get; set; }
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
+        public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
 
         // Domain Methods

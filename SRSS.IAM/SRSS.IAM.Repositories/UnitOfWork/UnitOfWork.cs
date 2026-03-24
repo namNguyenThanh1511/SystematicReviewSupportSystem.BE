@@ -32,6 +32,8 @@ using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
+using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -66,6 +68,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
 		private ICandidatePaperRepository? _candidatePapers;
 		private IPaperCitationRepository? _paperCitations;
+		private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -299,6 +302,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 			=> _candidatePapers ??= new CandidatePaperRepository(_dbContext);
 		public IPaperCitationRepository PaperCitations
 			=> _paperCitations ??= new PaperCitationRepository(_dbContext);
+
+		public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
+			=> _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

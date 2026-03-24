@@ -42,6 +42,7 @@ using SRSS.IAM.Services.OpenAlex;
 using Polly;
 using Polly.Extensions.Http;
 using System.Net;
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -84,6 +85,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
+            services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();

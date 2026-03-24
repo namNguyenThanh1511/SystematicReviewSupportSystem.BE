@@ -340,6 +340,17 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public int Count { get; set; }
     }
 
+    public class IncludedPaperResponse
+    {
+        public Guid Id { get; set; }
+        public Guid PaperId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? DOI { get; set; }
+        public string? Authors { get; set; }
+        public string? PublicationYear { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+    }
+
     // ============================================
     // ENUMS
     // ============================================

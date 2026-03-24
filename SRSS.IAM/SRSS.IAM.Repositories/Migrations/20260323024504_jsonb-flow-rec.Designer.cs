@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories;
@@ -12,9 +13,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323024504_jsonb-flow-rec")]
+    partial class jsonbflowrec
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2351,9 +2354,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("StudySelectionProcessId");
 
-                    b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId", "Phase")
+                    b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId")
                         .IsUnique()
-                        .HasDatabaseName("uq_screening_decision_process_paper_reviewer_phase");
+                        .HasDatabaseName("uq_screening_decision_process_paper_reviewer");
 
                     b.ToTable("screening_decisions", (string)null);
                 });
@@ -2409,9 +2412,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("ResolvedBy");
 
-                    b.HasIndex("StudySelectionProcessId", "PaperId", "Phase")
-                        .IsUnique()
-                        .HasDatabaseName("uq_screening_resolution_process_paper_phase");
+                    b.HasIndex("StudySelectionProcessId", "PaperId")
+                        .IsUnique();
 
                     b.ToTable("screening_resolutions", (string)null);
                 });

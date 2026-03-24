@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.PaperRepo
 {
@@ -312,13 +313,16 @@ namespace SRSS.IAM.Repositories.PaperRepo
             List<Guid> paperIds,
             string? search,
             string? assignmentStatus,
+            ScreeningPhase? phase,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
         {
             var query = _context.Papers
                 .AsNoTracking()
-                .Include(p => p.PaperAssignments)
+                .Include(p => phase.HasValue 
+                    ? p.PaperAssignments.Where(pa => pa.Phase == phase.Value)
+                    : p.PaperAssignments)
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
                 .Where(p => paperIds.Contains(p.Id));
@@ -338,11 +342,13 @@ namespace SRSS.IAM.Repositories.PaperRepo
             {
                 if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
                 {
-                    query = query.Where(p => p.PaperAssignments.Any());
+                    query = query.Where(p => phase.HasValue 
+                        ? p.PaperAssignments.Any(pa => pa.Phase == phase.Value)
+                        : p.PaperAssignments.Any());
                 }
                 else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
                 {
-                    query = query.Where(p => !p.PaperAssignments.Any());
+                    query = query.Where(p => phase.HasValue ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) : !p.PaperAssignments.Any());
                 }
             }
 

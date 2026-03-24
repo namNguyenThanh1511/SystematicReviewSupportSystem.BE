@@ -577,6 +577,11 @@ namespace SRSS.IAM.Services.PaperService
         private static PaperResponse MapToPaperResponse(Paper paper, ScreeningPhase? phase = null)
         {
             var effectivePhase = phase ?? ScreeningPhase.TitleAbstract;
+            
+            // Only filter assignments by phase if an explicit phase is provided
+            var filteredAssignments = phase.HasValue 
+                ? paper.PaperAssignments?.Where(pa => pa.Phase == phase.Value).ToList() 
+                : paper.PaperAssignments?.ToList();
 
             return new PaperResponse
             {
@@ -609,16 +614,16 @@ namespace SRSS.IAM.Services.PaperService
                 SelectionStatus = null,
                 SelectionStatusText = null,
 
-                // Stage
+                // Stage - Use TitleAbstract as default status but don't force it if we are in general view
                 Stage = (int)effectivePhase,
                 StageText = effectivePhase.ToString(),
 
                 // Assignment Status
-                AssignmentStatus = paper.PaperAssignments?.Any() == true ? 1 : 0,
-                AssignmentStatusText = paper.PaperAssignments?.Any() == true ? "Assigned" : "Unassigned",
+                AssignmentStatus = (filteredAssignments != null && filteredAssignments.Any()) ? 1 : 0,
+                AssignmentStatusText = (filteredAssignments != null && filteredAssignments.Any()) ? "Assigned" : "Unassigned",
 
                 // Assigned Reviewers
-                AssignedReviewers = paper.PaperAssignments?.Select(pa => new AssignedReviewerDto
+                AssignedReviewers = filteredAssignments?.Select(pa => new AssignedReviewerDto
                 {
                     Id = pa.ProjectMember.UserId,
                     Name = pa.ProjectMember.User?.FullName ?? "Unknown"
@@ -848,6 +853,7 @@ namespace SRSS.IAM.Services.PaperService
                 eligiblePaperIds,
                 request.Search,
                 request.AssignmentStatus,
+                ScreeningPhase.TitleAbstract,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
@@ -896,6 +902,7 @@ namespace SRSS.IAM.Services.PaperService
                 eligiblePaperIds,
                 request.Search,
                 request.AssignmentStatus,
+                ScreeningPhase.FullText,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
@@ -947,6 +954,7 @@ namespace SRSS.IAM.Services.PaperService
                 paperIds,
                 request.Search,
                 null, // Filtered implicitly by paperIds
+                phase,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);

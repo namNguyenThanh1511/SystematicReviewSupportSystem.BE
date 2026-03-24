@@ -56,5 +56,10 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
         Task<ProjectMembershipResponse> GetMyProjectMembershipAsync(
             Guid projectId,
             CancellationToken cancellationToken = default);
+
+        Task<List<ProjectMemberDto>> GetAvailableMembersForPaperAsync(
+            Guid projectId,
+            Guid paperId,
+            CancellationToken cancellationToken = default);
     }
 }

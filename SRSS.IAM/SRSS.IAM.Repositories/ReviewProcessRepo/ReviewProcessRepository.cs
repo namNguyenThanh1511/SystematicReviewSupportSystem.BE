@@ -16,6 +16,7 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
                 .Include(rp => rp.IdentificationProcess)
                 .Include(rp => rp.StudySelectionProcess)
                 .Include(rp => rp.QualityAssessmentProcess)
+                .Include(rp => rp.DataExtractionProcess)
                 .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
 
         }

@@ -36,59 +36,63 @@ using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
-	// Service-specific interface extends base
-	public interface IUnitOfWork
-	{
-		Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-		Task BeginTransactionAsync(CancellationToken cancellationToken = default);
-		Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-		Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
-		IUserRepository Users { get; }
-		INotificationRepository Notifications { get; }
-		IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
+    // Service-specific interface extends base
+    public interface IUnitOfWork
+    {
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+        IUserRepository Users { get; }
+        INotificationRepository Notifications { get; }
+        IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
 
-		// Core Governance
-		IReviewNeedRepository ReviewNeeds { get; }
-		ICommissioningDocumentRepository CommissioningDocuments { get; }
-		IReviewObjectiveRepository ReviewObjectives { get; }
-		IQuestionTypeRepository QuestionTypes { get; }
+        // Core Governance
+        IReviewNeedRepository ReviewNeeds { get; }
+        ICommissioningDocumentRepository CommissioningDocuments { get; }
+        IReviewObjectiveRepository ReviewObjectives { get; }
+        IQuestionTypeRepository QuestionTypes { get; }
 
-		// Protocol
-		IReviewProtocolRepository Protocols { get; }
-		IProtocolVersionRepository ProtocolVersions { get; }
-		IProtocolEvaluationRepository ProtocolEvaluations { get; }
+        // Protocol
+        IReviewProtocolRepository Protocols { get; }
+        IProtocolVersionRepository ProtocolVersions { get; }
+        IProtocolEvaluationRepository ProtocolEvaluations { get; }
 
-		// Research Question
-		IResearchQuestionRepository ResearchQuestions { get; }
-		IPicocElementRepository PicocElements { get; }
-		IPopulationRepository Populations { get; }
-		IInterventionRepository Interventions { get; }
-		IComparisonRepository Comparisons { get; }
-		IOutcomeRepository Outcomes { get; }
-		IContextRepository Contexts { get; }
+        // Research Question
+        IResearchQuestionRepository ResearchQuestions { get; }
+        IPicocElementRepository PicocElements { get; }
+        IPopulationRepository Populations { get; }
+        IInterventionRepository Interventions { get; }
+        IComparisonRepository Comparisons { get; }
+        IOutcomeRepository Outcomes { get; }
+        IContextRepository Contexts { get; }
 
-		// Search Strategy
-		ISearchSourceRepository SearchSources { get; }
+        // Search Strategy
+        ISearchSourceRepository SearchSources { get; }
 
-		// Selection Criteria
-		IStudySelectionCriteriaRepository SelectionCriterias { get; }
-		IInclusionCriterionRepository InclusionCriteria { get; }
-		IExclusionCriterionRepository ExclusionCriteria { get; }
-		IStudySelectionProcedureRepository SelectionProcedures { get; }
+        // Selection Criteria
+        IStudySelectionCriteriaRepository SelectionCriterias { get; }
+        IInclusionCriterionRepository InclusionCriteria { get; }
+        IExclusionCriterionRepository ExclusionCriteria { get; }
+        IStudySelectionProcedureRepository SelectionProcedures { get; }
 
-		// Quality Assessment
-		IQualityAssessmentStrategyRepository QualityStrategies { get; }
-		IQualityChecklistRepository QualityChecklists { get; }
-		IQualityCriterionRepository QualityCriteria { get; }
+        // Quality Assessment
+        IQualityAssessmentStrategyRepository QualityStrategies { get; }
+        IQualityChecklistRepository QualityChecklists { get; }
+        IQualityCriterionRepository QualityCriteria { get; }
 
-		// Data Extraction
-		//IDataExtractionStrategyRepository ExtractionStrategies { get; }
-		//IDataExtractionFormRepository ExtractionForms { get; }
-		//IDataItemDefinitionRepository DataItems { get; }
-		IExtractionTemplateRepository ExtractionTemplates { get; }
-		IExtractionFieldRepository ExtractionFields { get; }
-		IFieldOptionRepository FieldOptions { get; }
-		IExtractedDataValueRepository ExtractedDataValues { get; }
+        // Data Extraction
+        //IDataExtractionStrategyRepository ExtractionStrategies { get; }
+        //IDataExtractionFormRepository ExtractionForms { get; }
+        //IDataItemDefinitionRepository DataItems { get; }
+        IExtractionTemplateRepository ExtractionTemplates { get; }
+        IExtractionSectionRepository ExtractionSections { get; }
+        IExtractionFieldRepository ExtractionFields { get; }
+        IExtractionMatrixColumnRepository ExtractionMatrixColumns { get; }
+        IFieldOptionRepository FieldOptions { get; }
+        IDataExtractionProcessRepository DataExtractionProcesses { get; }
+        IExtractionPaperTaskRepository ExtractionPaperTasks { get; }
+        IExtractedDataValueRepository ExtractedDataValues { get; }
 
 		// Synthesis
 		IDataSynthesisStrategyRepository SynthesisStrategies { get; }

@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -30,10 +30,19 @@ namespace SRSS.IAM.Repositories.Entities
 		/// </summary>
 		public decimal? NumericValue { get; set; }
 
+		public bool? BooleanValue { get; set; }
+
+		public Guid? MatrixColumnId { get; set; }
+
+		public int? MatrixRowIndex { get; set; }
+
+		public bool IsConsensusFinal { get; set; } = false;
+
 		// Navigation properties
 		public Paper Paper { get; set; } = null!;
 		public ExtractionField Field { get; set; } = null!;
 		public User Reviewer { get; set; } = null!;
 		public FieldOption? Option { get; set; }
+		public ExtractionMatrixColumn? MatrixColumn { get; set; }
 	}
 }

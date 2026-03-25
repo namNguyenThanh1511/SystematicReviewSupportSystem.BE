@@ -62,8 +62,12 @@ namespace SRSS.IAM.Repositories
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
 		public DbSet<ExtractionTemplate> ExtractionTemplates { get; set; } = default!;
+		public DbSet<ExtractionSection> ExtractionSections { get; set; } = default!;
+		public DbSet<ExtractionMatrixColumn> ExtractionMatrixColumns { get; set; } = default!;
+		
 		public DbSet<ExtractionField> ExtractionFields { get; set; } = default!;
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
+		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
 		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
@@ -71,6 +75,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;
 		public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
 		public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
+		public DbSet<DataExtractionProcess> DataExtractionProcesses { get; set; } = default!;
 		public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
 		public DbSet<Paper> Papers { get; set; } = default!;
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;

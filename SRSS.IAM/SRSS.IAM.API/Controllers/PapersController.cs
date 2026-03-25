@@ -164,6 +164,39 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get unique (non-duplicate) papers for a specific data extraction process.
+        /// Returns papers that are participating in this extraction process.
+        /// </summary>
+        [HttpGet("data-extraction-processes/{dataExtractionProcessId}/unique-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetUniquePapersByDataExtractionProcess(
+            [FromRoute] Guid dataExtractionProcessId,
+            [FromQuery] string? search,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new PaperListRequest
+            {
+                Search = search,
+                Year = year,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _paperService.GetUniquePapersByDataExtractionProcessAsync(
+                dataExtractionProcessId,
+                request,
+                cancellationToken);
+
+            var message = result.TotalCount == 0
+                ? "No unique papers found for this data extraction process."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} unique papers.";
+
+            return Ok(result, message);
+        }
+
+        /// <summary>
         /// Get paginated duplicate pairs with both papers for side-by-side comparison.
         /// Each pair contains the original paper and the duplicate paper with full metadata.
         /// </summary>

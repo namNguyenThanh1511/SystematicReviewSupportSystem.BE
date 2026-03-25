@@ -54,6 +54,18 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageSize,
             CancellationToken cancellationToken = default);
 
+        /// <summary>
+        /// Get unique papers for a specific data extraction process.
+        /// Returns papers that have an extraction paper task in this process.
+        /// </summary>
+        Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByDataExtractionProcessAsync(
+            Guid dataExtractionProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,

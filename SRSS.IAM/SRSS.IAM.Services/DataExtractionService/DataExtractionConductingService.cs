@@ -49,11 +49,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             var selectionProcessId = extractionProcess.ReviewProcess.StudySelectionProcess.Id;
 
-            // 2. Lấy danh sách PaperId đã PASS vòng Full-Text Screening
-            // (FinalDecision == Include & Phase == FullText)
-            var eligiblePapers = await _unitOfWork.ScreeningResolutions.FindAllAsync(sr => sr.StudySelectionProcessId == selectionProcessId
-                          && sr.Phase == ScreeningPhase.FullText
-                          && sr.FinalDecision == ScreeningDecisionType.Include);
+            // 2. Lấy danh sách PaperId đã PASS vòng Full-Text Screening            
+            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.FindAllAsync(sr => sr.StudySelectionProcessId == selectionProcessId);
 
             var eligiblePaperIds = eligiblePapers.Select(sr => sr.PaperId).ToList();
 
@@ -982,7 +979,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
             using var networkStream = await pdfResponse.Content.ReadAsStreamAsync();
 
-            // BỔ SUNG ĐOẠN NÀY: Copy sang MemoryStream để an toàn tuyệt đối
+            // Copy sang MemoryStream để an toàn tuyệt đối
             using var memoryStream = new MemoryStream();
             await networkStream.CopyToAsync(memoryStream);
             memoryStream.Position = 0; // Đặt con trỏ về đầu file
@@ -996,12 +993,46 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             var doc = XDocument.Parse(paperText);
-            // Lấy tất cả text nằm trong thẻ <p> (paragraph) và <head> (heading)
-            var cleanTextNodes = doc.Descendants()
+
+            var sb = new System.Text.StringBuilder();
+
+            // 1. Extract Title
+            var title = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "title")?.Value;
+            if (!string.IsNullOrWhiteSpace(title)) sb.AppendLine($"TITLE: {title}\n");
+
+            // 2. Extract Authors
+            var authorNodes = doc.Descendants().Where(x => x.Name.LocalName == "author");
+            var authorsList = new List<string>();
+            foreach (var author in authorNodes)
+            {
+                var names = author.Descendants()
+                                .Where(x => x.Name.LocalName == "forename" || x.Name.LocalName == "surname")
+                                .Select(x => x.Value);
+                if (names.Any()) authorsList.Add(string.Join(" ", names));
+            }
+            if (authorsList.Any()) sb.AppendLine($"AUTHORS: {string.Join(", ", authorsList)}\n");
+
+            // 3. Extract Publication Date/Year
+            var dateNode = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "date" && x.Attribute("type")?.Value == "published");
+            var year = dateNode?.Attribute("when")?.Value ?? dateNode?.Value;
+            if (!string.IsNullOrWhiteSpace(year)) sb.AppendLine($"PUBLICATION DATE: {year}\n");
+
+            // 4. Extract Abstract
+            var abstractText = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "abstract")?.Value;
+            if (!string.IsNullOrWhiteSpace(abstractText)) sb.AppendLine($"ABSTRACT:\n{abstractText}\n");
+
+            // 5. Extract Main Body Text (Only from inside the <text> node)
+            sb.AppendLine("MAIN TEXT:");
+            var textBodyNodes = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "text")?.Descendants()
                                     .Where(x => x.Name.LocalName == "p" || x.Name.LocalName == "head")
                                     .Select(x => x.Value);
 
-            var cleanPaperText = string.Join("\n", cleanTextNodes);
+            if (textBodyNodes != null && textBodyNodes.Any())
+            {
+                sb.AppendLine(string.Join("\n\n", textBodyNodes));
+            }
+
+            var cleanPaperText = sb.ToString();
 
             // 4. Fetch Schema
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
@@ -1038,7 +1069,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             var schemaJson = JsonSerializer.Serialize(schemaObj, new JsonSerializerOptions { WriteIndented = true });
 
             // 5. Call Gemini
-            var apiKey = _configuration["GeminiApiKey"] ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
             if (string.IsNullOrWhiteSpace(apiKey))
             {
                 throw new InvalidOperationException("Gemini API key is not configured.");

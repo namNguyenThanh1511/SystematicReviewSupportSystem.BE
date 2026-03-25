@@ -306,7 +306,7 @@ namespace SRSS.IAM.API.Data
                 Id = HarReviewProcessId,
                 Name = "HAR Systematic Review Process",
                 ProjectId = HarProjectId,
-                ProtocolId = HarProtocol2Id,
+                // ProtocolId = HarProtocol2Id,
                 CurrentPhase = ProcessPhase.Identification,
                 Status = ProcessStatus.InProgress,
                 StartedAt = DateTimeOffset.UtcNow,

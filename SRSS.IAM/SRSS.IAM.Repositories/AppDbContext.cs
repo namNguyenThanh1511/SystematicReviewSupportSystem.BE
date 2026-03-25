@@ -92,5 +92,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
 		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
+		public DbSet<PaperTag> PaperTags { get; set; } = default!;
+		public DbSet<UserTagInventory> UserTagInventories { get; set; } = default!;
 	}
 }

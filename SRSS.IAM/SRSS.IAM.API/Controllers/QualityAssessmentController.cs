@@ -176,6 +176,13 @@ namespace SRSS.IAM.API.Controllers
 			await _service.UpdateDecisionAsync(id, dto);
 			return Ok("Cập nhật quyết định thành công");
 		}
+		
+		[HttpPost("decisions/ai")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionItemAIResponse>>>> AutomateQualityAssessment([FromBody] AutomateQualityAssessmentRequest request)
+		{
+			var result = await _service.AutomateQualityAssessmentAsync(request);
+			return Ok(result, "Thực hiện tự động đánh giá chất lượng thành công");
+		}
 
 		[HttpGet("papers/{paperId}/decisions")]
 		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByPaperId(Guid paperId)

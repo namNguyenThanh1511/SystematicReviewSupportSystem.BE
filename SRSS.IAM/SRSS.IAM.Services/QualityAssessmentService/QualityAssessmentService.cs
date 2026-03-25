@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.DTOs.Notification;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.GeminiService;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -17,12 +18,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         private readonly IUnitOfWork _unitOfWork;
         private readonly INotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IGeminiService _geminiService;
 
-        public QualityAssessmentService(IUnitOfWork unitOfWork, INotificationService notificationService, ICurrentUserService currentUserService)
+        public QualityAssessmentService(IUnitOfWork unitOfWork, INotificationService notificationService, ICurrentUserService currentUserService, IGeminiService geminiService)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
+            _geminiService = geminiService;
         }
 
         // ==================== Quality Assessment Strategies ====================
@@ -291,7 +294,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 if (percentage > 100) percentage = 100;
 
                 var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paperId);
-                
+
                 string? resolvedByName = null;
                 if (resolution != null)
                 {
@@ -511,12 +514,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             foreach (var itemDto in dto.DecisionItems)
             {
                 QualityAssessmentDecisionItem? item = null;
-                
+
                 if (itemDto.Id.HasValue && itemDto.Id.Value != Guid.Empty)
                 {
                     item = decision.DecisionItems.FirstOrDefault(di => di.Id == itemDto.Id.Value);
                 }
-                
+
                 if (item == null && itemDto.QualityCriterionId.HasValue && itemDto.QualityCriterionId.Value != Guid.Empty)
                 {
                     item = decision.DecisionItems.FirstOrDefault(di => di.QualityCriterionId == itemDto.QualityCriterionId.Value);
@@ -600,6 +603,47 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (res == null) return null!;
 
             return res.ToResponse();
+        }
+
+        // ==================== Quality Assessment Automate ====================
+        public async Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request)
+        {
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId)
+                ?? throw new KeyNotFoundException("Process not found");
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId)
+                ?? throw new KeyNotFoundException("Paper not found");
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException("Review process not found");
+
+            if (!reviewProcess.ProtocolId.HasValue)
+                throw new InvalidOperationException("Protocol not found for this review process");
+
+            var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(reviewProcess.ProtocolId.Value);
+
+            var criteriaQuestions = strategy.SelectMany(s => s.Checklists.SelectMany(c => c.Criteria)).Select(c => new { c.Id, c.Question }).ToList();
+
+            var prompt = $@"
+Assume you are an expert reviewer conducting a quality assessment of a scientific paper.
+Here are the paper details:
+- Title: {paper.Title}
+- Abstract: {paper.Abstract}
+- Full Text URL: {paper.PdfUrl}
+
+I want you to evaluate this paper against the following criteria questions. For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
+
+Criteria:
+{string.Join("\n", criteriaQuestions.Select(c => $"- ID: {c.Id} | Question: {c.Question}"))}
+";
+
+            var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);
+
+            if (result == null || !result.Any())
+            {
+                throw new Exception("AI failed to generate assessment.");
+            }
+
+            return result;
         }
     }
 }

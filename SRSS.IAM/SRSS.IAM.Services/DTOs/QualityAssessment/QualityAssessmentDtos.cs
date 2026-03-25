@@ -114,6 +114,12 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? Comment { get; set; }
     }
 
+    public class AutomateQualityAssessmentRequest
+    {
+        public Guid QualityAssessmentProcessId { get; set; }
+        public Guid PaperId { get; set; }
+    }
+
     public class PaperResponse
     {
         public Guid Id { get; set; }
@@ -212,5 +218,12 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid ResolvedBy { get; set; }
         public string? ResolvedByName { get; set; }
         public DateTimeOffset ResolvedAt { get; set; }
+    }
+
+    public class QualityAssessmentDecisionItemAIResponse
+    {
+        public Guid QualityCriterionId { get; set; }
+        public QualityAssessmentDecisionValue? Value { get; set; }
+        public string? Comment { get; set; }
     }
 }

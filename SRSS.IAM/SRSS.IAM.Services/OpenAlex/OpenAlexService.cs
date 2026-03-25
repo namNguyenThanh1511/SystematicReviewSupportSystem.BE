@@ -32,7 +32,7 @@ namespace SRSS.IAM.Services.OpenAlex
 
         public async Task<WorkDetailDto> GetWorkAsync(string workId, CancellationToken ct)
         {
-            var select = "id,display_name,doi,publication_year,type,cited_by_count";
+            var select = "id,display_name,doi,publication_year,type,cited_by_count,referenced_works_count,cited_by_percentile_year";
             var url = $"works/{workId}?select={select}&api_key={_settings.ApiKey}";
 
             try

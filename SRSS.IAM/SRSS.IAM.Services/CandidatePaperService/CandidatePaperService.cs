@@ -17,6 +17,7 @@ using SRSS.IAM.Services.GrobidClient.DTOs;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
+using SRSS.IAM.Services.PaperEnrichmentService;
 
 namespace SRSS.IAM.Services.CandidatePaperService
 {
@@ -27,19 +28,22 @@ namespace SRSS.IAM.Services.CandidatePaperService
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<CandidatePaperService> _logger;
         private readonly IReferenceMatchingService _referenceMatchingService;
+        private readonly IPaperEnrichmentService _paperEnrichmentService;
 
         public CandidatePaperService(
             IUnitOfWork unitOfWork,
             IGrobidService grobidService,
             IHttpClientFactory httpClientFactory,
             ILogger<CandidatePaperService> logger,
-            IReferenceMatchingService referenceMatchingService)
+            IReferenceMatchingService referenceMatchingService,
+            IPaperEnrichmentService paperEnrichmentService)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
             _referenceMatchingService = referenceMatchingService;
+            _paperEnrichmentService = paperEnrichmentService;
         }
 
         public async Task ExtractReferencesFromPaperAsync(Guid processId, Guid paperId, CancellationToken cancellationToken = default)
@@ -276,6 +280,9 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         }
 
                         await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+
+                        // Enrich with external metadata from OpenAlex
+                        await _paperEnrichmentService.EnrichFromOpenAlexAsync(newPaper, cancellationToken);
 
                         // Add to Identification Snapshot (incremental)
                         var snapshotPaper = new IdentificationProcessPaper

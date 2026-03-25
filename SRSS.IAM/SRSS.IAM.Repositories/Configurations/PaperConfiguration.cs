@@ -172,6 +172,33 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
 
+            // ============================================
+            // EXTERNAL METADATA (OPENALEX)
+            // ============================================
+            builder.Property(p => p.OpenAlexId)
+                .HasColumnName("open_alex_id")
+                .HasMaxLength(255);
+
+            builder.Property(p => p.ExternalCitationCount)
+                .HasColumnName("external_citation_count");
+
+            builder.Property(p => p.ExternalReferenceCount)
+                .HasColumnName("external_reference_count");
+
+            builder.Property(p => p.ExternalCitedByPercentile)
+                .HasColumnName("external_cited_by_percentile");
+
+            builder.Property(p => p.ExternalLastFetchedAt)
+                .HasColumnName("external_last_fetched_at");
+
+            builder.Property(p => p.ExternalSource)
+                .HasColumnName("external_source")
+                .HasMaxLength(100);
+
+            builder.Property(p => p.ExternalDataFetched)
+                .HasColumnName("external_data_fetched")
+                .HasDefaultValue(false);
+
             //project
             builder.Property(p => p.ProjectId)
                 .HasColumnName("project_id")

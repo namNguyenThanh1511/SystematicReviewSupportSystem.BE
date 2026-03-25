@@ -17,6 +17,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     {
         public Guid ReviewerId { get; set; }
         public ScreeningDecisionType Decision { get; set; }
+        public ScreeningPhase Phase { get; set; }
         public string? Reason { get; set; }
         public ExclusionReasonCode? ExclusionReasonCode { get; set; }
         public string? ReviewerNotes { get; set; }
@@ -25,6 +26,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     public class ResolveScreeningConflictRequest
     {
         public ScreeningDecisionType FinalDecision { get; set; }
+        public ScreeningPhase Phase { get; set; }
         public Guid ResolvedBy { get; set; }
         public string? ResolutionNotes { get; set; }
     }
@@ -58,10 +60,10 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? PdfFileName { get; set; }
         /// <summary>External URL to the web source</summary>
         public string? Url { get; set; }
-        
+
         /// <summary>Whether to extract header metadata using GROBID</summary>
         public bool ExtractWithGrobid { get; set; }
-        
+
         /// <summary>PDF file stream for GROBID extraction</summary>
         public System.IO.Stream? PdfStream { get; set; }
     }
@@ -109,6 +111,13 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public int MaxReviewersPerPaper { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+    }
+
+    public class ReviewerAssignmentResponse
+    {
+        public Guid ProjectMemberId { get; set; }
+        public Guid ReviewerId { get; set; }
+        public string ReviewerName { get; set; } = string.Empty;
     }
 
     public class ScreeningDecisionResponse
@@ -269,12 +278,41 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public List<string> UpdatedFields { get; set; } = new();
     }
 
+    public class ConflictPaperDetailResponse : PaperWithDecisionsResponse
+    {
+        public bool IsFinishReview { get; set; }
+        public List<ReviewerAssignmentResponse> AssignedMembers { get; set; } = new();
+    }
+
     public class ConflictedPaperResponse
     {
         public Guid PaperId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? DOI { get; set; }
         public List<ScreeningDecisionResponse> ConflictingDecisions { get; set; } = new();
+    }
+
+    public class PhaseConflictedPaperResponse
+    {
+        public Guid PaperId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Authors { get; set; }
+        public string? DOI { get; set; }
+        public string? Year { get; set; }
+        public string? Source { get; set; }
+        public ScreeningPhase Phase { get; set; }
+        public string PhaseText { get; set; } = string.Empty;
+        public PaperSelectionStatus Status { get; set; }
+        public string StatusText { get; set; } = string.Empty;
+    }
+
+    public class ConflictedPapersRequest
+    {
+        public ScreeningPhase? Phase { get; set; }
+        public PaperSelectionStatus? Status { get; set; }
+        public string? Search { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
     }
 
     public class SelectionStatisticsResponse
@@ -300,6 +338,17 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public ExclusionReasonCode ReasonCode { get; set; }
         public string ReasonText { get; set; } = string.Empty;
         public int Count { get; set; }
+    }
+
+    public class IncludedPaperResponse
+    {
+        public Guid Id { get; set; }
+        public Guid PaperId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? DOI { get; set; }
+        public string? Authors { get; set; }
+        public string? PublicationYear { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
     }
 
     // ============================================

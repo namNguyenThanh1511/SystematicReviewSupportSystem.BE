@@ -264,6 +264,26 @@ namespace SRSS.IAM.Repositories.PaperRepo
             return (papers, totalCount);
         }
 
+        public async Task<(List<Paper> Papers, int TotalCount)> GetPapersMissingExternalDataAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.Papers
+                .AsNoTracking()
+                .Where(p => !p.ExternalDataFetched && !string.IsNullOrWhiteSpace(p.DOI));
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers, totalCount);
+        }
+
         public async Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByDataExtractionProcessAsync(
             Guid dataExtractionProcessId,
             string? search,

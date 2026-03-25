@@ -164,7 +164,9 @@ namespace SRSS.IAM.Services.Mappers
                 Status = entity.Status,
                 StatusText = entity.Status.ToString(),
                 StartedAt = entity.StartedAt,
-                CompletedAt = entity.CompletedAt
+                CompletedAt = entity.CompletedAt,
+                CreatedAt = entity.CreatedAt,
+                ModifiedAt = entity.ModifiedAt
             };
         }
 

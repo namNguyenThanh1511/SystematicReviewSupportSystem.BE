@@ -5,6 +5,8 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Repositories.Entities.Enums;
+using ClosedXML.Excel;
+using System.IO;
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.DTOs.Notification;
@@ -645,5 +647,120 @@ Criteria:
 
             return result;
         }
-    }
+        // ==================== Export Excel ====================
+        public async Task<byte[]> ExportProcessToExcelAsync(Guid processId)
+        {
+            // Reuse existing method to get paper summaries
+            var papers = await GetAllPapersAsync(processId);
+
+            // Fetch full strategy to get criteria list (domains)
+            var strategies = await GetStrategiesByProcessIdAsync(processId);
+            // Flatten all criteria from all strategies and checklists
+            var allCriteria = strategies
+                .SelectMany(s => s.Checklists)
+                .SelectMany(c => c.Criteria)
+                .ToList();
+
+            using var wb = new XLWorkbook();
+            var ws = wb.Worksheets.Add("QualityAssessment");
+
+            // Build headers: Row1 main headers, Row2 subheaders
+            // Columns: A=Study Id, B=Reviewer
+            ws.Cell("A1").Value = "Study Id";
+            ws.Range("A1:A2").Merge().Style.Alignment.SetVertical(XLAlignmentVerticalValues.Center).Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+            ws.Cell("B1").Value = "Reviewer";
+            ws.Range("B1:B2").Merge().Style.Alignment.SetVertical(XLAlignmentVerticalValues.Center).Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+
+            var startCol = 3; // C
+            for (int i = 0; i < allCriteria.Count; i++)
+            {
+                var criterion = allCriteria[i];
+                var col = startCol + i * 3;
+                
+                // Merge three cells for criterion question (domain)
+                var startAddress = ws.Cell(1, col).Address.ToStringRelative();
+                var endAddress = ws.Cell(1, col + 2).Address.ToStringRelative();
+                ws.Range(startAddress + ":" + endAddress).Merge();
+                
+                ws.Cell(1, col).Value = criterion.Question; // Use criteria name/question as domain name
+                ws.Cell(2, col).Value = "Judgement";
+                ws.Cell(2, col + 1).Value = "Quotes";
+                ws.Cell(2, col + 2).Value = "Comments";
+                
+                // center domain title
+                var domainRange = ws.Range(startAddress + ":" + endAddress);
+                domainRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                domainRange.Style.Font.SetBold();
+            }
+
+            // Style first two header cells
+            var headerRange = ws.Range("A1:B2");
+            headerRange.Style.Font.SetBold();
+            headerRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+
+            // Populate data
+            var currentRow = 3;
+            foreach (var paper in papers)
+            {
+                // Use decisions list (each decision is per reviewer)
+                var decisions = paper.Decisions ?? new List<QualityAssessmentDecisionResponse>();
+
+                // Also include resolution as a consensus row if exists
+                if (paper.Resolution != null)
+                {
+                    // Create a synthetic decision row for consensus
+                    decisions = decisions.Append(new QualityAssessmentDecisionResponse
+                    {
+                        ReviewerId = paper.Resolution.ResolvedBy,
+                        ReviewerName = paper.Resolution.ResolvedByName ?? "Consensus",
+                        PaperId = paper.Id,
+                        DecisionItems = new List<QualityAssessmentDecisionItemResponse>()
+                        // Note: Resolution doesn't currently store per-criterion items in DTO easily accessibly 
+                        // unless we load them separately or if they are just the final decision.
+                        // For now, Consensus row might be empty for items unless Resolution has items (it usually doesn't in this simplified model 
+                        // unless we query QualityAssessmentResolution -> which is just FinalDecision/Score in DTO).
+                        // If Resolution had items, we would map them here. Assuming empty for now as per DTO.
+                    }).ToList();
+                }
+
+                foreach (var dec in decisions)
+                {
+                    ws.Cell(currentRow, 1).Value = paper.Title ?? paper.Id.ToString();
+                    ws.Cell(currentRow, 2).Value = dec.ReviewerName ?? string.Empty;
+
+                    // For each criterion column, find the matching decision item
+                    for (int i = 0; i < allCriteria.Count; i++)
+                    {
+                        var criterion = allCriteria[i];
+                        var col = startCol + i * 3;
+
+                        // Find item by CriterionId
+                        var item = dec.DecisionItems?.FirstOrDefault(di => di.QualityCriterionId == criterion.CriterionId);
+
+                        if (item != null)
+                        {
+                            ws.Cell(currentRow, col).Value = item.Value?.ToString() ?? string.Empty; // Judgement
+                            ws.Cell(currentRow, col + 1).Value = string.Empty; // Quotes
+                            ws.Cell(currentRow, col + 2).Value = item.Comment ?? string.Empty; // Comments
+                        }
+                        else
+                        {
+                            ws.Cell(currentRow, col).Value = string.Empty;
+                            ws.Cell(currentRow, col + 1).Value = string.Empty;
+                            ws.Cell(currentRow, col + 2).Value = string.Empty;
+                        }
+                    }
+
+                    currentRow++;
+                }
+            }
+
+            // Auto-fit columns
+            ws.Columns().AdjustToContents();
+
+            using var ms = new MemoryStream();
+            wb.SaveAs(ms);
+            return ms.ToArray();
+        }
+}
 }

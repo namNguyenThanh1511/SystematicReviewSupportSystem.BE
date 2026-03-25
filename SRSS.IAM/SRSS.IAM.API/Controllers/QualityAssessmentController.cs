@@ -153,6 +153,16 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
+		/// Export quality assessment for a QA process to Excel
+		/// </summary>
+		[HttpGet("{id}/export/excel")]
+		public async Task<IActionResult> ExportExcel(Guid id)
+		{
+			var bytes = await _service.ExportProcessToExcelAsync(id);
+			return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"qa-export-{id}.xlsx");
+		}
+
+		/// <summary>
 		/// Lấy full QA Strategy (checklists + criteria) theo QA Process ID
 		/// </summary>
 		[HttpGet("{id}/strategies")]

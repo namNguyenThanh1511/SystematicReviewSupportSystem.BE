@@ -19,6 +19,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public IdentificationProcess? IdentificationProcess { get; set; }
         public StudySelectionProcess? StudySelectionProcess { get; set; }
+        public DataExtractionProcess? DataExtractionProcess { get; set; }
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods
@@ -42,7 +43,7 @@ namespace SRSS.IAM.Repositories.Entities
 
             ProtocolId = protocol.Id;
             Protocol = protocol;
-            ModifiedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
         }
 
         public void Start()
@@ -58,8 +59,8 @@ namespace SRSS.IAM.Repositories.Entities
             }
 
             Status = ProcessStatus.InProgress;
-            StartedAt = DateTimeOffset.UtcNow;
-            ModifiedAt = DateTimeOffset.UtcNow;
+            StartedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
+            ModifiedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
         }
 
         public void Complete()
@@ -72,8 +73,8 @@ namespace SRSS.IAM.Repositories.Entities
             EnsureCanComplete();
 
             Status = ProcessStatus.Completed;
-            CompletedAt = DateTimeOffset.UtcNow;
-            ModifiedAt = DateTimeOffset.UtcNow;
+            CompletedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
+            ModifiedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
         }
 
         public void Cancel()
@@ -84,7 +85,7 @@ namespace SRSS.IAM.Repositories.Entities
             }
 
             Status = ProcessStatus.Cancelled;
-            ModifiedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = new DateTimeOffset(DateTime.UtcNow, TimeSpan.Zero);
         }
 
         public bool CanStart()

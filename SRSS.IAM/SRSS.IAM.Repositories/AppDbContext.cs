@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Configurations;
+using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories
@@ -58,8 +58,12 @@ namespace SRSS.IAM.Repositories
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
 		public DbSet<ExtractionTemplate> ExtractionTemplates { get; set; } = default!;
+		public DbSet<ExtractionSection> ExtractionSections { get; set; } = default!;
+		public DbSet<ExtractionMatrixColumn> ExtractionMatrixColumns { get; set; } = default!;
+		
 		public DbSet<ExtractionField> ExtractionFields { get; set; } = default!;
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
+		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
 		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
@@ -67,6 +71,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;
 		public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
 		public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
+		public DbSet<DataExtractionProcess> DataExtractionProcesses { get; set; } = default!;
 		public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
 		public DbSet<Paper> Papers { get; set; } = default!;
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
@@ -77,6 +82,16 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
 		public DbSet<DeduplicationResult> DeduplicationResults { get; set; } = default!;
 		public DbSet<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = default!;
+		public DbSet<PaperAssignment> PaperAssignments { get; set; } = default!;
+		public DbSet<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = default!;
+		public DbSet<TitleAbstractScreening> TitleAbstractScreenings { get; set; } = default!;
+		public DbSet<FullTextScreening> FullTextScreenings { get; set; } = default!;
+		public DbSet<PaperPdf> PaperPdfs { get; set; } = default!;
+		public DbSet<PaperSourceMetadata> PaperSourceMetadatas { get; set; } = default!;
+		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
+		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
+		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
+		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<PaperTag> PaperTags { get; set; } = default!;
 		public DbSet<UserTagInventory> UserTagInventories { get; set; } = default!;
 	}

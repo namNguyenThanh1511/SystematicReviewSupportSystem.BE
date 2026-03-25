@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Entities.BaseEntity;
 using System.Linq.Expressions;
 
@@ -14,6 +14,16 @@ namespace Shared.Repositories
             CancellationToken cancellationToken = default);
 
         Task<TEntity?> FindSingleAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
+
+        Task<TEntity?> FindSingleOrDefaultAsync(
+            Expression<Func<TEntity, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
+
+        Task<TEntity?> FindFirstOrDefaultAsync(
             Expression<Func<TEntity, bool>>? predicate = null,
             bool isTracking = true,
             CancellationToken cancellationToken = default);

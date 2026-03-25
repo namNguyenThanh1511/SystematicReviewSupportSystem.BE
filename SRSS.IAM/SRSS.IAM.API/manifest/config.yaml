@@ -6,6 +6,12 @@ metadata:
 data:
   appsettings.Production.json: |-
     {
+      "CorsSettings": {
+        "AllowedOrigins": [
+          "http://localhost:3000",
+          "https://systematic-review-support-system-we-woad.vercel.app"
+        ]
+      },
       "JwtSettings": {
         "ValidIssuer": "SRSS",
         "ValidAudience": "SRSSUsers",
@@ -23,5 +29,19 @@ data:
         "ClientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
         "AuthorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
         "Scope": "openid profile email"
+      },
+      "SupabaseSettings": {
+        "Url": "https://your-project.supabase.co",
+        "Key": "your_supabase_key_here"
+      },
+      "Grobid": {
+        "BaseUrl": "http://srss-grobid-service.amayakuro.svc.cluster.local:8070"
+      },
+      "Gemini": {
+        "ApiKey": "YOUR_OPENALEX_API_KEY_HERE",
+        "ModelId": "gemini-2.5-flash"
+      },
+      "OpenAlex": {
+        "ApiKey": "YOUR_OPENALEX_API_KEY_HERE"
       }
     }

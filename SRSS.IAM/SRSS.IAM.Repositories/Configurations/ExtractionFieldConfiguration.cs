@@ -8,34 +8,41 @@ namespace SRSS.IAM.Repositories.Configurations
 	{
 		public void Configure(EntityTypeBuilder<ExtractionField> builder)
 		{
-			builder.ToTable("extraction_fields");
-
+			builder.ToTable("extraction_field");
 			builder.HasKey(x => x.Id);
-			builder.Property(x => x.Id).HasColumnName("field_id");
 
-			builder.Property(x => x.TemplateId).HasColumnName("template_id").IsRequired();
-			builder.Property(x => x.ParentFieldId).HasColumnName("parent_field_id");
-			builder.Property(x => x.Name).HasColumnName("name").IsRequired();
-			builder.Property(x => x.Instruction).HasColumnName("instruction");
-			builder.Property(x => x.FieldType).HasColumnName("field_type").IsRequired();
-			builder.Property(x => x.IsRequired).HasColumnName("is_required");
-			builder.Property(x => x.OrderIndex).HasColumnName("order_index");
-			builder.Property(x => x.CreatedAt).HasColumnName("created_at");
-			builder.Property(x => x.ModifiedAt).HasColumnName("modified_at");
+			builder.Property(x => x.SectionId).IsRequired();
+			builder.Property(x => x.Name).IsRequired().HasMaxLength(500);
+			builder.Property(x => x.Instruction).HasMaxLength(2000);
+			builder.Property(x => x.FieldType)
+				.IsRequired()
+				.HasDefaultValue(FieldType.Text);
+			builder.Property(x => x.OrderIndex).HasDefaultValue(0);
 
-			// Self-referencing relationship for nested structure
-			builder.HasOne(x => x.ParentField)
-				.WithMany(p => p.SubFields)
-				.HasForeignKey(x => x.ParentFieldId)
-				.OnDelete(DeleteBehavior.Restrict);
-
-			builder.HasMany(x => x.Options)
-				.WithOne(o => o.Field)
-				.HasForeignKey(o => o.FieldId)
+			// Relationships
+			builder.HasOne(x => x.Section)
+				.WithMany(x => x.Fields)
+				.HasForeignKey(x => x.SectionId)
 				.OnDelete(DeleteBehavior.Cascade);
 
-			// Index for performance
-			builder.HasIndex(x => x.TemplateId);
+			// Self-referencing
+			builder.HasOne(x => x.ParentField)
+				.WithMany(x => x.SubFields)
+				.HasForeignKey(x => x.ParentFieldId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasMany(x => x.Options)
+				.WithOne(x => x.Field)
+				.HasForeignKey(x => x.FieldId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasMany(x => x.SubFields)
+				.WithOne(x => x.ParentField)
+				.HasForeignKey(x => x.ParentFieldId)
+				.OnDelete(DeleteBehavior.Cascade);
+
+			// Indexes
+			builder.HasIndex(x => x.SectionId);
 			builder.HasIndex(x => x.ParentFieldId);
 		}
 	}

@@ -37,6 +37,14 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
         {
             return _context.SystematicReviewProjects.AsQueryable();
         }
+ 
+        public IQueryable<ProjectMember> GetProjectMembersQueryable(Guid projectId)
+        {
+            return _context.ProjectMembers
+                .Include(m => m.User)
+                .Where(m => m.ProjectId == projectId)
+                .AsNoTracking();
+        }
 
         public async Task<bool> ExistsPendingInvitationAsync(Guid projectId, Guid userId)
         {

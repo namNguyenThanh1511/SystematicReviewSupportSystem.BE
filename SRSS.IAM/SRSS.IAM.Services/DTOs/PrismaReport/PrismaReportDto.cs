@@ -10,20 +10,33 @@ namespace SRSS.IAM.Services.DTOs.PrismaReport
         public DateTimeOffset GeneratedAt { get; set; }
         public string? Notes { get; set; }
         public string? GeneratedBy { get; set; }
-        public List<PrismaFlowRecordResponse> FlowRecords { get; set; } = new();
+        public List<PrismaNodeResponse> Nodes { get; set; } = new();
+        public PrismaNodeResponse? Included { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
     }
 
-    public class PrismaFlowRecordResponse
+    public class PrismaNodeResponse
     {
-        public Guid Id { get; set; }
-        public PrismaStage Stage { get; set; }
-        public string StageText { get; set; } = string.Empty;
+        public string Stage { get; set; } = string.Empty;
+        public int Total { get; set; }
+        public List<PrismaBreakdownResponse>? Breakdown { get; set; }
+        public List<PrismaBreakdownResponse>? Reasons { get; set; }
+        public PrismaSideBoxResponse? SideBox { get; set; }
+    }
+
+    public class PrismaSideBoxResponse
+    {
+        public string Stage { get; set; } = string.Empty;
+        public int Total { get; set; }
+        public List<PrismaBreakdownResponse>? Breakdown { get; set; }
+        public List<PrismaBreakdownResponse>? Reasons { get; set; }
+    }
+
+    public class PrismaBreakdownResponse
+    {
         public string Label { get; set; } = string.Empty;
         public int Count { get; set; }
-        public string? Description { get; set; }
-        public int DisplayOrder { get; set; }
     }
 
     public class GeneratePrismaReportRequest

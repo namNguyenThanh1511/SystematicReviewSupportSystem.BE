@@ -31,6 +31,8 @@ namespace SRSS.IAM.API.Controllers
             [FromQuery] string? search,
             [FromQuery] SelectionStatus? status,
             [FromQuery] int? year,
+            [FromQuery] string? assignmentStatus,
+            [FromQuery] ScreeningStage? stage,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -40,6 +42,8 @@ namespace SRSS.IAM.API.Controllers
                 Search = search,
                 Status = status,
                 Year = year,
+                AssignmentStatus = assignmentStatus,
+                Stage = stage,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
@@ -91,8 +95,8 @@ namespace SRSS.IAM.API.Controllers
             };
 
             var result = await _paperService.GetDuplicatePapersByIdentificationProcessAsync(
-                identificationProcessId, 
-                request, 
+                identificationProcessId,
+                request,
                 cancellationToken);
 
             var message = result.TotalCount == 0
@@ -154,6 +158,39 @@ namespace SRSS.IAM.API.Controllers
 
             var message = result.TotalCount == 0
                 ? "No unique papers found for this identification process."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} unique papers.";
+
+            return Ok(result, message);
+        }
+
+        /// <summary>
+        /// Get unique (non-duplicate) papers for a specific data extraction process.
+        /// Returns papers that are participating in this extraction process.
+        /// </summary>
+        [HttpGet("data-extraction-processes/{dataExtractionProcessId}/unique-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetUniquePapersByDataExtractionProcess(
+            [FromRoute] Guid dataExtractionProcessId,
+            [FromQuery] string? search,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new PaperListRequest
+            {
+                Search = search,
+                Year = year,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _paperService.GetUniquePapersByDataExtractionProcessAsync(
+                dataExtractionProcessId,
+                request,
+                cancellationToken);
+
+            var message = result.TotalCount == 0
+                ? "No unique papers found for this data extraction process."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} unique papers.";
 
             return Ok(result, message);

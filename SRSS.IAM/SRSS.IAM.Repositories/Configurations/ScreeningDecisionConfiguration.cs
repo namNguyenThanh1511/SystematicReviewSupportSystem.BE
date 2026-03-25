@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
@@ -36,6 +37,18 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(sd => sd.Reason)
                 .HasColumnName("reason");
 
+            builder.Property(sd => sd.Phase)
+                .HasColumnName("screening_phase")
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Property(sd => sd.ExclusionReasonCode)
+                .HasColumnName("exclusion_reason_code")
+                .HasConversion<string?>();
+
+            builder.Property(sd => sd.ReviewerNotes)
+                .HasColumnName("reviewer_notes");
+
             builder.Property(sd => sd.DecidedAt)
                 .HasColumnName("decided_at")
                 .IsRequired();
@@ -65,9 +78,15 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasIndex(sd => sd.ReviewerId);
 
             // Unique constraint: One decision per reviewer per paper per process
-            builder.HasIndex(sd => new { sd.StudySelectionProcessId, sd.PaperId, sd.ReviewerId })
-                .IsUnique()
-                .HasDatabaseName("uq_screening_decision_process_paper_reviewer");
+            builder.HasIndex(sd => new
+            {
+                sd.StudySelectionProcessId,
+                sd.PaperId,
+                sd.ReviewerId,
+                sd.Phase
+            })
+            .IsUnique()
+            .HasDatabaseName("uq_screening_decision_process_paper_reviewer_phase");
         }
     }
 }

@@ -1,4 +1,3 @@
-﻿using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
@@ -15,45 +14,78 @@ namespace SRSS.IAM.Services.DataExtractionService
 			_unitOfWork = unitOfWork;
 		}
 
-		// ==================== Extraction Templates ====================
+		// ==================== EXTRACTION TEMPLATES ====================
 
 		public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
 		{
+			// Validate first
+			var validationResult = await ValidateTemplateAsync(dto);
+			if (!validationResult.IsValid)
+			{
+				throw new InvalidOperationException(
+					$"Template validation failed: {string.Join(", ", validationResult.Errors.Select(e => e.Message))}");
+			}
+
 			ExtractionTemplate template;
 
 			if (dto.TemplateId.HasValue && dto.TemplateId.Value != Guid.Empty)
 			{
-				// UPDATE: Load existing template with all fields
+				// UPDATE: Load existing template
 				template = await _unitOfWork.ExtractionTemplates
-					.GetByIdWithFieldsAsync(dto.TemplateId.Value)
+					.FindSingleAsync(t => t.Id == dto.TemplateId.Value)
 					?? throw new KeyNotFoundException($"Template {dto.TemplateId.Value} không tồn tại");
 
 				// Update basic properties
-				dto.UpdateEntity(template);
+				template.Name = dto.Name;
+				template.Description = dto.Description;
+				template.ModifiedAt = DateTimeOffset.UtcNow;
 
-				// Handle Fields: Remove old, add new (simplified approach)
-				await DeleteFieldsRecursiveAsync(template.Id);
-
-				// Add new fields from DTO
-				var newFields = dto.Fields
-					.SelectMany(f => f.ToEntitiesRecursive(template.Id, null))
-					.ToList();
-
-				foreach (var field in newFields)
-				{
-					await _unitOfWork.ExtractionFields.AddAsync(field);
-				}
+				// Delete old sections (cascade will delete fields and options)
+				await DeleteSectionsAsync(template.Id);
 			}
 			else
 			{
 				// CREATE: New template
-				template = dto.ToEntity();
-				await _unitOfWork.ExtractionTemplates.AddAsync(template);
-
-				// Add fields
-				foreach (var field in template.Fields)
+				template = new ExtractionTemplate
 				{
-					await _unitOfWork.ExtractionFields.AddAsync(field);
+					Id = Guid.NewGuid(),
+					ProtocolId = dto.ProtocolId,
+					Name = dto.Name,
+					Description = dto.Description,
+					CreatedAt = DateTimeOffset.UtcNow,
+					ModifiedAt = DateTimeOffset.UtcNow
+				};
+
+				await _unitOfWork.ExtractionTemplates.AddAsync(template);
+			}
+
+			// Add sections with their fields
+			foreach (var sectionDto in dto.Sections)
+			{
+				var section = sectionDto.ToEntity(template.Id);
+				await _unitOfWork.ExtractionSections.AddAsync(section);
+
+				// Add fields for this section
+				if (sectionDto.Fields != null && sectionDto.Fields.Count > 0)
+				{
+					foreach (var fieldDto in sectionDto.Fields)
+					{
+						var fieldEntities = fieldDto.ToEntitiesRecursive(section.Id, null);
+						foreach (var field in fieldEntities)
+						{
+							await _unitOfWork.ExtractionFields.AddAsync(field);
+						}
+					}
+				}
+
+				// Add matrix columns for this section
+				if (sectionDto.MatrixColumns != null && sectionDto.MatrixColumns.Count > 0)
+				{
+					foreach (var columnDto in sectionDto.MatrixColumns)
+					{
+						var columnEntity = columnDto.ToEntity(section.Id);
+						await _unitOfWork.ExtractionMatrixColumns.AddAsync(columnEntity);
+					}
 				}
 			}
 
@@ -69,24 +101,16 @@ namespace SRSS.IAM.Services.DataExtractionService
 			var templates = await _unitOfWork.ExtractionTemplates
 				.GetByProtocolIdAsync(protocolId);
 
-			// Build tree structure for each template
-			var dtos = new List<ExtractionTemplateDto>();
-			foreach (var template in templates)
-			{
-				var dto = await BuildTemplateDtoWithTreeAsync(template);
-				dtos.Add(dto);
-			}
-
-			return dtos;
+			return templates.Select(t => t.ToDto()).ToList();
 		}
 
 		public async Task<ExtractionTemplateDto> GetTemplateByIdAsync(Guid templateId)
 		{
 			var template = await _unitOfWork.ExtractionTemplates
-				.FindSingleAsync(t => t.Id == templateId)
+				.GetByIdWithFieldsAsync(templateId)
 				?? throw new KeyNotFoundException($"Template {templateId} không tồn tại");
 
-			return await BuildTemplateDtoWithTreeAsync(template);
+			return template.ToDto();
 		}
 
 		public async Task DeleteTemplateAsync(Guid templateId)
@@ -96,8 +120,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
 			if (template != null)
 			{
-				// Delete all fields first (cascade will handle options)
-				await DeleteFieldsRecursiveAsync(templateId);
+				// Delete sections first (cascade will handle fields and options)
+				await DeleteSectionsAsync(templateId);
 
 				// Delete template
 				await _unitOfWork.ExtractionTemplates.RemoveAsync(template);
@@ -105,104 +129,226 @@ namespace SRSS.IAM.Services.DataExtractionService
 			}
 		}
 
-		// ==================== PRIVATE HELPER METHODS ====================
-
-		/// <summary>
-		/// Builds Template DTO with full recursive tree structure
-		/// </summary>
-		private async Task<ExtractionTemplateDto> BuildTemplateDtoWithTreeAsync(ExtractionTemplate template)
+		public async Task<TemplateValidationResultDto> ValidateTemplateAsync(ExtractionTemplateDto dto)
 		{
-			// Get all fields for this template (flat list)
-			var allFields = await _unitOfWork.ExtractionFields
-				.GetByTemplateIdAsync(template.Id);
+			var errors = new List<ValidationErrorDetail>();
 
-			// Get all options for all fields (optimize with single query)
-			var allFieldIds = allFields.Select(f => f.Id).ToList();
-			var allOptions = await _unitOfWork.FieldOptions
-				.FindAllAsync(o => allFieldIds.Contains(o.FieldId));
-
-			// Build lookup dictionary for performance
-			var fieldLookup = allFields.ToDictionary(f => f.Id);
-			var optionLookup = allOptions
-				.GroupBy(o => o.FieldId)
-				.ToDictionary(g => g.Key, g => g.ToList());
-
-			// Build tree structure recursively
-			var rootFields = allFields
-				.Where(f => f.ParentFieldId == null)
-				.OrderBy(f => f.OrderIndex)
-				.Select(f => BuildFieldDtoRecursive(f, fieldLookup, optionLookup))
-				.ToList();
-
-			return new ExtractionTemplateDto
+			// 1. Validate template name
+			if (string.IsNullOrWhiteSpace(dto.Name))
 			{
-				TemplateId = template.Id,
-				ProtocolId = template.ProtocolId,
-				Name = template.Name,
-				Description = template.Description,
-				Fields = rootFields
-			};
-		}
-
-		/// <summary>
-		/// Recursive method to build field DTO tree
-		/// </summary>
-		private ExtractionFieldDto BuildFieldDtoRecursive(
-			ExtractionField field,
-			Dictionary<Guid, ExtractionField> fieldLookup,
-			Dictionary<Guid, List<FieldOption>> optionLookup)
-		{
-			// Get options for this field
-			var options = optionLookup.ContainsKey(field.Id)
-				? optionLookup[field.Id]
-					.OrderBy(o => o.DisplayOrder)
-					.Select(o => o.ToDto())
-					.ToList()
-				: new List<FieldOptionDto>();
-
-			// Get sub-fields
-			var subFields = fieldLookup.Values
-				.Where(f => f.ParentFieldId == field.Id)
-				.OrderBy(f => f.OrderIndex)
-				.Select(f => BuildFieldDtoRecursive(f, fieldLookup, optionLookup))
-				.ToList();
-
-			return new ExtractionFieldDto
-			{
-				FieldId = field.Id,
-				TemplateId = field.TemplateId,
-				ParentFieldId = field.ParentFieldId,
-				Name = field.Name,
-				Instruction = field.Instruction,
-				FieldType = Enum.Parse<FieldTypeEnum>(field.FieldType),
-				IsRequired = field.IsRequired,
-				OrderIndex = field.OrderIndex,
-				Options = options,
-				SubFields = subFields
-			};
-		}
-
-		/// <summary>
-		/// Delete all fields and their children recursively
-		/// </summary>
-		private async Task DeleteFieldsRecursiveAsync(Guid templateId)
-		{
-			var allFields = await _unitOfWork.ExtractionFields
-				.GetByTemplateIdAsync(templateId);
-
-			foreach (var field in allFields)
-			{
-				// Delete options first
-				var options = await _unitOfWork.FieldOptions
-					.GetByFieldIdAsync(field.Id);
-
-				foreach (var option in options)
+				errors.Add(new ValidationErrorDetail
 				{
-					await _unitOfWork.FieldOptions.RemoveAsync(option);
+					Code = "TEMPLATE_NAME_REQUIRED",
+					Message = "Template name is required"
+				});
+			}
+
+			// 2. Validate sections exist
+			if (dto.Sections == null || dto.Sections.Count == 0)
+			{
+				errors.Add(new ValidationErrorDetail
+				{
+					Code = "NO_SECTIONS",
+					Message = "Template must have at least one section"
+				});
+				return new TemplateValidationResultDto { IsValid = false, Errors = errors };
+			}
+
+			// 3. Validate each section
+			foreach (var section in dto.Sections)
+			{
+				// Validate section name
+				if (string.IsNullOrWhiteSpace(section.Name))
+				{
+					errors.Add(new ValidationErrorDetail
+					{
+						Code = "SECTION_NAME_REQUIRED",
+						Message = "Section name is required"
+					});
 				}
 
-				// Delete field
-				await _unitOfWork.ExtractionFields.RemoveAsync(field);
+				// Validate section type
+				if (section.SectionType < 0 || section.SectionType > 1)
+				{
+					errors.Add(new ValidationErrorDetail
+					{
+						Code = "INVALID_SECTION_TYPE",
+						Message = $"Section '{section.Name}' has invalid type {section.SectionType}"
+					});
+				}
+
+				// Validate fields within section
+				if (section.Fields == null || section.Fields.Count == 0)
+				{
+					errors.Add(new ValidationErrorDetail
+					{
+						Code = "NO_FIELDS_IN_SECTION",
+						Message = $"Section '{section.Name}' must have at least one field"
+					});
+					continue;
+				}
+
+				// Validate duplicate field names within section
+				var fieldNames = section.Fields.Select(f => f.Name).ToList();
+				var duplicates = fieldNames
+					.GroupBy(x => x)
+					.Where(g => g.Count() > 1)
+					.Select(g => g.Key)
+					.ToList();
+
+				foreach (var duplicate in duplicates)
+				{
+					var indices = section.Fields
+						.Select((f, idx) => (f.Name == duplicate ? idx : -1))
+						.Where(idx => idx >= 0)
+						.ToList();
+
+					errors.Add(new ValidationErrorDetail
+					{
+						Code = "DUPLICATE_FIELD_NAME",
+						Message = $"Field name '{duplicate}' is duplicated in section '{section.Name}' at indices {string.Join(", ", indices)}"
+					});
+				}
+
+				// Validate field options and types
+				foreach (var field in section.Fields)
+				{
+					ValidateFieldOptions(field, errors);
+
+					// Recursively validate sub-fields
+					if (field.SubFields != null && field.SubFields.Count > 0)
+					{
+						foreach (var subField in field.SubFields)
+						{
+							ValidateFieldOptions(subField, errors, field.Name);
+						}
+					}
+				}
+			}
+
+			// 4. Validate duplicate section names
+			var sectionNames = dto.Sections.Select(s => s.Name).ToList();
+			var sectionDuplicates = sectionNames
+				.GroupBy(x => x)
+				.Where(g => g.Count() > 1)
+				.Select(g => g.Key)
+				.ToList();
+
+			foreach (var duplicate in sectionDuplicates)
+			{
+				errors.Add(new ValidationErrorDetail
+				{
+					Code = "DUPLICATE_SECTION_NAME",
+					Message = $"Section name '{duplicate}' is duplicated"
+				});
+			}
+
+			return new TemplateValidationResultDto
+			{
+				IsValid = errors.Count == 0,
+				Errors = errors
+			};
+		}
+
+		// ==================== PRIVATE HELPER METHODS ====================
+
+		private void ValidateFieldOptions(
+			ExtractionFieldDto field,
+			List<ValidationErrorDetail> errors,
+			string? parentName = null)
+		{
+			const int MinSelectOptions = 2;
+
+			// SingleSelect (4) and MultiSelect (5) must have at least 2 options
+			if ((field.FieldType == 4 || field.FieldType == 5) &&
+				(field.Options == null || field.Options.Count < MinSelectOptions))
+			{
+				var fieldDisplayName = string.IsNullOrEmpty(parentName)
+					? field.Name
+					: $"{parentName} > {field.Name}";
+
+				errors.Add(new ValidationErrorDetail
+				{
+					Code = "INVALID_OPTION_COUNT",
+					Message = $"Field '{fieldDisplayName}' with type {(field.FieldType == 4 ? "SingleSelect" : "MultiSelect")} " +
+						$"must have at least {MinSelectOptions} options, found {field.Options?.Count ?? 0}"
+				});
+			}
+
+			// Validate option values are not empty
+			if (field.Options != null)
+			{
+				foreach (var option in field.Options.Where(o => string.IsNullOrWhiteSpace(o.Value)))
+				{
+					errors.Add(new ValidationErrorDetail
+					{
+						Code = "EMPTY_OPTION_VALUE",
+						Message = $"Field '{field.Name}' has option with empty value"
+					});
+				}
+			}
+
+			// Validate field type range
+			if (field.FieldType < 0 || field.FieldType > 5)
+			{
+				errors.Add(new ValidationErrorDetail
+				{
+					Code = "INVALID_FIELD_TYPE",
+					Message = $"Field '{field.Name}' has invalid type {field.FieldType}"
+				});
+			}
+		}
+
+		private async Task DeleteSectionsAsync(Guid templateId)
+		{
+			var allSections = await _unitOfWork.ExtractionSections
+				.FindAllAsync(s => s.TemplateId == templateId);
+
+			if (allSections == null || !allSections.Any())
+			{
+				return;
+			}
+
+			foreach (var section in allSections)
+			{
+				// Delete fields in this section
+				var fields = await _unitOfWork.ExtractionFields
+					.FindAllAsync(f => f.SectionId == section.Id);
+
+				if (fields != null)
+				{
+					foreach (var field in fields)
+					{
+						// Delete options for this field
+						var options = await _unitOfWork.FieldOptions
+							.FindAllAsync(o => o.FieldId == field.Id);
+
+						if (options != null)
+						{
+							foreach (var option in options)
+							{
+								await _unitOfWork.FieldOptions.RemoveAsync(option);
+							}
+						}
+
+						await _unitOfWork.ExtractionFields.RemoveAsync(field);
+					}
+				}
+
+				// Delete matrix columns in this section
+				var matrixColumns = await _unitOfWork.ExtractionMatrixColumns
+					.FindAllAsync(c => c.SectionId == section.Id);
+
+				if (matrixColumns != null)
+				{
+					foreach (var column in matrixColumns)
+					{
+						await _unitOfWork.ExtractionMatrixColumns.RemoveAsync(column);
+					}
+				}
+
+				// Delete section
+				await _unitOfWork.ExtractionSections.RemoveAsync(section);
 			}
 		}
 	}

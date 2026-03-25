@@ -1,4 +1,5 @@
 using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -12,11 +13,16 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
         public SelectionProcessStatus Status { get; set; } = SelectionProcessStatus.NotStarted;
+        public ScreeningPhase CurrentPhase { get; set; } = ScreeningPhase.TitleAbstract;
 
         // Navigation Properties
         public ReviewProcess ReviewProcess { get; set; } = null!;
+        public TitleAbstractScreening? TitleAbstractScreening { get; set; }
+        public FullTextScreening? FullTextScreening { get; set; }
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
+        public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
+        public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
 
         // Domain Methods
         public void Start()

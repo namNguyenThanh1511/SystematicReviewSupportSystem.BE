@@ -40,14 +40,26 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             Guid id,
             CancellationToken cancellationToken = default);
 
-        Task<List<ProjectMemberDto>> GetProjectMembersAsync(
+        Task<PaginatedResponse<ProjectMemberDto>> GetProjectMembersAsync(
             Guid projectId,
+            string? search,
+            int pageNumber,
+            int pageSize,
             CancellationToken cancellationToken = default);
 
         Task<PaginatedResponse<MyProjectResponse>> GetMyProjectsAsync(
             ProjectStatus? status,
             int pageNumber,
             int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<ProjectMembershipResponse> GetMyProjectMembershipAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ProjectMemberDto>> GetAvailableMembersForPaperAsync(
+            Guid projectId,
+            Guid paperId,
             CancellationToken cancellationToken = default);
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
@@ -23,64 +23,77 @@ using SRSS.IAM.Repositories.StudySelectionProcessRepo;
 using SRSS.IAM.Repositories.ScreeningDecisionRepo;
 using SRSS.IAM.Repositories.ProjectMemberInvitationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessPaperRepo;
+using SRSS.IAM.Repositories.PaperAssignmentRepo;
+using SRSS.IAM.Repositories.TitleAbstractScreeningRepo;
+using SRSS.IAM.Repositories.PaperPdfRepo;
+using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
+using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
+using SRSS.IAM.Repositories.CandidatePaperRepo;
+using SRSS.IAM.Repositories.PaperCitationRepo;
+using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+
 using SRSS.IAM.Repositories.PaperTagRepo;
 using SRSS.IAM.Repositories.UserTagInventoryRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
-	// Service-specific interface extends base
-	public interface IUnitOfWork
-	{
-		Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-		Task BeginTransactionAsync(CancellationToken cancellationToken = default);
-		Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-		Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
-		IUserRepository Users { get; }
-		INotificationRepository Notifications { get; }
-		IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
+    // Service-specific interface extends base
+    public interface IUnitOfWork
+    {
+        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+        IUserRepository Users { get; }
+        INotificationRepository Notifications { get; }
+        IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
 
-		// Core Governance
-		IReviewNeedRepository ReviewNeeds { get; }
-		ICommissioningDocumentRepository CommissioningDocuments { get; }
-		IReviewObjectiveRepository ReviewObjectives { get; }
-		IQuestionTypeRepository QuestionTypes { get; }
+        // Core Governance
+        IReviewNeedRepository ReviewNeeds { get; }
+        ICommissioningDocumentRepository CommissioningDocuments { get; }
+        IReviewObjectiveRepository ReviewObjectives { get; }
+        IQuestionTypeRepository QuestionTypes { get; }
 
-		// Protocol
-		IReviewProtocolRepository Protocols { get; }
-		IProtocolVersionRepository ProtocolVersions { get; }
-		IProtocolEvaluationRepository ProtocolEvaluations { get; }
+        // Protocol
+        IReviewProtocolRepository Protocols { get; }
+        IProtocolVersionRepository ProtocolVersions { get; }
+        IProtocolEvaluationRepository ProtocolEvaluations { get; }
 
-		// Research Question
-		IResearchQuestionRepository ResearchQuestions { get; }
-		IPicocElementRepository PicocElements { get; }
-		IPopulationRepository Populations { get; }
-		IInterventionRepository Interventions { get; }
-		IComparisonRepository Comparisons { get; }
-		IOutcomeRepository Outcomes { get; }
-		IContextRepository Contexts { get; }
+        // Research Question
+        IResearchQuestionRepository ResearchQuestions { get; }
+        IPicocElementRepository PicocElements { get; }
+        IPopulationRepository Populations { get; }
+        IInterventionRepository Interventions { get; }
+        IComparisonRepository Comparisons { get; }
+        IOutcomeRepository Outcomes { get; }
+        IContextRepository Contexts { get; }
 
-		// Search Strategy
-		ISearchSourceRepository SearchSources { get; }
+        // Search Strategy
+        ISearchSourceRepository SearchSources { get; }
 
-		// Selection Criteria
-		IStudySelectionCriteriaRepository SelectionCriterias { get; }
-		IInclusionCriterionRepository InclusionCriteria { get; }
-		IExclusionCriterionRepository ExclusionCriteria { get; }
-		IStudySelectionProcedureRepository SelectionProcedures { get; }
+        // Selection Criteria
+        IStudySelectionCriteriaRepository SelectionCriterias { get; }
+        IInclusionCriterionRepository InclusionCriteria { get; }
+        IExclusionCriterionRepository ExclusionCriteria { get; }
+        IStudySelectionProcedureRepository SelectionProcedures { get; }
 
-		// Quality Assessment
-		IQualityAssessmentStrategyRepository QualityStrategies { get; }
-		IQualityChecklistRepository QualityChecklists { get; }
-		IQualityCriterionRepository QualityCriteria { get; }
+        // Quality Assessment
+        IQualityAssessmentStrategyRepository QualityStrategies { get; }
+        IQualityChecklistRepository QualityChecklists { get; }
+        IQualityCriterionRepository QualityCriteria { get; }
 
-		// Data Extraction
-		//IDataExtractionStrategyRepository ExtractionStrategies { get; }
-		//IDataExtractionFormRepository ExtractionForms { get; }
-		//IDataItemDefinitionRepository DataItems { get; }
-		IExtractionTemplateRepository ExtractionTemplates { get; }
-		IExtractionFieldRepository ExtractionFields { get; }
-		IFieldOptionRepository FieldOptions { get; }
-		IExtractedDataValueRepository ExtractedDataValues { get; }
+        // Data Extraction
+        //IDataExtractionStrategyRepository ExtractionStrategies { get; }
+        //IDataExtractionFormRepository ExtractionForms { get; }
+        //IDataItemDefinitionRepository DataItems { get; }
+        IExtractionTemplateRepository ExtractionTemplates { get; }
+        IExtractionSectionRepository ExtractionSections { get; }
+        IExtractionFieldRepository ExtractionFields { get; }
+        IExtractionMatrixColumnRepository ExtractionMatrixColumns { get; }
+        IFieldOptionRepository FieldOptions { get; }
+        IDataExtractionProcessRepository DataExtractionProcesses { get; }
+        IExtractionPaperTaskRepository ExtractionPaperTasks { get; }
+        IExtractedDataValueRepository ExtractedDataValues { get; }
 
 		// Synthesis
 		IDataSynthesisStrategyRepository SynthesisStrategies { get; }
@@ -98,7 +111,16 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IStudySelectionProcessRepository StudySelectionProcesses { get; }
 		IScreeningDecisionRepository ScreeningDecisions { get; }
 		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
+		IPaperAssignmentRepository PaperAssignments { get; }
+		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+		IPaperPdfRepository PaperPdfs { get; }
+		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
+		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
+		ICandidatePaperRepository CandidatePapers { get; }
+		IPaperCitationRepository PaperCitations { get; }
+		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
 		IPaperTagRepository PaperTags { get; }
 		IUserTagInventoryRepository UserTagInventories { get; }
 	}
 }
+

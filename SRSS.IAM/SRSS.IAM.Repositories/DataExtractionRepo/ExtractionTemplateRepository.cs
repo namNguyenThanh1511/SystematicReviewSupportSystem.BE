@@ -16,8 +16,11 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 		{
 			return await _context.ExtractionTemplates
 				.Where(t => t.ProtocolId == protocolId)
-				.Include(t => t.Fields.Where(f => f.ParentFieldId == null)) // Root fields only
-					.ThenInclude(f => f.Options)
+				.Include(t => t.Sections)
+					.ThenInclude(s => s.MatrixColumns)
+				.Include(t => t.Sections) // Root fields only
+					.ThenInclude(f => f.Fields)
+						.ThenInclude(f => f.Options)
 				.OrderBy(t => t.CreatedAt)
 				.ToListAsync();
 		}
@@ -26,13 +29,15 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 		{
 			return await _context.ExtractionTemplates
 				.Where(t => t.Id == templateId)
-				.Include(t => t.Fields.Where(f => f.ParentFieldId == null)) // Root fields
-					.ThenInclude(f => f.Options)
-				.Include(t => t.Fields.Where(f => f.ParentFieldId == null))
-					.ThenInclude(f => f.SubFields) // Level 1 sub-fields
+				.Include(t => t.Sections)
+					.ThenInclude(s => s.MatrixColumns)
+				.Include(t => t.Sections) // Root fields
+					.ThenInclude(f => f.Fields)
+				.Include(t => t.Sections)
+					.ThenInclude(f => f.Fields) // Level 1 sub-fields
 						.ThenInclude(sf => sf.Options)
-				.Include(t => t.Fields.Where(f => f.ParentFieldId == null))
-					.ThenInclude(f => f.SubFields)
+				.Include(t => t.Sections)
+					.ThenInclude(f => f.Fields)
 						.ThenInclude(sf => sf.SubFields) // Level 2 sub-fields
 							.ThenInclude(ssf => ssf.Options)
 				.FirstOrDefaultAsync();

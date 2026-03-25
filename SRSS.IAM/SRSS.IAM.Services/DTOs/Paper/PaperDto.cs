@@ -1,4 +1,6 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.Common;
 
 namespace SRSS.IAM.Services.DTOs.Paper
 {
@@ -42,6 +44,17 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public SelectionStatus? SelectionStatus { get; set; }
         public string? SelectionStatusText { get; set; }
 
+        // Screening Stage (NEW)
+        public int Stage { get; set; }
+        public string StageText { get; set; } = string.Empty;
+
+        // Assignment Status (NEW)
+        public int AssignmentStatus { get; set; }
+        public string AssignmentStatusText { get; set; } = string.Empty;
+
+        // Assigned Reviewers (NEW)
+        public List<AssignedReviewerDto> AssignedReviewers { get; set; } = new();
+
         // Access
         public string? PdfUrl { get; set; }
         public bool? FullTextAvailable { get; set; }
@@ -53,11 +66,33 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public DateTimeOffset ModifiedAt { get; set; }
     }
 
+    public class AssignedReviewerDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class CheckedDuplicatePapersResponse : PaginatedResponse<PaperResponse>
+    {
+        public ScreeningPhase CurrentPhase { get; set; }
+        public string CurrentPhaseText { get; set; } = string.Empty;
+    }
+
     public class PaperListRequest
     {
         public string? Search { get; set; }
         public SelectionStatus? Status { get; set; }
         public int? Year { get; set; }
+        public string? AssignmentStatus { get; set; }
+        public ScreeningStage? Stage { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public class CheckedDuplicatePapersRequest
+    {
+        public string? Search { get; set; }
+        public string? AssignmentStatus { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }

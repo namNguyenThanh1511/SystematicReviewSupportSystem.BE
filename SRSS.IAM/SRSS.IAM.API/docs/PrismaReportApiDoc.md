@@ -1,8 +1,12 @@
-# PRISMA Report API Documentation
+# [DEPRECATED] PRISMA Report API Documentation
+
+> [!WARNING]
+> This documentation is **DEPRECATED**. Please refer to the new Node-Based PRISMA API Guide:
+> [PRISMA_API_DOC.md](file:///C:/Users/Admin/.gemini/antigravity/brain/970b0d4c-d7fe-4bf8-8dbf-c9693770ec33/PRISMA_API_DOC.md)
+
+---
 
 > **Base URL**: `/api`
-> **Last Updated**: 2025
-> **Backend**: ASP.NET Core (.NET 8)
 
 ---
 

@@ -2,18 +2,22 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
+using SRSS.IAM.Repositories.Entities.Enums;
+
 namespace SRSS.IAM.Repositories.PaperRepo
 {
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
     {
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
-
+        Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
             string? search,
             SelectionStatus? status,
             int? year,
+            string? assignmentStatus,
+            ScreeningStage? stage,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
@@ -43,6 +47,46 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int? year,
             int pageNumber,
             int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersMissingExternalDataAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get unique papers for a specific data extraction process.
+        /// Returns papers that have an extraction paper task in this process.
+        /// </summary>
+        Task<(List<Paper> Papers, int TotalCount)> GetUniquePapersByDataExtractionProcessAsync(
+            Guid dataExtractionProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+            List<Guid> paperIds,
+            string? search,
+            string? assignmentStatus,
+            ScreeningPhase? phase,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
+          List<Guid> paperIds,
+          int pageNumber,
+          int pageSize,
+          CancellationToken cancellationToken = default);
+
+        Task<List<Paper>> GetTopCitedPapersAsync(int topN, CancellationToken cancellationToken = default);
+        Task<List<Paper>> GetPapersWithCitationCountByIdsAsync(IEnumerable<Guid> paperIds, CancellationToken cancellationToken = default);
+
+        Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
             CancellationToken cancellationToken = default);
     }
 }

@@ -1,4 +1,5 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -24,6 +25,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Keywords { get; set; }
         public string? Url { get; set; }
         public string? RawReference { get; set; }
+        public string? Md5 { get; set; }
+        public PaperEmbedding? TitleEmbedding { get; set; }
 
         // ============================================
         // CONFERENCE METADATA
@@ -48,7 +51,9 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public string? Source { get; set; }
         public string? SourceRecordId { get; set; }
+        public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
+        public Guid? ReviewProcessId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 
@@ -56,6 +61,7 @@ namespace SRSS.IAM.Repositories.Entities
         // ACCESS & FULL-TEXT AVAILABILITY
         // ============================================
         public string? PdfUrl { get; set; }
+        public string? PdfFileName { get; set; }
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
 
@@ -65,9 +71,23 @@ namespace SRSS.IAM.Repositories.Entities
         public string? InternalNotes { get; set; }
 
         // ============================================
+        // EXTERNAL METADATA (OPENALEX)
+        // ============================================
+        public string? OpenAlexId { get; set; }
+
+        public int? ExternalCitationCount { get; set; }
+        public int? ExternalReferenceCount { get; set; }
+        public double? ExternalCitedByPercentile { get; set; }
+
+        public DateTimeOffset? ExternalLastFetchedAt { get; set; }
+        public string? ExternalSource { get; set; }
+        public bool ExternalDataFetched { get; set; }
+
+        // ============================================
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }
+        public ReviewProcess? ReviewProcess { get; set; }
 
         public Guid ProjectId { get; set; }
         public SystematicReviewProject? Project { get; set; }
@@ -83,6 +103,21 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Identification process snapshots where this paper is included
         public ICollection<IdentificationProcessPaper> IdentificationProcessPapers { get; set; } = new List<IdentificationProcessPaper>();
+        public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
+
+        public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
+
+        // ============================================
+        // FULL-TEXT & EXTRACTED METADATA
+        // ============================================
+        public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
+        public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
+
+        // Citations where this paper is the source (it cites other papers)
+        public ICollection<PaperCitation> OutgoingCitations { get; set; } = new List<PaperCitation>();
+
+        // Citations where this paper is the target (it is cited by other papers)
+        public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
         // Tags applied to this paper across review phases
         public ICollection<PaperTag> Tags { get; set; } = new List<PaperTag>();
     }

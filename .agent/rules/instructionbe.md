@@ -148,6 +148,44 @@ The middleware automatically handles:
 - `ArgumentException` → Caught and converted to appropriate HTTP response
 - All other exceptions → 500 Internal Server Error
 
+
+
+**ALWAYS** use  UTC offset creation:
+
+```csharp
+// ✅ CORRECT - Explicit UTC offset
+var timestamp = DateTimeOffset.UtcNow;
+```
+
+### When to Apply
+Use explicit UTC offset for **ALL** DateTimeOffset assignments:
+
+1. **Entity Creation** - When creating new entity instances
+2. **Entity Updates** - When updating ModifiedAt, StartedAt, CompletedAt, etc.
+3. **Timestamp Fields** - CreatedAt, ModifiedAt, ExecutedAt, ImportedAt, etc.
+4. **Never in BaseEntity constructor** - Already handled in BaseEntity default values
+
+### Examples
+
+```csharp
+// ✅ CORRECT - Entity creation in service
+var entity = new MyEntity
+{
+    Id = Guid.NewGuid(),
+    Name = request.Name,
+};
+
+// ✅ CORRECT - Entity update
+    entity.CreatedAt = DateTimeOffset.UtcNow,
+    entity.ModifiedAt = DateTimeOffset.UtcNow  
+
+```
+
+### Important Notes
+- BaseEntity already has correct default values - do NOT override in constructors unless necessary
+- When setting timestamps explicitly (not relying on defaults), always use the explicit pattern
+- This applies to ALL DateTimeOffset fields, not just audit timestamps
+
 ## When Generating Code
 - Provide C# code compatible with .NET 8
 - Use async/await
@@ -155,3 +193,4 @@ The middleware automatically handles:
 - Avoid UI concerns
 - **DO NOT** add try-catch blocks in controllers
 - **DO** throw exceptions in service layer with clear messages
+- **ALWAYS** use `DateTimeOffset.UtcNow`

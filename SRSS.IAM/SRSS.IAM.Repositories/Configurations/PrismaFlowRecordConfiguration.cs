@@ -37,6 +37,10 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(fr => fr.Description)
                 .HasColumnName("description");
 
+            builder.Property(fr => fr.MetadataJson)
+                .HasColumnName("metadata_json")
+                .HasColumnType("jsonb");
+
             builder.Property(fr => fr.DisplayOrder)
                 .HasColumnName("display_order")
                 .IsRequired();

@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -149,6 +149,21 @@ namespace SRSS.IAM.Repositories.Entities
 		{
 			return Status == ProtocolStatus.Draft && !IsDeleted;
 		}
+
+		/// <summary>
+		/// Locks the protocol once screening starts. Prevents further edits (G-04).
+		/// </summary>
+		public void Lock()
+		{
+			if (Status != ProtocolStatus.Approved)
+			{
+				throw new InvalidOperationException(
+					$"Only an Approved protocol can be locked. Current status: {Status}.");
+			}
+
+			Status = ProtocolStatus.Locked;
+			ModifiedAt = DateTimeOffset.UtcNow;
+		}
 	}
 
 	public enum ProtocolStatus
@@ -157,6 +172,7 @@ namespace SRSS.IAM.Repositories.Entities
 		UnderReview = 1,
 		Approved = 2,
 		Rejected = 3,
-		NeedsRevision = 4
+		NeedsRevision = 4,
+		Locked = 5
 	}
 }

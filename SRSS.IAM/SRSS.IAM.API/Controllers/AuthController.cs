@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.AuthService;
@@ -18,12 +20,14 @@ namespace SRSS.IAM.API.Controllers
         private readonly IAuthService _authService;
         private readonly IJwtService _jwtService;
         private readonly IRefreshTokenService _refreshTokenService;
+        private readonly IWebHostEnvironment _env;
         private static readonly string REFRESH_TOKEN_COOKIE_NAME = "SRSS_IAM_refreshToken";
-        public AuthController(IAuthService authService, IJwtService jwtService, IRefreshTokenService refreshTokenService)
+        public AuthController(IAuthService authService, IJwtService jwtService, IRefreshTokenService refreshTokenService, IWebHostEnvironment env)
         {
             _authService = authService;
             _jwtService = jwtService;
             _refreshTokenService = refreshTokenService;
+            _env = env;
         }
         [HttpPost("register")]
         public async Task<ActionResult<ApiResponse>> Register([FromBody] RegisterRequest request)
@@ -71,10 +75,12 @@ namespace SRSS.IAM.API.Controllers
             {
                 throw new UnauthorizedAccessException("Refresh token is missing");
             }
-            var validationResult = await _refreshTokenService.ValidateAsync(refreshToken);
+            // Ur ass M$ .Net auto URL encode cookie (== => %3d%3d, + => " "), reconvert to use
+            var token = Uri.UnescapeDataString(refreshToken);
+            var validationResult = await _refreshTokenService.ValidateAsync(token);
             if (validationResult == null)
             {
-                await ClearRefreshCookieAsync(refreshToken);
+                await ClearRefreshCookieAsync(token);
                 throw new UnauthorizedAccessException("Invalid refresh token");
             }
             var result = await _authService.RefreshAsync(validationResult.UserId);
@@ -132,15 +138,26 @@ namespace SRSS.IAM.API.Controllers
         }
 
 
-        private static CookieOptions BuildCookieOptions(DateTimeOffset expiresUtc)
+        private CookieOptions BuildCookieOptions(DateTimeOffset expiresUtc)
         {
-            return new CookieOptions
+            var options = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = false,
-                SameSite = SameSiteMode.None,
                 Expires = expiresUtc
             };
+
+            if (_env.IsDevelopment())
+            {
+                options.SameSite = SameSiteMode.Lax;
+                options.Secure = false;
+            }
+            else
+            {
+                options.SameSite = SameSiteMode.None;
+                options.Secure = true;
+            }
+
+            return options;
         }
 
         private async Task ClearRefreshCookieAsync(string refreshToken)

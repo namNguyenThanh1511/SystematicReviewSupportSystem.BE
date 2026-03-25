@@ -36,7 +36,7 @@ namespace SRSS.IAM.API
             builder.Services.ConfigureGlobalException();
 
 			// Add CORS policy to allow all origins (for development/testing purposes)
-			builder.Services.AddCorsPolicy("AllowAll");
+			builder.Services.AddCorsPolicy("AllowAll", config);
 
 			// Configure logging (Console + Debug)
 			builder.Logging.ClearProviders();

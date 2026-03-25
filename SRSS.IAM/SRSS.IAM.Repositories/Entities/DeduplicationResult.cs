@@ -94,7 +94,12 @@ namespace SRSS.IAM.Repositories.Entities
         /// <summary>
         /// Manual review by researcher
         /// </summary>
-        MANUAL = 4
+        MANUAL = 4,
+
+        /// <summary>
+        /// AI-based semantic similarity
+        /// </summary>
+        SEMANTIC = 5
     }
 
     /// <summary>

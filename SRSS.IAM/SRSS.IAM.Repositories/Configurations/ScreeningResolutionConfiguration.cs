@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
@@ -32,6 +33,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(sr => sr.ResolutionNotes)
                 .HasColumnName("resolution_notes");
 
+            builder.Property(sr => sr.Phase)
+                .HasColumnName("screening_phase")
+                .HasConversion<string>()
+                .IsRequired();
+
             builder.Property(sr => sr.ResolvedBy)
                 .HasColumnName("resolved_by")
                 .IsRequired();
@@ -60,8 +66,14 @@ namespace SRSS.IAM.Repositories.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Unique constraint: One resolution per paper per selection process
-            builder.HasIndex(sr => new { sr.StudySelectionProcessId, sr.PaperId })
-                .IsUnique();
+            builder.HasIndex(sr => new
+            {
+                sr.StudySelectionProcessId,
+                sr.PaperId,
+                sr.Phase
+            })
+            .IsUnique()
+            .HasDatabaseName("uq_screening_resolution_process_paper_phase");
 
             // Additional indexes
             builder.HasIndex(sr => sr.PaperId);

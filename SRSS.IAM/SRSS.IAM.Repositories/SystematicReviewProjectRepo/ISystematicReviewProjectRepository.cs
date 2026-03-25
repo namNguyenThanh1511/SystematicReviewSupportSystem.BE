@@ -9,6 +9,7 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
         Task<IEnumerable<SystematicReviewProject>> GetActiveProjectsAsync(CancellationToken cancellationToken = default);
         Task<List<ProjectMember>> GetMembersByProjectIdAsync(Guid projectId);
         IQueryable<SystematicReviewProject> GetQueryable();
+        IQueryable<ProjectMember> GetProjectMembersQueryable(Guid projectId);
         Task<bool> ExistsPendingInvitationAsync(Guid projectId, Guid userId);
         Task<bool> ProjectHasLeaderAsync(Guid projectId);
         Task<bool> HasPendingLeaderInvitationAsync(Guid projectId);

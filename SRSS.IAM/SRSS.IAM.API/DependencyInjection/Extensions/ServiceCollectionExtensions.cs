@@ -43,7 +43,7 @@ using Polly;
 using Polly.Extensions.Http;
 using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
-using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.PaperEnrichmentService;using SRSS.IAM.Services.GeminiService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -113,6 +113,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                 .HandleTransientHttpError()
                 .OrResult(msg => msg.StatusCode == HttpStatusCode.TooManyRequests)
                 .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            // Paper enrichment (OpenAlex metadata)
+            services.AddScoped<IPaperEnrichmentService, PaperEnrichmentService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

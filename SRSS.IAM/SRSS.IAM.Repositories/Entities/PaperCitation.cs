@@ -14,6 +14,12 @@ namespace SRSS.IAM.Repositories.Entities
 
         public CitationSource Source { get; set; }
 
+        public bool IsExternal { get; set; }
+
+        public string? ExternalId { get; set; }
+
+        public decimal? Weight { get; set; }
+
         // Navigation properties
         public Paper SourcePaper { get; set; } = null!;
         public Paper TargetPaper { get; set; } = null!;
@@ -25,6 +31,7 @@ namespace SRSS.IAM.Repositories.Entities
         DatabaseSearch = 1,
         Grobid = 2,
         UserManual = 3,
-        Crossref = 4
+        Crossref = 4,
+        OpenAlex = 5
     }
 }

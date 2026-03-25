@@ -71,6 +71,19 @@ namespace SRSS.IAM.Repositories.Entities
         public string? InternalNotes { get; set; }
 
         // ============================================
+        // EXTERNAL METADATA (OPENALEX)
+        // ============================================
+        public string? OpenAlexId { get; set; }
+
+        public int? ExternalCitationCount { get; set; }
+        public int? ExternalReferenceCount { get; set; }
+        public double? ExternalCitedByPercentile { get; set; }
+
+        public DateTimeOffset? ExternalLastFetchedAt { get; set; }
+        public string? ExternalSource { get; set; }
+        public bool ExternalDataFetched { get; set; }
+
+        // ============================================
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }

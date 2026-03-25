@@ -22,7 +22,23 @@ namespace SRSS.IAM.Services.DTOs.OpenAlex
 
         [JsonPropertyName("cited_by_count")]
         public int CitedByCount { get; set; }
+
+        [JsonPropertyName("referenced_works_count")]
+        public int ReferencedWorksCount { get; set; }
+
+        [JsonPropertyName("cited_by_percentile_year")]
+        public CitedByPercentileDto? CitedByPercentileYear { get; set; }
     }
+
+    public class CitedByPercentileDto
+    {
+        [JsonPropertyName("min")]
+        public double Min { get; set; }
+
+        [JsonPropertyName("max")]
+        public double Max { get; set; }
+    }
+
 
     public class ReferenceResultDto
     {

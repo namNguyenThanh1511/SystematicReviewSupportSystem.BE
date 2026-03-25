@@ -4,23 +4,23 @@ using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
-	public class FieldOptionConfiguration : IEntityTypeConfiguration<FieldOption>
-	{
-		public void Configure(EntityTypeBuilder<FieldOption> builder)
-		{
-			builder.ToTable("field_options");
+    public class FieldOptionConfiguration : IEntityTypeConfiguration<FieldOption>
+    {
+        public void Configure(EntityTypeBuilder<FieldOption> builder)
+        {
+            builder.ToTable("field_option");
+            builder.HasKey(x => x.Id);
 
-			builder.HasKey(x => x.Id);
-			builder.Property(x => x.Id).HasColumnName("option_id");
+            builder.Property(x => x.FieldId).IsRequired();
+            builder.Property(x => x.Value).IsRequired().HasMaxLength(500);
+            builder.Property(x => x.DisplayOrder).HasDefaultValue(0);
 
-			builder.Property(x => x.FieldId).HasColumnName("field_id").IsRequired();
-			builder.Property(x => x.Value).HasColumnName("value").IsRequired();
-			builder.Property(x => x.DisplayOrder).HasColumnName("display_order");
-			builder.Property(x => x.CreatedAt).HasColumnName("created_at");
-			builder.Property(x => x.ModifiedAt).HasColumnName("modified_at");
+            builder.HasOne(x => x.Field)
+                .WithMany(x => x.Options)
+                .HasForeignKey(x => x.FieldId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-			// Index
-			builder.HasIndex(x => x.FieldId);
-		}
-	}
+            builder.HasIndex(x => x.FieldId);
+        }
+    }
 }

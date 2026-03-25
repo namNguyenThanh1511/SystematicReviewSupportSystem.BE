@@ -11,5 +11,6 @@ namespace SRSS.IAM.Services.GrobidClient
     {
         Task<GrobidHeaderExtractionDto> ExtractHeaderAsync(Stream pdfStream, string fileName, CancellationToken cancellationToken = default);
         Task<List<GrobidReferenceDto>> ExtractReferencesAsync(Stream pdfStream, string fileName, CancellationToken cancellationToken = default);
+        Task<string> ProcessFulltextDocumentAsync(Stream pdfStream, CancellationToken cancellationToken = default);
     }
 }

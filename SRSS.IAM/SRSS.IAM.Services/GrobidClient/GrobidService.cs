@@ -79,5 +79,28 @@ namespace SRSS.IAM.Services.GrobidClient
             
             return dtos;
         }
+
+        public async Task<string> ProcessFulltextDocumentAsync(Stream pdfStream, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting GROBID fulltext extraction");
+            try
+            {
+                var teiXml = await _grobidClient.ProcessFulltextDocumentAsync(
+                    pdfStream: pdfStream,
+                    consolidateHeader: 0,
+                    consolidateCitations: 0,
+                    consolidateFunders: 0,
+                    segmentSentences: false
+                );
+                
+                _logger.LogInformation("Successfully received fulltext TEI XML from GROBID");
+                return teiXml;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to extract fulltext from GROBID");
+                return string.Empty;
+            }
+        }
     }
 }

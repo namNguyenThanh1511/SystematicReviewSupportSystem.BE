@@ -135,6 +135,45 @@ namespace SRSS.IAM.Services.Mappers
             return entities.Select(e => e.ToDto()).ToList();
         }
 
+        // ============================== Paper ============================
+        public static PaperResponse ToResponse(this Paper entity)
+        {
+            if (entity == null) return null!;
+
+            return new PaperResponse
+            {
+                Id = entity.Id,
+                Title = entity.Title,
+                Authors = entity.Authors,
+                Abstract = entity.Abstract,
+                DOI = entity.DOI,
+                PublicationType = entity.PublicationType,
+                PublicationYear = entity.PublicationYear,
+                PublicationYearInt = entity.PublicationYearInt,
+                PublicationDate = entity.PublicationDate,
+                Volume = entity.Volume,
+                Issue = entity.Issue,
+                Pages = entity.Pages,
+                Publisher = entity.Publisher,
+                Language = entity.Language,
+                Keywords = entity.Keywords,
+                Url = entity.Url,
+                ConferenceName = entity.ConferenceName,
+                ConferenceLocation = entity.ConferenceLocation,
+                ConferenceCountry = entity.ConferenceCountry,
+                ConferenceYear = entity.ConferenceYear,
+                Journal = entity.Journal,
+                JournalIssn = entity.JournalIssn,
+                Source = entity.Source,
+                ImportedAt = entity.ImportedAt,
+                ImportedBy = entity.ImportedBy,
+                PdfUrl = entity.PdfUrl,
+                FullTextAvailable = entity.FullTextAvailable,
+                CreatedAt = entity.CreatedAt,
+                ModifiedAt = entity.ModifiedAt
+            };
+        }
+
         // ==================== QualityAssessmentProcess ====================
         public static QualityAssessmentProcess ToEntity(this CreateQualityAssessmentProcessDto dto)
         {
@@ -164,7 +203,9 @@ namespace SRSS.IAM.Services.Mappers
                 Status = entity.Status,
                 StatusText = entity.Status.ToString(),
                 StartedAt = entity.StartedAt,
-                CompletedAt = entity.CompletedAt
+                CompletedAt = entity.CompletedAt,
+                CreatedAt = entity.CreatedAt,
+                ModifiedAt = entity.ModifiedAt
             };
         }
 

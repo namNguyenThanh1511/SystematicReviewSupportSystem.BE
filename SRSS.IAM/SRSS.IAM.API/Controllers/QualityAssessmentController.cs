@@ -153,6 +153,16 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
+		/// Export quality assessment for a QA process to Excel
+		/// </summary>
+		[HttpGet("{id}/export/excel")]
+		public async Task<IActionResult> ExportExcel(Guid id)
+		{
+			var bytes = await _service.ExportProcessToExcelAsync(id);
+			return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"qa-export-{id}.xlsx");
+		}
+
+		/// <summary>
 		/// Lấy full QA Strategy (checklists + criteria) theo QA Process ID
 		/// </summary>
 		[HttpGet("{id}/strategies")]
@@ -213,6 +223,13 @@ namespace SRSS.IAM.API.Controllers
 			if (result == null)
 				return NotFound(new ApiResponse<QualityAssessmentResolutionResponse> { IsSuccess = false, Message = "Resolution not found" });
 			return Ok(result, "Lấy kết quả cuối cùng thành công");
+		}
+
+		[HttpGet("process/{processId}/high-quality-papers")]
+		public async Task<ActionResult<ApiResponse<List<PaperResponse>>>> GetHighQualityPaperIds(Guid processId)
+		{
+			var result = await _service.GetHighQualityPaperIdsAsync(processId);
+			return Ok(result, "Lấy danh sách ID paper chất lượng cao thành công");
 		}
 	}
 }

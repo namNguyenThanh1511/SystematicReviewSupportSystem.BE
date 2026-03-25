@@ -13,7 +13,8 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string StatusText { get; set; } = string.Empty;
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? CompletedAt { get; set; }
-        // Keep these simplified for basic response, allow expansion
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ModifiedAt { get; set; }
     }
 
     public class CreateQualityAssessmentProcessDto

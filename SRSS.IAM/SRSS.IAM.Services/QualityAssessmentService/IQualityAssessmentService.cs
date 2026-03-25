@@ -40,8 +40,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId);
+        Task<List<PaperResponse>> GetHighQualityPaperIdsAsync(Guid processId);
 
         // Automate
-        Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request);
+		Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request);
+
+		// Export
+		Task<byte[]> ExportProcessToExcelAsync(Guid processId);
 	}
 }

@@ -28,6 +28,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Notification> Notifications { get; set; } = default!;
 
 		// Planning Phase
+		public DbSet<ProjectSetting> ProjectSettings { get; set; } = default!;
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
 		public DbSet<ProjectMember> ProjectMembers { get; set; } = default!;
 		public DbSet<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = default!;

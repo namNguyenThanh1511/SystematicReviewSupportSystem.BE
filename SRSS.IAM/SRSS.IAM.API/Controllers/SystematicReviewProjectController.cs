@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Authorization;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
 using SRSS.IAM.Services.DTOs.ProjectMemberInvitation;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.ProjectSettingService;
+using SRSS.IAM.Services.DTOs.ProjectSetting;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -22,15 +24,18 @@ namespace SRSS.IAM.API.Controllers
         private readonly ISystematicReviewProjectService _projectService;
         private readonly IProjectInvitationService _invitationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectSettingService _projectSettingService;
 
         public SystematicReviewProjectController(
             ISystematicReviewProjectService projectService,
             IProjectInvitationService invitationService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IProjectSettingService projectSettingService)
         {
             _projectService = projectService;
             _invitationService = invitationService;
             _currentUserService = currentUserService;
+            _projectSettingService = projectSettingService;
         }
 
         /// <summary>
@@ -252,6 +257,20 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _projectService.GetAvailableMembersForPaperAsync(projectId, paperId, cancellationToken);
             return Ok(result, "Available project members retrieved successfully.");
+        }
+
+        [HttpGet("{projectId}/settings")]
+        public async Task<ActionResult<ApiResponse<ProjectSettingDto>>> GetProjectSetting(Guid projectId)
+        {
+            var result = await _projectSettingService.GetProjectSettingAsync(projectId);
+            return Ok(result, "Project setting retrieved successfully");
+        }
+
+        [HttpPut("{projectId}/settings")]
+        public async Task<ActionResult<ApiResponse<ProjectSettingDto>>> UpdateProjectSetting(Guid projectId, [FromBody] UpdateProjectSettingRequest request)
+        {
+            var result = await _projectSettingService.UpdateProjectSettingAsync(projectId, request);
+            return Ok(result, "Project setting updated successfully");
         }
     }
 }

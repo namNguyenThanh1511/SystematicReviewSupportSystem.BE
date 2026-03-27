@@ -31,6 +31,7 @@ using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.ProjectSettingRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -117,6 +118,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		ICandidatePaperRepository CandidatePapers { get; }
 		IPaperCitationRepository PaperCitations { get; }
 		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
+		IProjectSettingRepository ProjectSettings { get; }
 	}
 }
 

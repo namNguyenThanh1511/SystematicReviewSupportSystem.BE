@@ -18,6 +18,8 @@ namespace SRSS.IAM.Repositories.Entities
 
         public Guid OwnerId { get; set; }
 
+        public ProjectSetting? ProjectSetting { get; set; }
+
         // Navigation Properties
         public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();

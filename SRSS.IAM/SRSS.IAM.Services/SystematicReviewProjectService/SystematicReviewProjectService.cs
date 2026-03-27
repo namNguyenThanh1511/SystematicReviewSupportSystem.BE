@@ -40,6 +40,17 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             };
 
             await _unitOfWork.SystematicReviewProjects.AddAsync(project, cancellationToken);
+            
+            var projectSetting = new Repositories.Entities.ProjectSetting
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            };
+            
+            await _unitOfWork.ProjectSettings.AddAsync(projectSetting, cancellationToken);
+            
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToResponse(project);

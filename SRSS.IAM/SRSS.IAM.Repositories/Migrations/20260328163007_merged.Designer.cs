@@ -13,8 +13,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260328155724_merged-from-qa")]
-    partial class mergedfromqa
+    [Migration("20260328163007_merged")]
+    partial class merged
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

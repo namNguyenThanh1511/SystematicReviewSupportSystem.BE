@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid UserId { get; set; }
         public string? UserName { get; set; }
         public DateTimeOffset AssignedAt { get; set; }
-        public List<PaperResponse>? Papers { get; set; }
+        public List<QAPaperResponse>? Papers { get; set; }
         public List<QualityAssessmentDecisionResponse>? Decisions { get; set; }
     }
 
@@ -121,7 +121,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid PaperId { get; set; }
     }
 
-    public class PaperResponse
+    public class QAPaperResponse
     {
         public Guid Id { get; set; }
 
@@ -175,7 +175,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     /// For reviewer
     /// </summary>
-    public class AssignedPaperResponse : PaperResponse
+    public class AssignedPaperResponse : QAPaperResponse
     {
         /// <summary>
         /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
@@ -189,7 +189,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     ///  For leader
     /// </summary>
-    public class QualityAssessmentPaperResponse : PaperResponse
+    public class QualityAssessmentPaperResponse : QAPaperResponse
     {
         public List<QualityAssessmentReviewerResponse> Reviewers { get; set; } = new();
         public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();

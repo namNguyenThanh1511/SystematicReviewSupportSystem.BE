@@ -226,7 +226,7 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		[HttpGet("process/{processId}/high-quality-papers")]
-		public async Task<ActionResult<ApiResponse<List<PaperResponse>>>> GetHighQualityPaperIds(Guid processId)
+		public async Task<ActionResult<ApiResponse<List<QAPaperResponse>>>> GetHighQualityPaperIds(Guid processId)
 		{
 			var result = await _service.GetHighQualityPaperIdsAsync(processId);
 			return Ok(result, "Lấy danh sách ID paper chất lượng cao thành công");

@@ -619,7 +619,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return res.ToResponse();
         }
 
-        public async Task<List<PaperResponse>> GetHighQualityPaperIdsAsync(Guid processId)
+        public async Task<List<QAPaperResponse>> GetHighQualityPaperIdsAsync(Guid processId)
         {
             var resolutions = await _unitOfWork.QualityAssessmentResolutions
                 .FindAllAsync(r => r.QualityAssessmentProcessId == processId && r.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);

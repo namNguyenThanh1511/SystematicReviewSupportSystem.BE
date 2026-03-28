@@ -2,6 +2,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using SRSS.IAM.Services.GrobidClient.DTOs;
+using SRSS.IAM.Services.ReferenceClassificationService;
 
 namespace SRSS.IAM.Services.GrobidClient
 {
@@ -186,15 +187,20 @@ namespace SRSS.IAM.Services.GrobidClient
                 var listBibl = doc.Descendants(tei + "listBibl").FirstOrDefault();
                 if (listBibl == null) return dtos;
 
+                var classifier = new GrobidReferenceClassifier();
                 var biblStructs = listBibl.Elements(tei + "biblStruct");
                 foreach (var bibl in biblStructs)
                 {
                     var dto = new GrobidReferenceDto();
+                    var classificationResult = classifier.Classify(bibl);
+                    dto.ReferenceType = classificationResult.Type;
+
                     var analytic = bibl.Element(tei + "analytic");
                     var monogr = bibl.Element(tei + "monogr");
 
                     // Title
-                    dto.Title = (string?)analytic?.Element(tei + "title")
+                    dto.Title = classificationResult.MainTitle 
+                                ?? (string?)analytic?.Element(tei + "title")
                                 ?? (string?)monogr?.Element(tei + "title") 
                                 ?? string.Empty;
 

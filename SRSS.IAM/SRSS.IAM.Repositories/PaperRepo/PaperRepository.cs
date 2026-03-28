@@ -11,6 +11,19 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
         }
 
+        public IQueryable<Paper> GetPapersQueryable(List<Guid> ids)
+        {
+            // Nếu danh sách ids null hoặc rỗng, trả về một queryable rỗng thay vì ném lỗi hoặc lấy toàn bộ
+            if (ids == null || !ids.Any())
+            {
+                return _context.Papers.Where(p => false);
+            }
+
+            return _context.Papers
+                .AsNoTracking() // Tăng hiệu năng vì đây là truy vấn Read-only
+                .Where(p => ids.Contains(p.Id));
+        }
+
         public async Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Papers
@@ -442,6 +455,50 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 query = query.Where(predicate);
 
             return await query.ToListAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Get final dataset papers eligible for enrichment after identification completion.
+        /// Reuses the same filtering logic as GetUniquePapersByIdentificationProcessAsync,
+        /// plus enrichment eligibility: has DOI, not already enriched, not currently processing.
+        /// </summary>
+        public async Task<List<Paper>> GetFinalDatasetPapersForEnrichmentAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .Where(p =>
+                    // Same unique papers logic (from GetUniquePapersByIdentificationProcessAsync)
+                    p.ImportBatch != null &&
+                    p.ImportBatch.SearchExecution != null &&
+                    p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
+                    !_context.DeduplicationResults.Any(dr =>
+                        dr.PaperId == p.Id &&
+                        dr.IdentificationProcessId == identificationProcessId && (
+                        dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL || dr.ReviewStatus == DeduplicationReviewStatus.Pending)) &&
+                    // Enrichment eligibility filters
+                    !string.IsNullOrWhiteSpace(p.DOI) &&
+                    !p.ExternalDataFetched &&
+                    p.EnrichmentStatus != Entities.Enums.EnrichmentStatus.Processing &&
+                    p.EnrichmentStatus != Entities.Enums.EnrichmentStatus.Completed)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<Paper>> FindAllWithLimitAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>> predicate,
+            int limit,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Paper> query = _context.Papers;
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            return await query
+                .Where(predicate)
+                .Take(limit)
+                .ToListAsync(cancellationToken);
         }
     }
 }

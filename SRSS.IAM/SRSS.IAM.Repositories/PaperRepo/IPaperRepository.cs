@@ -8,6 +8,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
 {
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
     {
+        IQueryable<Paper> GetPapersQueryable(List<Guid> ids);
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
@@ -86,6 +87,20 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         Task<IEnumerable<Paper>> FindAllWithEmbeddingAsync(
             System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            bool isTracking = true,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get final dataset papers eligible for enrichment after identification completion.
+        /// Reuses unique papers logic, filtered to papers with DOI that haven't been enriched yet.
+        /// </summary>
+        Task<List<Paper>> GetFinalDatasetPapersForEnrichmentAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<IEnumerable<Paper>> FindAllWithLimitAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>> predicate,
+            int limit,
             bool isTracking = true,
             CancellationToken cancellationToken = default);
     }

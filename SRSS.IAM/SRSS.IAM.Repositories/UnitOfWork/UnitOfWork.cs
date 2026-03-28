@@ -32,6 +32,7 @@ using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
+using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
 
@@ -68,6 +69,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
         private ICandidatePaperRepository? _candidatePapers;
         private IPaperCitationRepository? _paperCitations;
+        private IReferenceEntityRepository? _referenceEntities;
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         // Protocol
         private IReviewProtocolRepository? _protocols;

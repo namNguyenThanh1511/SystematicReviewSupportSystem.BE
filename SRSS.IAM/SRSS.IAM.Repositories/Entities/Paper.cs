@@ -53,7 +53,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
-        public Guid? ReviewProcessId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 
@@ -82,13 +81,12 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? ExternalLastFetchedAt { get; set; }
         public string? ExternalSource { get; set; }
         public bool ExternalDataFetched { get; set; }
+        public Enums.EnrichmentStatus EnrichmentStatus { get; set; } = Enums.EnrichmentStatus.NotStarted;
 
         // ============================================
         // NAVIGATION PROPERTIES
         // ============================================
         public ImportBatch? ImportBatch { get; set; }
-        public ReviewProcess? ReviewProcess { get; set; }
-
         public Guid ProjectId { get; set; }
         public SystematicReviewProject? Project { get; set; }
 

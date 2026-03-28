@@ -1,4 +1,5 @@
 using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 using System;
 
 namespace SRSS.IAM.Repositories.Entities
@@ -6,11 +7,18 @@ namespace SRSS.IAM.Repositories.Entities
     public class PaperCitation : BaseEntity<Guid>
     {
         public Guid SourcePaperId { get; set; }   // Paper A
-        public Guid TargetPaperId { get; set; }   // Paper B
+        public Guid? TargetPaperId { get; set; }   // Paper B (Optional if non-paper)
+        public Guid? ReferenceEntityId { get; set; } // NEW: For non-paper references
+
+        public ReferenceType ReferenceType { get; set; } // NEW
 
         public string? RawReference { get; set; }
 
         public decimal ConfidenceScore { get; set; }
+
+        public decimal ExtractionQuality { get; set; }
+
+        public decimal MatchConfidence { get; set; }
 
         public CitationSource Source { get; set; }
 
@@ -20,9 +28,12 @@ namespace SRSS.IAM.Repositories.Entities
 
         public decimal? Weight { get; set; }
 
+        public bool IsLowConfidence { get; set; }
+
         // Navigation properties
         public Paper SourcePaper { get; set; } = null!;
-        public Paper TargetPaper { get; set; } = null!;
+        public Paper? TargetPaper { get; set; }
+        public ReferenceEntity? ReferenceEntity { get; set; }
     }
 
     public enum CitationSource

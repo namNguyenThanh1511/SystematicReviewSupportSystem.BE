@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using SRSS.IAM.Repositories.Entities.Enums;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
@@ -51,6 +52,7 @@ namespace SRSS.IAM.Services.PaperEnrichmentService
                 paper.ExternalSource = "OpenAlex";
                 paper.ExternalLastFetchedAt = DateTimeOffset.UtcNow;
                 paper.ExternalDataFetched = true;
+                paper.EnrichmentStatus = EnrichmentStatus.Completed;
 
                 _logger.LogInformation(
                     "Enriched Paper {PaperId} from OpenAlex: CitedBy={CitedBy}, Refs={Refs}",
@@ -64,6 +66,7 @@ namespace SRSS.IAM.Services.PaperEnrichmentService
                     paper.Id, paper.DOI);
 
                 // Non-critical — do not re-throw; the paper import should still succeed
+                paper.EnrichmentStatus = EnrichmentStatus.Failed;
             }
         }
 

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class dataExtractionForm : Migration
+    public partial class confi : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -41,6 +41,25 @@ namespace SRSS.IAM.Repositories.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_question_type", x => x.question_type_id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "reference_entities",
+                columns: table => new
+                {
+                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    title = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    authors = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    doi = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    url = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    type = table.Column<string>(type: "text", nullable: false),
+                    raw_reference = table.Column<string>(type: "text", nullable: true),
+                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_reference_entities", x => x.id);
                 });
 
             migrationBuilder.CreateTable(
@@ -1264,6 +1283,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     DOI = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     RawReference = table.Column<string>(type: "text", nullable: true),
                     NormalizedReference = table.Column<string>(type: "text", nullable: true),
+                    ReferenceType = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1501,13 +1521,16 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     source_paper_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    target_paper_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    target_paper_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    reference_entity_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    reference_type = table.Column<string>(type: "text", nullable: false),
                     raw_reference = table.Column<string>(type: "text", nullable: true),
                     confidence_score = table.Column<decimal>(type: "numeric", nullable: false),
                     source = table.Column<string>(type: "text", nullable: false),
                     is_external = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     external_id = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     weight = table.Column<decimal>(type: "numeric", nullable: true),
+                    is_low_confidence = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -1524,6 +1547,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         name: "FK_paper_citations_papers_target_paper_id",
                         column: x => x.target_paper_id,
                         principalTable: "papers",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_paper_citations_reference_entities_reference_entity_id",
+                        column: x => x.reference_entity_id,
+                        principalTable: "reference_entities",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -2008,15 +2037,14 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_paper_citations_reference_entity_id",
+                table: "paper_citations",
+                column: "reference_entity_id");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_paper_citations_source_paper_id",
                 table: "paper_citations",
                 column: "source_paper_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_paper_citations_source_paper_id_target_paper_id",
-                table: "paper_citations",
-                columns: new[] { "source_paper_id", "target_paper_id" },
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_paper_citations_target_paper_id",
@@ -2172,6 +2200,16 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_quality_criterion_checklist_id",
                 table: "quality_criterion",
                 column: "checklist_id");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_reference_entities_doi",
+                table: "reference_entities",
+                column: "doi");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_reference_entities_type",
+                table: "reference_entities",
+                column: "type");
 
             migrationBuilder.CreateIndex(
                 name: "IX_research_question_project_id",
@@ -2466,6 +2504,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             migrationBuilder.DropTable(
                 name: "project_members");
+
+            migrationBuilder.DropTable(
+                name: "reference_entities");
 
             migrationBuilder.DropTable(
                 name: "picoc_element");

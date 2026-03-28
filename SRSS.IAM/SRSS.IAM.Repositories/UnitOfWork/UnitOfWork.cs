@@ -67,10 +67,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperPdfRepository? _paperPdfs;
         private IPaperSourceMetadataRepository? _paperSourceMetadatas;
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
-		private ICandidatePaperRepository? _candidatePapers;
-		private IPaperCitationRepository? _paperCitations;
-		private IReferenceEntityRepository? _referenceEntities;
-		private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+        private ICandidatePaperRepository? _candidatePapers;
+        private IPaperCitationRepository? _paperCitations;
+        private IReferenceEntityRepository? _referenceEntities;
+        private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -98,6 +98,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         //private IDataExtractionFormRepository? _extractionForms;
         //private IDataItemDefinitionRepository? _dataItems;
         // Data Extraction
+
+        // Quality Assessment
+        private IQualityAssessmentProcessRepository? _qualityAssessmentProcesses;
+        private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
+        private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
+        private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
+
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
         private IExtractionFieldRepository? _extractionFields;
@@ -290,28 +297,33 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IIdentificationProcessPaperRepository IdentificationProcessPapers
             => _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
 
-		public IPaperAssignmentRepository PaperAssignments
-			=> _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
-		public ITitleAbstractScreeningRepository TitleAbstractScreenings
-			=> _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
-		public IPaperPdfRepository PaperPdfs
-			=> _paperPdfs ??= new PaperPdfRepository(_dbContext);
-		public IPaperSourceMetadataRepository PaperSourceMetadatas
-			=> _paperSourceMetadatas ??= new PaperSourceMetadataRepository(_dbContext);
-		public IGrobidHeaderResultRepository GrobidHeaderResults
-			=> _grobidHeaderResults ??= new GrobidHeaderResultRepository(_dbContext);
-		public ICandidatePaperRepository CandidatePapers
-			=> _candidatePapers ??= new CandidatePaperRepository(_dbContext);
-		public IPaperCitationRepository PaperCitations
-			=> _paperCitations ??= new PaperCitationRepository(_dbContext);
-		public IReferenceEntityRepository ReferenceEntities
-			=> _referenceEntities ??= new ReferenceEntityRepository(_dbContext);
+        public IPaperAssignmentRepository PaperAssignments
+            => _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
+        public ITitleAbstractScreeningRepository TitleAbstractScreenings
+            => _titleAbstractScreenings ??= new TitleAbstractScreeningRepository(_dbContext);
+        public IPaperPdfRepository PaperPdfs
+            => _paperPdfs ??= new PaperPdfRepository(_dbContext);
+        public IPaperSourceMetadataRepository PaperSourceMetadatas
+            => _paperSourceMetadatas ??= new PaperSourceMetadataRepository(_dbContext);
+        public IGrobidHeaderResultRepository GrobidHeaderResults
+            => _grobidHeaderResults ??= new GrobidHeaderResultRepository(_dbContext);
+        public ICandidatePaperRepository CandidatePapers
+            => _candidatePapers ??= new CandidatePaperRepository(_dbContext);
+        public IPaperCitationRepository PaperCitations
+            => _paperCitations ??= new PaperCitationRepository(_dbContext);
 
-		public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
-			=> _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
+        public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
+            => _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
+
+        // Quality Assessment
+        public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
+        public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
+        public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
+        public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }
+
     public static class Extensions
     {
         public static bool HasChangedOwnedEntities(this EntityEntry entry) =>

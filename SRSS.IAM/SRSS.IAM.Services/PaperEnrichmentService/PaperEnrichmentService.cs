@@ -36,6 +36,12 @@ namespace SRSS.IAM.Services.PaperEnrichmentService
                 return;
             }
 
+            if(paper.ExternalDataFetched)
+            {
+                _logger.LogDebug("Paper {PaperId} has already been enriched — skipping OpenAlex enrichment.", paper.Id);
+                return;
+            }
+
             try
             {
                 var openAlexRequestDoi = $"doi:{paper.DOI}";

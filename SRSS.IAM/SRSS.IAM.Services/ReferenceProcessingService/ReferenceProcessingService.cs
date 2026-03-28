@@ -305,15 +305,21 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             }
 
             // 2. Tính toán Confidence Score tổng hợp cho Citation
-            // Công thức đề xuất: 70% Match + 30% Extraction
-            // Nếu là ReferenceEntity (Web/Report) thì matchConfidence thường là 1.0
-            decimal finalConfidence = (matchConfidence * 0.7m) + (extractionQuality * 0.3m);
+            // Condition A (New Paper): If matchConfidence == 0, set finalConfidence = extractionQuality * 0.9m
+            // Condition B (Matched Paper): If matchConfidence > 0, set weighted finalConfidence
+            decimal finalConfidence = matchConfidence == 0 
+                ? extractionQuality * 0.9m 
+                : (matchConfidence * 0.7m) + (extractionQuality * 0.3m);
+
+            finalConfidence = Math.Clamp(finalConfidence, 0m, 1m);
             
             // Một citation bị coi là Low Confidence nếu:
             // - Điểm tổng hợp < 0.75
-            // - HOẶC Match Confidence quá thấp (< 0.6)
+            // - HOẶC Match Confidence quá thấp (< 0.6) (Chỉ áp dụng khi có match)
             // - HOẶC Extraction Quality cực thấp (< 0.4)
-            bool isLowConfidence = finalConfidence < 0.75m || matchConfidence < 0.6m || extractionQuality < 0.4m;
+            bool isLowConfidence = finalConfidence < 0.75m 
+                                   || (matchConfidence > 0 && matchConfidence < 0.6m) 
+                                   || extractionQuality < 0.4m;
 
             // 3. Khởi tạo Entity
             var citation = new PaperCitation

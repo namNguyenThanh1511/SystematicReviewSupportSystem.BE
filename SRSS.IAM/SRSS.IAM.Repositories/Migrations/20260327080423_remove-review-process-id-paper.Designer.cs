@@ -13,8 +13,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260325055634_dataExtractionForm")]
-    partial class dataExtractionForm
+    [Migration("20260327080423_remove-review-process-id-paper")]
+    partial class removereviewprocessidpaper
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,14 +34,20 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("Authors")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("authors");
+
+                    b.Property<decimal>("ConfidenceScore")
+                        .HasColumnType("numeric")
+                        .HasColumnName("confidence_score");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DOI")
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("doi");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -54,10 +60,14 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("PublicationYear")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("publication_year");
 
                     b.Property<string>("RawReference")
                         .HasColumnType("text");
+
+                    b.Property<int>("ReferenceType")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ReviewProcessId")
                         .HasColumnType("uuid");
@@ -68,15 +78,17 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("title");
 
-                    b.HasKey("Id");
+                    b.HasKey("Id")
+                        .HasName("id");
 
                     b.HasIndex("OriginPaperId");
 
                     b.HasIndex("ReviewProcessId");
 
-                    b.ToTable("CandidatePapers", (string)null);
+                    b.ToTable("candidate_papers", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
@@ -1308,6 +1320,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("doi");
 
+                    b.Property<int>("EnrichmentStatus")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ExternalCitationCount")
                         .HasColumnType("integer")
                         .HasColumnName("external_citation_count");
@@ -1447,8 +1462,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("raw_reference");
 
                     b.Property<Guid?>("ReviewProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_process_id");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Source")
                         .HasMaxLength(100)
@@ -1563,6 +1577,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("is_external");
 
+                    b.Property<bool>("IsLowConfidence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_low_confidence");
+
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -1570,6 +1590,15 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("RawReference")
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
+
+                    b.Property<Guid?>("ReferenceEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reference_entity_id");
+
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reference_type");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -1580,7 +1609,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("source_paper_id");
 
-                    b.Property<Guid>("TargetPaperId")
+                    b.Property<Guid?>("TargetPaperId")
                         .HasColumnType("uuid")
                         .HasColumnName("target_paper_id");
 
@@ -1590,12 +1619,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReferenceEntityId");
+
                     b.HasIndex("SourcePaperId");
 
                     b.HasIndex("TargetPaperId");
-
-                    b.HasIndex("SourcePaperId", "TargetPaperId")
-                        .IsUnique();
 
                     b.ToTable("paper_citations", (string)null);
                 });
@@ -2301,6 +2329,59 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("question_type", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReferenceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Authors")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("authors");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DOI")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("doi");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("RawReference")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_reference");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DOI");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("reference_entities", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ResearchQuestion", b =>
@@ -3500,8 +3581,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
                         .WithMany()
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ReviewProcessId");
 
                     b.Navigation("ImportBatch");
 
@@ -3539,6 +3619,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReferenceEntity", "ReferenceEntity")
+                        .WithMany("IncomingCitations")
+                        .HasForeignKey("ReferenceEntityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "SourcePaper")
                         .WithMany("OutgoingCitations")
                         .HasForeignKey("SourcePaperId")
@@ -3548,8 +3633,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "TargetPaper")
                         .WithMany("IncomingCitations")
                         .HasForeignKey("TargetPaperId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ReferenceEntity");
 
                     b.Navigation("SourcePaper");
 
@@ -4071,6 +4157,11 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QuestionType", b =>
                 {
                     b.Navigation("ResearchQuestions");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReferenceEntity", b =>
+                {
+                    b.Navigation("IncomingCitations");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ResearchQuestion", b =>

@@ -32,6 +32,7 @@ using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
+using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
 
@@ -68,6 +69,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
 		private ICandidatePaperRepository? _candidatePapers;
 		private IPaperCitationRepository? _paperCitations;
+		private IReferenceEntityRepository? _referenceEntities;
 		private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         // Protocol
         private IReviewProtocolRepository? _protocols;
@@ -302,6 +304,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 			=> _candidatePapers ??= new CandidatePaperRepository(_dbContext);
 		public IPaperCitationRepository PaperCitations
 			=> _paperCitations ??= new PaperCitationRepository(_dbContext);
+		public IReferenceEntityRepository ReferenceEntities
+			=> _referenceEntities ??= new ReferenceEntityRepository(_dbContext);
 
 		public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
 			=> _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);

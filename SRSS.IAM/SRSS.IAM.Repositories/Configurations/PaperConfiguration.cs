@@ -204,13 +204,7 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("project_id")
                 .IsRequired();
 
-            builder.Property(p => p.ReviewProcessId)
-                .HasColumnName("review_process_id");
 
-            builder.HasOne(p => p.ReviewProcess)
-                .WithMany()
-                .HasForeignKey(p => p.ReviewProcessId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // ============================================
             // BASE ENTITY FIELDS

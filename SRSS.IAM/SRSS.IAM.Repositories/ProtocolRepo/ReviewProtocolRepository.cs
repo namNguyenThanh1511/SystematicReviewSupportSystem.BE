@@ -37,6 +37,22 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		{
 			return await _context.ReviewProtocols
 				.Include(p => p.Versions)
+				.Include(p => p.SearchSources)
+				.Include(p => p.SelectionCriterias)
+				.ThenInclude(sc => sc.InclusionCriteria)
+				.Include(p => p.SelectionCriterias)
+				.ThenInclude(sc => sc.ExclusionCriteria)
+				.Include(p => p.SelectionProcedures)
+				.Include(p => p.QualityStrategies)
+				.ThenInclude(ps => ps.Checklists)
+				.ThenInclude(pc => pc.Criteria)
+				.Include(p => p.ExtractionStrategies)
+				.ThenInclude(es => es.Forms)
+				.ThenInclude(ef => ef.DataItems)
+				.Include(p => p.ExtractionTemplates)
+				.ThenInclude(et => et.Sections)
+				.Include(p => p.SynthesisStrategies)
+				.Include(p => p.DisseminationStrategies)
 				.AsNoTracking()
 				.FirstOrDefaultAsync(p => p.Id == protocolId, cancellationToken);
 		}

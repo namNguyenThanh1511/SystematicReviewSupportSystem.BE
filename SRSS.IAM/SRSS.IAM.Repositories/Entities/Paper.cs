@@ -116,6 +116,10 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Citations where this paper is the target (it is cited by other papers)
         public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
+
+        // Quality assessment Ref
+        public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
+        public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
     }
 
     public enum AccessType

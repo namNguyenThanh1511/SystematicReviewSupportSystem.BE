@@ -11,9 +11,12 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 
 		[StringLength(2000, ErrorMessage = "Description không được vượt quá 2000 ký tự")]
 		public string? Description { get; set; }
+
+		// Full nested representation when returning strategy for a process
+		public List<QualityAssessmentChecklistDto> Checklists { get; set; } = new();
 	}
 
-	public class QualityChecklistDto
+	public class QualityAssessmentChecklistDto
 	{
 		public Guid? ChecklistId { get; set; }
 
@@ -23,11 +26,14 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 		[Required(ErrorMessage = "Name là bắt buộc")]
 		[StringLength(500, ErrorMessage = "Name không được vượt quá 500 ký tự")]
 		public string Name { get; set; } = string.Empty;
+
+		// Nested criteria when returning full checklist
+		public List<QualityAssessmentCriterionDto> Criteria { get; set; } = new();
 	}
 
-	public class QualityCriterionDto
+	public class QualityAssessmentCriterionDto
 	{
-		public Guid? QualityCriterionId { get; set; }
+		public Guid? CriterionId { get; set; }
 
 		[Required(ErrorMessage = "ChecklistId là bắt buộc")]
 		public Guid ChecklistId { get; set; }

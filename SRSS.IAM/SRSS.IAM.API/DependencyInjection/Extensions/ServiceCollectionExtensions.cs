@@ -45,7 +45,10 @@ using Polly.Extensions.Http;
 using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.ReferenceProcessingService;
+
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
     public static class ServiceCollectionExtensions
@@ -86,6 +89,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPaperService, PaperService>();
             services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
+            services.AddSingleton<IGeminiService, GeminiService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
             services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();

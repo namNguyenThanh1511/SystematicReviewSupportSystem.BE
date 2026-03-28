@@ -10,6 +10,7 @@ using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
+using SRSS.IAM.Services.DTOs.QualityAssessment;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -101,6 +102,18 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+
+                //Auto-create Quality Assessment Process for the new ReviewProcess
+                var qualityAssessmentProcess = new Repositories.Entities.QualityAssessmentProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Notes = "Auto-created quality assessment process",
+                    Status = Repositories.Entities.Enums.QualityAssessmentProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
                 //Auto-create Data Extraction Process for the new ReviewProcess
                 var dataExtractionProcess = new Repositories.Entities.DataExtractionProcess
                 {
@@ -114,6 +127,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
+                await _unitOfWork.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess, cancellationToken);
                 await _unitOfWork.DataExtractionProcesses.AddAsync(dataExtractionProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -468,6 +482,18 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         ModifiedAt = reviewProcess.StudySelectionProcess.ModifiedAt
                     }
                     : null,
+                QualityAssessmentProcess = reviewProcess.QualityAssessmentProcess != null
+                    ? new QualityAssessmentProcessResponse
+                    {
+                        Id = reviewProcess.QualityAssessmentProcess.Id,
+                        ReviewProcessId = reviewProcess.QualityAssessmentProcess.ReviewProcessId,
+                        Status = reviewProcess.QualityAssessmentProcess.Status,
+                        StatusText = reviewProcess.QualityAssessmentProcess.Status.ToString(),
+                        Notes = reviewProcess.QualityAssessmentProcess.Notes,
+                        CreatedAt = reviewProcess.QualityAssessmentProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.QualityAssessmentProcess.ModifiedAt
+                    }
+                    : null,
                 DataExtractionProcess = reviewProcess.DataExtractionProcess != null
                     ? new DataExtractionProcessResponse
                     {
@@ -475,8 +501,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         ReviewProcessId = reviewProcess.DataExtractionProcess.ReviewProcessId,
                         Status = reviewProcess.DataExtractionProcess.Status,
                         StatusText = reviewProcess.DataExtractionProcess.Status.ToString(),
-                        StartedAt = reviewProcess.DataExtractionProcess.StartedAt,
-                        CompletedAt = reviewProcess.DataExtractionProcess.CompletedAt,
                         Notes = reviewProcess.DataExtractionProcess.Notes,
                         CreatedAt = reviewProcess.DataExtractionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.DataExtractionProcess.ModifiedAt

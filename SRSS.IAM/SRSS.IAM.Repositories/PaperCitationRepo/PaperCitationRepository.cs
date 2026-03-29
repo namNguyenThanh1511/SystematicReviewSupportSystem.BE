@@ -30,8 +30,8 @@ namespace SRSS.IAM.Repositories.PaperCitationRepo
         public async Task<Dictionary<Guid, int>> CountByTargetsAsync(IEnumerable<Guid> targetPaperIds, CancellationToken cancellationToken = default)
         {
             var results = await _context.Set<PaperCitation>()
-                .Where(c => targetPaperIds.Contains(c.TargetPaperId))
-                .GroupBy(c => c.TargetPaperId)
+                .Where(c => c.TargetPaperId.HasValue && targetPaperIds.Contains(c.TargetPaperId.Value))
+                .GroupBy(c => c.TargetPaperId!.Value)
                 .Select(g => new { PaperId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.PaperId, x => x.Count, cancellationToken);
                 
@@ -67,7 +67,7 @@ namespace SRSS.IAM.Repositories.PaperCitationRepo
             {
                 SourcePaperId = c.SourcePaperId,
                 TargetPaperId = c.TargetPaperId,
-                TargetPaper = new Paper 
+                TargetPaper = c.TargetPaper != null ? new Paper 
                 {
                     Id = c.TargetPaper.Id,
                     Title = c.TargetPaper.Title,
@@ -75,9 +75,9 @@ namespace SRSS.IAM.Repositories.PaperCitationRepo
                     PublicationYearInt = c.TargetPaper.PublicationYearInt,
                     Authors = c.TargetPaper.Authors,
                     DOI = c.TargetPaper.DOI,
-                    // Chỉ lấy những thông tin cần thiết của IncomingCitations
-                    IncomingCitations = c.TargetPaper.IncomingCitations.ToList() 
-                }
+                    IncomingCitations = c.TargetPaper.IncomingCitations.ToList(), 
+                    ExternalCitationCount = c.TargetPaper.ExternalCitationCount
+                } : null
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -88,7 +88,7 @@ namespace SRSS.IAM.Repositories.PaperCitationRepo
             return await _context.Set<PaperCitation>()
                 .Where(c => sourcePaperIds.Contains(c.SourcePaperId) 
                     && c.ConfidenceScore >= minConfidence
-                    && c.SourcePaperId != c.TargetPaperId)
+                    && (c.TargetPaperId == null || c.SourcePaperId != c.TargetPaperId))
                 .AsNoTracking()
                 .ToListAsync(cancellationToken);
         }

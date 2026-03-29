@@ -11,7 +11,10 @@ namespace SRSS.IAM.Services.CandidatePaperService
     {
         Task ExtractReferencesFromPaperAsync(Guid processId, Guid paperId, CancellationToken cancellationToken = default);
         Task<PaginatedResponse<CandidatePaperDto>> GetCandidatePapersAsync(Guid processId, GetCandidatePapersRequest request, CancellationToken cancellationToken = default);
+        Task<PaginatedResponse<PaperWithCandidateDto>> GetPapersWithCandidatesAsync(Guid processId, GetPapersRequest request, CancellationToken cancellationToken = default);
+        Task<PaginatedResponse<CandidatePaperDto>> GetCandidatesByPaperIdAsync(Guid processId, Guid paperId, GetCandidatePapersRequest request, CancellationToken cancellationToken = default);
         Task RejectCandidatePapersAsync(Guid processId, RejectCandidatePaperRequest request, CancellationToken cancellationToken = default);
         Task SelectCandidatePapersAsync(Guid processId, SelectCandidatePaperRequest request, Guid userId, CancellationToken cancellationToken = default);
+        
     }
 }

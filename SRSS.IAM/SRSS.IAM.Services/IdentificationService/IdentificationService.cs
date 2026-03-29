@@ -2,6 +2,7 @@ using Shared.Exceptions;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.Utils;
 using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
@@ -14,15 +15,18 @@ namespace SRSS.IAM.Services.IdentificationService
         private readonly IUnitOfWork _unitOfWork;
         private readonly IReferenceMatchingService _matchingService;
         private readonly IEmbeddingService _embeddingService;
+        private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
 
         public IdentificationService(
             IUnitOfWork unitOfWork, 
             IReferenceMatchingService matchingService,
-            IEmbeddingService embeddingService)
+            IEmbeddingService embeddingService,
+            IPaperEnrichmentOrchestrator enrichmentOrchestrator)
         {
             _unitOfWork = unitOfWork;
             _matchingService = matchingService;
             _embeddingService = embeddingService;
+            _enrichmentOrchestrator = enrichmentOrchestrator;
         }
 
         public async Task<IdentificationProcessResponse> CreateIdentificationProcessAsync(
@@ -143,6 +147,9 @@ namespace SRSS.IAM.Services.IdentificationService
             await GenerateIdentificationSnapshotAsync(id, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Trigger downstream enrichment for final dataset papers (fire-and-forget via Channel)
+            await _enrichmentOrchestrator.TriggerForIdentificationProcessAsync(id, cancellationToken);
 
             return MapToIdentificationProcessResponse(identificationProcess);
         }

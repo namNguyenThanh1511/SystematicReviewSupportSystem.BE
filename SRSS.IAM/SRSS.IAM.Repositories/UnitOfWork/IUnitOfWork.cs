@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
@@ -30,6 +31,7 @@ using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
+using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
 using SRSS.IAM.Repositories.PaperTagRepo;
@@ -118,9 +120,16 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
 		ICandidatePaperRepository CandidatePapers { get; }
 		IPaperCitationRepository PaperCitations { get; }
+		IReferenceEntityRepository ReferenceEntities { get; }
 		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
 		IPaperTagRepository PaperTags { get; }
 		IUserTagInventoryRepository UserTagInventories { get; }
+
+		// Quality Assessment
+		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
+		IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
+		IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
+		IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
 	}
 }
 

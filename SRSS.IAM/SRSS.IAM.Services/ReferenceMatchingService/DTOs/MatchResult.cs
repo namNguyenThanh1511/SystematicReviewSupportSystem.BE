@@ -10,5 +10,6 @@ namespace SRSS.IAM.Services.ReferenceMatchingService.DTOs
         public Guid? MatchedPaperId { get; set; } 
         public decimal ConfidenceScore { get; set; }
         public MatchStrategy Strategy { get; set; }
+        public bool IsSnapshotDuplicate { get; set; }
     }
 }

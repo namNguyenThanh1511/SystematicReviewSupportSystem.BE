@@ -136,11 +136,11 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         // ============================== Paper ============================
-        public static PaperResponse ToResponse(this Paper entity)
+        public static QAPaperResponse ToResponse(this Paper entity)
         {
             if (entity == null) return null!;
 
-            return new PaperResponse
+            return new QAPaperResponse
             {
                 Id = entity.Id,
                 Title = entity.Title,

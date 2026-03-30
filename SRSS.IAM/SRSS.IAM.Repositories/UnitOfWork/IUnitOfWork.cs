@@ -34,6 +34,8 @@ using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
+using SRSS.IAM.Repositories.PaperTagRepo;
+using SRSS.IAM.Repositories.UserTagInventoryRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -120,6 +122,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IPaperCitationRepository PaperCitations { get; }
 		IReferenceEntityRepository ReferenceEntities { get; }
 		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
+		IPaperTagRepository PaperTags { get; }
+		IUserTagInventoryRepository UserTagInventories { get; }
 
 		// Quality Assessment
 		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }

@@ -116,6 +116,8 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Citations where this paper is the target (it is cited by other papers)
         public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
+        // Tags applied to this paper across review phases
+        public ICollection<PaperTag> Tags { get; set; } = new List<PaperTag>();
 
         // Quality assessment Ref
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();

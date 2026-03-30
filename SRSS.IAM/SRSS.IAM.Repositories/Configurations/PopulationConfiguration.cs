@@ -27,6 +27,12 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("description")
 				.IsRequired();
 
+			builder.Property(x => x.CreatedAt)
+				.HasColumnName("created_at");
+
+			builder.Property(x => x.ModifiedAt)
+				.HasColumnName("modified_at");
+
 			// Configure one-to-one relationship with PicocElement
 			builder.HasOne(x => x.PicocElement)
 				.WithOne(x => x.Population)

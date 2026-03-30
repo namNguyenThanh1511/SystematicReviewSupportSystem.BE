@@ -35,6 +35,8 @@ using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 
+using SRSS.IAM.Repositories.PaperTagRepo;
+using SRSS.IAM.Repositories.UserTagInventoryRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -67,10 +69,13 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperPdfRepository? _paperPdfs;
         private IPaperSourceMetadataRepository? _paperSourceMetadatas;
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
-        private ICandidatePaperRepository? _candidatePapers;
-        private IPaperCitationRepository? _paperCitations;
+		private ICandidatePaperRepository? _candidatePapers;
+		private IPaperCitationRepository? _paperCitations;
+		private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+		private IPaperTagRepository? _paperTags;
+		private IUserTagInventoryRepository? _userTagInventories;
         private IReferenceEntityRepository? _referenceEntities;
-        private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -294,8 +299,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IProjectMemberInvitationRepository ProjectMemberInvitations
             => _projectMemberInvitations ??= new ProjectMemberInvitationRepository(_dbContext);
 
-        public IIdentificationProcessPaperRepository IdentificationProcessPapers
-            => _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
+		public IIdentificationProcessPaperRepository IdentificationProcessPapers
+			=> _identificationProcessPapers ??= new IdentificationProcessPaperRepository(_dbContext);
 
         public IPaperAssignmentRepository PaperAssignments
             => _paperAssignments ??= new PaperAssignmentRepository(_dbContext);
@@ -316,6 +321,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
             => _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
 
+		public IPaperTagRepository PaperTags
+			=> _paperTags ??= new PaperTagRepository(_dbContext);
+
+		public IUserTagInventoryRepository UserTagInventories
+			=> _userTagInventories ??= new UserTagInventoryRepository(_dbContext);
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);

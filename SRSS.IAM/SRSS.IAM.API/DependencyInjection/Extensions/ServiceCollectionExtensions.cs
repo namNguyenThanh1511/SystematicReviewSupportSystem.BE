@@ -27,6 +27,7 @@ using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.TagService;
 using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
@@ -99,6 +100,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
             
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
+            services.AddScoped<ITagService, TagService>();
 
             // GROBID integration
             services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));

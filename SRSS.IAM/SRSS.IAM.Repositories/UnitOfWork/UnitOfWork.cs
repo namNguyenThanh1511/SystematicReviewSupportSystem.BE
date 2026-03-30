@@ -34,6 +34,7 @@ using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -71,6 +72,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperCitationRepository? _paperCitations;
         private IReferenceEntityRepository? _referenceEntities;
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+        private IStudySelectionAIResultRepository? _studySelectionAIResults;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -315,6 +317,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _referenceEntities ??= new ReferenceEntityRepository(_dbContext);
         public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
             => _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
+        public IStudySelectionAIResultRepository StudySelectionAIResults
+            => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);

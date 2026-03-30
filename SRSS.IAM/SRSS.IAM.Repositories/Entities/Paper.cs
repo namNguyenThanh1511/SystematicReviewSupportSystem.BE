@@ -120,6 +120,7 @@ namespace SRSS.IAM.Repositories.Entities
         // Quality assessment Ref
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
         public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
+        public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
     }
 
     public enum AccessType

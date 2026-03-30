@@ -6,6 +6,9 @@ using Google.GenAI.Types;
 using GeminiType = Google.GenAI.Types.Type;
 using System.Reflection;
 using System.Text.Json.Serialization; // Prevent naming collision
+using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.Mappers;
 
 namespace SRSS.IAM.Services.GeminiService
 {
@@ -54,6 +57,11 @@ namespace SRSS.IAM.Services.GeminiService
             {
                 PropertyNameCaseInsensitive = true
             });
+        }
+
+        public StuSeAIInput BuildStuSeAIInput(Paper paper, ReviewProtocol protocol)
+        {
+            return protocol.BuildStuSeAIInput(paper);
         }
 
         public static Schema GenerateSchema<T>() => GenerateSchema(typeof(T));

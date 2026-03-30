@@ -33,6 +33,7 @@ using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.ReferenceEntityRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -120,6 +121,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 		IPaperCitationRepository PaperCitations { get; }
 		IReferenceEntityRepository ReferenceEntities { get; }
 		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
+		IStudySelectionAIResultRepository StudySelectionAIResults { get; }
 
 		// Quality Assessment
 		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }

@@ -3068,6 +3068,80 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("search_source", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionAIResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AIOutputJson")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ai_output_json");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid?>("PaperId1")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("screening_phase");
+
+                    b.Property<string>("Recommendation")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("recommendation");
+
+                    b.Property<double>("RelevanceScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("relevance_score");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_id");
+
+                    b.Property<Guid>("StudySelectionProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("study_selection_process_id");
+
+                    b.Property<Guid?>("StudySelectionProcessId1")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("PaperId1");
+
+                    b.HasIndex("ReviewerId");
+
+                    b.HasIndex("StudySelectionProcessId1");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId", "Phase")
+                        .IsUnique()
+                        .HasDatabaseName("uq_ss_ai_results_process_paper_reviewer_phase");
+
+                    b.ToTable("study_selection_ai_results", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4346,6 +4420,45 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Protocol");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionAIResult", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany()
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
+                        .WithMany("StudySelectionAIResults")
+                        .HasForeignKey("PaperId1");
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
+                        .WithMany()
+                        .HasForeignKey("StudySelectionProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", null)
+                        .WithMany("StudySelectionAIResults")
+                        .HasForeignKey("StudySelectionProcessId1");
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", null)
+                        .WithMany("StudySelectionAIResults")
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("Reviewer");
+
+                    b.Navigation("StudySelectionProcess");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProtocol", "Protocol")
@@ -4496,6 +4609,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("SourceMetadatas");
 
+                    b.Navigation("StudySelectionAIResults");
+
                     b.Navigation("StudySelectionProcessPapers");
 
                     b.Navigation("TitleEmbedding");
@@ -4635,6 +4750,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("ScreeningResolutions");
 
+                    b.Navigation("StudySelectionAIResults");
+
                     b.Navigation("StudySelectionProcessPapers");
 
                     b.Navigation("TitleAbstractScreening");
@@ -4664,6 +4781,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.User", b =>
                 {
                     b.Navigation("Notifications");
+
+                    b.Navigation("StudySelectionAIResults");
                 });
 #pragma warning restore 612, 618
         }

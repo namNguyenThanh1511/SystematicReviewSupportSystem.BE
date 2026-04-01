@@ -34,6 +34,20 @@ namespace SRSS.IAM.API.Controllers
             return Ok(new ApiResponse<PaginatedResponse<CandidatePaperDto>> { IsSuccess = true, Data = result, Message = "Candidate papers retrieved successfully." });
         }
 
+        [HttpGet("papers-with-candidates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperWithCandidateDto>>>> GetPapersWithCandidates(Guid processId, [FromQuery] GetPapersRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _candidatePaperService.GetPapersWithCandidatesAsync(processId, request, cancellationToken);
+            return Ok(new ApiResponse<PaginatedResponse<PaperWithCandidateDto>> { IsSuccess = true, Data = result, Message = "Papers with candidate counts retrieved successfully." });
+        }
+
+        [HttpGet("papers/{paperId}/candidates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<CandidatePaperDto>>>> GetCandidatesByPaperId(Guid processId, Guid paperId, [FromQuery] GetCandidatePapersRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _candidatePaperService.GetCandidatesByPaperIdAsync(processId, paperId, request, cancellationToken);
+            return Ok(new ApiResponse<PaginatedResponse<CandidatePaperDto>> { IsSuccess = true, Data = result, Message = "Candidates for the specified paper retrieved successfully." });
+        }
+
         [HttpPost("candidate-papers/reject")]
         public async Task<ActionResult<ApiResponse>> RejectCandidates(Guid processId, [FromBody] RejectCandidatePaperRequest request, CancellationToken cancellationToken)
         {

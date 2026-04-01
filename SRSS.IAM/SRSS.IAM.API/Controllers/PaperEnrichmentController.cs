@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.Paper;
@@ -15,10 +16,14 @@ namespace SRSS.IAM.API.Controllers
     public class PaperEnrichmentController : BaseController
     {
         private readonly IPaperEnrichmentService _paperEnrichmentService;
+        private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
 
-        public PaperEnrichmentController(IPaperEnrichmentService paperEnrichmentService)
+        public PaperEnrichmentController(
+            IPaperEnrichmentService paperEnrichmentService,
+            IPaperEnrichmentOrchestrator enrichmentOrchestrator)
         {
             _paperEnrichmentService = paperEnrichmentService;
+            _enrichmentOrchestrator = enrichmentOrchestrator;
         }
 
         /// <summary>
@@ -69,6 +74,22 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _paperEnrichmentService.EnrichMissingAsync(pageSize, ct);
             return Ok(result, $"Missing papers enrichment completed for {result.Total} papers.");
+        }
+
+        /// <summary>
+        /// Trigger downstream enrichment for all eligible papers in an identification process.
+        /// Papers must have a DOI, not already enriched, and have survived deduplication.
+        /// </summary>
+        /// <param name="identificationProcessId">The identification process ID.</param>
+        /// <param name="ct">Cancellation token.</param>
+        [HttpPost("~/api/identification-processes/{identificationProcessId}/enrich")]
+        public async Task<ActionResult<ApiResponse<string>>> TriggerEnrichmentForProcess(
+            [FromRoute] Guid identificationProcessId,
+            CancellationToken ct)
+        {
+            await _enrichmentOrchestrator.TriggerForIdentificationProcessAsync(identificationProcessId, ct);
+            return Ok("Enrichment triggered successfully. Papers are being processed in the background.",
+                "Enrichment jobs enqueued for eligible papers.");
         }
     }
 }

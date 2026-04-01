@@ -52,17 +52,19 @@ namespace SRSS.IAM.Services.CitationService
         {
             var references = await _unitOfWork.PaperCitations.GetReferencesWithTargetPaperAsync(paperId, cancellationToken);
             
-            return references.Select(c => new PaperNodeDto
-            {
-                Id = c.TargetPaper.Id,
-                Title = c.TargetPaper.Title,
-                Year = c.TargetPaper.PublicationYearInt,
-                Authors = c.TargetPaper.Authors,
-                Doi = c.TargetPaper.DOI,
-                CitationCount = c.TargetPaper.IncomingCitations.Count
-            })
-            .DistinctBy(x => x.Id)
-            .ToList();
+            return references
+                .Where(c => c.TargetPaper != null)
+                .Select(c => new PaperNodeDto
+                {
+                    Id = c.TargetPaper!.Id,
+                    Title = c.TargetPaper.Title,
+                    Year = c.TargetPaper.PublicationYearInt,
+                    Authors = c.TargetPaper.Authors,
+                    Doi = c.TargetPaper.DOI,
+                    CitationCount = c.TargetPaper.ExternalCitationCount ?? 0
+                })
+                .DistinctBy(x => x.Id)
+                .ToList();
         }
 
         public async Task<CitationGraphDto> GetCitationGraphAsync(Guid paperId, int depth, decimal minConfidence, CancellationToken cancellationToken = default)
@@ -89,17 +91,21 @@ namespace SRSS.IAM.Services.CitationService
 
                 foreach (var edge in levelEdges)
                 {
-                    edges.Add(new CitationEdgeDto 
+                    if (edge.TargetPaperId.HasValue)
                     {
-                        SourcePaperId = edge.SourcePaperId,
-                        TargetPaperId = edge.TargetPaperId,
-                        ConfidenceScore = edge.ConfidenceScore
-                    });
+                        var targetId = edge.TargetPaperId.Value;
+                        edges.Add(new CitationEdgeDto 
+                        {
+                            SourcePaperId = edge.SourcePaperId,
+                            TargetPaperId = targetId,
+                            ConfidenceScore = edge.ConfidenceScore
+                        });
 
-                    if (!visitedNodes.Contains(edge.TargetPaperId) && !queuedNodes.Contains(edge.TargetPaperId))
-                    {
-                        queuedNodes.Add(edge.TargetPaperId);
-                        nextLevelIds.Add(edge.TargetPaperId);
+                        if (!visitedNodes.Contains(targetId) && !queuedNodes.Contains(targetId))
+                        {
+                            queuedNodes.Add(targetId);
+                            nextLevelIds.Add(targetId);
+                        }
                     }
                 }
 

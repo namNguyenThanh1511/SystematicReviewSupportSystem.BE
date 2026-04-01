@@ -37,6 +37,7 @@ using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.EmbeddingService;
+using SRSS.IAM.Services.ReferenceClassificationService;
 using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.OpenAlex;
 using Polly;
@@ -44,6 +45,10 @@ using Polly.Extensions.Http;
 using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.ReferenceProcessingService;
+
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 
@@ -87,6 +92,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPaperService, PaperService>();
             services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
+            services.AddSingleton<IGeminiService, GeminiService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
             services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
@@ -103,6 +109,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 			services.AddScoped<IGrobidService, GrobidService>();
 			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
 			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
+            services.AddScoped<IReferenceClassificationService, ReferenceClassificationService>();
+            services.AddScoped<IReferenceProcessingService, ReferenceProcessingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
 
             // OpenAlex integration
@@ -118,6 +126,15 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Paper enrichment (OpenAlex metadata)
             services.AddScoped<IPaperEnrichmentService, PaperEnrichmentService>();
+
+            // Downstream-driven enrichment orchestrator & background worker
+            services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<Guid>());
+            services.AddScoped<IPaperEnrichmentOrchestrator, PaperEnrichmentOrchestrator>();
+            services.AddHostedService<PaperEnrichmentBackgroundService>();
+
+            // Reference processing background worker
+            services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<ReferenceProcessingJob>());
+            services.AddHostedService<ReferenceProcessingBackgroundService>();
 
             // RAG pipeline — Local CPU embedding (Singleton: ONNX model loads once)
             services.AddSingleton<LocalEmbedder>();

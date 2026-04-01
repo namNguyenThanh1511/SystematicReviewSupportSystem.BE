@@ -1,3 +1,5 @@
+using SRSS.IAM.Repositories.Entities.Enums;
+
 namespace SRSS.IAM.Services.GrobidClient.DTOs
 {
     public class GrobidReferenceDto
@@ -7,5 +9,6 @@ namespace SRSS.IAM.Services.GrobidClient.DTOs
         public string? PublishedYear { get; set; }
         public string? DOI { get; set; }
         public string? RawReference { get; set; }
+        public ReferenceType ReferenceType { get; set; } = ReferenceType.Unknown;
     }
 }

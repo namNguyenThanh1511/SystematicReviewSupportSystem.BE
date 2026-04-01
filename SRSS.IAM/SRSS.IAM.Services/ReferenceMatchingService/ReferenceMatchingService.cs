@@ -29,7 +29,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             _logger = logger;
         }
 
-        public async Task<MatchResult> MatchAsync(ExtractedReference reference, CancellationToken cancellationToken = default)
+        public async Task<MatchResult> MatchAsync(ExtractedReference reference, Guid projectId, CancellationToken cancellationToken = default)
         {
             if (reference == null)
             {
@@ -41,7 +41,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             if (!string.IsNullOrWhiteSpace(normalizedDoi))
             {
                 var exactDoiMatch = await _unitOfWork.Papers.FindAllAsync(
-                    p => p.DOI != null && p.DOI.ToLower() == normalizedDoi,
+                    p => p.ProjectId == projectId && p.DOI != null && p.DOI.ToLower() == normalizedDoi,
                     isTracking: false,
                     cancellationToken);
 
@@ -82,30 +82,16 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             var kw1 = keywords.Count > 1 ? keywords[1].ToLowerInvariant() : null;
             var kw2 = keywords.Count > 2 ? keywords[2].ToLowerInvariant() : null;
 
-            IEnumerable<Paper> candidates;
+            int minYear = refYear.HasValue ? refYear.Value - 1 : 0;
+            int maxYear = refYear.HasValue ? refYear.Value + 1 : 0;
 
-            if (refYear.HasValue)
-            {
-                var minYear = refYear.Value - 1;
-                var maxYear = refYear.Value + 1;
-                candidates = await _unitOfWork.Papers.FindAllAsync(p =>
-                    (p.PublicationYearInt >= minYear && p.PublicationYearInt <= maxYear) ||
-                    (kw0 != null && p.Title.ToLower().Contains(kw0)) ||
-                    (kw1 != null && p.Title.ToLower().Contains(kw1)) ||
-                    (kw2 != null && p.Title.ToLower().Contains(kw2)),
-                    isTracking: false, cancellationToken);
-            }
-            else
-            {
-                candidates = await _unitOfWork.Papers.FindAllAsync(p =>
-                    (kw0 != null && p.Title.ToLower().Contains(kw0)) ||
-                    (kw1 != null && p.Title.ToLower().Contains(kw1)) ||
-                    (kw2 != null && p.Title.ToLower().Contains(kw2)),
-                    isTracking: false, cancellationToken);
-            }
-
-            // Limit candidate set manually to prevent huge processing
-            candidates = candidates.Take(100);
+            var candidates = await _unitOfWork.Papers.FindAllWithLimitAsync(p =>
+                p.ProjectId == projectId && (
+                (refYear.HasValue && p.PublicationYearInt >= minYear && p.PublicationYearInt <= maxYear) ||
+                (kw0 != null && !string.IsNullOrWhiteSpace(kw0) && p.Title != null && p.Title.ToLower().Contains(kw0)) ||
+                (kw1 != null && !string.IsNullOrWhiteSpace(kw1) && p.Title != null && p.Title.ToLower().Contains(kw1)) ||
+                (kw2 != null && !string.IsNullOrWhiteSpace(kw2) && p.Title != null && p.Title.ToLower().Contains(kw2))),
+                100, isTracking: false, cancellationToken);
 
             Paper? bestMatch = null;
             decimal highestScore = 0;
@@ -296,6 +282,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             return bestMatch.ConfidenceScore >= 0.7m ? bestMatch : new MatchResult { ConfidenceScore = 0 };
         }
 
+
         private MatchResult MatchAgainstAsync(
             ExtractedReference reference,
             List<Paper> candidates,
@@ -348,6 +335,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
 
             return bestMatch.ConfidenceScore >= 0.7m ? bestMatch : new MatchResult { ConfidenceScore = 0 };
         }
+
 
         private MatchData PrepareMatchData(ExtractedReference reference)
         {
@@ -654,6 +642,182 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
 
                 return false;
             }).ToList();
+        }
+
+        public async Task<MatchResult> MatchAgainstSnapshotAsync(
+            ExtractedReference reference,
+            Guid identificationProcessId,
+            CancellationToken cancellationToken = default)
+        {
+            if (reference == null)
+            {
+                return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
+            }
+
+            var snapshotPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
+                identificationProcessId,
+                cancellationToken);
+
+            if (!snapshotPaperIds.Any())
+            {
+                return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
+            }
+
+            var snapshotPaperIdSet = snapshotPaperIds.ToHashSet();
+
+            // Tier 1: DOI matching within snapshot only
+            var normalizedDoi = DoiHelper.Normalize(reference.DOI);
+            if (!string.IsNullOrWhiteSpace(normalizedDoi))
+            {
+                var exactDoiMatches = await _unitOfWork.Papers.FindAllAsync(
+                    p => snapshotPaperIds.Contains(p.Id)
+                        && p.DOI != null
+                        && p.DOI.ToLower() == normalizedDoi,
+                    isTracking: false,
+                    cancellationToken);
+
+                var doiMatchedPaper = exactDoiMatches.FirstOrDefault();
+                if (doiMatchedPaper != null && snapshotPaperIdSet.Contains(doiMatchedPaper.Id))
+                {
+                    return new MatchResult
+                    {
+                        MatchedPaper = doiMatchedPaper,
+                        ConfidenceScore = 1.0m,
+                        Strategy = MatchStrategy.DOI,
+                        IsSnapshotDuplicate = true
+                    };
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(reference.Title) || reference.Title.Length < 5)
+            {
+                return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
+            }
+
+            var normalizedRefTitle = NormalizeText(reference.Title);
+            var refTokens = Tokenize(normalizedRefTitle);
+
+            if (!refTokens.Any())
+            {
+                return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
+            }
+
+            int? refYear = null;
+            if (int.TryParse(reference.PublishedYear, out var y))
+            {
+                refYear = y;
+            }
+
+            var keywords = refTokens
+                .OrderByDescending(t => t.Length)
+                .Take(3)
+                .ToList();
+
+            var kw0 = keywords.Count > 0 ? keywords[0].ToLowerInvariant() : null;
+            var kw1 = keywords.Count > 1 ? keywords[1].ToLowerInvariant() : null;
+            var kw2 = keywords.Count > 2 ? keywords[2].ToLowerInvariant() : null;
+
+            int minYear = refYear.HasValue ? refYear.Value - 1 : 0;
+            int maxYear = refYear.HasValue ? refYear.Value + 1 : 0;
+
+            // Tier 2: Fuzzy candidate filtering within snapshot only
+            var candidates = await _unitOfWork.Papers.FindAllWithLimitAsync(
+                p => snapshotPaperIds.Contains(p.Id) && (
+                    (refYear.HasValue && p.PublicationYearInt >= minYear && p.PublicationYearInt <= maxYear) ||
+                    (kw0 != null && p.Title != null && p.Title.ToLower().Contains(kw0)) ||
+                    (kw1 != null && p.Title != null && p.Title.ToLower().Contains(kw1)) ||
+                    (kw2 != null && p.Title != null && p.Title.ToLower().Contains(kw2))),
+                200,
+                isTracking: false,
+                cancellationToken);
+
+            // Fallback: if narrowed filter returns empty, evaluate entire snapshot scope
+            if (!candidates.Any())
+            {
+                candidates = await _unitOfWork.Papers.FindAllAsync(
+                    p => snapshotPaperIds.Contains(p.Id),
+                    isTracking: false,
+                    cancellationToken);
+            }
+
+            Paper? bestMatch = null;
+            decimal highestScore = 0;
+            MatchStrategy bestStrategy = MatchStrategy.None;
+
+            var refAuthors = ExtractAuthorTokens(reference.Authors);
+
+            foreach (var candidate in candidates)
+            {
+                var candidateNormalizedTitle = NormalizeText(candidate.Title);
+
+                decimal titleScore;
+                MatchStrategy currentStrategy;
+
+                if (candidateNormalizedTitle == normalizedRefTitle)
+                {
+                    titleScore = 1.0m;
+                    currentStrategy = MatchStrategy.TitleExact;
+                }
+                else
+                {
+                    titleScore = ComputeTitleScore(normalizedRefTitle, candidateNormalizedTitle);
+                    currentStrategy = MatchStrategy.TitleFuzzy;
+                }
+
+                var candidateAuthors = ExtractAuthorTokens(candidate.Authors);
+                decimal authorScore = ComputeAuthorScore(refAuthors, candidateAuthors);
+
+                decimal yearScore = 0;
+                if (refYear.HasValue && candidate.PublicationYearInt.HasValue)
+                {
+                    if (refYear.Value == candidate.PublicationYearInt.Value)
+                    {
+                        yearScore = 1.0m;
+                    }
+                    else if (Math.Abs(refYear.Value - candidate.PublicationYearInt.Value) == 1)
+                    {
+                        yearScore = 0.5m;
+                    }
+                }
+
+                decimal finalScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+                if (finalScore > 1.0m) finalScore = 1.0m;
+                if (finalScore < 0m) finalScore = 0m;
+
+                if (titleScore < 0.6m || (titleScore < 0.7m && authorScore < 0.3m))
+                {
+                    continue;
+                }
+
+                if (finalScore > highestScore)
+                {
+                    highestScore = finalScore;
+                    bestMatch = candidate;
+                    bestStrategy = titleScore == 1.0m ? MatchStrategy.TitleExact : currentStrategy;
+                }
+            }
+
+            if (bestMatch != null && highestScore >= 0.6m && snapshotPaperIdSet.Contains(bestMatch.Id))
+            {
+                if (highestScore < 0.75m)
+                {
+                    _logger.LogInformation(
+                        "Weak snapshot match found for Reference '{RawReference}' with Paper ID '{PaperId}'. Confidence: {Score}",
+                        reference.RawReference,
+                        bestMatch.Id,
+                        highestScore);
+                }
+
+                return new MatchResult
+                {
+                    MatchedPaper = bestMatch,
+                    ConfidenceScore = highestScore,
+                    Strategy = bestStrategy,
+                    IsSnapshotDuplicate = true
+                };
+            }
+
+            return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
         }
     }
 }

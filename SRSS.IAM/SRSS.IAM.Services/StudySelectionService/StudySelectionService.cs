@@ -1224,7 +1224,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 null,
                 cancellationToken);
 
-            var citationCount = await _unitOfWork.PaperCitations.CountByTargetAsync(paper.Id, cancellationToken);
+            var citationCount = paper.ExternalCitationCount ?? 0;
             var referenceCount = await _unitOfWork.PaperCitations.CountBySourceAsync(paper.Id, cancellationToken);
 
             // Batch-resolve user names for decisions + resolution

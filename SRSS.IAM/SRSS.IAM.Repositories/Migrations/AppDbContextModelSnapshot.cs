@@ -31,14 +31,32 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("Authors")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("authors");
+
+                    b.Property<Guid?>("CitationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ConfidenceScore")
+                        .HasColumnType("numeric")
+                        .HasColumnName("confidence_score");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("DOI")
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("doi");
+
+                    b.Property<decimal>("ExtractionQualityScore")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("IsSelectedInScreening")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("MatchConfidenceScore")
+                        .HasColumnType("numeric");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -51,29 +69,53 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("PublicationYear")
                         .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("publication_year");
 
                     b.Property<string>("RawReference")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("ReferenceEntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ReferenceType")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("ReviewProcessId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SelectedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("TargetPaperId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("title");
 
-                    b.HasKey("Id");
+                    b.Property<string>("ValidationNote")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id")
+                        .HasName("id");
+
+                    b.HasIndex("CitationId");
 
                     b.HasIndex("OriginPaperId");
 
+                    b.HasIndex("ReferenceEntityId");
+
                     b.HasIndex("ReviewProcessId");
 
-                    b.ToTable("CandidatePapers", (string)null);
+                    b.HasIndex("TargetPaperId");
+
+                    b.ToTable("candidate_papers", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
@@ -209,6 +251,51 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ExtractionStrategyId");
 
                     b.ToTable("data_extraction_form", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionProcess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ReviewProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_process_id");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewProcessId")
+                        .IsUnique();
+
+                    b.ToTable("data_extraction_process", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionStrategy", b =>
@@ -464,6 +551,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("value_id");
 
+                    b.Property<bool?>("BooleanValue")
+                        .HasColumnType("boolean")
+                        .HasColumnName("boolean_value");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -471,6 +562,20 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid")
                         .HasColumnName("field_id");
+
+                    b.Property<bool>("IsConsensusFinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_consensus_final");
+
+                    b.Property<Guid?>("MatrixColumnId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("matrix_column_id");
+
+                    b.Property<int?>("MatrixRowIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("matrix_row_index");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -501,6 +606,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("FieldId");
 
+                    b.HasIndex("MatrixColumnId");
+
                     b.HasIndex("OptionId");
 
                     b.HasIndex("PaperId");
@@ -509,137 +616,257 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("PaperId", "FieldId");
 
-                    b.ToTable("extracted_data_values", (string)null);
+                    b.ToTable("extracted_data_value", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionField", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("field_id");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("FieldType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("field_type");
+                    b.Property<int>("FieldType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Instruction")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("instruction");
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_required");
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("name");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<int>("OrderIndex")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("order_index");
+                        .HasDefaultValue(0);
 
                     b.Property<Guid?>("ParentFieldId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("parent_field_id");
+                        .HasColumnType("uuid");
 
-                    b.Property<Guid>("TemplateId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("template_id");
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ParentFieldId");
 
+                    b.HasIndex("SectionId");
+
+                    b.ToTable("extraction_field", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionMatrixColumn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SectionId");
+
+                    b.ToTable("ExtractionMatrixColumns");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionPaperTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("AdjudicatorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("adjudicator_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("DataExtractionProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("data_extraction_process_id");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid?>("Reviewer1Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_1_id");
+
+                    b.Property<string>("Reviewer1Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reviewer_1_status");
+
+                    b.Property<Guid?>("Reviewer2Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_2_id");
+
+                    b.Property<string>("Reviewer2Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reviewer_2_status");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdjudicatorId");
+
+                    b.HasIndex("DataExtractionProcessId");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("Reviewer1Id");
+
+                    b.HasIndex("Reviewer2Id");
+
+                    b.ToTable("extraction_paper_task", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionSection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("OrderIndex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("SectionType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
                     b.HasIndex("TemplateId");
 
-                    b.ToTable("extraction_fields", (string)null);
+                    b.ToTable("extraction_section", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionTemplate", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("template_id");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("name");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("ProtocolId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("protocol_id");
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ProtocolId");
 
-                    b.ToTable("extraction_templates", (string)null);
+                    b.ToTable("extraction_template", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.FieldOption", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("option_id");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("display_order");
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("FieldId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("field_id");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Value")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("value");
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FieldId");
 
-                    b.ToTable("field_options", (string)null);
+                    b.ToTable("field_option", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.FullTextScreening", b =>
@@ -1120,6 +1347,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("doi");
 
+                    b.Property<int>("EnrichmentStatus")
+                        .HasColumnType("integer");
+
                     b.Property<int?>("ExternalCitationCount")
                         .HasColumnType("integer")
                         .HasColumnName("external_citation_count");
@@ -1258,10 +1488,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
 
-                    b.Property<Guid?>("ReviewProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("review_process_id");
-
                     b.Property<string>("Source")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -1298,8 +1524,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ImportBatchId");
 
                     b.HasIndex("ProjectId");
-
-                    b.HasIndex("ReviewProcessId");
 
                     b.ToTable("papers", (string)null);
                 });
@@ -1369,11 +1593,23 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(255)")
                         .HasColumnName("external_id");
 
+                    b.Property<decimal>("ExtractionQuality")
+                        .HasColumnType("numeric");
+
                     b.Property<bool>("IsExternal")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false)
                         .HasColumnName("is_external");
+
+                    b.Property<bool>("IsLowConfidence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_low_confidence");
+
+                    b.Property<decimal>("MatchConfidence")
+                        .HasColumnType("numeric");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -1382,6 +1618,15 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("RawReference")
                         .HasColumnType("text")
                         .HasColumnName("raw_reference");
+
+                    b.Property<Guid?>("ReferenceEntityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reference_entity_id");
+
+                    b.Property<string>("ReferenceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("reference_type");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -1392,7 +1637,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("source_paper_id");
 
-                    b.Property<Guid>("TargetPaperId")
+                    b.Property<Guid?>("TargetPaperId")
                         .HasColumnType("uuid")
                         .HasColumnName("target_paper_id");
 
@@ -1402,12 +1647,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReferenceEntityId");
+
                     b.HasIndex("SourcePaperId");
 
                     b.HasIndex("TargetPaperId");
-
-                    b.HasIndex("SourcePaperId", "TargetPaperId")
-                        .IsUnique();
 
                     b.ToTable("paper_citations", (string)null);
                 });
@@ -1996,6 +2240,221 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("protocol_version", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("AssignedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("assigned_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("QualityAssessmentProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quality_assessment_process_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QualityAssessmentProcessId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("quality_assessment_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid>("QualityAssessmentProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quality_assessment_process_id");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reviewer_id");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("score");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("QualityAssessmentProcessId");
+
+                    b.HasIndex("ReviewerId");
+
+                    b.ToTable("quality_assessment_decisions", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecisionItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text")
+                        .HasColumnName("comment");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("QualityAssessmentDecisionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quality_assessment_decision_id");
+
+                    b.Property<Guid>("QualityCriterionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quality_criterion_id");
+
+                    b.Property<int?>("Value")
+                        .HasColumnType("integer")
+                        .HasColumnName("value");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QualityAssessmentDecisionId");
+
+                    b.HasIndex("QualityCriterionId");
+
+                    b.ToTable("quality_assessment_decision_items", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ReviewProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("review_process_id");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewProcessId")
+                        .IsUnique();
+
+                    b.ToTable("quality_assessment_processes", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentResolution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FinalDecision")
+                        .HasColumnType("integer")
+                        .HasColumnName("final_decision");
+
+                    b.Property<decimal?>("FinalScore")
+                        .HasColumnType("numeric")
+                        .HasColumnName("final_score");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<Guid>("QualityAssessmentProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("quality_assessment_process_id");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("resolution_notes");
+
+                    b.Property<DateTimeOffset>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("resolved_at");
+
+                    b.Property<Guid>("ResolvedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("resolved_by");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperId");
+
+                    b.HasIndex("QualityAssessmentProcessId");
+
+                    b.HasIndex("ResolvedBy");
+
+                    b.ToTable("quality_assessment_resolutions", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentStrategy", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2113,6 +2572,59 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("question_type", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReferenceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Authors")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("authors");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DOI")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("doi");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("RawReference")
+                        .HasColumnType("text")
+                        .HasColumnName("raw_reference");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("url");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DOI");
+
+                    b.HasIndex("Type");
+
+                    b.ToTable("reference_entities", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ResearchQuestion", b =>
@@ -2893,12 +3405,35 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("quality_assessment_assignment_papers", b =>
+                {
+                    b.Property<Guid>("paper_id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("quality_assessment_assignment_id")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("paper_id", "quality_assessment_assignment_id");
+
+                    b.HasIndex("quality_assessment_assignment_id");
+
+                    b.ToTable("quality_assessment_assignment_papers");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CandidatePaper", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperCitation", "Citation")
+                        .WithMany()
+                        .HasForeignKey("CitationId");
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "OriginPaper")
                         .WithMany()
                         .HasForeignKey("OriginPaperId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReferenceEntity", "ReferenceEntity")
+                        .WithMany()
+                        .HasForeignKey("ReferenceEntityId");
 
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
                         .WithMany()
@@ -2906,9 +3441,19 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "TargetPaper")
+                        .WithMany()
+                        .HasForeignKey("TargetPaperId");
+
+                    b.Navigation("Citation");
+
                     b.Navigation("OriginPaper");
 
+                    b.Navigation("ReferenceEntity");
+
                     b.Navigation("ReviewProcess");
+
+                    b.Navigation("TargetPaper");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CommissioningDocument", b =>
@@ -2953,6 +3498,17 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsRequired();
 
                     b.Navigation("ExtractionStrategy");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionProcess", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
+                        .WithOne("DataExtractionProcess")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.DataExtractionProcess", "ReviewProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReviewProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionStrategy", b =>
@@ -3045,6 +3601,11 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionMatrixColumn", "MatrixColumn")
+                        .WithMany()
+                        .HasForeignKey("MatrixColumnId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.FieldOption", "Option")
                         .WithMany()
                         .HasForeignKey("OptionId")
@@ -3064,6 +3625,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("Field");
 
+                    b.Navigation("MatrixColumn");
+
                     b.Navigation("Option");
 
                     b.Navigation("Paper");
@@ -3076,15 +3639,77 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionField", "ParentField")
                         .WithMany("SubFields")
                         .HasForeignKey("ParentFieldId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Cascade);
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionTemplate", "Template")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionSection", "Section")
                         .WithMany("Fields")
-                        .HasForeignKey("TemplateId")
+                        .HasForeignKey("SectionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("ParentField");
+
+                    b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionMatrixColumn", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionSection", "Section")
+                        .WithMany("MatrixColumns")
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Section");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionPaperTask", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "Adjudicator")
+                        .WithMany()
+                        .HasForeignKey("AdjudicatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.DataExtractionProcess", "DataExtractionProcess")
+                        .WithMany("ExtractionPaperTasks")
+                        .HasForeignKey("DataExtractionProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany()
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer1")
+                        .WithMany()
+                        .HasForeignKey("Reviewer1Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer2")
+                        .WithMany()
+                        .HasForeignKey("Reviewer2Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Adjudicator");
+
+                    b.Navigation("DataExtractionProcess");
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("Reviewer1");
+
+                    b.Navigation("Reviewer2");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionSection", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionTemplate", "Template")
+                        .WithMany("Sections")
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Template");
                 });
@@ -3230,16 +3855,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
-                        .WithMany()
-                        .HasForeignKey("ReviewProcessId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("ImportBatch");
 
                     b.Navigation("Project");
-
-                    b.Navigation("ReviewProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperAssignment", b =>
@@ -3271,6 +3889,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReferenceEntity", "ReferenceEntity")
+                        .WithMany("IncomingCitations")
+                        .HasForeignKey("ReferenceEntityId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "SourcePaper")
                         .WithMany("OutgoingCitations")
                         .HasForeignKey("SourcePaperId")
@@ -3280,8 +3903,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "TargetPaper")
                         .WithMany("IncomingCitations")
                         .HasForeignKey("TargetPaperId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ReferenceEntity");
 
                     b.Navigation("SourcePaper");
 
@@ -3454,6 +4078,109 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsRequired();
 
                     b.Navigation("Protocol");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
+                        .WithMany("QualityAssessmentAssignments")
+                        .HasForeignKey("QualityAssessmentProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("QualityAssessmentProcess");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany("QualityAssessmentDecisions")
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
+                        .WithMany("QualityAssessmentDecisions")
+                        .HasForeignKey("QualityAssessmentProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer")
+                        .WithMany()
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("QualityAssessmentProcess");
+
+                    b.Navigation("Reviewer");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecisionItem", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", "QualityAssessmentDecision")
+                        .WithMany("DecisionItems")
+                        .HasForeignKey("QualityAssessmentDecisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityCriterion", "QualityCriterion")
+                        .WithMany()
+                        .HasForeignKey("QualityCriterionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("QualityAssessmentDecision");
+
+                    b.Navigation("QualityCriterion");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
+                        .WithOne("QualityAssessmentProcess")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "ReviewProcessId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReviewProcess");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentResolution", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany()
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
+                        .WithMany("QualityAssessmentResolutions")
+                        .HasForeignKey("QualityAssessmentProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.User", "ResolvedByUser")
+                        .WithMany()
+                        .HasForeignKey("ResolvedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
+
+                    b.Navigation("QualityAssessmentProcess");
+
+                    b.Navigation("ResolvedByUser");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentStrategy", b =>
@@ -3682,9 +4409,29 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("StudySelectionProcess");
                 });
 
+            modelBuilder.Entity("quality_assessment_assignment_papers", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
+                        .WithMany()
+                        .HasForeignKey("paper_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("quality_assessment_assignment_id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionForm", b =>
                 {
                     b.Navigation("DataItems");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionProcess", b =>
+                {
+                    b.Navigation("ExtractionPaperTasks");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionStrategy", b =>
@@ -3699,9 +4446,16 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("SubFields");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionTemplate", b =>
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionSection", b =>
                 {
                     b.Navigation("Fields");
+
+                    b.Navigation("MatrixColumns");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionTemplate", b =>
+                {
+                    b.Navigation("Sections");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcess", b =>
@@ -3733,6 +4487,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("PaperAssignments");
 
                     b.Navigation("PaperPdfs");
+
+                    b.Navigation("QualityAssessmentDecisions");
 
                     b.Navigation("ScreeningDecisions");
 
@@ -3778,6 +4534,20 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Evaluations");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", b =>
+                {
+                    b.Navigation("DecisionItems");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
+                {
+                    b.Navigation("QualityAssessmentAssignments");
+
+                    b.Navigation("QualityAssessmentDecisions");
+
+                    b.Navigation("QualityAssessmentResolutions");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentStrategy", b =>
                 {
                     b.Navigation("Checklists");
@@ -3793,6 +4563,11 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ResearchQuestions");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReferenceEntity", b =>
+                {
+                    b.Navigation("IncomingCitations");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ResearchQuestion", b =>
                 {
                     b.Navigation("PicocElements");
@@ -3800,9 +4575,13 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewProcess", b =>
                 {
+                    b.Navigation("DataExtractionProcess");
+
                     b.Navigation("IdentificationProcess");
 
                     b.Navigation("PrismaReports");
+
+                    b.Navigation("QualityAssessmentProcess");
 
                     b.Navigation("StudySelectionProcess");
                 });

@@ -9,7 +9,13 @@ namespace SRSS.IAM.Repositories
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
-			   => builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		{
+			// Register the pgvector extension so EF migrations include:
+			// CREATE EXTENSION IF NOT EXISTS vector;
+			builder.HasPostgresExtension("vector");
+
+			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		}
 		/*
          Mục đích của việc sử dụng Assembly ở đây là:
             Tự động hóa cấu hình (Automation): Thay vì phải viết thủ công từng dòng builder.Entity<MyEntity>().Has... cho mọi thực thể (entity) trong dự án, bạn có thể tạo các lớp cấu hình riêng biệt (implementing IEntityTypeConfiguration<T>).
@@ -92,5 +98,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
 		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
+
+		// RAG pipeline
+		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
 	}
 }

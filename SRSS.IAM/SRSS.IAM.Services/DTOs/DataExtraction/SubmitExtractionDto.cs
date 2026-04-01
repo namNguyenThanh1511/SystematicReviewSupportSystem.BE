@@ -23,5 +23,10 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public Guid? MatrixColumnId { get; set; }
 
         public int? MatrixRowIndex { get; set; }
+
+        /// <summary>
+        /// JSON-serialized array of bounding box coordinates (page, x, y, w, h) providing evidence from the PDF.
+        /// </summary>
+        public string? EvidenceCoordinates { get; set; }
     }
 }

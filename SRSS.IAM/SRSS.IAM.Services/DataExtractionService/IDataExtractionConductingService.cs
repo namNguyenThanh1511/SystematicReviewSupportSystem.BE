@@ -14,5 +14,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 		Task<ExtractionPreviewDto> GetPivotedExtractionDataAsync(Guid extractionProcessId);
 		Task ReopenExtractionAsync(Guid extractionProcessId, Guid paperId, ReopenExtractionRequestDto request);
 		Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId);
+		Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default);
+		Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken);
 	}
 }

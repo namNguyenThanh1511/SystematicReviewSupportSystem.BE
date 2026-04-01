@@ -118,6 +118,11 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Citations where this paper is the target (it is cited by other papers)
         public ICollection<PaperCitation> IncomingCitations { get; set; } = new List<PaperCitation>();
+
+        // ============================================
+        // RAG PIPELINE (Chunk-based semantic search)
+        // ============================================
+        public ICollection<PaperChunk> PaperChunks { get; set; } = new List<PaperChunk>();
     }
 
     public enum AccessType

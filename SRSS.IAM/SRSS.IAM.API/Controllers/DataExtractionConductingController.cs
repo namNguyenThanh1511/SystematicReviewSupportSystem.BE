@@ -103,5 +103,31 @@ namespace SRSS.IAM.API.Controllers
 			var result = await _extractionService.AutoExtractWithAiAsync(extractionProcessId, paperId);
 			return Ok(result, "Auto-extracted data retrieved successfully.");
 		}
+
+		[HttpPost("{extractionProcessId}/ask-ai-field")]
+		public async Task<ActionResult<ApiResponse<ExtractedValueDto>>> AskAiSingleField(
+			[FromRoute] Guid extractionProcessId,
+			[FromBody] AskAiFieldRequestDto request,
+            CancellationToken cancellationToken)
+		{
+			var result = await _extractionService.AskAiSingleFieldAsync(extractionProcessId, request, cancellationToken);
+			return Ok(result, "AI extracted single field successfully.");
+		}
+
+		/// <summary>
+		/// Leader Bypass: Allows a Project Leader to directly submit final extraction data
+		/// for a paper, skipping the double-blind reviewer workflow and consensus phase entirely.
+		/// The submitted values are persisted as IsConsensusFinal = true.
+		/// </summary>
+		[HttpPost("{extractionProcessId}/papers/{paperId}/direct-extract")]
+		public async Task<ActionResult<ApiResponse<object>>> DirectExtractByLeader(
+			[FromRoute] Guid extractionProcessId,
+			[FromRoute] Guid paperId,
+			[FromBody] SubmitExtractionRequestDto request,
+			CancellationToken cancellationToken)
+		{
+			await _extractionService.DirectExtractByLeaderAsync(extractionProcessId, paperId, request, cancellationToken);
+			return Ok<object>(new object(), "Direct extraction by leader completed successfully.");
+		}
 	}
 }

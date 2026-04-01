@@ -41,10 +41,11 @@ public class GrobidClient : IGrobidClient
         int consolidateHeader = 0,
         int consolidateCitations = 0,
         int consolidateFunders = 0,
-        bool segmentSentences = false)
+        bool segmentSentences = false,
+        IEnumerable<string>? teiCoordinates = null)
     {
         return await SendRequestWithRetryAsync(
-            CreateFulltextContent(pdfStream, consolidateHeader, consolidateCitations, consolidateFunders, segmentSentences),
+            CreateFulltextContent(pdfStream, consolidateHeader, consolidateCitations, consolidateFunders, segmentSentences, teiCoordinates),
             2, TimeSpan.FromSeconds(7));
     }
 
@@ -83,7 +84,7 @@ public class GrobidClient : IGrobidClient
     }
 
     private Func<HttpRequestMessage> CreateFulltextContent(
-        Stream pdfStream, int consolidateHeader, int consolidateCitations, int consolidateFunders, bool segmentSentences)
+        Stream pdfStream, int consolidateHeader, int consolidateCitations, int consolidateFunders, bool segmentSentences, IEnumerable<string>? teiCoordinates)
     {
         return () =>
         {
@@ -93,6 +94,14 @@ public class GrobidClient : IGrobidClient
             content.Add(new StringContent(consolidateCitations.ToString()), "consolidateCitations");
             content.Add(new StringContent(consolidateFunders.ToString()), "consolidateFunders");
             content.Add(new StringContent(segmentSentences ? "1" : "0"), "segmentSentences");
+
+            if (teiCoordinates != null && teiCoordinates.Any())
+            {
+                foreach (var element in teiCoordinates)
+                {
+                    content.Add(new StringContent(element), "teiCoordinates");
+                }
+            }
 
             var request = new HttpRequestMessage(HttpMethod.Post, "api/processFulltextDocument")
             {
@@ -151,7 +160,7 @@ public class GrobidClient : IGrobidClient
         {
             using var request = requestFactory();
             HttpResponseMessage response;
-            
+
             try
             {
                 response = await _httpClient.SendAsync(request);
@@ -160,7 +169,7 @@ public class GrobidClient : IGrobidClient
             {
                 throw new GrobidTimeoutException("Request to GROBID API timed out.");
             }
-            
+
             if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable && attempt < maxRetries)
             {
                 await Task.Delay(retryDelay);
@@ -183,10 +192,10 @@ public class GrobidClient : IGrobidClient
         var content = await response.Content.ReadAsStringAsync();
         var errorMessage = $"GROBID API Error ({(int)response.StatusCode}): {content}";
 
-        if (content.Contains("BAD_INPUT_DATA") || 
-            content.Contains("NO_BLOCKS") || 
-            content.Contains("TOO_MANY_BLOCKS") || 
-            content.Contains("TOO_MANY_TOKENS") || 
+        if (content.Contains("BAD_INPUT_DATA") ||
+            content.Contains("NO_BLOCKS") ||
+            content.Contains("TOO_MANY_BLOCKS") ||
+            content.Contains("TOO_MANY_TOKENS") ||
             content.Contains("PDFALTO_CONVERSION_FAILURE"))
         {
             throw new GrobidInvalidPdfException(errorMessage);

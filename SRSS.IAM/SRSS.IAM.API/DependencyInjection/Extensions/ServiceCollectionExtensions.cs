@@ -44,6 +44,9 @@ using Polly.Extensions.Http;
 using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.RagService;
+using SmartComponents.LocalEmbeddings;
+
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
     public static class ServiceCollectionExtensions
@@ -115,6 +118,13 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Paper enrichment (OpenAlex metadata)
             services.AddScoped<IPaperEnrichmentService, PaperEnrichmentService>();
+
+            // RAG pipeline — Local CPU embedding (Singleton: ONNX model loads once)
+            services.AddSingleton<LocalEmbedder>();
+            services.AddSingleton<ILocalEmbeddingService, LocalEmbeddingService>();
+            services.AddSingleton<IRagIngestionQueue, RagIngestionQueue>();
+            services.AddHostedService<RagIngestionBackgroundService>();
+            services.AddScoped<IRagRetrievalService, RagRetrievalService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

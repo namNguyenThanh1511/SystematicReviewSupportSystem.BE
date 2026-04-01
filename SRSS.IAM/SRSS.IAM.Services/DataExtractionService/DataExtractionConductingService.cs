@@ -11,6 +11,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using ClosedXML.Excel;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.RagService;
 using System.Xml.Linq;
 
 namespace SRSS.IAM.Services.DataExtractionService
@@ -22,19 +23,22 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IGrobidService _grobidService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly IRagRetrievalService _ragRetrievalService;
 
         public DataExtractionConductingService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IGrobidService grobidService,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IRagRetrievalService ragRetrievalService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _grobidService = grobidService;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _ragRetrievalService = ragRetrievalService;
         }
 
         private async Task SyncEligiblePapersAsync(Guid extractionProcessId)
@@ -401,8 +405,12 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed)
                 throw new InvalidOperationException($"Task is not in a valid state to view consensus. Current status: {task.Status}");
 
-            if (!task.Reviewer1Id.HasValue || !task.Reviewer2Id.HasValue)
-                throw new InvalidOperationException("Consensus requires two reviewers.");
+            // Determine extraction mode
+            bool isDirectExtraction = task.AdjudicatorId.HasValue && !task.Reviewer1Id.HasValue && !task.Reviewer2Id.HasValue;
+            bool isDoubleBlind = task.Reviewer1Id.HasValue && task.Reviewer2Id.HasValue;
+
+            if (!isDirectExtraction && !isDoubleBlind)
+                throw new InvalidOperationException("Cannot view consensus: task is neither a valid double-blind nor a direct extraction.");
 
             // Get protocol ID
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
@@ -425,10 +433,23 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (template == null)
                 throw new InvalidOperationException("Extraction template not found.");
 
-            // Fetch extracted answers
-            var extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
-                e.PaperId == paperId &&
-                (e.ReviewerId == task.Reviewer1Id.Value || e.ReviewerId == task.Reviewer2Id.Value || e.IsConsensusFinal == true));
+            // Safe reviewer IDs: fall back to Guid.Empty for direct extraction (no-op in MapConsensusField)
+            var r1Id = task.Reviewer1Id ?? Guid.Empty;
+            var r2Id = task.Reviewer2Id ?? Guid.Empty;
+
+            // Fetch extracted answers — for direct extraction only load final consensus records
+            IEnumerable<ExtractedDataValue> extractedValues;
+            if (isDirectExtraction)
+            {
+                extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                    e.PaperId == paperId && e.IsConsensusFinal == true);
+            }
+            else
+            {
+                extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                    e.PaperId == paperId &&
+                    (e.ReviewerId == r1Id || e.ReviewerId == r2Id || e.IsConsensusFinal == true));
+            }
 
             var valuesList = extractedValues.ToList();
 
@@ -436,8 +457,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 PaperId = paperId,
                 TemplateId = template.Id,
-                Reviewer1Id = task.Reviewer1Id.Value,
-                Reviewer2Id = task.Reviewer2Id.Value,
+                Reviewer1Id = r1Id,
+                Reviewer2Id = r2Id,
                 Sections = template.Sections.OrderBy(s => s.OrderIndex).Select(s => new ConsensusSectionDto
                 {
                     SectionId = s.Id,
@@ -453,7 +474,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                         OrderIndex = c.OrderIndex
                     }).ToList() ?? new List<ExtractionMatrixColumnDto>(),
                     Fields = s.Fields.Where(f => f.ParentFieldId == null).OrderBy(f => f.OrderIndex)
-                        .Select(f => MapConsensusField(f, valuesList, task.Reviewer1Id.Value, task.Reviewer2Id.Value))
+                        .Select(f => MapConsensusField(f, valuesList, r1Id, r2Id))
                         .ToList()
                 }).ToList()
             };
@@ -923,17 +944,28 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             // 3. State Reversal
-            if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
+            if (request.Target == TargetReviewer.Direct)
             {
-                task.Reviewer1Status = ReviewerTaskStatus.InProgress;
+                // Direct-extraction reopen: reset to NotStarted so the leader can
+                // re-assign reviewers or run DirectExtract again. Reviewer statuses
+                // are intentionally left as-is (they were never set in a direct flow).
+                task.AdjudicatorId = null;
+                task.Status = PaperExtractionStatus.NotStarted;
             }
-
-            if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+            else
             {
-                task.Reviewer2Status = ReviewerTaskStatus.InProgress;
-            }
+                if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
+                {
+                    task.Reviewer1Status = ReviewerTaskStatus.InProgress;
+                }
 
-            task.Status = PaperExtractionStatus.InProgress;
+                if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+                {
+                    task.Reviewer2Status = ReviewerTaskStatus.InProgress;
+                }
+
+                task.Status = PaperExtractionStatus.InProgress;
+            }
 
             // 4. Data Cleanup: Remove any existing consensus data (IsConsensusFinal == true)
             var consensusValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
@@ -1001,16 +1033,29 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (!string.IsNullOrWhiteSpace(title)) sb.AppendLine($"TITLE: {title}\n");
 
             // 2. Extract Authors
-            var authorNodes = doc.Descendants().Where(x => x.Name.LocalName == "author");
+            var teiHeaderNode = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "teiHeader");
+
+            var authorNodes = teiHeaderNode != null
+                ? teiHeaderNode.Descendants().Where(x => x.Name.LocalName == "author")
+                : Enumerable.Empty<XElement>();
+
             var authorsList = new List<string>();
             foreach (var author in authorNodes)
             {
                 var names = author.Descendants()
                                 .Where(x => x.Name.LocalName == "forename" || x.Name.LocalName == "surname")
                                 .Select(x => x.Value);
-                if (names.Any()) authorsList.Add(string.Join(" ", names));
+
+                if (names.Any())
+                {
+                    authorsList.Add(string.Join(" ", names));
+                }
             }
-            if (authorsList.Any()) sb.AppendLine($"AUTHORS: {string.Join(", ", authorsList)}\n");
+
+            if (authorsList.Any())
+            {
+                sb.AppendLine($"AUTHORS: {string.Join(", ", authorsList)}\n");
+            }
 
             // 3. Extract Publication Date/Year
             var dateNode = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "date" && x.Attribute("type")?.Value == "published");
@@ -1174,6 +1219,222 @@ If no data is found for a field, omit it or leave values as null.
             {
                 throw new InvalidOperationException("Failed to parse Gemini response.", ex);
             }
+        }
+
+        public async Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var extractionTask = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == request.PaperId, cancellationToken);
+
+            if (extractionTask == null)
+                throw new InvalidOperationException($"Extraction task for paper {request.PaperId} not found.");
+
+            // string searchQuestion = $"{request.FieldName}. {request.FieldInstruction}".Trim();
+
+            string searchQuestion = request.FieldName;
+            if (!string.IsNullOrWhiteSpace(request.FieldInstruction))
+            {
+                searchQuestion += $". {request.FieldInstruction}";
+            }
+            searchQuestion += ". Identify related methods, techniques, approaches, or strategies.";
+
+            var relevantChunks = await _ragRetrievalService.GetRelevantChunksAsync(request.PaperId, searchQuestion, topK: 12, cancellationToken);
+            if (relevantChunks == null || !relevantChunks.Any())
+                return null;
+
+            var coordinatesList = new List<object>();
+            var textContextBuilder = new System.Text.StringBuilder();
+
+            foreach (var chunk in relevantChunks)
+            {
+                textContextBuilder.AppendLine(chunk.TextContent);
+                textContextBuilder.AppendLine("---");
+
+                if (!string.IsNullOrWhiteSpace(chunk.CoordinatesJson))
+                {
+                    try
+                    {
+                        var coords = JsonSerializer.Deserialize<List<object>>(chunk.CoordinatesJson);
+                        if (coords != null)
+                        {
+                            coordinatesList.AddRange(coords);
+                        }
+                    }
+                    catch { /* ignore invalid json */ }
+                }
+            }
+
+            string combinedCoordinates = JsonSerializer.Serialize(coordinatesList);
+            string combinedContext = textContextBuilder.ToString();
+
+            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException("Gemini API key is not configured.");
+
+            string optionsInstruction = string.IsNullOrWhiteSpace(request.OptionsJson)
+                ? ""
+                : $"\nValid Options (JSON format: [OptionId, Value]): {request.OptionsJson}\nYou MUST match your extracted answer to ONE of the OptionIds provided above if applicable.\n";
+
+            string prompt = $@"
+You are an expert academic researcher. 
+Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
+
+Field Name: {request.FieldName}
+Field Type: {request.FieldType}
+Instructions: {request.FieldInstruction}
+{optionsInstruction}
+
+You MUST return ONLY a JSON object that exactly matches the following structure (ExtractedValueDto):
+{{
+  ""FieldId"": ""{request.FieldId}"",
+  ""OptionId"": ""uuid or null"",
+  ""StringValue"": ""extracted text or null"",
+  ""NumericValue"": decimal or null,
+  ""BooleanValue"": boolean or null
+}}
+
+Do not include any other markdown formatting like ```json or comments. 
+If no relevant data is found in the context, return a JSON object with null values for OptionId, StringValue, NumericValue, and BooleanValue.
+
+=== PAPER CONTEXT ===
+{combinedContext}
+";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[] { new { text = prompt } }
+                    }
+                },
+                generationConfig = new { responseMimeType = "application/json" }
+            };
+
+            var httpClient = _httpClientFactory.CreateClient();
+            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload, cancellationToken);
+
+            if (!geminiResponse.IsSuccessStatusCode)
+            {
+                var errorStr = await geminiResponse.Content.ReadAsStringAsync(cancellationToken);
+                throw new InvalidOperationException($"Gemini API error: {errorStr}");
+            }
+
+            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
+            try
+            {
+                var responseText = geminiResult?.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text").GetString();
+
+                if (string.IsNullOrWhiteSpace(responseText))
+                    return null;
+
+                responseText = responseText.Trim();
+                if (responseText.StartsWith("```json")) responseText = responseText.Substring(7);
+                if (responseText.StartsWith("```")) responseText = responseText.Substring(3);
+                if (responseText.EndsWith("```")) responseText = responseText.Substring(0, responseText.Length - 3);
+                responseText = responseText.Trim();
+
+                var extractedValue = JsonSerializer.Deserialize<ExtractedValueDto>(responseText, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (extractedValue != null)
+                {
+                    extractedValue.EvidenceCoordinates = combinedCoordinates;
+                    extractedValue.MatrixColumnId = request.MatrixColumnId;
+                    extractedValue.MatrixRowIndex = request.MatrixRowIndex;
+                }
+
+                return extractedValue;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to parse Gemini response for single field.", ex);
+            }
+        }
+
+        public async Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken)
+        {
+            // 1. Resolve & validate current user
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+
+            // 2. Load the extraction process to get the project context
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId, cancellationToken);
+
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            // 3. Authorization: current user must be a Project Leader
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId, cancellationToken);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+
+            // 4. Find the ExtractionPaperTask for this paper
+            var task = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId, cancellationToken);
+
+            if (task == null)
+                throw new InvalidOperationException($"Extraction task for paper {paperId} in process {extractionProcessId} not found.");
+
+            if (task.Status == PaperExtractionStatus.Completed)
+                throw new InvalidOperationException($"Extraction task for paper {paperId} is already Completed. Use Reopen to make changes.");
+
+            // 5. Replace-semantics: remove any existing consensus values for this paper
+            var existingConsensusFinalValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(
+                e => e.PaperId == paperId && e.IsConsensusFinal == true);
+
+            if (existingConsensusFinalValues != null && existingConsensusFinalValues.Any())
+            {
+                foreach (var val in existingConsensusFinalValues)
+                    await _unitOfWork.ExtractedDataValues.RemoveAsync(val);
+            }
+
+            // 6. Persist the payload directly as final consensus records (IsConsensusFinal = true)
+            var directValues = payload.Values.Select(v => new ExtractedDataValue
+            {
+                Id = Guid.NewGuid(),
+                PaperId = paperId,
+                FieldId = v.FieldId,
+                ReviewerId = currentUserId,   // the adjudicating leader
+                OptionId = v.OptionId,
+                StringValue = v.StringValue,
+                NumericValue = v.NumericValue,
+                BooleanValue = v.BooleanValue,
+                MatrixColumnId = v.MatrixColumnId,
+                MatrixRowIndex = v.MatrixRowIndex,
+                IsConsensusFinal = true,       // CRITICAL: marks as final, bypassing reviewers
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            }).ToList();
+
+            await _unitOfWork.ExtractedDataValues.AddRangeAsync(directValues);
+
+            // 7. Force task to Completed, bypassing InProgress / AwaitingConsensus
+            task.AdjudicatorId = currentUserId;
+            task.Reviewer1Status = ReviewerTaskStatus.Completed;
+            task.Reviewer2Status = ReviewerTaskStatus.Completed;
+            task.Status = PaperExtractionStatus.Completed;
+            task.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
         }
 
         private object GetSimplifiedFields(IEnumerable<ExtractionField> fields)

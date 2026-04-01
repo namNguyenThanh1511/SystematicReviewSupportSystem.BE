@@ -8,6 +8,7 @@ using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.NotificationService;
+using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 namespace SRSS.IAM.Services.StudySelectionService
@@ -20,6 +21,7 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly INotificationService _notificationService;
         private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
         private readonly ILogger<StudySelectionService> _logger;
+        private readonly IRagIngestionQueue _ragQueue;
 
         public StudySelectionService(
             IUnitOfWork unitOfWork,
@@ -27,7 +29,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             IMetadataMergeService metadataMergeService,
             INotificationService notificationService,
             IStudySelectionProcessPaperService studySelectionProcessPaperService,
-            ILogger<StudySelectionService> logger)
+            ILogger<StudySelectionService> logger,
+            IRagIngestionQueue ragQueue
+            )
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
@@ -35,6 +39,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             _notificationService = notificationService;
             _studySelectionProcessPaperService = studySelectionProcessPaperService;
             _logger = logger;
+            _ragQueue = ragQueue;
         }
 
         public async Task<StudySelectionProcessResponse> CreateStudySelectionProcessAsync(
@@ -1824,6 +1829,17 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ==========================================
+            // THÊM ĐOẠN CODE NÀY ĐỂ KÍCH HOẠT RAG INGESTION
+            // ==========================================
+            if (!string.IsNullOrWhiteSpace(request.PdfUrl))
+            {
+                _logger.LogInformation("Queuing paper {PaperId} for RAG Background Ingestion.", paperId);
+
+                // Đẩy PaperId và PdfUrl vào hàng đợi chạy ngầm
+                await _ragQueue.QueuePaperForIngestionAsync(paperId, request.PdfUrl, cancellationToken);
+            }
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
 

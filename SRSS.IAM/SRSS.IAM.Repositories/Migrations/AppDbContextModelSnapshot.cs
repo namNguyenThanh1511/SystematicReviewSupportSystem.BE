@@ -1342,6 +1342,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("CurrentFileHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("DOI")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
@@ -1694,6 +1697,33 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("paper_embeddings", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullText", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PaperPdfId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RawXml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperPdfId")
+                        .IsUnique();
+
+                    b.ToTable("paper_full_texts", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1703,6 +1733,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("FileHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("FileName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1710,6 +1743,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("FilePath")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("FullTextProcessed")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("GrobidProcessed")
                         .HasColumnType("boolean");
@@ -1719,6 +1755,12 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<Guid>("PaperId")
                         .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("RefsExtracted")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1793,6 +1835,10 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<int>("Source")
                         .HasColumnType("integer");
+
+                    b.Property<List<string>>("SuggestedFields")
+                        .IsRequired()
+                        .HasColumnType("text[]");
 
                     b.Property<string>("Title")
                         .HasColumnType("text");
@@ -3923,6 +3969,17 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Paper");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullText", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperPdf", "PaperPdf")
+                        .WithOne("PaperFullText")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperFullText", "PaperPdfId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PaperPdf");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
@@ -4504,6 +4561,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.Navigation("GrobidHeaderResult");
+
+                    b.Navigation("PaperFullText");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PicocElement", b =>

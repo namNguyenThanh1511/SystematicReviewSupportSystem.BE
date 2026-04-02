@@ -26,6 +26,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Url { get; set; }
         public string? RawReference { get; set; }
         public string? Md5 { get; set; }
+        public string? CurrentFileHash { get; set; }
         public PaperEmbedding? TitleEmbedding { get; set; }
 
         // ============================================

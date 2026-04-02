@@ -48,6 +48,7 @@ using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.ReferenceProcessingService;
+using SRSS.IAM.Services.PaperFullTextService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -132,6 +133,11 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Reference processing background worker
             services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<ReferenceProcessingJob>());
             services.AddHostedService<ReferenceProcessingBackgroundService>();
+
+            // Paper full-text extraction background worker
+            services.AddSingleton<IPaperFullTextQueue, PaperFullTextQueue>();
+            services.AddScoped<IPaperFullTextService, PaperFullTextService>();
+            services.AddHostedService<PaperFullTextBackgroundService>();
 		}
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

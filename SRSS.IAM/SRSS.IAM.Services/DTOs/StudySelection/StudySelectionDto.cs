@@ -219,7 +219,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? ISSN { get; set; }
         public string? EISSN { get; set; }
         public string? Md5 { get; set; }
-
+        public List<string> UpdatedFields { get; set; } = new();
     }
 
     public class ApplyMetadataRequest

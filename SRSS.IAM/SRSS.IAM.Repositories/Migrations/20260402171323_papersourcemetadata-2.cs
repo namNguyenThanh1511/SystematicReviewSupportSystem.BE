@@ -5,25 +5,25 @@
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class grobid : Migration
+    public partial class papersourcemetadata2 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "EnrichmentStatus",
-                table: "papers",
-                type: "integer",
+            migrationBuilder.AddColumn<bool>(
+                name: "FullTextProcessed",
+                table: "paper_pdfs",
+                type: "boolean",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "EnrichmentStatus",
-                table: "papers");
+                name: "FullTextProcessed",
+                table: "paper_pdfs");
         }
     }
 }

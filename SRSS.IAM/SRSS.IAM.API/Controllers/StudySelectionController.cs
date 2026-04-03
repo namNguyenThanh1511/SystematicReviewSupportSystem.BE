@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
@@ -191,6 +192,38 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _studySelectionService.ResolveConflictAsync(id, paperId, request, cancellationToken);
             return Created(result, "Conflict resolved successfully.");
+        }
+
+        /// <summary>
+        /// Get all resolution papers for a specific phase or all phases (paginated, with filter/search)
+        /// Includes more paper metadata: Title, Authors, DOI, Year, Source.
+        /// </summary>
+        [HttpGet("study-selection/{id}/resolutions")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<ScreeningResolutionPaperResponse>>>> GetResolutions(
+            [FromRoute] Guid id,
+            [FromQuery] ScreeningPhase? phase,
+            [FromQuery] ScreeningDecisionType? finalDecision,
+            [FromQuery] string? search,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new GetResolutionsRequest
+            {
+                Phase = phase,
+                FinalDecision = finalDecision,
+                Search = search,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _studySelectionService.GetResolutionsAsync(id, request, cancellationToken);
+            
+            var message = result.TotalCount == 0
+                ? "No resolution papers found matching the criteria."
+                : $"Retrieved {result.Items.Count} of {result.TotalCount} resolution papers (page {result.PageNumber}).";
+
+            return Ok(result, message);
         }
 
         /// <summary>

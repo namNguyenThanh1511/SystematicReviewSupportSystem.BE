@@ -57,6 +57,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? CriterionQuestion { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
+        public string? PdfHighlightCoordinates { get; set; }
     }
 
     public class CreateQualityAssessmentResolutionRequest
@@ -97,6 +98,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
+        public string? PdfHighlightCoordinates { get; set; }
     }
 
     public class UpdateQualityAssessmentDecisionRequest
@@ -113,6 +115,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid? QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
+        public string? PdfHighlightCoordinates { get; set; }
     }
 
     public class AutomateQualityAssessmentRequest
@@ -226,5 +229,6 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
+        public string? PdfHighlightCoordinates { get; set; }
     }
 }

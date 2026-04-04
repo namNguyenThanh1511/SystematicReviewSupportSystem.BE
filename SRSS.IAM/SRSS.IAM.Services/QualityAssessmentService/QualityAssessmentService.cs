@@ -692,6 +692,9 @@ I want you to evaluate this paper against the following criteria questions. For 
 
 Criteria:
 {string.Join("\n", criteriaQuestions.Select(c => $"- ID: {c.Id} | Question: {c.Question}"))}
+
+Note: 
+- pdfHighlightCordinates is used by @react-pdf-viewer, generate accordingly
 ";
 
             var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);

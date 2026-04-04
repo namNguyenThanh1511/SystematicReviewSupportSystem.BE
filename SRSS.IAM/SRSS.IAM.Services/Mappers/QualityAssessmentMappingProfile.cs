@@ -240,7 +240,8 @@ namespace SRSS.IAM.Services.Mappers
             {
                 QualityCriterionId = dto.QualityCriterionId,
                 Value = dto.Value,
-                Comment = dto.Comment
+                Comment = dto.Comment,
+                PdfHighlightCoordinates = dto.PdfHighlightCoordinates
             };
         }
 
@@ -248,6 +249,7 @@ namespace SRSS.IAM.Services.Mappers
         {
             entity.Value = dto.Value;
             entity.Comment = dto.Comment;
+            entity.PdfHighlightCoordinates = dto.PdfHighlightCoordinates;
         }
 
         public static QualityAssessmentDecisionItem ToEntity(this UpdateQualityAssessmentDecisionItemRequest dto)
@@ -256,7 +258,8 @@ namespace SRSS.IAM.Services.Mappers
             {
                 QualityCriterionId = dto.QualityCriterionId ?? Guid.Empty,
                 Value = dto.Value,
-                Comment = dto.Comment
+                Comment = dto.Comment,
+                PdfHighlightCoordinates = dto.PdfHighlightCoordinates
             };
         }
 
@@ -277,6 +280,7 @@ namespace SRSS.IAM.Services.Mappers
                 CriterionQuestion = entity.QualityCriterion?.Question,
                 Value = entity.Value,
                 Comment = entity.Comment,
+                PdfHighlightCoordinates = entity.PdfHighlightCoordinates,
             };
         }
 

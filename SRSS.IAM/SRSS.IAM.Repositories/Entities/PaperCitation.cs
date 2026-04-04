@@ -33,7 +33,6 @@ namespace SRSS.IAM.Repositories.Entities
         // Navigation properties
         public Paper SourcePaper { get; set; } = null!;
         public Paper? TargetPaper { get; set; }
-        public ReferenceEntity? ReferenceEntity { get; set; }
     }
 
     public enum CitationSource

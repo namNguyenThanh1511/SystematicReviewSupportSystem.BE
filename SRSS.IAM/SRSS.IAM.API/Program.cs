@@ -2,13 +2,15 @@
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.OpenApi.Models;
+using Npgsql;
+using Pgvector.EntityFrameworkCore;
 using Shared.Cache;
 using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 namespace SRSS.IAM.API
 {
@@ -51,10 +53,12 @@ namespace SRSS.IAM.API
             // Database connection
             var connectionString = config.GetConnectionString("SRSS_IAM_DB")
 				?? throw new InvalidOperationException("ConnectionStrings:SRSS_IAM_DB is required");
-			builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseNpgsql(connectionString));
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(connectionString, npgsqlOptions => npgsqlOptions.UseVector()));
 
-			// Redis connection
+            NpgsqlConnection.GlobalTypeMapper.UseVector();
+
+            // Redis connection
             builder.Services.AddRedisCacheWithHealthCheck(config);
 
 

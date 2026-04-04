@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 using SRSS.IAM.Repositories;
 
 #nullable disable
@@ -13,8 +14,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260402171900_paperfulltext")]
-    partial class paperfulltext
+    [Migration("20260403094033_vector")]
+    partial class vector
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +25,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.CandidatePaper", b =>
@@ -1673,9 +1675,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<float[]>("Embedding")
+                    b.Property<Vector>("Embedding")
                         .IsRequired()
-                        .HasColumnType("real[]")
+                        .HasColumnType("vector(1536)")
                         .HasColumnName("embedding");
 
                     b.Property<string>("Model")
@@ -1698,6 +1700,33 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsUnique();
 
                     b.ToTable("paper_embeddings", (string)null);
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullText", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PaperPdfId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RawXml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaperPdfId")
+                        .IsUnique();
+
+                    b.ToTable("paper_full_texts", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -3945,6 +3974,17 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Paper");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullText", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperPdf", "PaperPdf")
+                        .WithOne("PaperFullText")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperFullText", "PaperPdfId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PaperPdf");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
@@ -4526,6 +4566,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.Navigation("GrobidHeaderResult");
+
+                    b.Navigation("PaperFullText");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PicocElement", b =>

@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
@@ -8,8 +10,11 @@ namespace SRSS.IAM.Repositories
 		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
-		protected override void OnModelCreating(ModelBuilder builder)
-			   => builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+       protected override void OnModelCreating(ModelBuilder builder)
+		{
+			builder.HasPostgresExtension("vector");
+			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		}
 		/*
          Mục đích của việc sử dụng Assembly ở đây là:
             Tự động hóa cấu hình (Automation): Thay vì phải viết thủ công từng dòng builder.Entity<MyEntity>().Has... cho mọi thực thể (entity) trong dự án, bạn có thể tạo các lớp cấu hình riêng biệt (implementing IEntityTypeConfiguration<T>).
@@ -95,7 +100,6 @@ namespace SRSS.IAM.Repositories
 		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
 		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
-		public DbSet<ReferenceEntity> ReferenceEntities { get; set; } = default!;
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
 	}

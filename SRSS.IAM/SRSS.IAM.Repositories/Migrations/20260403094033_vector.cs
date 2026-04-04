@@ -1,17 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Pgvector;
 
 #nullable disable
 
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class papersourcemetadata1 : Migration
+    public partial class vector : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AlterDatabase()
+                .Annotation("Npgsql:PostgresExtension:vector", ",,");
+
             migrationBuilder.CreateTable(
                 name: "protocol_reviewer",
                 columns: table => new
@@ -1577,7 +1581,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     paper_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    embedding = table.Column<float[]>(type: "real[]", nullable: false),
+                    embedding = table.Column<Vector>(type: "vector(1536)", nullable: false),
                     model = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1605,6 +1609,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     UploadedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     GrobidProcessed = table.Column<bool>(type: "boolean", nullable: false),
                     FileHash = table.Column<string>(type: "text", nullable: true),
+                    FullTextProcessed = table.Column<bool>(type: "boolean", nullable: false),
                     RefsExtracted = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1933,6 +1938,27 @@ namespace SRSS.IAM.Repositories.Migrations
                     table.PrimaryKey("PK_grobid_header_results", x => x.Id);
                     table.ForeignKey(
                         name: "FK_grobid_header_results_paper_pdfs_PaperPdfId",
+                        column: x => x.PaperPdfId,
+                        principalTable: "paper_pdfs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "paper_full_texts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    PaperPdfId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RawXml = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_paper_full_texts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_paper_full_texts_paper_pdfs_PaperPdfId",
                         column: x => x.PaperPdfId,
                         principalTable: "paper_pdfs",
                         principalColumn: "Id",
@@ -2273,6 +2299,12 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_paper_embeddings_paper_id",
                 table: "paper_embeddings",
                 column: "paper_id",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_paper_full_texts_PaperPdfId",
+                table: "paper_full_texts",
+                column: "PaperPdfId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -2708,6 +2740,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "paper_embeddings");
 
             migrationBuilder.DropTable(
+                name: "paper_full_texts");
+
+            migrationBuilder.DropTable(
                 name: "paper_source_metadatas");
 
             migrationBuilder.DropTable(
@@ -2777,13 +2812,13 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "data_extraction_process");
 
             migrationBuilder.DropTable(
-                name: "paper_pdfs");
-
-            migrationBuilder.DropTable(
                 name: "study_selection_criteria");
 
             migrationBuilder.DropTable(
                 name: "project_members");
+
+            migrationBuilder.DropTable(
+                name: "paper_pdfs");
 
             migrationBuilder.DropTable(
                 name: "picoc_element");

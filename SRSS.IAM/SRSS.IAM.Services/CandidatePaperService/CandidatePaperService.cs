@@ -427,12 +427,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
                     candidate.IsSelectedInScreening = true;
                     candidate.SelectedAt = DateTimeOffset.UtcNow;
                 }
-                else if (candidate.ReferenceEntityId.HasValue)
-                {
-                    _logger.LogInformation(
-                        "Candidate {CandidateId} is a non-paper reference. Skipping identification snapshot.",
-                        candidate.Id);
-                }
 
                 candidate.ModifiedAt = DateTimeOffset.UtcNow;
                 await _unitOfWork.CandidatePapers.UpdateAsync(candidate, cancellationToken);

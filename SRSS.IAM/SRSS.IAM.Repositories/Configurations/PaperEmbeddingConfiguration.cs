@@ -22,6 +22,7 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(pe => pe.Embedding)
                 .HasColumnName("embedding")
+                .HasColumnType("vector(1536)")
                 .IsRequired();
 
             builder.Property(pe => pe.Model)

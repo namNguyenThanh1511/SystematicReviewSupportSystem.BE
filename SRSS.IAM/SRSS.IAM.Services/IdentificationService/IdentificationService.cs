@@ -1,4 +1,5 @@
 using Shared.Exceptions;
+using Pgvector;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
@@ -832,7 +833,6 @@ namespace SRSS.IAM.Services.IdentificationService
                         };
 
                         await _unitOfWork.SearchExecutions.AddAsync(searchExecution, cancellationToken);
-                        searchExecutionId = searchExecution.Id;
                     }
 
                     // Parse RIS file before creating ImportBatch
@@ -934,13 +934,34 @@ namespace SRSS.IAM.Services.IdentificationService
                 Authors = p.Authors,
                 DOI = DoiHelper.Normalize(p.DOI) ?? p.DOI,
                 PublishedYear = p.PublicationYear,
+                Journal = p.Journal,
                 RawReference = p.RawReference
             }).ToList();
 
-            // Pre-fetch batch match results against existing database papers
-            var dbMatchResults = (await _matchingService.MatchBatchAsync(
-                referencesForMatching, 
-                identificationProcess.Id, 
+            // Generate embeddings before batch matching
+            for (int i = 0; i < risPapers.Count; i++)
+            {
+                var risPaper = risPapers[i];
+                if (string.IsNullOrWhiteSpace(risPaper.Title))
+                {
+                    continue;
+                }
+
+                var embeddingInput = GenerateEmbeddingInput(
+                    risPaper.Title,
+                    risPaper.Authors,
+                    risPaper.PublicationYear,
+                    risPaper.Journal);
+
+                referencesForMatching[i].TitleEmbedding = await _embeddingService.GetEmbeddingAsync(
+                    embeddingInput,
+                    cancellationToken);
+            }
+
+            // Pre-fetch matches for the full import batch (process-scoped)
+            var prefetchedMatches = (await _matchingService.MatchBatchAsync(
+                referencesForMatching,
+                identificationProcess.Id,
                 cancellationToken)).ToList();
 
             // Track processed references within this batch for intra-batch detection
@@ -951,37 +972,19 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 var risPaper = risPapers[i];
                 var currentReference = referencesForMatching[i];
-                
+
                 // Skip records without titles
                 if (string.IsNullOrWhiteSpace(risPaper.Title)) continue;
 
-                // 4. Generate Semantic Embedding (AI)
-                // We do this BEFORE matching so the matching service can use it
-                var embeddingInput = GenerateEmbeddingInput(risPaper.Title, risPaper.Authors, risPaper.PublicationYear, risPaper.Journal);
-                currentReference.TitleEmbedding = await _embeddingService.GetEmbeddingAsync(embeddingInput, cancellationToken);
+                var newPaperId = Guid.NewGuid();
 
-                // 1. Get best match from DB (pre-fetched)
-                var dbMatch = dbMatchResults[i];
+                var dbMatch = i < prefetchedMatches.Count ? prefetchedMatches[i] : null;
 
-                // 2. Get best match from already processed papers in this batch
+                // Match against already processed papers in this batch (DOI/fuzzy only)
                 var batchMatch = _matchingService.MatchAgainstProcessed(currentReference, processedReferences);
-                
-                // (Matches are selected and Paper entity created below...)
 
-                // 3. Select the best match overall
-                MatchResult? bestMatch = null;
-                bool isBatchLevelMatch = false;
-
-                if (dbMatch.ConfidenceScore >= batchMatch.ConfidenceScore && dbMatch.ConfidenceScore > 0)
-                {
-                    bestMatch = dbMatch;
-                    isBatchLevelMatch = false;
-                }
-                else if (batchMatch.ConfidenceScore > 0)
-                {
-                    bestMatch = batchMatch;
-                    isBatchLevelMatch = true;
-                }
+                var bestMatch = SelectBestMatch(dbMatch, batchMatch);
+                bool isBatchLevelMatch = ReferenceEquals(bestMatch, batchMatch);
 
                 int? publicationYearInt = null;
                 if (int.TryParse(risPaper.PublicationYear, out var year)) publicationYearInt = year;
@@ -989,7 +992,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 // Create Paper entity
                 var newPaper = new Paper
                 {
-                    Id = Guid.NewGuid(),
+                    Id = newPaperId,
                     Title = risPaper.Title,
                     Authors = risPaper.Authors,
                     Abstract = risPaper.Abstract,
@@ -1016,20 +1019,19 @@ namespace SRSS.IAM.Services.IdentificationService
                 };
 
                 await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                
-                // 5. Save Embedding to separate entity
-                if (currentReference.TitleEmbedding != null)
+
+                // Save embedding to separate entity
+                if (currentReference.TitleEmbedding is { Length: > 0 })
                 {
                     var paperEmbedding = new PaperEmbedding
                     {
                         Id = Guid.NewGuid(),
                         PaperId = newPaper.Id,
-                        Embedding = currentReference.TitleEmbedding,
+                        Embedding = new Vector(currentReference.TitleEmbedding),
                         Model = _embeddingService.ModelName,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
-                    // Assuming we'll add PaperEmbeddings to UnitOfWork or use Paper's navigation
                     newPaper.TitleEmbedding = paperEmbedding;
                 }
 
@@ -1044,7 +1046,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         Id = Guid.NewGuid(),
                         IdentificationProcessId = identificationProcess.Id,
                         PaperId = newPaper.Id,
-                        DuplicateOfPaperId = isBatchLevelMatch ? (bestMatch.MatchedPaperId ?? Guid.Empty) : (bestMatch.MatchedPaper?.Id ?? Guid.Empty),
+                        DuplicateOfPaperId = isBatchLevelMatch ? (bestMatch.MatchedPaperId ?? Guid.Empty) : (bestMatch.MatchedPaper?.Id ?? bestMatch.MatchedPaperId ?? Guid.Empty),
                         Method = bestMatch.Strategy switch {
                             MatchStrategy.DOI => DeduplicationMethod.DOI_MATCH,
                             MatchStrategy.TitleExact => DeduplicationMethod.TITLE_AUTHOR,
@@ -1053,14 +1055,14 @@ namespace SRSS.IAM.Services.IdentificationService
                             _ => DeduplicationMethod.HYBRID
                         },
                         ConfidenceScore = bestMatch.ConfidenceScore,
-                        Notes = isBatchLevelMatch 
-                            ? $"Intra-batch duplicate detected ({bestMatch.Strategy} match)." 
+                        Notes = isBatchLevelMatch
+                            ? $"Intra-batch duplicate detected ({bestMatch.Strategy} match)."
                             : $"Database duplicate detected ({bestMatch.Strategy} match).",
-                        ReviewStatus = bestMatch.ConfidenceScore >= 0.95m 
-                            ? DeduplicationReviewStatus.Confirmed 
+                        ReviewStatus = bestMatch.ConfidenceScore >= 0.95m
+                            ? DeduplicationReviewStatus.Confirmed
                             : DeduplicationReviewStatus.Pending,
-                        ResolvedDecision = bestMatch.ConfidenceScore >= 0.95m 
-                            ? DuplicateResolutionDecision.CANCEL 
+                        ResolvedDecision = bestMatch.ConfidenceScore >= 0.95m
+                            ? DuplicateResolutionDecision.CANCEL
                             : null,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
@@ -1079,6 +1081,36 @@ namespace SRSS.IAM.Services.IdentificationService
             }
         }
 
+        private static MatchResult? SelectBestMatch(params MatchResult?[] matches)
+        {
+            var validMatches = matches
+                .Where(m => m != null && m.ConfidenceScore > 0)
+                .Select(m => m!)
+                .ToList();
+
+            if (!validMatches.Any())
+            {
+                return null;
+            }
+
+            var doiMatch = validMatches.FirstOrDefault(m => m.Strategy == MatchStrategy.DOI && m.ConfidenceScore >= 1.0m);
+            if (doiMatch != null)
+            {
+                return doiMatch;
+            }
+
+            var titleExactMatch = validMatches.FirstOrDefault(m => m.Strategy == MatchStrategy.TitleExact && m.ConfidenceScore >= 1.0m);
+            if (titleExactMatch != null)
+            {
+                return titleExactMatch;
+            }
+
+            return validMatches
+                .Where(m => m.Strategy == MatchStrategy.TitleFuzzy || m.Strategy == MatchStrategy.Semantic)
+                .OrderByDescending(m => m.ConfidenceScore)
+                .FirstOrDefault();
+        }
+
         private string GenerateEmbeddingInput(string? title, string? authors, string? year, string? journal)
         {
             var sb = new System.Text.StringBuilder();
@@ -1088,6 +1120,63 @@ namespace SRSS.IAM.Services.IdentificationService
             if (!string.IsNullOrWhiteSpace(journal)) sb.Append($"| Source: {journal.Trim()}");
             
             return sb.ToString().Trim();
+        }
+
+        public async Task MarkAsDuplicateAsync(
+            Guid identificationProcessId,
+            Guid paperId,
+            MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            if (identificationProcess.Status == IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot mark paper as duplicate because the identification process is already completed.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var duplicateOfPaper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == request.DuplicateOfPaperId,
+                cancellationToken: cancellationToken);
+
+            if (duplicateOfPaper == null)
+            {
+                throw new InvalidOperationException($"Original paper with ID {request.DuplicateOfPaperId} not found.");
+            }
+
+            var deduplicationResult = new DeduplicationResult
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcessId,
+                PaperId = paperId,
+                DuplicateOfPaperId = request.DuplicateOfPaperId,
+                Method = DeduplicationMethod.MANUAL,
+                ReviewStatus = DeduplicationReviewStatus.Confirmed,
+                ResolvedDecision = DuplicateResolutionDecision.CANCEL,
+                ConfidenceScore = 1.0m,
+                Notes = request.Reason,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            };
+
+            await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

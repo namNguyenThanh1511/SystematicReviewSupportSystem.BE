@@ -242,7 +242,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
-                    // Exclude papers confirmed as duplicates (CANCEL decision) in this process
+                    // Exclude papers confirmed as duplicates (CANCEL decision) and pending resolve in this process
                     !_context.DeduplicationResults.Any(dr =>
                         dr.PaperId == p.Id &&
                         dr.IdentificationProcessId == identificationProcessId && (

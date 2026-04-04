@@ -97,5 +97,24 @@ namespace SRSS.IAM.API.Controllers
             var result = await _identificationService.GetPrismaStatisticsAsync(id, cancellationToken);
             return Ok(result, "PRISMA statistics retrieved successfully.");
         }
+
+        /// <summary>
+        /// Manually mark a paper as a duplicate of another paper.
+        /// </summary>
+        /// <param name="identificationProcessId">ID of the identification process</param>
+        /// <param name="paperId">ID of the paper to be cancelled (the duplicate)</param>
+        /// <param name="request">Request containing the original paper ID and reason</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success response</returns>
+        [HttpPost("identification-processes/{identificationProcessId}/papers/{paperId}/mark-as-duplicate")]
+        public async Task<ActionResult<ApiResponse>> MarkAsDuplicate(
+            [FromRoute] Guid identificationProcessId,
+            [FromRoute] Guid paperId,
+            [FromBody] MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identificationService.MarkAsDuplicateAsync(identificationProcessId, paperId, request, cancellationToken);
+            return Ok("Paper marked as duplicate successfully.");
+        }
     }
 }

@@ -34,6 +34,12 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid? searchExecutionId,
             Guid identificationProcessId,
             CancellationToken cancellationToken = default);
+
+        Task MarkAsDuplicateAsync(
+            Guid identificationProcessId,
+            Guid paperId,
+            MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken = default);
     }
 }
 

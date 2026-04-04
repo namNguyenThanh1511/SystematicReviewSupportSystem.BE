@@ -113,7 +113,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             var notes = new List<string>();
 
             // 3. Identification/Matching Logic (Snapshot-Only Strategy)
-            if (referenceType == ReferenceType.AcademicPaper && idProcess != null)
+            if (idProcess != null)
             {
                 // Step 1: Match against Snapshot only (Current Identification Process scope)
                 var match = await _referenceMatchingService.MatchAgainstSnapshotAsync(reference, idProcess.Id, cancellationToken);
@@ -186,27 +186,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                     isSelectedInScreening = false;
                 }
             }
-            else if (referenceType != ReferenceType.AcademicPaper)
-            {
-                // Non-paper reference — resolve as reference entity
-                var refEntity = new ReferenceEntity
-                {
-                    Id = Guid.NewGuid(),
-                    Title = candidate.Title,
-                    Authors = candidate.Authors,
-                    DOI = candidate.DOI,
-                    Url = ExtractUrl(candidate.RawReference),
-                    Type = referenceType,
-                    RawReference = candidate.RawReference,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                };
 
-                await _unitOfWork.ReferenceEntities.AddAsync(refEntity, cancellationToken);
-                referenceEntityId = refEntity.Id;
-                matchConfidenceScore = 1.0m;
-                status = CandidateStatus.Resolved;
-            }
 
             // 4. Validation Note Generation (Prioritized)
             // Quality Warning: Extraction Integrity
@@ -216,12 +196,11 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             }
 
             // 5. Citation Creation (Always link extraction outcome to source)
-            if (candidate.OriginPaperId.HasValue && (targetPaperId.HasValue || referenceEntityId.HasValue))
+            if (candidate.OriginPaperId.HasValue && targetPaperId.HasValue)
             {
                 var citation = await CreateCitationIfNotExistsAsync(
                     sourcePaperId: candidate.OriginPaperId.Value,
                     targetPaperId: targetPaperId,
-                    referenceEntityId: referenceEntityId,
                     referenceType: referenceType,
                     rawReference: candidate.RawReference,
                     extractionQuality: extractionQualityScore,
@@ -236,7 +215,6 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
 
             // 6. Final State Persistence
             candidate.TargetPaperId = targetPaperId;
-            candidate.ReferenceEntityId = referenceEntityId;
             candidate.ExtractionQualityScore = extractionQualityScore;
             candidate.MatchConfidenceScore = matchConfidenceScore;
             candidate.ConfidenceScore = extractionQualityScore; // Legacy fallback
@@ -285,7 +263,6 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
         private async Task<PaperCitation?> CreateCitationIfNotExistsAsync(
             Guid sourcePaperId,
             Guid? targetPaperId,
-            Guid? referenceEntityId,
             ReferenceType referenceType,
             string? rawReference,
             decimal extractionQuality, // Điểm chất lượng trích xuất
@@ -295,7 +272,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             // 1. Kiểm tra tồn tại (Giữ nguyên logic cũ nhưng tối ưu query)
             var existing = await _unitOfWork.PaperCitations.FindSingleAsync(
                 x => x.SourcePaperId == sourcePaperId 
-                    && (targetPaperId != null ? x.TargetPaperId == targetPaperId : x.ReferenceEntityId == referenceEntityId),
+                    && x.TargetPaperId == targetPaperId,
                 isTracking: false,
                 cancellationToken);
 
@@ -327,7 +304,6 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                 Id = Guid.NewGuid(),
                 SourcePaperId = sourcePaperId,
                 TargetPaperId = targetPaperId,
-                ReferenceEntityId = referenceEntityId,
                 ReferenceType = referenceType,
                 RawReference = rawReference,
                 
@@ -352,7 +328,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                 _logger.LogWarning(
                     "Low-confidence citation created. Match: {MScore}, Extraction: {EScore}, Final: {FScore}. Path: {Source} -> {Target}",
                     matchConfidence, extractionQuality, finalConfidence, sourcePaperId, 
-                    targetPaperId?.ToString() ?? referenceEntityId?.ToString());
+                    targetPaperId?.ToString());
             }
 
             return citation;

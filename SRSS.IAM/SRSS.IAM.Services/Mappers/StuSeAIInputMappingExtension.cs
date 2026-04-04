@@ -19,8 +19,7 @@ namespace SRSS.IAM.Services.Mappers
                 {
                     Title = paper.Title?.Trim() ?? string.Empty
                 },
-                Criteria = new StuSeCriteriaInput(),
-                PICOC = new StuSePicocInput()
+                Criteria = new StuSeCriteriaInput()
             };
 
             // 1. PAPER
@@ -33,38 +32,57 @@ namespace SRSS.IAM.Services.Mappers
             // 2. CRITERIA
             AssignIfNotEmpty(v => result.Criteria.Domain = v, project?.Domain);
 
-            // 3. PICOC
-            AssignIfNotEmpty(v => result.PICOC.Population = v, GetPicocValue(project, "Population"));
-            AssignIfNotEmpty(v => result.PICOC.Intervention = v, GetPicocValue(project, "Intervention"));
-            AssignIfNotEmpty(v => result.PICOC.Comparison = v, GetPicocValue(project, "Comparison"));
-            AssignIfNotEmpty(v => result.PICOC.Outcome = v, GetPicocValue(project, "Outcome"));
-            AssignIfNotEmpty(v => result.PICOC.Context = v, GetPicocValue(project, "Context"));
+            // 3. (PICOC removed - now per RQ)
 
-            // 4. RESEARCH QUESTIONS
+            // 4. RESEARCH QUESTIONS (Hierarchical)
             result.ResearchQuestions = project?.ResearchQuestions?
-                .Select(rq => rq.QuestionText?.Trim())
-                .Where(d => !string.IsNullOrWhiteSpace(d))
-                .Cast<string>()
-                .ToList() ?? new List<string>();
+                .Select(rq => new StuSeRQInput
+                {
+                    QuestionText = rq.QuestionText?.Trim() ?? string.Empty,
+                    PICOC = MapPicocFromElements(rq.PicocElements)
+                })
+                .ToList() ?? new List<StuSeRQInput>();
 
-            // 5. INCLUSION / EXCLUSION
-            result.InclusionCriteria = MapCriteria(criteriaEntity?.InclusionCriteria?.Select(c => c.Rule));
-            result.ExclusionCriteria = MapCriteria(criteriaEntity?.ExclusionCriteria?.Select(c => c.Rule));
+            // 5. CRITERIA GROUPS
+            result.CriteriaGroups = protocol.SelectionCriterias?
+                .Select(cg => new StuSeCriteriaGroupInput
+                {
+                    Description = cg.Description?.Trim(),
+                    InclusionRules = MapCriteria(cg.InclusionCriteria?.Select(c => c.Rule)),
+                    ExclusionRules = MapCriteria(cg.ExclusionCriteria?.Select(c => c.Rule))
+                })
+                .ToList() ?? new List<StuSeCriteriaGroupInput>();
 
             // Validation: Nullify empty objects
             if (IsCriteriaEmpty(result.Criteria)) result.Criteria = null!;
-            if (IsPicocEmpty(result.PICOC)) result.PICOC = null!;
 
             return result;
         }
 
-        private static bool IsPicocEmpty(StuSePicocInput picoc)
+        private static StuSePicocInput? MapPicocFromElements(IEnumerable<PicocElement> elements)
         {
-            return string.IsNullOrWhiteSpace(picoc.Population) &&
-                   string.IsNullOrWhiteSpace(picoc.Intervention) &&
-                   string.IsNullOrWhiteSpace(picoc.Comparison) &&
-                   string.IsNullOrWhiteSpace(picoc.Outcome) &&
-                   string.IsNullOrWhiteSpace(picoc.Context);
+            if (elements == null || !elements.Any()) return null;
+
+            var picoc = new StuSePicocInput();
+            var hasValue = false;
+
+            foreach (var element in elements)
+            {
+                var type = element.ElementType?.Trim().ToLower();
+                var desc = element.Description?.Trim();
+                if (string.IsNullOrWhiteSpace(desc)) continue;
+
+                switch (type)
+                {
+                    case "population": picoc.Population = desc; hasValue = true; break;
+                    case "intervention": picoc.Intervention = desc; hasValue = true; break;
+                    case "comparison": picoc.Comparison = desc; hasValue = true; break;
+                    case "outcome": picoc.Outcome = desc; hasValue = true; break;
+                    case "context": picoc.Context = desc; hasValue = true; break;
+                }
+            }
+
+            return hasValue ? picoc : null;
         }
 
         private static bool IsCriteriaEmpty(StuSeCriteriaInput criteria)
@@ -89,39 +107,6 @@ namespace SRSS.IAM.Services.Mappers
             {
                 assigner(trimmed);
             }
-        }
-
-        private static string? GetPicocValue(SystematicReviewProject? project, string type)
-        {
-            if (project == null) return null;
-
-            var values = new List<string>();
-
-            // 1. From Research Questions' PicocElements
-            if (project.ResearchQuestions != null)
-            {
-                var fromQuestions = project.ResearchQuestions
-                    .SelectMany(q => q.PicocElements)
-                    .Where(e => e.ElementType != null && e.ElementType.Equals(type, StringComparison.OrdinalIgnoreCase))
-                    .Select(e => e.Description?.Trim())
-                    .Where(d => !string.IsNullOrWhiteSpace(d))
-                    .Distinct();
-
-                values.AddRange(fromQuestions!);
-            }
-
-            // 2. Fallback to Review Objectives (only if no specific PICOC elements found)
-            if (!values.Any() && project.ReviewObjectives != null)
-            {
-                var fromObjectives = project.ReviewObjectives
-                    .Where(o => o.ObjectiveStatement != null && o.ObjectiveStatement.Contains(type, StringComparison.OrdinalIgnoreCase))
-                    .Select(o => o.ObjectiveStatement.Trim())
-                    .FirstOrDefault();
-
-                if (fromObjectives != null) values.Add(fromObjectives);
-            }
-
-            return values.Any() ? string.Join("; ", values.Distinct()) : null;
         }
     }
 }

@@ -118,20 +118,18 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("### FIELD USAGE RULES");
-            sb.AppendLine("- All matching fields (Language, Domain, StudyType, TimeRange, Population, etc.) MUST appear in the output.");
+            sb.AppendLine("- All matching fields MUST appear in the output JSON.");
             if (string.IsNullOrEmpty(input.Paper.Abstract))
             {
                 sb.AppendLine("- CRITICAL HARD RULE: Abstract is null or missing. Evaluation MUST rely on Title ONLY. Most fields should be \"Unknown\" unless explicitly stated in the Title.");
             }
             sb.AppendLine("- If protocol value for a field is null or empty → its matched \"Value\" in JSON must be null and \"Match\" must be \"Unknown\".");
-            sb.AppendLine("- Only PROVIDED fields (where protocol input is not null/empty) contribute to the group score calculation.");
             sb.AppendLine();
 
             sb.AppendLine("### LIST OUTPUT INTEGRITY");
-            sb.AppendLine("- ResearchQuestionMatching MUST have EXACTLY the same length and order as the input RESEARCH QUESTIONS list.");
-            sb.AppendLine("- InclusionCriteriaResults MUST have EXACTLY the same length and order as the input Inclusion Criteria list.");
-            sb.AppendLine("- ExclusionCriteriaResults MUST have EXACTLY the same length and order as the input Exclusion Criteria list.");
-            sb.AppendLine("- DO NOT add, remove, or reorder any items in these lists.");
+            sb.AppendLine("- ResearchQuestionResults MUST have EXACTLY the same length and order as the input RESEARCH QUESTIONS list.");
+            sb.AppendLine("- CriteriaGroupResults MUST have EXACTLY the same length and order as the input CRITERIA GROUPS list.");
+            sb.AppendLine("- Within each CriteriaGroupResult, InclusionResults and ExclusionResults MUST match the order and length of the corresponding rules in that group.");
             sb.AppendLine();
 
             sb.AppendLine("### REQUIRED JSON FORMAT");
@@ -139,25 +137,35 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("  \"CriteriaMatching\": {");
             sb.AppendLine("    \"Language\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
             sb.AppendLine("    \"Domain\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"StudyType\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"TimeRange\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
+            sb.AppendLine("    \"StudyType\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
             sb.AppendLine("  },");
-            sb.AppendLine("  \"PicocMatching\": {");
-            sb.AppendLine("    \"Population\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Intervention\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Comparison\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Outcome\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Context\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
             sb.AppendLine("  },");
-            sb.AppendLine("  \"ResearchQuestionMatching\": [ { \"Question\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" } ],");
-            sb.AppendLine("  \"InclusionCriteriaResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" } ],");
-            sb.AppendLine("  \"ExclusionCriteriaResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\", \"Highlight\": \"...\" } ],");
+            sb.AppendLine("  \"ResearchQuestionResults\": [");
+            sb.AppendLine("    {");
+            sb.AppendLine("      \"Question\": \"...\",");
+            sb.AppendLine("      \"Match\": \"Match|NotMatch|Unknown\",");
+            sb.AppendLine("      \"PicocMatching\": {");
+            sb.AppendLine("        \"Population\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
+            sb.AppendLine("        \"Intervention\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
+            sb.AppendLine("        \"Comparison\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
+            sb.AppendLine("        \"Outcome\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
+            sb.AppendLine("        \"Context\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
+            sb.AppendLine("      }");
+            sb.AppendLine("    }");
+            sb.AppendLine("  ],");
+            sb.AppendLine("  \"CriteriaGroupResults\": [");
+            sb.AppendLine("    {");
+            sb.AppendLine("      \"Description\": \"...\",");
+            sb.AppendLine("      \"InclusionResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" } ],");
+            sb.AppendLine("      \"ExclusionResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\", \"Highlight\": \"...\" } ]");
+            sb.AppendLine("    }");
+            sb.AppendLine("  ],");
             sb.AppendLine("  \"InclusionMatches\": 0,");
             sb.AppendLine("  \"ExclusionMatches\": 0,");
             sb.AppendLine("  \"ExclusionHighlights\": [],");
             sb.AppendLine("  \"RelevanceScore\": 0.0,");
             sb.AppendLine("  \"Recommendation\": \"Include|Exclude|Uncertain\",");
-            sb.AppendLine("  \"Reasoning\": \"step-by-step scoring calculation\"");
+            sb.AppendLine("  \"Reasoning\": \"Step-by-step hierarchical scoring calculation\"");
             sb.AppendLine("}");
             sb.AppendLine();
 
@@ -170,35 +178,46 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine($"Language: {input.Paper.Language ?? "Not provided"}");
             sb.AppendLine();
 
-            if (input.ResearchQuestions != null && input.ResearchQuestions.Any())
-            {
-                sb.AppendLine("### RESEARCH QUESTIONS (Context only, does NOT affect RelevanceScore)");
-                foreach (var rq in input.ResearchQuestions) sb.AppendLine($"- {rq}");
-                sb.AppendLine();
-            }
-
             sb.AppendLine("### REVIEW PROTOCOL");
             sb.AppendLine($"#### Domain: {input.Criteria?.Domain ?? "Not provided"}");
             sb.AppendLine();
-            sb.AppendLine("#### PICOC");
-            sb.AppendLine($"Population: {input.PICOC?.Population ?? "Not provided"}");
-            sb.AppendLine($"Intervention: {input.PICOC?.Intervention ?? "Not provided"}");
-            sb.AppendLine($"Comparison: {input.PICOC?.Comparison ?? "Not provided"}");
-            sb.AppendLine($"Outcome: {input.PICOC?.Outcome ?? "Not provided"}");
-            sb.AppendLine($"Context: {input.PICOC?.Context ?? "Not provided"}");
-            sb.AppendLine();
 
-            if (input.InclusionCriteria != null && input.InclusionCriteria.Any())
+            if (input.ResearchQuestions != null && input.ResearchQuestions.Any())
             {
-                sb.AppendLine("#### Inclusion Criteria");
-                foreach (var ic in input.InclusionCriteria) sb.AppendLine($"- {ic}");
+                sb.AppendLine("#### RESEARCH QUESTIONS (with per-RQ PICOC)");
+                foreach (var rq in input.ResearchQuestions)
+                {
+                    sb.AppendLine($"- RQ: {rq.QuestionText}");
+                    if (rq.PICOC != null)
+                    {
+                        if (!string.IsNullOrEmpty(rq.PICOC.Population)) sb.AppendLine($"  - Population: {rq.PICOC.Population}");
+                        if (!string.IsNullOrEmpty(rq.PICOC.Intervention)) sb.AppendLine($"  - Intervention: {rq.PICOC.Intervention}");
+                        if (!string.IsNullOrEmpty(rq.PICOC.Comparison)) sb.AppendLine($"  - Comparison: {rq.PICOC.Comparison}");
+                        if (!string.IsNullOrEmpty(rq.PICOC.Outcome)) sb.AppendLine($"  - Outcome: {rq.PICOC.Outcome}");
+                        if (!string.IsNullOrEmpty(rq.PICOC.Context)) sb.AppendLine($"  - Context: {rq.PICOC.Context}");
+                    }
+                    else sb.AppendLine("  - PICOC: Undefined (Score RQ text relevance directly)");
+                }
                 sb.AppendLine();
             }
 
-            if (input.ExclusionCriteria != null && input.ExclusionCriteria.Any())
+            if (input.CriteriaGroups != null && input.CriteriaGroups.Any())
             {
-                sb.AppendLine("#### Exclusion Criteria");
-                foreach (var ec in input.ExclusionCriteria) sb.AppendLine($"- {ec}");
+                sb.AppendLine("#### CRITERIA GROUPS");
+                foreach (var group in input.CriteriaGroups)
+                {
+                    sb.AppendLine($"- Group: {group.Description ?? "No description"}");
+                    if (group.InclusionRules.Any())
+                    {
+                        sb.AppendLine("  - Inclusion Rules:");
+                        foreach (var ir in group.InclusionRules) sb.AppendLine($"    * {ir}");
+                    }
+                    if (group.ExclusionRules.Any())
+                    {
+                        sb.AppendLine("  - Exclusion Rules:");
+                        foreach (var er in group.ExclusionRules) sb.AppendLine($"    * {er}");
+                    }
+                }
                 sb.AppendLine();
             }
 
@@ -209,90 +228,93 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("- NotMatch → clearly contradicted");
             sb.AppendLine("- Unknown → insufficient info or protocol value missing");
             sb.AppendLine();
-            sb.AppendLine("For Exclusion Criteria (Special Rule):");
-            sb.AppendLine("- Match → the paper VIOLATES this exclusion criterion (VIOLATION!). \"Highlight\" field MUST contain the exact violating text from the paper.");
-            sb.AppendLine("- NotMatch → the paper DOES NOT violate this criterion. \"Highlight\" field MUST be empty string \"\".");
-            sb.AppendLine("- Unknown → insufficient info to determine violation. \"Highlight\" field MUST be empty string \"\".");
-            sb.AppendLine();
-            sb.AppendLine("IMPORTANT: DO NOT mark Match without explicit evidence. DO NOT guess.");
+            sb.AppendLine("For Exclusion Rules (Violation Logic):");
+            sb.AppendLine("- Match → the paper VIOLATES this exclusion criterion (VIOLATION!). \"Highlight\" field MUST contain violating text.");
+            sb.AppendLine("- NotMatch → no violation found. \"Highlight\" empty.");
+            sb.AppendLine("- Unknown → insufficient info to determine violation. \"Highlight\" empty.");
             sb.AppendLine();
 
-            sb.AppendLine("### SCORING MODEL (STRICT DETERMINISTIC)");
-            sb.AppendLine("Total score = 1.0 (4 groups × 0.25)");
+            sb.AppendLine("### SCORING MODEL (Deterministic & Hierarchical)");
+            sb.AppendLine("Composite Score = (0.25 × CriteriaMatchingScore) + (0.25 × PICOCMatchingScore) + (0.50 × CriteriaGroupsScore)");
             sb.AppendLine();
 
-            // Group 1: Criteria Matching
-            var criteriaWeights = new List<string>();
-            if (input.Criteria != null && !string.IsNullOrEmpty(input.Criteria.Domain)) criteriaWeights.Add("Domain");
-
-            sb.AppendLine("GROUP 1: CRITERIA MATCHING (0.25)");
-            if (criteriaWeights.Count > 0)
-            {
-                double w = 0.25 / criteriaWeights.Count;
-                sb.AppendLine($"- Weight per PROVIDED field ({string.Join(", ", criteriaWeights)}) = {w:F4}");
-                sb.AppendLine("- All other fields (Language, StudyType, TimeRange) have Match: \"Unknown\" and weight: 0.");
-                sb.AppendLine("- Scoring: Match = \"Match\" → full weight, otherwise → 0.");
-            }
-            else sb.AppendLine("- No criteria provided. Group Score = 0.");
+            sb.AppendLine("1. Criteria Matching Score (0.25):");
+            sb.AppendLine("- average(all evaluated general criteria rules: Language, Domain, etc.)");
+            sb.AppendLine("- Each rule: Match=1, others=0. If protocol field is missing, ignore it in averaging.");
             sb.AppendLine();
 
-            // Group 2: PICOC Matching
-            var picocWeights = new List<string>();
-            if (input.PICOC != null)
-            {
-                if (!string.IsNullOrEmpty(input.PICOC.Population)) picocWeights.Add("Population");
-                if (!string.IsNullOrEmpty(input.PICOC.Intervention)) picocWeights.Add("Intervention");
-                if (!string.IsNullOrEmpty(input.PICOC.Comparison)) picocWeights.Add("Comparison");
-                if (!string.IsNullOrEmpty(input.PICOC.Outcome)) picocWeights.Add("Outcome");
-                if (!string.IsNullOrEmpty(input.PICOC.Context)) picocWeights.Add("Context");
-            }
-
-            sb.AppendLine("GROUP 2: PICOC MATCHING (0.25)");
-            if (picocWeights.Count > 0)
-            {
-                double w = 0.25 / picocWeights.Count;
-                sb.AppendLine($"- Weight per PROVIDED field ({string.Join(", ", picocWeights)}) = {w:F4}");
-                sb.AppendLine("- Scoring: Match = \"Match\" → full weight, otherwise → 0.");
-            }
-            else sb.AppendLine("- No PICOC provided. Group Score = 0.");
+            sb.AppendLine("2. PICOC Matching Score (0.25):");
+            sb.AppendLine("- Step 1 (Per RQ): RQScore = average(all PICOC elements defined for THAT RQ). Match=1, others=0.");
+            sb.AppendLine("- If an RQ has NO PICOC elements defined → RQScore = Match result for the Research Question text itself.");
+            sb.AppendLine("- Step 2 (Aggregate): PICOCMatchingScore = average(all RQScore values).");
             sb.AppendLine();
 
-            sb.AppendLine("GROUP 3: INCLUSION (0.25)");
-            if (input.InclusionCriteria != null && input.InclusionCriteria.Any())
-            {
-                sb.AppendLine("- InclusionMatches = count of InclusionCriteriaResults with Match = \"Match\".");
-                sb.AppendLine($"- Score = (InclusionMatches / {input.InclusionCriteria.Count}) × 0.25");
-            }
-            else sb.AppendLine("- No inclusion criteria. InclusionMatches = 0. Score = 0. (DO NOT divide)");
+            sb.AppendLine("3. Criteria Groups Score (0.50):");
+            sb.AppendLine("- Step 1 (Per Group):");
+            sb.AppendLine("  * If ANY Exclusion rule in the group is \"Match\" (Violation) → GroupScore = 0.");
+            sb.AppendLine("  * Else → GroupScore = (count of matched inclusion rules / total inclusion rules in group).");
+            sb.AppendLine("  * If group has NO inclusion rules and NO exclusion violation → GroupScore = 1.");
+            sb.AppendLine("- Step 2 (Aggregate): CriteriaGroupsScore = average(all GroupScore values).");
             sb.AppendLine();
 
-            sb.AppendLine("GROUP 4: EXCLUSION (0.25)");
-            if (input.ExclusionCriteria != null && input.ExclusionCriteria.Any())
-            {
-                sb.AppendLine("- ExclusionMatches = count of ExclusionCriteriaResults with Match = \"Match\" (violations).");
-                sb.AppendLine("- If ExclusionMatches > 0 → RelevanceScore for this group = 0.");
-                sb.AppendLine("- If ExclusionMatches = 0 → RelevanceScore for this group = 0.25.");
-            }
-            else sb.AppendLine("- No exclusion criteria provided. ExclusionMatches = 0. Score = 0.25 (Implicit pass).");
-            sb.AppendLine();
-
-            sb.AppendLine("### FINAL SCORE");
-            sb.AppendLine("RelevanceScore = sum of all groups. Range: 0.0 to 1.0. DO NOT round intermediate values.");
-            sb.AppendLine("- ExclusionHighlights MUST be an aggregation of ALL individual \"Highlight\" strings from violated exclusion criteria.");
-            sb.AppendLine();
-
-            sb.AppendLine("### RECOMMENDATION (BR10)");
+            sb.AppendLine("### FINAL RECOMMENDATION");
             sb.AppendLine("- Include: RelevanceScore ≥ 0.7 AND ExclusionMatches = 0.");
             sb.AppendLine("- Exclude: RelevanceScore < 0.4 OR ExclusionMatches > 0.");
             sb.AppendLine("- Uncertain: otherwise.");
             sb.AppendLine();
 
-            sb.AppendLine("### REASONING REQUIREMENT");
-            sb.AppendLine("MUST include: Detailed Match results for each field, each group score calculation with weights used, and a final sum demonstration.");
+            sb.AppendLine("### REASONING FORMAT REQUIREMENTS (STRICT)");
+            sb.AppendLine("- The \"Reasoning\" field MUST be formatted using clean Markdown.");
+            sb.AppendLine("- Use headings (##, ###) to separate major sections.");
+            sb.AppendLine("- Use bullet points (-) for listing items.");
+            sb.AppendLine("- Use indentation (2 spaces) for nested details.");
+            sb.AppendLine("- Add blank lines between sections for readability.");
+            sb.AppendLine("- DO NOT return everything in a single line.");
+            sb.AppendLine("- DO NOT escape normal characters like '+' or '\\''.");
             sb.AppendLine();
 
+            sb.AppendLine("### REQUIRED REASONING STRUCTURE");
+            sb.AppendLine("The reasoning MUST follow this structure exactly:");
+            sb.AppendLine();
+
+            sb.AppendLine("## 1. Formula");
+            sb.AppendLine("RelevanceScore = (0.25 × CriteriaMatchingScore) + (0.25 × PICOCMatchingScore) + (0.50 × CriteriaGroupsScore)");
+            sb.AppendLine();
+
+            sb.AppendLine("## 2. Criteria Matching Score");
+            sb.AppendLine("**CriteriaMatchingScore = <value>**");
+            sb.AppendLine("- <field>: Match | NotMatch | Unknown");
+            sb.AppendLine();
+
+            sb.AppendLine("## 3. PICOC Matching Score");
+            sb.AppendLine("**PICOCMatchingScore = <value>**");
+            sb.AppendLine("- RQ 1: <score>");
+            sb.AppendLine("- RQ 2: <score>");
+            sb.AppendLine();
+
+            sb.AppendLine("## 4. Criteria Groups Score");
+            sb.AppendLine("**CriteriaGroupsScore = <value>**");
+            sb.AppendLine("- Group 1: <score>");
+            sb.AppendLine("- Group 2: <score>");
+            sb.AppendLine();
+
+            sb.AppendLine("## 5. Final Calculation");
+            sb.AppendLine("**Final Score = <value>**");
+            sb.AppendLine();
+
+            sb.AppendLine("## 6. Exclusion Summary");
+            sb.AppendLine("**ExclusionMatches = <number>**");
+            sb.AppendLine();
+
+            sb.AppendLine("## 7. Recommendation");
+            sb.AppendLine("**Recommendation = Include | Exclude | Uncertain**");
+            sb.AppendLine("- Reason: <short explanation>");
+            sb.AppendLine();
+
+            sb.AppendLine("IMPORTANT: If the Reasoning is not properly formatted in Markdown with clear sections, the response is INVALID.");
+
             sb.AppendLine("### HARD CONSTRAINTS");
-            sb.AppendLine("- Output MUST be valid JSON. NO markdown. NO explanation outside JSON. NO missing fields.");
+            sb.AppendLine("- Output MUST be valid JSON. NO markdown, only markdown for reasoning. NO explanation outside JSON. NO missing fields.");
 
             return sb.ToString();
         }

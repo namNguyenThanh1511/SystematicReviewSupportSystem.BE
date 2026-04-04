@@ -5,16 +5,28 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     public class StuSeAIOutput
     {
         public CriteriaMatchingResult CriteriaMatching { get; set; } = new();
-        public PicocMatchingResult PicocMatching { get; set; } = new();
-        public List<ResearchQuestionMatch> ResearchQuestionMatching { get; set; } = new();
-        public List<InclusionCriteriaResult> InclusionCriteriaResults { get; set; } = new();
-        public List<ExclusionCriteriaResult> ExclusionCriteriaResults { get; set; } = new();
+        public List<ResearchQuestionResult> ResearchQuestionResults { get; set; } = new();
+        public List<CriteriaGroupResult> CriteriaGroupResults { get; set; } = new();
         public int InclusionMatches { get; set; }
         public int ExclusionMatches { get; set; }
         public List<string> ExclusionHighlights { get; set; } = new();
         public double RelevanceScore { get; set; }
         public string Recommendation { get; set; } = string.Empty;
         public string Reasoning { get; set; } = string.Empty;
+    }
+
+    public class ResearchQuestionResult
+    {
+        public string Question { get; set; } = string.Empty;
+        public string Match { get; set; } = "Unknown";
+        public PicocMatchingResult? PicocMatching { get; set; }
+    }
+
+    public class CriteriaGroupResult
+    {
+        public string? Description { get; set; }
+        public List<InclusionCriteriaResult> InclusionResults { get; set; } = new();
+        public List<ExclusionCriteriaResult> ExclusionResults { get; set; } = new();
     }
 
     public class MatchingValue
@@ -28,7 +40,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public MatchingValue Language { get; set; } = new();
         public MatchingValue Domain { get; set; } = new();
         public MatchingValue StudyType { get; set; } = new();
-        public MatchingValue TimeRange { get; set; } = new();
     }
 
     public class PicocMatchingResult

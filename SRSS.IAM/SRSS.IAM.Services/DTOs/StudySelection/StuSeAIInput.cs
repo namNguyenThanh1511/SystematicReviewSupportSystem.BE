@@ -7,10 +7,21 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     {
         public StuSePaperInput Paper { get; set; } = null!;
         public StuSeCriteriaInput Criteria { get; set; } = null!;
-        public StuSePicocInput PICOC { get; set; } = null!;
-        public List<string> ResearchQuestions { get; set; } = new();
-        public List<string> InclusionCriteria { get; set; } = new();
-        public List<string> ExclusionCriteria { get; set; } = new();
+        public List<StuSeRQInput> ResearchQuestions { get; set; } = new();
+        public List<StuSeCriteriaGroupInput> CriteriaGroups { get; set; } = new();
+    }
+
+    public class StuSeRQInput
+    {
+        public string QuestionText { get; set; } = string.Empty;
+        public StuSePicocInput? PICOC { get; set; }
+    }
+
+    public class StuSeCriteriaGroupInput
+    {
+        public string? Description { get; set; }
+        public List<string> InclusionRules { get; set; } = new();
+        public List<string> ExclusionRules { get; set; } = new();
     }
 
     public class StuSePaperInput

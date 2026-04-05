@@ -3,8 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Writer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
@@ -15,6 +18,7 @@ using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.GrobidClient.DTOs;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.ReferenceProcessingService;
+using SRSS.IAM.Services.Utils;
 
 namespace SRSS.IAM.Services.CandidatePaperService
 {
@@ -42,16 +46,13 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
         public async Task ExtractReferencesFromPaperAsync(Guid processId, Guid paperId, CancellationToken cancellationToken = default)
         {
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, isTracking: false, cancellationToken);
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, isTracking: true, cancellationToken);
             if (paper == null)
             {
                 throw new InvalidOperationException($"Paper with ID {paperId} not found.");
             }
 
-            var paperPdf = await _unitOfWork.PaperPdfs.GetLatestPaperPdfAsync(paperId, cancellationToken);
             var pdfUrl = paper.PdfUrl;
-            var fileName = paperPdf?.FileName ?? paper.PdfFileName ?? "paper.pdf";
-
             if (string.IsNullOrWhiteSpace(pdfUrl))
             {
                 throw new InvalidOperationException("No PDF URL available to extract references from.");
@@ -63,55 +64,217 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 using var response = await httpClient.GetAsync(pdfUrl, cancellationToken);
                 response.EnsureSuccessStatusCode();
 
-                using var pdfStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+                using var pdfMemoryStream = new MemoryStream();
+                await response.Content.CopyToAsync(pdfMemoryStream, cancellationToken);
+                pdfMemoryStream.Position = 0;
 
-                var extractedRefs = await _grobidService.ExtractReferencesAsync(pdfStream, fileName, cancellationToken);
+                // 1. Compute Hash for caching
+                var hash = HashHelper.ComputeSha256Hash(pdfMemoryStream);
+                pdfMemoryStream.Position = 0;
 
-                if (extractedRefs != null && extractedRefs.Any())
+                var paperPdf = await _unitOfWork.PaperPdfs.GetLatestPaperPdfAsync(paperId, cancellationToken);
+                
+                // Update paper and pdf hash if not set (or different)
+                bool needsSave = false;
+                if (paper.CurrentFileHash != hash)
                 {
-                    var existingDetected = await _unitOfWork.CandidatePapers.FindAllAsync(
-                        c => c.OriginPaperId == paperId && c.Status == CandidateStatus.Detected,
-                        isTracking: true,
+                    paper.CurrentFileHash = hash;
+                    needsSave = true;
+                }
+                if (paperPdf != null && paperPdf.FileHash != hash)
+                {
+                    paperPdf.FileHash = hash;
+                    needsSave = true;
+                }
+
+                if (needsSave)
+                {
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+
+                // 2. Cache Hit Logic via PaperPdf: Check for any other PDF with the same hash already extracted inside a project
+                var existingPaperPdfWithRefs = await _unitOfWork.PaperPdfs.FindFirstOrDefaultAsync(
+                    p => p.FileHash == hash && p.RefsExtracted == true && p.ProjectId == paper.ProjectId,
+                    isTracking: false,
+                    cancellationToken);
+
+                if (existingPaperPdfWithRefs != null)
+                {
+                    var existingCandidates = await _unitOfWork.CandidatePapers.FindAllAsync(
+                        c => c.OriginPaperId == existingPaperPdfWithRefs.PaperId,
+                        isTracking: false,
                         cancellationToken);
 
-                    if (existingDetected.Any())
+                    if (existingCandidates.Any())
                     {
-                        await _unitOfWork.CandidatePapers.RemoveMultipleAsync(existingDetected, cancellationToken);
+                        _logger.LogInformation("Cache hit for paper {PaperId} with hash {Hash}. Cloning {Count} candidates from paper {SourcePaperId}.", 
+                            paperId, hash, existingCandidates.Count(), existingPaperPdfWithRefs.PaperId);
+                        
+                        // Chỉ xóa những Candidate chưa được Select và chưa bị Reject
+                        // Giữ lại những cái Status = Rejected hoặc IsSelectedInScreening = true
+                        var removableCandidates = await _unitOfWork.CandidatePapers.FindAllAsync(
+                            c => c.OriginPaperId == paperId 
+                                && c.Status != CandidateStatus.Rejected 
+                                && c.IsSelectedInScreening == false, 
+                            isTracking: true, cancellationToken);
+                        if (removableCandidates.Any())
+                        {
+                            await _unitOfWork.CandidatePapers.RemoveMultipleAsync(removableCandidates, cancellationToken);
+                        }
+
+                        var clonedCandidates = existingCandidates.Select(c => new CandidatePaper
+                        {
+                            Id = Guid.NewGuid(),
+                            ReviewProcessId = processId,
+                            OriginPaperId = paperId,
+                            Title = c.Title,
+                            Authors = c.Authors,
+                            PublicationYear = c.PublicationYear,
+                            DOI = c.DOI,
+                            RawReference = c.RawReference,
+                            ReferenceType = c.ReferenceType,
+                            NormalizedReference = c.NormalizedReference,
+                            Status = CandidateStatus.Detected, // Reset to Trigger processing
+                            CreatedAt = DateTimeOffset.UtcNow,
+                            ModifiedAt = DateTimeOffset.UtcNow
+                        }).ToList();
+
+                        await _unitOfWork.CandidatePapers.AddRangeAsync(clonedCandidates, cancellationToken);
+                        
+                        // Update current paperPdf.RefsExtracted = true
+                        if (paperPdf != null)
+                        {
+                            paperPdf.RefsExtracted = true;
+                        }
+
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                        await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
+                        {
+                            ProcessId = processId,
+                            PaperId = paperId
+                        }, cancellationToken);
+
+                        return;
                     }
+                }
 
-                    var newCandidates = extractedRefs.Select(r => new CandidatePaper
+                // 3. PDF Splitting & GROBID API (Cache Miss)
+                _logger.LogInformation("Cache miss for paper {PaperId}. Extracting references via GROBID with PDF splitting.", paperId);
+                
+                Stream streamToSend = pdfMemoryStream;
+                var fileName = paperPdf?.FileName ?? paper.PdfFileName ?? "paper.pdf";
+
+                try
+                {
+                    // Attempt to extract only the last 8 pages to save GROBID processing time
+                    streamToSend = ExtractLastPagesAsync(pdfMemoryStream, 8);
+                    streamToSend.Position = 0;
+
+                    var extractedRefs = await _grobidService.ExtractReferencesAsync(streamToSend, fileName, cancellationToken);
+
+                    if (extractedRefs != null && extractedRefs.Any())
                     {
-                        Id = Guid.NewGuid(),
-                        ReviewProcessId = processId,
-                        OriginPaperId = paperId,
-                        Title = r.Title,
-                        Authors = r.Authors,
-                        PublicationYear = r.PublishedYear,
-                        DOI = r.DOI,
-                        RawReference = r.RawReference,
-                        ReferenceType = r.ReferenceType,
-                        NormalizedReference = r.Title?.ToLowerInvariant() ?? r.RawReference?.ToLowerInvariant() ?? string.Empty,
-                        Status = CandidateStatus.Detected,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    }).ToList();
+                        var existingDetected = await _unitOfWork.CandidatePapers.FindAllAsync(
+                            c => c.OriginPaperId == paperId && c.Status == CandidateStatus.Detected,
+                            isTracking: true,
+                            cancellationToken);
 
-                    await _unitOfWork.CandidatePapers.AddRangeAsync(newCandidates, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                        if (existingDetected.Any())
+                        {
+                            await _unitOfWork.CandidatePapers.RemoveMultipleAsync(existingDetected, cancellationToken);
+                        }
+
+                        var newCandidates = extractedRefs.Select(r => new CandidatePaper
+                        {
+                            Id = Guid.NewGuid(),
+                            ReviewProcessId = processId,
+                            OriginPaperId = paperId,
+                            Title = r.Title,
+                            Authors = r.Authors,
+                            PublicationYear = r.PublishedYear,
+                            DOI = r.DOI,
+                            RawReference = r.RawReference,
+                            ReferenceType = r.ReferenceType,
+                            NormalizedReference = r.Title?.ToLowerInvariant() ?? r.RawReference?.ToLowerInvariant() ?? string.Empty,
+                            Status = CandidateStatus.Detected,
+                            CreatedAt = DateTimeOffset.UtcNow,
+                            ModifiedAt = DateTimeOffset.UtcNow
+                        }).ToList();
+
+                        await _unitOfWork.CandidatePapers.AddRangeAsync(newCandidates, cancellationToken);
+                        
+                        // Finally update current paperPdf.RefsExtracted = true
+                        if (paperPdf != null)
+                        {
+                            paperPdf.RefsExtracted = true;
+                        }
+
+                        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                     // Immediately process candidates: match, create papers, create citations
                     // Converted to background job for performance
-                    await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
+                        await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
+                        {
+                            ProcessId = processId,
+                            PaperId = paperId
+                        }, cancellationToken);
+                    }
+                }
+                finally
+                {
+                    // Only dispose if it was a new stream created by ExtractLastPagesAsync
+                    if (streamToSend != pdfMemoryStream)
                     {
-                        ProcessId = processId,
-                        PaperId = paperId
-                    }, cancellationToken);
+                        streamToSend.Dispose();
+                    }
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to extract references for paper {PaperId} in process {ProcessId}.", paperId, processId);
                 throw new InvalidOperationException("Failed to extract references due to PDF download or GROBID error.", ex);
+            }
+        }
+
+
+        private Stream ExtractLastPagesAsync(Stream sourceStream, int pageCount)
+        {
+            try
+            {
+                // Note: PdfDocument.Open might throw if PDF is encrypted or corrupted
+                using var document = PdfDocument.Open(sourceStream);
+                var totalPages = document.NumberOfPages;
+                
+                // If the document is small, just use the original stream
+                if (totalPages <= pageCount)
+                {
+                    sourceStream.Position = 0;
+                    return sourceStream;
+                }
+
+                var startPage = Math.Max(1, totalPages - pageCount + 1);
+                var builder = new PdfDocumentBuilder();
+                
+                for (int i = startPage; i <= totalPages; i++)
+                {
+                    builder.AddPage(document, i);
+                }
+
+                var pdfBytes = builder.Build();
+                var outputStream = new MemoryStream(pdfBytes);
+                outputStream.Position = 0;
+                
+                _logger.LogInformation("Successfully split PDF to last {Count} pages (from page {StartPage} to {TotalPages}).", 
+                    pageCount, startPage, totalPages);
+                
+                return outputStream;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to split PDF using PdfPig. Falling back to original stream.");
+                sourceStream.Position = 0;
+                return sourceStream;
             }
         }
 
@@ -221,8 +384,8 @@ namespace SRSS.IAM.Services.CandidatePaperService
                     isTracking: true,
                     cancellationToken);
 
-                // Only allow selecting candidates that have been resolved
-                if (c != null && c.Status == CandidateStatus.Resolved)
+                // Only allow selecting candidates that have not been selected before to prevent duplicates in the identification snapshot.
+                if (c != null && !c.IsSelectedInScreening)
                 {
                     candidates.Add(c);
                 }
@@ -263,12 +426,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                     candidate.IsSelectedInScreening = true;
                     candidate.SelectedAt = DateTimeOffset.UtcNow;
-                }
-                else if (candidate.ReferenceEntityId.HasValue)
-                {
-                    _logger.LogInformation(
-                        "Candidate {CandidateId} is a non-paper reference. Skipping identification snapshot.",
-                        candidate.Id);
                 }
 
                 candidate.ModifiedAt = DateTimeOffset.UtcNow;

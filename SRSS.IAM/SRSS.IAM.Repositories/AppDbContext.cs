@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
@@ -9,7 +11,10 @@ namespace SRSS.IAM.Repositories
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
-			   => builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		{
+			builder.HasPostgresExtension("vector");
+			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		}
 		/*
          Mục đích của việc sử dụng Assembly ở đây là:
             Tự động hóa cấu hình (Automation): Thay vì phải viết thủ công từng dòng builder.Entity<MyEntity>().Has... cho mọi thực thể (entity) trong dự án, bạn có thể tạo các lớp cấu hình riêng biệt (implementing IEntityTypeConfiguration<T>).
@@ -54,17 +59,17 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
-        public DbSet<QualityAssessmentProcess> QualityAssessmentProcesses { get; set; } = default!;
-        public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
-        public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
-        public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentProcess> QualityAssessmentProcesses { get; set; } = default!;
+		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
+		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
+		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
 		public DbSet<ExtractionTemplate> ExtractionTemplates { get; set; } = default!;
 		public DbSet<ExtractionSection> ExtractionSections { get; set; } = default!;
 		public DbSet<ExtractionMatrixColumn> ExtractionMatrixColumns { get; set; } = default!;
-		
+
 		public DbSet<ExtractionField> ExtractionFields { get; set; } = default!;
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
 		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
@@ -95,8 +100,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
 		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
-		public DbSet<ReferenceEntity> ReferenceEntities { get; set; } = default!;
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
+		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
 	}
 }

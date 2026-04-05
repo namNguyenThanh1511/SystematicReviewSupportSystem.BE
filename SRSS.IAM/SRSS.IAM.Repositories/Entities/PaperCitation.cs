@@ -8,8 +8,6 @@ namespace SRSS.IAM.Repositories.Entities
     {
         public Guid SourcePaperId { get; set; }   // Paper A
         public Guid? TargetPaperId { get; set; }   // Paper B (Optional if non-paper)
-        public Guid? ReferenceEntityId { get; set; } // NEW: For non-paper references
-
         public ReferenceType ReferenceType { get; set; } // NEW
 
         public string? RawReference { get; set; }

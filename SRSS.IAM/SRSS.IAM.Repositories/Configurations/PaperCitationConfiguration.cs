@@ -24,10 +24,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("target_paper_id")
                 .IsRequired(false);
 
-            builder.Property(pc => pc.ReferenceEntityId)
-                .HasColumnName("reference_entity_id")
-                .IsRequired(false);
-
             builder.Property(pc => pc.ReferenceType)
                 .HasColumnName("reference_type")
                 .HasConversion<string>()

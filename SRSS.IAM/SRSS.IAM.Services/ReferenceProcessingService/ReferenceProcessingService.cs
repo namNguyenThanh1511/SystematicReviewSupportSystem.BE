@@ -153,36 +153,14 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                 }
                 else
                 {
-                    // Step 2: No Match Found in snapshot — Create New Paper for this project
-                    var newPaper = new Paper
-                    {
-                        Id = Guid.NewGuid(),
-                        ProjectId = reviewProcess.ProjectId,
-                        Title = candidate.Title ?? string.Empty,
-                        Authors = candidate.Authors ?? string.Empty,
-                        DOI = candidate.DOI,
-                        PublicationYear = candidate.PublicationYear,
-                        SourceType = PaperSourceType.Snowballing,
-                        Source = "Snowballing (GROBID)",
-                        ImportedAt = DateTimeOffset.UtcNow,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
-
-                    if (int.TryParse(candidate.PublicationYear, out int year))
-                    {
-                        newPaper.PublicationYearInt = year;
-                    }
-
-                    await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                    
                     // Note: TryEnrichPaperAsync usually runs asynchronously in the background in production,
                     // but here we keep it commented out as per recent USER changes or requirements.
                     // await TryEnrichPaperAsync(newPaper, candidate.Id, cancellationToken);
-
-                    targetPaperId = newPaper.Id;
+                    // No Match Found in snapshot — Do NOT create Paper here.
+                    // Creation is delayed until the leader selects this candidate in screening.
+                    targetPaperId = null;
                     matchConfidenceScore = 0m;
-                    status = CandidateStatus.Created;
+                    status = CandidateStatus.Detected;
                     isSelectedInScreening = false;
                 }
             }
@@ -195,23 +173,9 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                 notes.Add($"Low extraction quality: Missing {string.Join(", ", extractionResult.MissingFields)}");
             }
 
-            // 5. Citation Creation (Always link extraction outcome to source)
-            if (candidate.OriginPaperId.HasValue && targetPaperId.HasValue)
-            {
-                var citation = await CreateCitationIfNotExistsAsync(
-                    sourcePaperId: candidate.OriginPaperId.Value,
-                    targetPaperId: targetPaperId,
-                    referenceType: referenceType,
-                    rawReference: candidate.RawReference,
-                    extractionQuality: extractionQualityScore,
-                    matchConfidence: matchConfidenceScore,
-                    cancellationToken: cancellationToken);
-
-                if (citation != null)
-                {
-                    candidate.CitationId = citation.Id;
-                }
-            }
+            // 5. Citation Creation (DELAYED until selection)
+            // Paper and Citation creation are moved to SelectCandidatePapersAsync in CandidatePaperService
+            // to prevent creating unused resources for candidates that are never selected.
 
             // 6. Final State Persistence
             candidate.TargetPaperId = targetPaperId;
@@ -222,9 +186,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             candidate.IsSelectedInScreening = isSelectedInScreening;
             candidate.SelectedAt = selectedAt;
             candidate.ValidationNote = notes.Any() ? string.Join("; ", notes) : null;
-            candidate.Status = (status == CandidateStatus.Matched || status == CandidateStatus.Created) 
-                ? status 
-                : CandidateStatus.Resolved; 
+            candidate.Status = status; // Matched or Detected (extraction done)
             
             candidate.ModifiedAt = DateTimeOffset.UtcNow;
             await _unitOfWork.CandidatePapers.UpdateAsync(candidate, cancellationToken);
@@ -260,79 +222,6 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             }
         }
 
-        private async Task<PaperCitation?> CreateCitationIfNotExistsAsync(
-            Guid sourcePaperId,
-            Guid? targetPaperId,
-            ReferenceType referenceType,
-            string? rawReference,
-            decimal extractionQuality, // Điểm chất lượng trích xuất
-            decimal matchConfidence,   // Điểm tin cậy đối soát
-            CancellationToken cancellationToken)
-        {
-            // 1. Kiểm tra tồn tại (Giữ nguyên logic cũ nhưng tối ưu query)
-            var existing = await _unitOfWork.PaperCitations.FindSingleAsync(
-                x => x.SourcePaperId == sourcePaperId 
-                    && x.TargetPaperId == targetPaperId,
-                isTracking: false,
-                cancellationToken);
-
-            if (existing != null)
-            {
-                return existing;
-            }
-
-            // 2. Tính toán Confidence Score tổng hợp cho Citation
-            // Condition A (New Paper): If matchConfidence == 0, set finalConfidence = extractionQuality * 0.9m
-            // Condition B (Matched Paper): If matchConfidence > 0, set weighted finalConfidence
-            decimal finalConfidence = matchConfidence == 0 
-                ? extractionQuality * 0.9m 
-                : (matchConfidence * 0.7m) + (extractionQuality * 0.3m);
-
-            finalConfidence = Math.Clamp(finalConfidence, 0m, 1m);
-            
-            // Một citation bị coi là Low Confidence nếu:
-            // - Điểm tổng hợp < 0.75
-            // - HOẶC Match Confidence quá thấp (< 0.6) (Chỉ áp dụng khi có match)
-            // - HOẶC Extraction Quality cực thấp (< 0.4)
-            bool isLowConfidence = finalConfidence < 0.75m 
-                                   || (matchConfidence > 0 && matchConfidence < 0.6m) 
-                                   || extractionQuality < 0.4m;
-
-            // 3. Khởi tạo Entity
-            var citation = new PaperCitation
-            {
-                Id = Guid.NewGuid(),
-                SourcePaperId = sourcePaperId,
-                TargetPaperId = targetPaperId,
-                ReferenceType = referenceType,
-                RawReference = rawReference,
-                
-                // Lưu điểm tổng hợp
-                ConfidenceScore = Math.Clamp(finalConfidence, 0m, 1m),
-                
-                // Lưu vết thêm các mốc điểm riêng lẻ 
-                ExtractionQuality = extractionQuality, 
-                MatchConfidence = matchConfidence,
-
-                Source = CitationSource.Grobid,
-                IsLowConfidence = isLowConfidence,
-                CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
-            };
-
-            await _unitOfWork.PaperCitations.AddAsync(citation, cancellationToken);
-
-            // 4. Logging chuyên sâu
-            if (isLowConfidence)
-            {
-                _logger.LogWarning(
-                    "Low-confidence citation created. Match: {MScore}, Extraction: {EScore}, Final: {FScore}. Path: {Source} -> {Target}",
-                    matchConfidence, extractionQuality, finalConfidence, sourcePaperId, 
-                    targetPaperId?.ToString());
-            }
-
-            return citation;
-        }
 
         private static ExtractionQuality CalculateExtractionQuality(CandidatePaper candidate)
         {

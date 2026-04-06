@@ -6,9 +6,8 @@ namespace SRSS.IAM.Repositories.Entities.Enums
     {
         Detected = 0,
         Matched = 1,
-        Resolved = 2,
-        Rejected = 3,
-        Created = 4,
+        Rejected = 3
+
     }
 
     public enum PaperSourceType

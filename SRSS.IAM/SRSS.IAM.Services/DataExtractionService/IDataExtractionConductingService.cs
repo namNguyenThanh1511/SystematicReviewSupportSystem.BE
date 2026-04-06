@@ -16,5 +16,6 @@ namespace SRSS.IAM.Services.DataExtractionService
 		Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId);
 		Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default);
 		Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken);
+		Task<ExtractionWorkloadSummaryDto> GetWorkloadSummaryAsync(Guid extractionProcessId, CancellationToken cancellationToken);
 	}
 }

@@ -129,5 +129,19 @@ namespace SRSS.IAM.API.Controllers
 			await _extractionService.DirectExtractByLeaderAsync(extractionProcessId, paperId, request, cancellationToken);
 			return Ok<object>(new object(), "Direct extraction by leader completed successfully.");
 		}
+
+		/// <summary>
+		/// Returns workload and progress analytics for the extraction process.
+		/// Leaders receive statistics for all reviewers.
+		/// Members receive only their personal workload summary.
+		/// </summary>
+		[HttpGet("{extractionProcessId}/workload-summary")]
+		public async Task<ActionResult<ApiResponse<ExtractionWorkloadSummaryDto>>> GetWorkloadSummary(
+			[FromRoute] Guid extractionProcessId,
+			CancellationToken cancellationToken)
+		{
+			var result = await _extractionService.GetWorkloadSummaryAsync(extractionProcessId, cancellationToken);
+			return Ok(result, "Workload summary retrieved successfully.");
+		}
 	}
 }

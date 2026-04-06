@@ -97,17 +97,12 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
 
             // 2. Initial Setup
             var extractionResult = CalculateExtractionQuality(candidate);
-            var extractionScore = extractionResult.Score;
             var reference = MapToExtractedReference(candidate);
-            var referenceType = candidate.ReferenceType != ReferenceType.Unknown 
-                ? candidate.ReferenceType 
-                : _referenceClassificationService.Classify(reference);
-
+            
             Guid? targetPaperId = null;
-            Guid? referenceEntityId = null;
             decimal extractionQualityScore = extractionResult.Score;
             decimal matchConfidenceScore = 0m;
-            var status = candidate.Status;
+            var status = CandidateStatus.Detected;
             bool isSelectedInScreening = false;
             DateTimeOffset? selectedAt = null;
             var notes = new List<string>();
@@ -117,20 +112,28 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             {
                 // Step 1: Match against Snapshot only (Current Identification Process scope)
                 var match = await _referenceMatchingService.MatchAgainstSnapshotAsync(reference, idProcess.Id, cancellationToken);
+                matchConfidenceScore = match.ConfidenceScore;
 
-                if (match.MatchedPaper != null && match.ConfidenceScore >= 0.6m)
+                if (match.MatchedPaper != null && matchConfidenceScore >= 0.6m)
                 {
                     // Match Found: Link to existing paper in the snapshot
                     targetPaperId = match.MatchedPaper.Id;
-                    matchConfidenceScore = match.ConfidenceScore;
                     status = CandidateStatus.Matched;
                     isSelectedInScreening = true;
 
-                    // Identity Warning: Snapshot Duplicate
+                    // Tiered Priority: Definite Match vs Uncertain Match
+                    if (matchConfidenceScore >= 0.85m)
+                    {
+                        notes.Add("Potential duplicate found in screening dataset");
+                    }
+                    else
+                    {
+                        notes.Add("Uncertain match with existing paper - please verify identity");
+                    }
+
+                    // Snapshot Metadata
                     if (match.IsSnapshotDuplicate)
                     {
-                        notes.Add("Already in screening dataset");
-
                         var existingSnapshot = await _unitOfWork.IdentificationProcessPapers.FindSingleAsync(
                             ipp => ipp.IdentificationProcessId == idProcess.Id && ipp.PaperId == targetPaperId.Value,
                             isTracking: false, cancellationToken);
@@ -141,43 +144,38 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                         }
                     }
 
-                    // Identity Warning: Uncertain Match
-                    if (matchConfidenceScore >= 0.6m && matchConfidenceScore < 0.85m)
-                    {
-                        notes.Add("Uncertain match with existing paper - please verify identity");
-                    }
-
                     _logger.LogInformation(
-                        "Snapshot match found (Score: {MatchScore}) for Candidate {CandidateId}.",
-                        matchConfidenceScore, candidate.Id);
+                        "Candidate {CandidateId} matched existing paper {TargetId} (Score: {MatchScore}).",
+                        candidate.Id, targetPaperId, matchConfidenceScore);
                 }
                 else
                 {
-                    // Note: TryEnrichPaperAsync usually runs asynchronously in the background in production,
-                    // but here we keep it commented out as per recent USER changes or requirements.
-                    // await TryEnrichPaperAsync(newPaper, candidate.Id, cancellationToken);
-                    // No Match Found in snapshot — Do NOT create Paper here.
-                    // Creation is delayed until the leader selects this candidate in screening.
-                    targetPaperId = null;
-                    matchConfidenceScore = 0m;
-                    status = CandidateStatus.Detected;
-                    isSelectedInScreening = false;
+                    // No Match Found in snapshot — Tiered logic for Suggested vs Detected
+                    if (extractionQualityScore >= 0.75m)
+                    {
+                        status = CandidateStatus.Suggested;
+                        notes.Add("Ready for screening (High metadata quality)");
+                        
+                        _logger.LogInformation(
+                            "Candidate {CandidateId} marked as Suggested (Quality: {QualityScore}).",
+                            candidate.Id, extractionQualityScore);
+                    }
+                    else
+                    {
+                        status = CandidateStatus.Detected;
+                        if (extractionResult.MissingFields.Any())
+                        {
+                            notes.Add($"Missing {string.Join(", ", extractionResult.MissingFields)}");
+                        }
+
+                        _logger.LogInformation(
+                            "Candidate {CandidateId} marked as Detected (Quality: {QualityScore}).",
+                            candidate.Id, extractionQualityScore);
+                    }
                 }
             }
 
-
-            // 4. Validation Note Generation (Prioritized)
-            // Quality Warning: Extraction Integrity
-            if (extractionQualityScore < 0.7m)
-            {
-                notes.Add($"Low extraction quality: Missing {string.Join(", ", extractionResult.MissingFields)}");
-            }
-
-            // 5. Citation Creation (DELAYED until selection)
-            // Paper and Citation creation are moved to SelectCandidatePapersAsync in CandidatePaperService
-            // to prevent creating unused resources for candidates that are never selected.
-
-            // 6. Final State Persistence
+            // 4. Final State Persistence
             candidate.TargetPaperId = targetPaperId;
             candidate.ExtractionQualityScore = extractionQualityScore;
             candidate.MatchConfidenceScore = matchConfidenceScore;
@@ -186,7 +184,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             candidate.IsSelectedInScreening = isSelectedInScreening;
             candidate.SelectedAt = selectedAt;
             candidate.ValidationNote = notes.Any() ? string.Join("; ", notes) : null;
-            candidate.Status = status; // Matched or Detected (extraction done)
+            candidate.Status = status;
             
             candidate.ModifiedAt = DateTimeOffset.UtcNow;
             await _unitOfWork.CandidatePapers.UpdateAsync(candidate, cancellationToken);

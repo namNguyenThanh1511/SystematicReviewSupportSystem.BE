@@ -6,7 +6,8 @@ namespace SRSS.IAM.Repositories.Entities.Enums
     {
         Detected = 0,
         Matched = 1,
-        Rejected = 3
+        Rejected = 2,
+        Suggested = 3
 
     }
 

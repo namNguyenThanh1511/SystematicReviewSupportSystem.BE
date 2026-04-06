@@ -9,6 +9,9 @@ using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.UserService;
 
+using SRSS.IAM.Services.StudySelectionAIService;
+using Microsoft.AspNetCore.Authorization;
+
 namespace SRSS.IAM.API.Controllers
 {
     /// <summary>
@@ -21,12 +24,21 @@ namespace SRSS.IAM.API.Controllers
         private readonly IStudySelectionService _studySelectionService;
         private readonly IPaperService _paperService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IStuSeAIService _stuSeAIService;
+        private readonly IStudySelectionAIResultService _studySelectionAIResultService;
 
-        public StudySelectionController(IStudySelectionService studySelectionService, IPaperService paperService, ICurrentUserService currentUserService)
+        public StudySelectionController(
+            IStudySelectionService studySelectionService,
+            IPaperService paperService,
+            ICurrentUserService currentUserService,
+            IStuSeAIService stuSeAIService,
+            IStudySelectionAIResultService studySelectionAIResultService)
         {
             _studySelectionService = studySelectionService;
             _paperService = paperService;
             _currentUserService = currentUserService;
+            _stuSeAIService = stuSeAIService;
+            _studySelectionAIResultService = studySelectionAIResultService;
         }
 
         /// <summary>
@@ -412,6 +424,46 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _paperService.GetFullTextEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
             return Ok(result, "Full-Text eligible papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Evaluate a paper using AI (Title/Abstract phase only)
+        /// </summary>
+        [HttpPost("study-selection/{studySelectionId}/papers/{paperId}/ai-evaluate")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<StuSeAIOutput>>> EvaluatePaperWithAi(
+            [FromRoute] Guid studySelectionId,
+            [FromRoute] Guid paperId)
+        {
+            var userIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdStr, out var reviewerId))
+            {
+                throw new ArgumentException("Invalid user ID in current context.");
+            }
+
+            var result = await _stuSeAIService.EvaluateTitleAbstractAsync(studySelectionId, paperId, reviewerId);
+            return Ok(result, "AI evaluation completed successfully.");
+        }
+
+        /// <summary>
+        /// Get AI evaluation result for a paper (specific to the current reviewer)
+        /// </summary>
+        [HttpGet("study-selection/{studySelectionId}/papers/{paperId}/ai-result")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<StudySelectionAIResultResponse>>> GetAiEvaluationResult(
+            [FromRoute] Guid studySelectionId,
+            [FromRoute] Guid paperId,
+            [FromQuery] ScreeningPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var userIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdStr, out var reviewerId))
+            {
+                throw new ArgumentException("Invalid user ID in current context.");
+            }
+
+            var result = await _studySelectionAIResultService.GetByKeysAsync(studySelectionId, paperId, reviewerId, phase, cancellationToken);
+            return Ok(result, "AI evaluation result retrieved successfully.");
         }
     }
 }

@@ -33,6 +33,7 @@ using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
 
 
@@ -96,38 +97,39 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractionPaperTaskRepository ExtractionPaperTasks { get; }
         IExtractedDataValueRepository ExtractedDataValues { get; }
 
-		// Synthesis
-		IDataSynthesisStrategyRepository SynthesisStrategies { get; }
-		IDisseminationStrategyRepository DisseminationStrategies { get; }
-		IProjectTimetableRepository Timetables { get; }
-		ISystematicReviewProjectRepository SystematicReviewProjects { get; }
-		IReviewProcessRepository ReviewProcesses { get; }
-		IIdentificationProcessRepository IdentificationProcesses { get; }
-		ISearchExecutionRepository SearchExecutions { get; }
-		IPaperRepository Papers { get; }
-		IImportBatchRepository ImportBatches { get; }
-		IPrismaReportRepository PrismaReports { get; }
-		IDeduplicationResultRepository DeduplicationResults { get; }
-		IScreeningResolutionRepository ScreeningResolutions { get; }
-		IStudySelectionProcessRepository StudySelectionProcesses { get; }
-		IScreeningDecisionRepository ScreeningDecisions { get; }
-		IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
-		IPaperAssignmentRepository PaperAssignments { get; }
-		ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
-		IPaperPdfRepository PaperPdfs { get; }
-		IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
-		IGrobidHeaderResultRepository GrobidHeaderResults { get; }
-		ICandidatePaperRepository CandidatePapers { get; }
-		IPaperCitationRepository PaperCitations { get; }
-       IPaperEmbeddingRepository PaperEmbeddings { get; }
-		IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
-		IPaperFullTextRepository PaperFullTexts { get; }
+        // Synthesis
+        IDataSynthesisStrategyRepository SynthesisStrategies { get; }
+        IDisseminationStrategyRepository DisseminationStrategies { get; }
+        IProjectTimetableRepository Timetables { get; }
+        ISystematicReviewProjectRepository SystematicReviewProjects { get; }
+        IReviewProcessRepository ReviewProcesses { get; }
+        IIdentificationProcessRepository IdentificationProcesses { get; }
+        ISearchExecutionRepository SearchExecutions { get; }
+        IPaperRepository Papers { get; }
+        IImportBatchRepository ImportBatches { get; }
+        IPrismaReportRepository PrismaReports { get; }
+        IDeduplicationResultRepository DeduplicationResults { get; }
+        IScreeningResolutionRepository ScreeningResolutions { get; }
+        IStudySelectionProcessRepository StudySelectionProcesses { get; }
+        IScreeningDecisionRepository ScreeningDecisions { get; }
+        IIdentificationProcessPaperRepository IdentificationProcessPapers { get; }
+        IPaperAssignmentRepository PaperAssignments { get; }
+        ITitleAbstractScreeningRepository TitleAbstractScreenings { get; }
+        IPaperPdfRepository PaperPdfs { get; }
+        IPaperSourceMetadataRepository PaperSourceMetadatas { get; }
+        IGrobidHeaderResultRepository GrobidHeaderResults { get; }
+        ICandidatePaperRepository CandidatePapers { get; }
+        IPaperCitationRepository PaperCitations { get; }
+        IPaperEmbeddingRepository PaperEmbeddings { get; }
+        IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
+        IStudySelectionAIResultRepository StudySelectionAIResults { get; }
+        IPaperFullTextRepository PaperFullTexts { get; }
 
-		// Quality Assessment
-		IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
-		IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
-		IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
-		IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
-	}
+        // Quality Assessment
+        IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
+        IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
+        IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
+        IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
+    }
 }
 

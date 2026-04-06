@@ -34,6 +34,7 @@ using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
 
 
@@ -72,6 +73,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperCitationRepository? _paperCitations;
         private IPaperEmbeddingRepository? _paperEmbeddings;
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+        private IStudySelectionAIResultRepository? _studySelectionAIResults;
         private IPaperFullTextRepository? _paperFullTexts;
         // Protocol
         private IReviewProtocolRepository? _protocols;
@@ -317,6 +319,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _paperEmbeddings ??= new PaperEmbeddingRepository(_dbContext);
         public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
             => _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
+        public IStudySelectionAIResultRepository StudySelectionAIResults
+            => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
         public IPaperFullTextRepository PaperFullTexts
             => _paperFullTexts ??= new PaperFullTextRepository(_dbContext);
 

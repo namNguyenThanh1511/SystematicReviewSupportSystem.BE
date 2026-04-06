@@ -23,6 +23,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
         public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
+        public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
 
         // Domain Methods
         public void Start()

@@ -516,5 +516,15 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Where(p => paperIds.Contains(p.Id))
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<Paper?> GetForAiEvaluationAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.StudySelectionProcessPapers)
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        }
     }
 }

@@ -24,5 +24,9 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
         Task<bool> HasActiveProcessAsync(
             Guid reviewProcessId,
             CancellationToken cancellationToken = default);
+
+        Task<StudySelectionProcess?> GetForAiEvaluationAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
     }
 }

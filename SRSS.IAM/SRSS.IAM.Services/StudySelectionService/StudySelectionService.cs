@@ -608,6 +608,87 @@ namespace SRSS.IAM.Services.StudySelectionService
             return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
         }
 
+        public async Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var resolutions = await _unitOfWork.ScreeningResolutions.GetByProcessAsync(
+                studySelectionProcessId,
+                request.Phase,
+                cancellationToken);
+
+            var paperIds = resolutions.Select(r => r.PaperId).Distinct().ToList();
+            var papers = await _unitOfWork.Papers.FindAllAsync(p => paperIds.Contains(p.Id), isTracking: false, cancellationToken: cancellationToken);
+            var paperMap = papers.ToDictionary(p => p.Id);
+
+            var userIds = resolutions.Select(r => r.ResolvedBy).ToList();
+            var userNames = await GetUserNamesAsync(userIds, cancellationToken);
+
+            var allItems = new List<ScreeningResolutionPaperResponse>();
+            foreach (var r in resolutions)
+            {
+                if (paperMap.TryGetValue(r.PaperId, out var paper))
+                {
+                    // Apply Decision Filter
+                    if (request.FinalDecision.HasValue && r.FinalDecision != request.FinalDecision.Value)
+                        continue;
+
+                    // Apply Search Filter (Title, Authors, DOI)
+                    if (!string.IsNullOrWhiteSpace(request.Search))
+                    {
+                        var search = request.Search.Trim().ToLowerInvariant();
+                        if (!(paper.Title?.ToLowerInvariant().Contains(search) ?? false) &&
+                            !(paper.Authors?.ToLowerInvariant().Contains(search) ?? false) &&
+                            !(paper.DOI?.ToLowerInvariant().Contains(search) ?? false))
+                        {
+                            continue;
+                        }
+                    }
+
+                    var baseRes = await MapToResolutionResponse(r, paper.Title ?? "Unknown", userNames, cancellationToken);
+                    
+                    allItems.Add(new ScreeningResolutionPaperResponse
+                    {
+                        Id = baseRes.Id,
+                        StudySelectionProcessId = baseRes.StudySelectionProcessId,
+                        PaperId = baseRes.PaperId,
+                        PaperTitle = baseRes.PaperTitle,
+                        FinalDecision = baseRes.FinalDecision,
+                        FinalDecisionText = baseRes.FinalDecisionText,
+                        Phase = baseRes.Phase,
+                        PhaseText = baseRes.PhaseText,
+                        ResolutionNotes = baseRes.ResolutionNotes,
+                        ResolvedBy = baseRes.ResolvedBy,
+                        ResolverName = baseRes.ResolverName,
+                        ResolvedAt = baseRes.ResolvedAt,
+                        Authors = paper.Authors,
+                        DOI = paper.DOI,
+                        PublicationYear = paper.PublicationYear,
+                        Source = paper.Source
+                    });
+                }
+            }
+
+            // Pagination
+            var totalCount = allItems.Count;
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var items = allItems
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PaginatedResponse<ScreeningResolutionPaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
         public async Task<PaperSelectionStatus> GetPaperSelectionStatusAsync(
             Guid studySelectionProcessId,
             Guid paperId,

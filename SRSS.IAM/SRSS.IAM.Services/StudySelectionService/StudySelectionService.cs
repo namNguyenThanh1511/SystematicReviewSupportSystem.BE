@@ -1786,6 +1786,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
                     await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
                 }
 
                 paper.CurrentFileHash = fileHash;
@@ -2196,6 +2197,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 StudySelectionProcessId = studySelectionProcessId,
                 PaperId = paperId,
                 FinalDecision = autoDecision.Value,
+                ExclusionReasonCode = decisions.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonCode,
                 Phase = phase,
                 ResolutionNotes = autoNotes,
                 ResolvedBy = Guid.Empty, // System

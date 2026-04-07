@@ -27,10 +27,32 @@ namespace SRSS.IAM.Repositories.Entities
         public string? CoordinatesJson { get; set; }
 
         /// <summary>
-        /// 384-dimensional embedding vector produced by <c>SmartComponents.LocalEmbeddings</c>.
-        /// Stored as PostgreSQL <c>vector(384)</c>.
+        /// Embedding vector stored as a PostgreSQL <c>vector</c> column.
+        /// The number of dimensions is defined by <see cref="EmbeddingDimensions"/>.
         /// </summary>
         public Vector? Embedding { get; set; }
+
+        // ============================================
+        // EMBEDDING MODEL PROVENANCE
+        // ============================================
+
+        /// <summary>
+        /// The identifier of the embedding model that produced <see cref="Embedding"/>.
+        /// Example: "all-MiniLM-L6-v2". Used to detect stale chunks when the model changes.
+        /// </summary>
+        public string EmbeddingModel { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The number of dimensions of the stored embedding vector.
+        /// Example: 384 for all-MiniLM-L6-v2.
+        /// </summary>
+        public int EmbeddingDimensions { get; set; }
+
+        /// <summary>
+        /// The library or external service that produced the embedding.
+        /// Example: "SmartComponents.LocalEmbeddings", "OpenAI", "Google".
+        /// </summary>
+        public string EmbeddingProvider { get; set; } = string.Empty;
 
         /// <summary>UTC timestamp when this chunk was created.</summary>
         public DateTimeOffset CreatedAt { get; set; }

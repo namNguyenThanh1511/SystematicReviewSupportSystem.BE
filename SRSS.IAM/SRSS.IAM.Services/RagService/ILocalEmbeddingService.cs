@@ -9,18 +9,44 @@ namespace SRSS.IAM.Services.RagService
     /// </summary>
     public interface ILocalEmbeddingService
     {
+        // ============================================
+        // MODEL IDENTITY (for chunk provenance tracking)
+        // ============================================
+
         /// <summary>
-        /// Generates a 384-dimensional embedding for a single text string.
+        /// Short model identifier stored on every <c>PaperChunk</c>.
+        /// Example: "all-MiniLM-L6-v2".
+        /// </summary>
+        string ModelName { get; }
+
+        /// <summary>
+        /// Number of dimensions in every embedding vector produced by this service.
+        /// Example: 384.
+        /// </summary>
+        int Dimensions { get; }
+
+        /// <summary>
+        /// Library or external service backing this implementation.
+        /// Example: "SmartComponents.LocalEmbeddings".
+        /// </summary>
+        string Provider { get; }
+
+        // ============================================
+        // EMBEDDING METHODS
+        // ============================================
+
+        /// <summary>
+        /// Generates a single embedding for the provided text.
         /// </summary>
         /// <param name="text">The text to embed. Must not be null or empty.</param>
-        /// <returns>A <see cref="Vector"/> with 384 dimensions.</returns>
+        /// <returns>A <see cref="Vector"/> with <see cref="Dimensions"/> dimensions.</returns>
         Vector GetEmbedding(string text);
 
         /// <summary>
-        /// Generates embeddings for a batch of text strings.
+        /// Generates embeddings for a batch of text strings in a single pass.
         /// </summary>
         /// <param name="texts">List of texts to embed.</param>
-        /// <returns>A list of <see cref="Vector"/> objects (same order as input).</returns>
+        /// <returns>A list of <see cref="Vector"/> objects in the same order as <paramref name="texts"/>.</returns>
         List<Vector> GetEmbeddingsBatch(List<string> texts);
     }
 }

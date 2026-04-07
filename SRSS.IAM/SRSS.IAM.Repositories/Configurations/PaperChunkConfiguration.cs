@@ -36,6 +36,20 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("created_at")
                 .IsRequired();
 
+            builder.Property(c => c.EmbeddingModel)
+                .HasColumnName("embedding_model")
+                .HasMaxLength(128)
+                .IsRequired();
+
+            builder.Property(c => c.EmbeddingDimensions)
+                .HasColumnName("embedding_dimensions")
+                .IsRequired();
+
+            builder.Property(c => c.EmbeddingProvider)
+                .HasColumnName("embedding_provider")
+                .HasMaxLength(128)
+                .IsRequired();
+
             // Relationship: many PaperChunks → one Paper (cascade delete)
             builder.HasOne(c => c.Paper)
                 .WithMany(p => p.PaperChunks)

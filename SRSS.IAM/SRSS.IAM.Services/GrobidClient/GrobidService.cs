@@ -91,7 +91,7 @@ namespace SRSS.IAM.Services.GrobidClient
                     consolidateCitations: 0,
                     consolidateFunders: 0,
                     segmentSentences: false,
-                    teiCoordinates: teiCoordinates
+                    teiCoordinates: new[] { "p", "head", "s", "ref", "figure", "table" }
                 );
 
                 _logger.LogInformation("Successfully received fulltext TEI XML from GROBID");

@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -84,11 +85,21 @@ namespace SRSS.IAM.Services.RagService
             await using var pdfStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
             // 2. Extract full text via Grobid
-            var teiXml = await grobidService.ProcessFulltextDocumentAsync(pdfStream,
-            cancellationToken, teiCoordinates: new[] { "p", "head", "s", "ref", "figure", "table" });
+            // var teiXml = await grobidService.ProcessFulltextDocumentAsync(pdfStream,
+            // cancellationToken, teiCoordinates: new[] { "p", "head", "s", "ref", "figure", "table" });
+            // if (string.IsNullOrWhiteSpace(teiXml))
+            // {
+            //     _logger.LogWarning("Grobid returned empty TEI XML for PaperId {PaperId}", workItem.PaperId);
+            //     return;
+            // }
+
+            var teiXml = await dbContext.PaperFullTexts
+                        .Include(x => x.PaperPdf).ThenInclude(x => x.Paper).ThenInclude(x => x.PaperPdfs)
+                        .Where(x => x.PaperPdf.Paper.Id == workItem.PaperId).Select(x => x.RawXml).FirstOrDefaultAsync(cancellationToken);
+
             if (string.IsNullOrWhiteSpace(teiXml))
             {
-                _logger.LogWarning("Grobid returned empty TEI XML for PaperId {PaperId}", workItem.PaperId);
+                _logger.LogWarning("PaperFullText not found for PaperId {PaperId}", workItem.PaperId);
                 return;
             }
 

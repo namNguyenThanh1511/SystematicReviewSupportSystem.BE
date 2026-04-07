@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -74,6 +74,34 @@ namespace SRSS.IAM.Services.SupabaseService
             catch (Exception ex)
             {
                 throw new Exception($"Lỗi khi upload file lên Supabase: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<byte[]> DownloadFileAsync(string path)
+        {
+            try
+            {
+                await _supabaseClient.InitializeAsync();
+                
+                // If the path is a full URL, extract the relative path
+                // Example URL: https://xyz.supabase.co/storage/v1/object/public/research-papers/papers/123/456/file.pdf
+                // Relative path: papers/123/456/file.pdf
+                string relativePath = path;
+                if (path.Contains("/storage/v1/object/public/"))
+                {
+                    var parts = path.Split($"/public/{_bucketName}/");
+                    if (parts.Length > 1)
+                    {
+                        relativePath = parts[1];
+                    }
+                }
+
+                var storage = _supabaseClient.Storage.From(_bucketName);
+                return await storage.Download(relativePath, (System.EventHandler<float>?)null);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Lỗi khi download file từ Supabase: {ex.Message}", ex);
             }
         }
     }

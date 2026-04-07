@@ -46,8 +46,9 @@ using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.GeminiService;
-using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.ReferenceProcessingService;
+using SRSS.IAM.Services.PaperFullTextService;
 
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
@@ -61,9 +62,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
             services.AddHttpClient();
             services.AddSignalR();
-			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-			services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
-			services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+            services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+            services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
@@ -95,20 +96,22 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddSingleton<IGeminiService, GeminiService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
+            services.AddScoped<IStuSeAIService, StuSeAIService>();
+            services.AddScoped<IStudySelectionAIResultService, StudySelectionAIResultService>();
             services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
-            
+
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
             services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));
             services.AddHttpClient<IGrobidClient, GrobidClient>();
-			services.AddScoped<IGrobidService, GrobidService>();
-			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
-			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
+            services.AddScoped<IGrobidService, GrobidService>();
+            services.AddScoped<IMetadataMergeService, MetadataMergeService>();
+            services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
             services.AddScoped<IReferenceClassificationService, ReferenceClassificationService>();
             services.AddScoped<IReferenceProcessingService, ReferenceProcessingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
@@ -136,13 +139,18 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<ReferenceProcessingJob>());
             services.AddHostedService<ReferenceProcessingBackgroundService>();
 
+            // Paper full-text extraction background worker
+            services.AddSingleton<IPaperFullTextQueue, PaperFullTextQueue>();
+            services.AddScoped<IPaperFullTextService, PaperFullTextService>();
+            services.AddHostedService<PaperFullTextBackgroundService>();
+
             // RAG pipeline — Local CPU embedding (Singleton: ONNX model loads once)
             services.AddSingleton<LocalEmbedder>();
             services.AddSingleton<ILocalEmbeddingService, LocalEmbeddingService>();
             services.AddSingleton<IRagIngestionQueue, RagIngestionQueue>();
             services.AddHostedService<RagIngestionBackgroundService>();
             services.AddScoped<IRagRetrievalService, RagRetrievalService>();
-		}
+        }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)
         {
@@ -179,13 +187,13 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
         public static void ConfigureJWT(this IServiceCollection services, IConfiguration configuration)
         {
-			var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
-				?? throw new InvalidOperationException("JwtSettings section is missing in configuration");
-			var secretKey = jwtSettings.SecretKey ?? throw new InvalidOperationException("JwtSettings:SecretKey is required");
-			var validIssuer = jwtSettings.ValidIssuer;
-			var validAudience = jwtSettings.ValidAudience;
+            var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+                ?? throw new InvalidOperationException("JwtSettings section is missing in configuration");
+            var secretKey = jwtSettings.SecretKey ?? throw new InvalidOperationException("JwtSettings:SecretKey is required");
+            var validIssuer = jwtSettings.ValidIssuer;
+            var validAudience = jwtSettings.ValidAudience;
 
-			services.AddAuthentication(opt =>
+            services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;

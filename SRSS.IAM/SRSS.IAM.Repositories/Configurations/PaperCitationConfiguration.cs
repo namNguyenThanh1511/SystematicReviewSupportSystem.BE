@@ -24,10 +24,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("target_paper_id")
                 .IsRequired(false);
 
-            builder.Property(pc => pc.ReferenceEntityId)
-                .HasColumnName("reference_entity_id")
-                .IsRequired(false);
-
             builder.Property(pc => pc.ReferenceType)
                 .HasColumnName("reference_type")
                 .HasConversion<string>()
@@ -77,15 +73,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(pc => pc.TargetPaperId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasOne(pc => pc.ReferenceEntity)
-                .WithMany(re => re.IncomingCitations)
-                .HasForeignKey(pc => pc.ReferenceEntityId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             // Indexes
             builder.HasIndex(pc => pc.SourcePaperId);
             builder.HasIndex(pc => pc.TargetPaperId);
-            builder.HasIndex(pc => pc.ReferenceEntityId);
             
             // Unique mapping: Source + (TargetPaper OR ReferenceEntity)
             // Note: Since TargetPaperId and ReferenceEntityId are nullable, 

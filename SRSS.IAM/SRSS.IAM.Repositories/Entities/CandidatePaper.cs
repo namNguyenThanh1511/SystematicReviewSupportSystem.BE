@@ -22,7 +22,6 @@ namespace SRSS.IAM.Repositories.Entities
         public CandidateStatus Status { get; set; } = CandidateStatus.Detected;
 
         public Guid? TargetPaperId { get; set; }
-        public Guid? ReferenceEntityId { get; set; }
         public Guid? CitationId { get; set; }
 
         public bool IsSelectedInScreening { get; set; } = false;
@@ -34,7 +33,6 @@ namespace SRSS.IAM.Repositories.Entities
         public ReviewProcess ReviewProcess { get; set; } = null!;
         public Paper OriginPaper { get; set; } = null!;
         public Paper? TargetPaper { get; set; }
-        public ReferenceEntity? ReferenceEntity { get; set; }
         public PaperCitation? Citation { get; set; }
     }
 }

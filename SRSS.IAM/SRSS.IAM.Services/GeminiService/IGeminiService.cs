@@ -1,4 +1,6 @@
 using System.Threading.Tasks;
+using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.GeminiService
 {

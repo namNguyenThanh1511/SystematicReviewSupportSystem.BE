@@ -2,13 +2,15 @@
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.OpenApi.Models;
+using Npgsql;
+using Pgvector.EntityFrameworkCore;
 using Shared.Cache;
 using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Npgsql;
 using Pgvector.EntityFrameworkCore;
 

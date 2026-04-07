@@ -6,10 +6,13 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.GrobidClient.DTOs;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
+using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.PaperFullTextService;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -20,6 +23,7 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly IMetadataMergeService _metadataMergeService;
         private readonly INotificationService _notificationService;
         private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
+        private readonly IPaperFullTextQueue _fullTextQueue;
         private readonly ILogger<StudySelectionService> _logger;
 
         public StudySelectionService(
@@ -28,6 +32,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             IMetadataMergeService metadataMergeService,
             INotificationService notificationService,
             IStudySelectionProcessPaperService studySelectionProcessPaperService,
+            IPaperFullTextQueue fullTextQueue,
             ILogger<StudySelectionService> logger
             )
         {
@@ -36,6 +41,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             _metadataMergeService = metadataMergeService;
             _notificationService = notificationService;
             _studySelectionProcessPaperService = studySelectionProcessPaperService;
+            _fullTextQueue = fullTextQueue;
             _logger = logger;
         }
 
@@ -602,6 +608,87 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+        }
+
+        public async Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var resolutions = await _unitOfWork.ScreeningResolutions.GetByProcessAsync(
+                studySelectionProcessId,
+                request.Phase,
+                cancellationToken);
+
+            var paperIds = resolutions.Select(r => r.PaperId).Distinct().ToList();
+            var papers = await _unitOfWork.Papers.FindAllAsync(p => paperIds.Contains(p.Id), isTracking: false, cancellationToken: cancellationToken);
+            var paperMap = papers.ToDictionary(p => p.Id);
+
+            var userIds = resolutions.Select(r => r.ResolvedBy).ToList();
+            var userNames = await GetUserNamesAsync(userIds, cancellationToken);
+
+            var allItems = new List<ScreeningResolutionPaperResponse>();
+            foreach (var r in resolutions)
+            {
+                if (paperMap.TryGetValue(r.PaperId, out var paper))
+                {
+                    // Apply Decision Filter
+                    if (request.FinalDecision.HasValue && r.FinalDecision != request.FinalDecision.Value)
+                        continue;
+
+                    // Apply Search Filter (Title, Authors, DOI)
+                    if (!string.IsNullOrWhiteSpace(request.Search))
+                    {
+                        var search = request.Search.Trim().ToLowerInvariant();
+                        if (!(paper.Title?.ToLowerInvariant().Contains(search) ?? false) &&
+                            !(paper.Authors?.ToLowerInvariant().Contains(search) ?? false) &&
+                            !(paper.DOI?.ToLowerInvariant().Contains(search) ?? false))
+                        {
+                            continue;
+                        }
+                    }
+
+                    var baseRes = await MapToResolutionResponse(r, paper.Title ?? "Unknown", userNames, cancellationToken);
+                    
+                    allItems.Add(new ScreeningResolutionPaperResponse
+                    {
+                        Id = baseRes.Id,
+                        StudySelectionProcessId = baseRes.StudySelectionProcessId,
+                        PaperId = baseRes.PaperId,
+                        PaperTitle = baseRes.PaperTitle,
+                        FinalDecision = baseRes.FinalDecision,
+                        FinalDecisionText = baseRes.FinalDecisionText,
+                        Phase = baseRes.Phase,
+                        PhaseText = baseRes.PhaseText,
+                        ResolutionNotes = baseRes.ResolutionNotes,
+                        ResolvedBy = baseRes.ResolvedBy,
+                        ResolverName = baseRes.ResolverName,
+                        ResolvedAt = baseRes.ResolvedAt,
+                        Authors = paper.Authors,
+                        DOI = paper.DOI,
+                        PublicationYear = paper.PublicationYear,
+                        Source = paper.Source
+                    });
+                }
+            }
+
+            // Pagination
+            var totalCount = allItems.Count;
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var items = allItems
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PaginatedResponse<ScreeningResolutionPaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<PaperSelectionStatus> GetPaperSelectionStatusAsync(
@@ -1635,7 +1722,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             {
                 throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
             }
-
+            
             // Validate paper exists and is eligible
             var paper = await _unitOfWork.Papers.FindSingleAsync(
                 p => p.Id == paperId,
@@ -1648,188 +1735,280 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             // Update full-text fields
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl))
-            {
-                paper.PdfUrl = request.PdfUrl;
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.PdfFileName))
-            {
-                paper.PdfFileName = request.PdfFileName;
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Url))
-            {
-                paper.Url = request.Url;
-            }
+            if (!string.IsNullOrWhiteSpace(request.PdfUrl)) paper.PdfUrl = request.PdfUrl;
+            if (!string.IsNullOrWhiteSpace(request.PdfFileName)) paper.PdfFileName = request.PdfFileName;
+            if (!string.IsNullOrWhiteSpace(request.Url)) paper.Url = request.Url;
 
             paper.ModifiedAt = DateTimeOffset.UtcNow;
 
             ExtractionSuggestionResponse? extractionSuggestion = null;
 
-            // Grobid Integration
-            PaperPdf? paperPdf = null;
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl))
+            // Handle PDF and GROBID Integration
+            if (!string.IsNullOrWhiteSpace(request.PdfUrl) && request.PdfStream != null)
             {
-                paperPdf = new PaperPdf
-                {
-                    Id = Guid.NewGuid(),
-                    PaperId = paperId,
-                    FilePath = request.PdfUrl,
-                    FileName = request.PdfFileName ?? string.Empty,
-                    UploadedAt = DateTimeOffset.UtcNow,
-                    GrobidProcessed = request.ExtractWithGrobid,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                };
-                await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
-            }
-            Console.WriteLine("ExtractWithGrobid: " + request.ExtractWithGrobid);
-            Console.WriteLine("PdfStream: " + request.PdfStream);
-            Console.WriteLine("PaperPdf: " + paperPdf);
-            if (request.ExtractWithGrobid && request.PdfStream != null && paperPdf != null)
-            {
-                _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paperId);
-                var grobidDto = await _grobidService.ExtractHeaderAsync(request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
+                // 1. Calculate File Hash
+                string fileHash = HashHelper.ComputeSha256Hash(request.PdfStream); 
+                request.PdfStream.Position = 0; // Reset stream for GROBID or other use
 
-                var grobidDoi = grobidDto.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
-                var paperDoi = paper.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
+                // 2. Optimization: Skip GROBID if hash hasn't changed
+                bool skipGrobid = request.ExtractWithGrobid && fileHash == paper.CurrentFileHash;
 
-                if (!string.IsNullOrWhiteSpace(grobidDoi) &&
-                    !string.IsNullOrWhiteSpace(paperDoi) &&
-                    !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
+                // 3. Idempotency for PaperPdf (Update existing instead of duplicates)
+                var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(
+                    p => p.PaperId == paperId,
+                    isTracking: true,
+                    cancellationToken: cancellationToken);
+
+                if (paperPdf != null)
                 {
-                    throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+                    paperPdf.FilePath = request.PdfUrl;
+                    paperPdf.FileName = request.PdfFileName ?? string.Empty;
+                    paperPdf.UploadedAt = DateTimeOffset.UtcNow;
+                    paperPdf.FileHash = fileHash;
+                    paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                    // If we skip GROBID, we don't change GrobidProcessed status but we do if we are extracted now
+                    if (request.ExtractWithGrobid && !skipGrobid) paperPdf.GrobidProcessed = true;
                 }
-
-                if (!string.IsNullOrWhiteSpace(grobidDto.RawXml))
+                else
                 {
-                    var headerResult = new GrobidHeaderResult
+                    paperPdf = new PaperPdf
                     {
                         Id = Guid.NewGuid(),
-                        PaperPdfId = paperPdf.Id,
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        RawXml = grobidDto.RawXml,
-                        ExtractedAt = DateTimeOffset.UtcNow,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
-                    await _unitOfWork.GrobidHeaderResults.AddAsync(headerResult, cancellationToken);
-
-                    var sourceMeta = new PaperSourceMetadata
-                    {
-                        Id = Guid.NewGuid(),
+                        ProjectId = paper.ProjectId,
                         PaperId = paperId,
-                        Source = MetadataSource.GROBID_HEADER,
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        Publisher = grobidDto.Publisher,
-                        PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
-                        Year = grobidDto.Year,
-                        ISSN = grobidDto.ISSN,
-                        EISSN = grobidDto.EISSN,
-                        Keywords = grobidDto.Keywords,
-                        Language = grobidDto.Language,
-                        Md5 = grobidDto.Md5,
-                        ExtractedAt = DateTimeOffset.UtcNow,
+                        FilePath = request.PdfUrl,
+                        FileName = request.PdfFileName ?? string.Empty,
+                        UploadedAt = DateTimeOffset.UtcNow,
+                        GrobidProcessed = request.ExtractWithGrobid && !skipGrobid,
+                        FileHash = fileHash,
+                        RefsExtracted = false,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
-                    await _unitOfWork.PaperSourceMetadatas.AddAsync(sourceMeta, cancellationToken);
+                    await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
+                }
 
-                    // REMOVED automatic merge to preserve canonical Paper metadata
-                    // await _metadataMergeService.MergeAsync(paper, sourceMeta);
+                paper.CurrentFileHash = fileHash;
 
-                    // Issue 3: Include ExtractionResult payloads dynamically based on modifications
-                    var extractionResult = new ExtractionResultResponse
+                // 4. GROBID Extraction (if requested and not skipped)
+                if (request.ExtractWithGrobid)
+                {
+                    if (skipGrobid)
                     {
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        Publisher = grobidDto.Publisher,
-                        PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
-                        Year = grobidDto.Year,
-                        ISSN = grobidDto.ISSN,
-                        EISSN = grobidDto.EISSN,
-                        Keywords = grobidDto.Keywords,
-                        Language = grobidDto.Language,
-                        Md5 = grobidDto.Md5,
-                        UpdatedFields = new List<string>() // Idealy from MetadataMerge logic, keeping it simple for now
-                    };
+                        _logger.LogInformation("Skipping GROBID extraction for Paper {PaperId} because file hash matches current record.", paperId);
+                        
+                        // Retrieve existing PaperSourceMetadata and recalculate suggestions
+                        var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                            paper.Id, 
+                            cancellationToken);
 
-                    if (!string.IsNullOrEmpty(grobidDto.Title)) extractionResult.UpdatedFields.Add("Title");
-                    if (!string.IsNullOrEmpty(grobidDto.Authors)) extractionResult.UpdatedFields.Add("Authors");
-                    if (!string.IsNullOrEmpty(grobidDto.Abstract)) extractionResult.UpdatedFields.Add("Abstract");
-                    if (!string.IsNullOrEmpty(grobidDto.DOI)) extractionResult.UpdatedFields.Add("DOI");
-                    if (!string.IsNullOrEmpty(grobidDto.Journal)) extractionResult.UpdatedFields.Add("Journal");
-                    if (!string.IsNullOrEmpty(grobidDto.Volume)) extractionResult.UpdatedFields.Add("Volume");
-                    if (!string.IsNullOrEmpty(grobidDto.Issue)) extractionResult.UpdatedFields.Add("Issue");
-                    if (!string.IsNullOrEmpty(grobidDto.Pages)) extractionResult.UpdatedFields.Add("Pages");
-                    if (!string.IsNullOrEmpty(grobidDto.Keywords)) extractionResult.UpdatedFields.Add("Keywords");
-                    if (!string.IsNullOrEmpty(grobidDto.Language)) extractionResult.UpdatedFields.Add("Language");
-                    if (!string.IsNullOrEmpty(grobidDto.Md5)) extractionResult.UpdatedFields.Add("Md5");
-                    if (!string.IsNullOrEmpty(grobidDto.Publisher)) extractionResult.UpdatedFields.Add("Publisher");
-                    if (!string.IsNullOrEmpty(grobidDto.PublishedDate?.ToString())) extractionResult.UpdatedFields.Add("PublishedDate");
-                    if (!string.IsNullOrEmpty(grobidDto.Year?.ToString())) extractionResult.UpdatedFields.Add("Year");
-                    if (!string.IsNullOrEmpty(grobidDto.ISSN)) extractionResult.UpdatedFields.Add("ISSN");
-                    if (!string.IsNullOrEmpty(grobidDto.EISSN)) extractionResult.UpdatedFields.Add("EISSN");
-
-                    // Create extraction suggestion for the frontend
-                    var suggestion = new ExtractionSuggestionResponse
+                        if (sourceMeta != null)
+                        {
+                            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+                            sourceMeta.SuggestedFields = updatedFields;
+                            sourceMeta.ModifiedAt = DateTimeOffset.UtcNow;
+                            
+                            extractionSuggestion = new ExtractionSuggestionResponse
+                            {
+                                SourceMetadataId = sourceMeta.Id,
+                                Title = sourceMeta.Title,
+                                Authors = sourceMeta.Authors,
+                                Abstract = sourceMeta.Abstract,
+                                DOI = sourceMeta.DOI,
+                                Language = sourceMeta.Language,
+                                Journal = sourceMeta.Journal,
+                                Volume = sourceMeta.Volume,
+                                Issue = sourceMeta.Issue,
+                                Pages = sourceMeta.Pages,
+                                Keywords = sourceMeta.Keywords,
+                                Publisher = sourceMeta.Publisher,
+                                Year = sourceMeta.Year,
+                                Md5 = sourceMeta.Md5,
+                                ISSN = sourceMeta.ISSN,
+                                EISSN = sourceMeta.EISSN,
+                                UpdatedFields = updatedFields
+                            };
+                            
+                            await _unitOfWork.PaperSourceMetadatas.UpdateAsync(sourceMeta, cancellationToken);
+                        }
+                    }
+                    else
                     {
-                        SourceMetadataId = sourceMeta.Id,
-                        Title = sourceMeta.Title,
-                        Authors = sourceMeta.Authors,
-                        Abstract = sourceMeta.Abstract,
-                        DOI = sourceMeta.DOI,
-                        Language = sourceMeta.Language,
-                        Journal = sourceMeta.Journal,
-                        Volume = sourceMeta.Volume,
-                        Issue = sourceMeta.Issue,
-                        Pages = sourceMeta.Pages,
-                        Keywords = sourceMeta.Keywords,
-                        Publisher = sourceMeta.Publisher,
-                        Year = sourceMeta.Year,
-                        Md5 = sourceMeta.Md5,
-                        ISSN = sourceMeta.ISSN,
-                        EISSN = sourceMeta.EISSN
-                    };
+                        extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
+                    }
 
-                    _logger.LogInformation("Created extraction suggestion {SourceMetadataId} for Paper {PaperId}", sourceMeta.Id, paperId);
+                    // 5. Enqueue Full-text Extraction (Background)
+                    // Optimization: Skip if skipGrobid is true AND any other PDF with same hash was already processed
+                    bool runFullText = true;
+                    if (skipGrobid)
+                    {
+                        runFullText = !await _unitOfWork.PaperPdfs.AnyFullTextProcessedByHashAsync(fileHash, cancellationToken);
+                    }
 
-                    // Note: In an actual implementation with proper design, we would pass this suggestion nicely through the return DTO
-                    // For now, returning it by packing it in via context or similar depending on the existing architecture.
-                    // Let's modify the PaperWithDecisionsResponse return directly
-                    extractionSuggestion = suggestion;
-
-                    // Stash it in HttpContext.Items to be mapped into the response DTO
-                    // Not ideal domain design, but simplest for gap report resolution
+                    if (runFullText)
+                    {
+                        _logger.LogInformation("Enqueuing PaperPdf {PaperPdfId} for background full-text extraction.", paperPdf.Id);
+                        _fullTextQueue.TryWrite(paperPdf.Id);
+                    }
                 }
             }
 
+            // Ensure changes are persisted before mapping response
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
-
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+        }
+
+        private async Task<ExtractionSuggestionResponse?> PerformGrobidExtractionAsync(
+            Paper paper, 
+            PaperPdf paperPdf, 
+            Stream pdfStream, 
+            string fileName, 
+            CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paper.Id);
+            var grobidDto = await _grobidService.ExtractHeaderAsync(pdfStream, fileName, cancellationToken);
+
+            var grobidDoi = NormalizeDoi(grobidDto.DOI);
+            var paperDoi = NormalizeDoi(paper.DOI);
+
+            // DOI strict validation
+            if (!string.IsNullOrWhiteSpace(grobidDoi) &&
+                !string.IsNullOrWhiteSpace(paperDoi) &&
+                !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+            }
+
+            if (string.IsNullOrWhiteSpace(grobidDto.RawXml)) return null;
+
+            // 1. Idempotency for GrobidHeaderResult
+            var existingHeader = await _unitOfWork.GrobidHeaderResults.FindSingleAsync(
+                ghr => ghr.PaperPdfId == paperPdf.Id, 
+                isTracking: true, 
+                cancellationToken: cancellationToken);
+
+            if (existingHeader != null)
+            {
+                existingHeader.Title = grobidDto.Title;
+                existingHeader.Authors = grobidDto.Authors;
+                existingHeader.Abstract = grobidDto.Abstract;
+                existingHeader.DOI = grobidDto.DOI;
+                existingHeader.Journal = grobidDto.Journal;
+                existingHeader.Volume = grobidDto.Volume;
+                existingHeader.Issue = grobidDto.Issue;
+                existingHeader.Pages = grobidDto.Pages;
+                existingHeader.RawXml = grobidDto.RawXml;
+                existingHeader.ExtractedAt = DateTimeOffset.UtcNow;
+                existingHeader.ModifiedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                var headerResult = new GrobidHeaderResult
+                {
+                    Id = Guid.NewGuid(),
+                    PaperPdfId = paperPdf.Id,
+                    Title = grobidDto.Title,
+                    Authors = grobidDto.Authors,
+                    Abstract = grobidDto.Abstract,
+                    DOI = grobidDto.DOI,
+                    Journal = grobidDto.Journal,
+                    Volume = grobidDto.Volume,
+                    Issue = grobidDto.Issue,
+                    Pages = grobidDto.Pages,
+                    RawXml = grobidDto.RawXml,
+                    ExtractedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+                await _unitOfWork.GrobidHeaderResults.AddAsync(headerResult, cancellationToken);
+            }
+
+            // 2. Idempotency and Field Merging for PaperSourceMetadata
+            var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                paper.Id, 
+                cancellationToken);
+
+            if (sourceMeta != null)
+            {
+                // Update only non-null fields (Field Merging) - keep existing if new extraction is null or empty
+                if (!string.IsNullOrWhiteSpace(grobidDto.Title)) sourceMeta.Title = grobidDto.Title;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Authors)) sourceMeta.Authors = grobidDto.Authors;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Abstract)) sourceMeta.Abstract = grobidDto.Abstract;
+                if (!string.IsNullOrWhiteSpace(grobidDto.DOI)) sourceMeta.DOI = grobidDto.DOI;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Journal)) sourceMeta.Journal = grobidDto.Journal;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Volume)) sourceMeta.Volume = grobidDto.Volume;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Issue)) sourceMeta.Issue = grobidDto.Issue;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Pages)) sourceMeta.Pages = grobidDto.Pages;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Publisher)) sourceMeta.Publisher = grobidDto.Publisher;
+                if (grobidDto.PublishedDate != null) sourceMeta.PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd");
+                if (grobidDto.Year != null) sourceMeta.Year = grobidDto.Year;
+                if (!string.IsNullOrWhiteSpace(grobidDto.ISSN)) sourceMeta.ISSN = grobidDto.ISSN;
+                if (!string.IsNullOrWhiteSpace(grobidDto.EISSN)) sourceMeta.EISSN = grobidDto.EISSN;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Keywords)) sourceMeta.Keywords = grobidDto.Keywords;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Language)) sourceMeta.Language = grobidDto.Language;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Md5)) sourceMeta.Md5 = grobidDto.Md5;
+
+                sourceMeta.ExtractedAt = DateTimeOffset.UtcNow;
+                sourceMeta.ModifiedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                sourceMeta = new PaperSourceMetadata
+                {
+                    Id = Guid.NewGuid(),
+                    PaperId = paper.Id,
+                    Source = MetadataSource.GROBID_HEADER,
+                    Title = grobidDto.Title,
+                    Authors = grobidDto.Authors,
+                    Abstract = grobidDto.Abstract,
+                    DOI = grobidDto.DOI,
+                    Journal = grobidDto.Journal,
+                    Volume = grobidDto.Volume,
+                    Issue = grobidDto.Issue,
+                    Pages = grobidDto.Pages,
+                    Publisher = grobidDto.Publisher,
+                    PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
+                    Year = grobidDto.Year,
+                    ISSN = grobidDto.ISSN,
+                    EISSN = grobidDto.EISSN,
+                    Keywords = grobidDto.Keywords,
+                    Language = grobidDto.Language,
+                    Md5 = grobidDto.Md5,
+                    ExtractedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+                await _unitOfWork.PaperSourceMetadatas.AddAsync(sourceMeta, cancellationToken);
+            }
+
+            // 3. Smart SuggestedFields Tracking (Compare Consolidated Metadata vs Main Paper)
+            // Recalculate what can be still updated based on current Paper state
+            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+            sourceMeta.SuggestedFields = updatedFields;
+
+            // 4. Map to Suggestion Response
+            return new ExtractionSuggestionResponse
+            {
+                SourceMetadataId = sourceMeta.Id,
+                Title = sourceMeta.Title,
+                Authors = sourceMeta.Authors,
+                Abstract = sourceMeta.Abstract,
+                DOI = sourceMeta.DOI,
+                Language = sourceMeta.Language,
+                Journal = sourceMeta.Journal,
+                Volume = sourceMeta.Volume,
+                Issue = sourceMeta.Issue,
+                Pages = sourceMeta.Pages,
+                Keywords = sourceMeta.Keywords,
+                Publisher = sourceMeta.Publisher,
+                Year = sourceMeta.Year,
+                Md5 = sourceMeta.Md5,
+                ISSN = sourceMeta.ISSN,
+                EISSN = sourceMeta.EISSN,
+                UpdatedFields = updatedFields
+            };
         }
 
         public async Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
@@ -2102,6 +2281,65 @@ namespace SRSS.IAM.Services.StudySelectionService
                 studySelectionProcessId,
                 status,
                 cancellationToken);
+        }
+
+        private string? NormalizeDoi(string? doi)
+        {
+            if (string.IsNullOrWhiteSpace(doi)) return null;
+            return doi.Trim()
+                .Replace("https://doi.org/", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta)
+        {
+            var updatedFields = new List<string>();
+
+            if (CompareFields(paper.Title, sourceMeta.Title)) updatedFields.Add("Title");
+            if (CompareFields(paper.Authors, sourceMeta.Authors)) updatedFields.Add("Authors");
+            if (CompareFields(paper.Abstract, sourceMeta.Abstract)) updatedFields.Add("Abstract");
+            if (CompareFields(NormalizeDoi(paper.DOI), NormalizeDoi(sourceMeta.DOI))) updatedFields.Add("DOI");
+            if (CompareFields(paper.Journal, sourceMeta.Journal)) updatedFields.Add("Journal");
+            if (CompareFields(paper.Volume, sourceMeta.Volume)) updatedFields.Add("Volume");
+            if (CompareFields(paper.Issue, sourceMeta.Issue)) updatedFields.Add("Issue");
+            if (CompareFields(paper.Pages, sourceMeta.Pages)) updatedFields.Add("Pages");
+            if (CompareFields(paper.Keywords, sourceMeta.Keywords)) updatedFields.Add("Keywords");
+            if (CompareFields(paper.Language, sourceMeta.Language)) updatedFields.Add("Language");
+            if (CompareFields(paper.Md5, sourceMeta.Md5)) updatedFields.Add("Md5");
+            if (CompareFields(paper.Publisher, sourceMeta.Publisher)) updatedFields.Add("Publisher");
+            
+            // Compare dates (Paper: DateTimeOffset?, SourceMeta: string "yyyy-MM-dd")
+            // Clean comparison: only if suggested date is not empty
+            if (!string.IsNullOrWhiteSpace(sourceMeta.PublishedDate))
+            {
+                var paperDateStr = paper.PublicationDate?.ToString("yyyy-MM-dd");
+                if (!string.Equals(paperDateStr, sourceMeta.PublishedDate, StringComparison.OrdinalIgnoreCase))
+                    updatedFields.Add("PublishedDate");
+            }
+            
+            // Compare years
+            // Clean comparison: only if suggested year is not null
+            if (sourceMeta.Year != null)
+            {
+                var paperYear = paper.PublicationYearInt ?? (int.TryParse(paper.PublicationYear, out var y) ? y : (int?)null);
+                if (paperYear != sourceMeta.Year) 
+                    updatedFields.Add("Year");
+            }
+            
+            if (CompareFields(paper.JournalIssn, sourceMeta.ISSN)) updatedFields.Add("ISSN");
+            if (CompareFields(paper.JournalEIssn, sourceMeta.EISSN)) updatedFields.Add("EISSN");
+
+            return updatedFields;
+        }
+
+        private bool CompareFields(string? dbValue, string? extractedValue)
+        {
+            var normalizedDb = dbValue?.Trim() ?? string.Empty;
+            var normalizedExtracted = extractedValue?.Trim() ?? string.Empty;
+            
+            if (string.IsNullOrEmpty(normalizedExtracted)) return false; 
+            
+            return !string.Equals(normalizedDb, normalizedExtracted, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

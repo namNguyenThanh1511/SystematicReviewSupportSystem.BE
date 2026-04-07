@@ -35,4 +35,14 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         InProgress = 1,
         Completed = 2
     }
+
+    /// <summary>
+    /// Recommendation provided by AI for a paper screening
+    /// </summary>
+    public enum StuSeAIRecommendation
+    {
+        Include = 0,
+        Exclude = 1,
+        Uncertain = 2
+    }
 }

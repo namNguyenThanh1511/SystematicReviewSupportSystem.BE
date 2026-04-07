@@ -112,5 +112,9 @@ namespace SRSS.IAM.Repositories.PaperRepo
             IEnumerable<Guid> paperIds,
             Guid qaProcessId,
             CancellationToken cancellationToken = default);
+
+        Task<Paper?> GetForAiEvaluationAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
     }
 }

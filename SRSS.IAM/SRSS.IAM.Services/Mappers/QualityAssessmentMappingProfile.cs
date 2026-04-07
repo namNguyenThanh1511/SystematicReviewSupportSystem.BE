@@ -354,17 +354,17 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         // ==================== Paper Mapping ====================
-        public static QualityAssessmentPaperResponse ToQualityAssessmentPaperResponse(
+        public static QALeaderDashboardPaperResponse ToLeaderDashboardPaperResponse(
             this Paper paper,
             double percentage,
             QualityAssessmentResolution? resolution,
-            List<User> reviewers,
-            List<QualityAssessmentDecision> decisions,
-            string? resolvedByName)
+            List<User>? reviewers = null,
+            List<QualityAssessmentDecision>? decisions = null,
+            string? resolvedByName = null)
         {
             if (paper == null) return null!;
 
-            var response = new QualityAssessmentPaperResponse
+            var response = new QALeaderDashboardPaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,
@@ -409,7 +409,7 @@ namespace SRSS.IAM.Services.Mappers
             return response;
         }
 
-        public static AssignedPaperResponse ToAssignedPaperResponse(
+        public static QAMemberDashboardPaperResponse ToMemberDashboardPaperResponse(
             this Paper paper,
             double percentage,
             QualityAssessmentResolution? resolution,
@@ -417,7 +417,7 @@ namespace SRSS.IAM.Services.Mappers
         {
             if (paper == null) return null!;
 
-            return new AssignedPaperResponse
+            return new QAMemberDashboardPaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,

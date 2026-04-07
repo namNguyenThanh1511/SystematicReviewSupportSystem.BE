@@ -27,9 +27,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         private readonly IGrobidService _grobidService;
 
         public QualityAssessmentService(
-            IUnitOfWork unitOfWork, 
-            INotificationService notificationService, 
-            ICurrentUserService currentUserService, 
+            IUnitOfWork unitOfWork,
+            INotificationService notificationService,
+            ICurrentUserService currentUserService,
             IGeminiService geminiService,
             IHttpClientFactory httpClientFactory,
             IGrobidService grobidService)
@@ -236,9 +236,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return process.ToResponse();
         }
 
-        public async Task<List<QualityAssessmentPaperResponse>> GetAllPapersAsync(Guid id)
+        public async Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid id)
         {
-            var result = new List<QualityAssessmentPaperResponse>();
+            var result = new QALeaderDashboardResponse();
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
             if (process == null) return result;
@@ -281,6 +281,21 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
             }
 
+            // Also prepare Member Progress tracking
+            var memberProgressDict = assignments
+                .Where(a => a.User != null)
+                .GroupBy(a => a.User.Id)
+                .ToDictionary(g => g.Key, g => new QAReviewerProgressResponse
+                {
+                    ReviewerId = g.Key,
+                    ReviewerName = g.First().User.FullName ?? g.First().User.Username,
+                    TotalExpectedDecisions = g.SelectMany(a => a.Paper).Distinct().Count() * criteriaCount,
+                    ActualDecisions = 0,
+                    CompletedPapers = 0,
+                    InProgressPapers = 0,
+                    NotStartedPapers = 0
+                });
+
             foreach (var paperId in allPaperIds)
             {
                 var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId);
@@ -295,6 +310,32 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     .GroupBy(u => u.Id)
                     .Select(g => g.First())
                     .ToList();
+
+                // Build Member Progress per paper
+                foreach (var reviewer in reviewersAssignedToPaper)
+                {
+                    if (memberProgressDict.TryGetValue(reviewer.Id, out var tracker))
+                    {
+                        var reviewerDecision = paperDecisions.FirstOrDefault(d => d.ReviewerId == reviewer.Id);
+                        var itemsCount = reviewerDecision?.DecisionItems?.Count ?? 0;
+                        tracker.ActualDecisions += itemsCount;
+
+                        double reviewerCompletionPercentage = criteriaCount > 0 ? (double)itemsCount / criteriaCount * 100 : 0;
+                        
+                        if (reviewerCompletionPercentage >= 100)
+                        {
+                            tracker.CompletedPapers++;
+                        }
+                        else if (reviewerCompletionPercentage > 0)
+                        {
+                            tracker.InProgressPapers++;
+                        }
+                        else
+                        {
+                            tracker.NotStartedPapers++;
+                        }
+                    }
+                }
 
                 // All criteria == all assigned reviewers * criteria count 
                 var expectedDecisions = reviewersAssignedToPaper.Count * criteriaCount;
@@ -316,7 +357,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     resolvedByName = resolutionReviewer?.FullName ?? resolutionReviewer?.Username;
                 }
 
-                var summary = paper.ToQualityAssessmentPaperResponse(
+                var summary = paper.ToLeaderDashboardPaperResponse(
                     percentage,
                     resolution,
                     reviewersAssignedToPaper,
@@ -324,7 +365,26 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     resolvedByName
                 );
 
-                result.Add(summary);
+                if (summary.Status == "completed" || summary.Status == "resolved") result.CompletedPapers++;
+                else if (summary.Status == "in-progress") result.InProgressPapers++;
+                else result.NotStartedPapers++;
+
+                result.Papers.Add(summary);
+            }
+
+            result.TotalPapers = result.Papers.Count;
+
+            foreach (var kvp in memberProgressDict)
+            {
+                var info = kvp.Value;
+                var completion = info.TotalExpectedDecisions > 0
+                    ? (double)info.ActualDecisions / info.TotalExpectedDecisions * 100
+                    : 0;
+
+                if (completion > 100) completion = 100;
+
+                info.CompletionPercentage = completion;
+                result.ReviewerProgresses.Add(info);
             }
 
             return result;
@@ -401,22 +461,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<List<AssignedPaperResponse>> GetMyAssignedPapersAsync(Guid id)
+        public async Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid id)
         {
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
-            if (process == null) return new List<AssignedPaperResponse>();
+            if (process == null) return new QAMemberDashboardResponse();
 
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(process.Id, userId);
 
-            if (assignment == null || assignment.Paper == null) return new List<AssignedPaperResponse>();
+            if (assignment == null || assignment.Paper == null) return new QAMemberDashboardResponse();
 
             // Need to calculate completion percentage.
             // 1. Get Protocol -> QA Strategy -> Checklists -> Criteria count
             var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
-            if (protocolId == null) return new List<AssignedPaperResponse>(); // Should not happen if configured correctly
+            if (protocolId == null) return new QAMemberDashboardResponse(); // Should not happen if configured correctly
 
             var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId.Value);
             var criteriaCount = 0;
@@ -428,7 +488,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
             }
 
-            var result = new List<AssignedPaperResponse>();
+            var result = new QAMemberDashboardResponse();
+            var totalExpectedDecisions = assignment.Paper.Count * criteriaCount;
+            var actualDecisions = 0;
+
             foreach (var paper in assignment.Paper)
             {
                 // Check for resolution
@@ -438,13 +501,23 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 // Calculate decisions count for this paper by this user
                 var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdAndUserIdWithDetailsAsync(paper.Id, userId);
                 var userDecisionsCount = userDecisions?.DecisionItems?.Count ?? 0;
+                actualDecisions += userDecisionsCount;
 
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = paper.ToAssignedPaperResponse(percentage, resolution, userDecisions);
-                result.Add(dto);
+                var dto = paper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions);
+                result.Papers.Add(dto);
+
+                if (dto.Status == "completed" || dto.Status == "resolved") result.CompletedPapers++;
+                else if (dto.Status == "in-progress") result.InProgressPapers++;
+                else result.NotStartedPapers++;
             }
+
+            result.TotalPapers = assignment.Paper.Count;
+            result.CompletionPercentage = totalExpectedDecisions > 0 ? (double)actualDecisions / totalExpectedDecisions * 100 : 0;
+            if (result.CompletionPercentage > 100) result.CompletionPercentage = 100;
+
             return result;
         }
 
@@ -623,7 +696,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         {
             var resolutions = await _unitOfWork.QualityAssessmentResolutions
                 .FindAllAsync(r => r.QualityAssessmentProcessId == processId && r.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);
-            
+
             var papers = await _unitOfWork.Papers.FindAllAsync(p => resolutions.Select(r => r.PaperId).Contains(p.Id));
 
             return papers.Select(p => p.ToResponse()).ToList();
@@ -710,7 +783,8 @@ Note:
         public async Task<byte[]> ExportProcessToExcelAsync(Guid processId)
         {
             // Reuse existing method to get paper summaries
-            var papers = await GetAllPapersAsync(processId);
+            var papersResult = await GetLeaderDashboardAsync(processId);
+            var papers = papersResult.Papers;
 
             // Fetch full strategy to get criteria list (domains)
             var strategies = await GetStrategiesByProcessIdAsync(processId);
@@ -735,17 +809,17 @@ Note:
             {
                 var criterion = allCriteria[i];
                 var col = startCol + i * 3;
-                
+
                 // Merge three cells for criterion question (domain)
                 var startAddress = ws.Cell(1, col).Address.ToStringRelative();
                 var endAddress = ws.Cell(1, col + 2).Address.ToStringRelative();
                 ws.Range(startAddress + ":" + endAddress).Merge();
-                
+
                 ws.Cell(1, col).Value = criterion.Question; // Use criteria name/question as domain name
                 ws.Cell(2, col).Value = "Judgement";
                 ws.Cell(2, col + 1).Value = "Quotes";
                 ws.Cell(2, col + 2).Value = "Comments";
-                
+
                 // center domain title
                 var domainRange = ws.Range(startAddress + ":" + endAddress);
                 domainRange.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
@@ -821,5 +895,5 @@ Note:
             wb.SaveAs(ms);
             return ms.ToArray();
         }
-}
+    }
 }

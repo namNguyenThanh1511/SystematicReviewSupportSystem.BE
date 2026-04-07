@@ -178,7 +178,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     /// For reviewer
     /// </summary>
-    public class AssignedPaperResponse : QAPaperResponse
+    public class QAMemberDashboardPaperResponse : QAPaperResponse
     {
         /// <summary>
         /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
@@ -192,7 +192,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     ///  For leader
     /// </summary>
-    public class QualityAssessmentPaperResponse : QAPaperResponse
+    public class QALeaderDashboardPaperResponse : QAPaperResponse
     {
         public List<QualityAssessmentReviewerResponse> Reviewers { get; set; } = new();
         public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();
@@ -202,6 +202,40 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         /// </summary>
         public double CompletionPercentage { get; set; }
         public string Status { get; set; } = string.Empty;
+    }
+
+    public class QAMemberDashboardResponse
+    {
+        public List<QAMemberDashboardPaperResponse> Papers { get; set; } = new();
+        public double CompletionPercentage { get; set; }
+        public int TotalPapers { get; set; }
+        public int CompletedPapers { get; set; }
+        public int InProgressPapers { get; set; }
+        public int NotStartedPapers { get; set; }
+    }
+
+    public class QALeaderDashboardResponse
+    {
+        public List<QALeaderDashboardPaperResponse> Papers { get; set; } = new();
+        public List<QAReviewerProgressResponse> ReviewerProgresses { get; set; } = new();
+        public int TotalPapers { get; set; }
+        public int CompletedPapers { get; set; }
+        public int InProgressPapers { get; set; }
+        public int NotStartedPapers { get; set; }
+    }
+
+    public class QAReviewerProgressResponse
+    {
+        public Guid ReviewerId { get; set; }
+        public string? ReviewerName { get; set; }
+        public double CompletionPercentage { get; set; }
+        public int CompletedPapers { get; set; }
+        public int InProgressPapers { get; set; }
+        public int NotStartedPapers { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int TotalExpectedDecisions { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public int ActualDecisions { get; set; }
     }
 
     public class QualityAssessmentReviewerResponse

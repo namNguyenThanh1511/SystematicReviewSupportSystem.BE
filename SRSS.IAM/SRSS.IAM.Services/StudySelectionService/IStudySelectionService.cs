@@ -62,6 +62,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             ResolveScreeningConflictRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<ConflictPaperDetailResponse> GetConflictPaperDetailAsync(
             Guid studySelectionProcessId,
             Guid paperId,

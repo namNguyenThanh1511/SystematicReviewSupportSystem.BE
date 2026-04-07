@@ -31,6 +31,15 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? ResolutionNotes { get; set; }
     }
 
+    public class GetResolutionsRequest
+    {
+        public ScreeningPhase? Phase { get; set; }
+        public ScreeningDecisionType? FinalDecision { get; set; }
+        public string? Search { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
     public class PapersWithDecisionsRequest
     {
         public string? Search { get; set; }
@@ -154,6 +163,14 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public DateTimeOffset ResolvedAt { get; set; }
     }
 
+    public class ScreeningResolutionPaperResponse : ScreeningResolutionResponse
+    {
+        public string? Authors { get; set; }
+        public string? DOI { get; set; }
+        public string? PublicationYear { get; set; }
+        public string? Source { get; set; }
+    }
+
     public class PaperWithDecisionsResponse
     {
         public Guid PaperId { get; set; }
@@ -219,7 +236,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? ISSN { get; set; }
         public string? EISSN { get; set; }
         public string? Md5 { get; set; }
-
+        public List<string> UpdatedFields { get; set; } = new();
     }
 
     public class ApplyMetadataRequest

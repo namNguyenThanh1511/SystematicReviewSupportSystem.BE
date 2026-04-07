@@ -17,5 +17,11 @@ namespace SRSS.IAM.Repositories.PaperPdfRepo
                 .OrderByDescending(p => p.CreatedAt)
                 .FirstOrDefaultAsync(cancellationToken);
         }
+
+        public async Task<bool> AnyFullTextProcessedByHashAsync(string fileHash, CancellationToken cancellationToken = default)
+        {
+            return await _context.PaperPdfs
+                .AnyAsync(p => p.FileHash == fileHash && p.FullTextProcessed, cancellationToken);
+        }
     }
 }

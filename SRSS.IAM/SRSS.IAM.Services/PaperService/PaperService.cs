@@ -814,6 +814,14 @@ namespace SRSS.IAM.Services.PaperService
 
             // Apply selected fields
             await _metadataMergeService.MergeSelectedFieldsAsync(paper, sourceMetadata, request.Fields);
+            
+            // Track provenance: merge new fields with previously applied ones
+            sourceMetadata.AppliedFields = sourceMetadata.AppliedFields
+                .Union(request.Fields)
+                .Distinct()
+                .ToList();
+
+            sourceMetadata.ModifiedAt = DateTimeOffset.UtcNow;
 
             _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}", 
                 request.Fields.Count, request.SourceMetadataId, paperId);
@@ -821,6 +829,7 @@ namespace SRSS.IAM.Services.PaperService
             paper.ModifiedAt = DateTimeOffset.UtcNow;
             
             await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.PaperSourceMetadatas.UpdateAsync(sourceMetadata, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToPaperResponse(paper);

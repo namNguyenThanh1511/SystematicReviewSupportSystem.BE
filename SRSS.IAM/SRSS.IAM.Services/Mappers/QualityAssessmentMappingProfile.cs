@@ -396,7 +396,7 @@ namespace SRSS.IAM.Services.Mappers
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
-                Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
+                Status = resolution != null ? "resolved" : (percentage > 0 ? "in-progress" : "not-started"),
                 Reviewers = reviewers?.Select(u => u.ToQualityAssessmentReviewerResponse()).ToList() ?? new List<QualityAssessmentReviewerResponse>(),
                 Decisions = decisions?.Select(d => d.ToDto()).ToList() ?? new List<QualityAssessmentDecisionResponse>()
             };
@@ -413,11 +413,12 @@ namespace SRSS.IAM.Services.Mappers
             this Paper paper,
             double percentage,
             QualityAssessmentResolution? resolution,
-            QualityAssessmentDecision? userDecision)
+            QualityAssessmentDecision? userDecision, 
+            string? resolvedByName = null)
         {
             if (paper == null) return null!;
 
-            return new QAMemberDashboardPaperResponse
+            var response = new QAMemberDashboardPaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,
@@ -449,10 +450,17 @@ namespace SRSS.IAM.Services.Mappers
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
-                Resolution = resolution != null ? resolution.FinalDecision.ToString() : null,
                 Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
                 Decisions = userDecision != null ? new List<QualityAssessmentDecisionResponse> { userDecision.ToDto() } : new List<QualityAssessmentDecisionResponse>()
             };
+
+            
+            if (resolution != null)
+            {
+                response.Resolution = resolution.ToResponse(resolvedByName);
+            }
+
+            return response;
         }
 
         // ==================== QualityAssessmentAssignment ====================

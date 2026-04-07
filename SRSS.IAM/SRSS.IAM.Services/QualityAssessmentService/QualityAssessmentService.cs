@@ -215,6 +215,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
 
+            var studySelectionProcess = await _unitOfWork.StudySelectionProcesses
+                .FindSingleAsync(ssp => ssp.ReviewProcessId == entity.ReviewProcessId);
+            
+            if (studySelectionProcess != null && studySelectionProcess.Status != SelectionProcessStatus.Completed)
+            {
+                throw new InvalidOperationException("Study Selection Process must be completed before starting the Quality Assessment Process.");
+            }
+
             entity.Start();
 
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
@@ -365,7 +373,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     resolvedByName
                 );
 
-                if (summary.Status == "completed" || summary.Status == "resolved") result.CompletedPapers++;
+                if (summary.Status == "resolved") result.CompletedPapers++;
                 else if (summary.Status == "in-progress") result.InProgressPapers++;
                 else result.NotStartedPapers++;
 
@@ -498,6 +506,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
                    r => r.PaperId == paper.Id && r.QualityAssessmentProcessId == process.Id);
 
+                string? resolvedByName = null;
+                if (resolution != null)
+                {
+                    var resovledBy = await _unitOfWork.Users.FindSingleAsync(u => u.Id == resolution.ResolvedBy);
+                    resolvedByName = resovledBy?.FullName ?? resovledBy?.Username;
+                }
+
                 // Calculate decisions count for this paper by this user
                 var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdAndUserIdWithDetailsAsync(paper.Id, userId);
                 var userDecisionsCount = userDecisions?.DecisionItems?.Count ?? 0;
@@ -506,7 +521,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = paper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions);
+                var dto = paper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions, resolvedByName);
                 result.Papers.Add(dto);
 
                 if (dto.Status == "completed" || dto.Status == "resolved") result.CompletedPapers++;

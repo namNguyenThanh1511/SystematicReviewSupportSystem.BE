@@ -184,7 +184,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
         /// </summary>
         public double CompletionPercentage { get; set; }
-        public string? Resolution { get; set; }
+        public QualityAssessmentResolutionResponse? Resolution { get; set; }
         public string Status { get; set; } = string.Empty;
         public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();
     }

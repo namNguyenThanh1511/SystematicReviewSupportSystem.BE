@@ -84,18 +84,12 @@ namespace SRSS.IAM.Services.RagService
 
             await using var pdfStream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
-            // 2. Extract full text via Grobid
-            // var teiXml = await grobidService.ProcessFulltextDocumentAsync(pdfStream,
-            // cancellationToken, teiCoordinates: new[] { "p", "head", "s", "ref", "figure", "table" });
-            // if (string.IsNullOrWhiteSpace(teiXml))
-            // {
-            //     _logger.LogWarning("Grobid returned empty TEI XML for PaperId {PaperId}", workItem.PaperId);
-            //     return;
-            // }
-
+            // 2. Fetch the pre-parsed TEI XML stored by Grobid from the database.
+            //    .Select() projects only the scalar string — no .Include() needed.
             var teiXml = await dbContext.PaperFullTexts
-                        .Include(x => x.PaperPdf).ThenInclude(x => x.Paper).ThenInclude(x => x.PaperPdfs)
-                        .Where(x => x.PaperPdf.Paper.Id == workItem.PaperId).Select(x => x.RawXml).FirstOrDefaultAsync(cancellationToken);
+                .Where(x => x.PaperPdf.PaperId == workItem.PaperId)
+                .Select(x => x.RawXml)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (string.IsNullOrWhiteSpace(teiXml))
             {
@@ -112,20 +106,38 @@ namespace SRSS.IAM.Services.RagService
                 return;
             }
 
-            // 4. Generate embeddings for all chunks in a batch using the fast local CPU embedder
+            // 4. Deduplication guard: remove any existing chunks for this paper so re-ingestion
+            //    (e.g., after a model upgrade) does not create duplicate vectors.
+            var existingChunks = await dbContext.PaperChunks
+                .Where(c => c.PaperId == workItem.PaperId)
+                .ToListAsync(cancellationToken);
+
+            if (existingChunks.Count > 0)
+            {
+                _logger.LogInformation(
+                    "Removing {Count} stale chunks before re-ingesting PaperId {PaperId}",
+                    existingChunks.Count, workItem.PaperId);
+                dbContext.PaperChunks.RemoveRange(existingChunks);
+            }
+
+            // 5. Generate embeddings and stamp model provenance on every chunk.
             var textContexts = chunks.Select(c => c.TextContent).ToList();
             var embeddings = embeddingService.GetEmbeddingsBatch(textContexts);
 
             for (int i = 0; i < chunks.Count; i++)
             {
                 chunks[i].Embedding = embeddings[i];
+                chunks[i].EmbeddingModel = embeddingService.ModelName;
+                chunks[i].EmbeddingDimensions = embeddingService.Dimensions;
+                chunks[i].EmbeddingProvider = embeddingService.Provider;
             }
 
-            // 5. Save chunks to Database
+            // 6. Save all changes (deletions + insertions) in a single transaction.
             await dbContext.PaperChunks.AddRangeAsync(chunks, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Successfully ingested {ChunkCount} RAG chunks for PaperId {PaperId}", chunks.Count, workItem.PaperId);
+            _logger.LogInformation("Successfully ingested {ChunkCount} RAG chunks for PaperId {PaperId} using model '{Model}'",
+                chunks.Count, workItem.PaperId, embeddingService.ModelName);
         }
 
         /// <summary>

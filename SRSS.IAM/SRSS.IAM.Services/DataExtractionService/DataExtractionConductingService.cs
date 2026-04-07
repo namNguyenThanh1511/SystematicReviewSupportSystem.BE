@@ -101,8 +101,6 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task<ExtractionDashboardResponseDto> GetDashboardAsync(Guid extractionProcessId, ExtractionDashboardFilterDto filter)
         {
-            // await SyncEligiblePapersAsync(extractionProcessId);
-
             // --- Role-Based Filtering ---
             var currentUserIdStr = _currentUserService.GetUserId();
             if (!Guid.TryParse(currentUserIdStr, out var currentUserId))

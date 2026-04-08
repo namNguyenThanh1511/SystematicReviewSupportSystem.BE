@@ -11,5 +11,13 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             Guid reviewerId,
             ScreeningPhase phase,
             CancellationToken cancellationToken = default);
+
+        Task SaveAIResultAsync(
+            Guid studySelectionId,
+            Guid paperId,
+            Guid reviewerId,
+            ScreeningPhase phase,
+            StuSeAIOutput aiOutput,
+            CancellationToken cancellationToken);
     }
 }

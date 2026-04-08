@@ -56,17 +56,17 @@ namespace SRSS.IAM.Repositories.Configurations
 
             // Relationships
             builder.HasOne(x => x.StudySelectionProcess)
-                .WithMany() // Assuming no collection in StudySelectionProcess yet
+                .WithMany(p => p.StudySelectionAIResults)
                 .HasForeignKey(x => x.StudySelectionProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(x => x.Paper)
-                .WithMany() // Assuming no collection in Paper yet
+                .WithMany(p => p.StudySelectionAIResults)
                 .HasForeignKey(x => x.PaperId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(x => x.Reviewer)
-                .WithMany()
+                .WithMany(u => u.StudySelectionAIResults)
                 .HasForeignKey(x => x.ReviewerId)
                 .OnDelete(DeleteBehavior.Cascade);
 

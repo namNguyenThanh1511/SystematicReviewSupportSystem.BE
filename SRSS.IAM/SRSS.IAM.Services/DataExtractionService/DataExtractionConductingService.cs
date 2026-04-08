@@ -11,6 +11,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using ClosedXML.Excel;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.RagService;
 using System.Xml.Linq;
 
 namespace SRSS.IAM.Services.DataExtractionService
@@ -22,50 +23,57 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IGrobidService _grobidService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
+        private readonly IRagRetrievalService _ragRetrievalService;
+        private readonly IRagIngestionQueue _ragQueue;
 
         public DataExtractionConductingService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IGrobidService grobidService,
             IHttpClientFactory httpClientFactory,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IRagRetrievalService ragRetrievalService,
+            IRagIngestionQueue ragQueue)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _grobidService = grobidService;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
+            _ragRetrievalService = ragRetrievalService;
+            _ragQueue = ragQueue;
         }
 
-        private async Task SyncEligiblePapersAsync(Guid extractionProcessId)
+        private async Task SyncEligiblePapersAsync(Guid extractionProcessId, CancellationToken cancellationToken = default)
         {
             // 1. Lấy thông tin ReviewProcess để biết ID của StudySelectionProcess
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
                 .Include(dp => dp.ReviewProcess)
                     .ThenInclude(rp => rp.StudySelectionProcess)
-                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId, cancellationToken);
 
             if (extractionProcess?.ReviewProcess?.StudySelectionProcess == null) return;
 
             var selectionProcessId = extractionProcess.ReviewProcess.StudySelectionProcess.Id;
 
-            // 2. Lấy danh sách PaperId đã PASS vòng Full-Text Screening            
-            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.FindAllAsync(sr => sr.StudySelectionProcessId == selectionProcessId);
-
-            var eligiblePaperIds = eligiblePapers.Select(sr => sr.PaperId).ToList();
+            // 2. Lấy danh sách Paper đã PASS vòng Full-Text Screening (Include Paper để lấy PdfUrl)
+            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(selectionProcessId, cancellationToken);
 
             // 3. Lấy danh sách Task đã tồn tại trong Data Extraction để tránh tạo trùng
-            var existingTaskPaperIds = await _unitOfWork.ExtractionPaperTasks.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
+            var existingTaskPaperIds = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Where(t => t.DataExtractionProcessId == extractionProcessId)
+                .Select(t => t.PaperId)
+                .ToListAsync(cancellationToken);
 
             // 4. Tìm ra những Paper mới được pass Screening nhưng chưa có Task ở Extraction
-            var newPaperIds = eligiblePaperIds.Where(paperId => !existingTaskPaperIds.Select(t => t.PaperId).Contains(paperId)).ToList();
+            var newPapers = eligiblePapers.Where(sr => !existingTaskPaperIds.Contains(sr.PaperId)).ToList();
 
-            if (newPaperIds.Any())
+            if (newPapers.Any())
             {
-                var newTasks = newPaperIds.Select(paperId => new ExtractionPaperTask
+                var newTasks = newPapers.Select(sr => new ExtractionPaperTask
                 {
                     DataExtractionProcessId = extractionProcessId,
-                    PaperId = paperId,
+                    PaperId = sr.PaperId,
                     Status = PaperExtractionStatus.NotStarted,
                     Reviewer1Status = ReviewerTaskStatus.NotStarted,
                     Reviewer2Status = ReviewerTaskStatus.NotStarted,
@@ -73,16 +81,26 @@ namespace SRSS.IAM.Services.DataExtractionService
                 }).ToList();
 
                 // Lưu hàng loạt xuống DB
-                // Lưu ý: Nếu Repo của bạn không có AddRangeAsync, có thể dùng foreach
                 await _unitOfWork.ExtractionPaperTasks.AddRangeAsync(newTasks);
-                await _unitOfWork.SaveChangesAsync();
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                // ==========================================
+                // KÍCH HOẠT RAG INGESTION TẠI ĐÂY
+                // Chỉ lưu chunk cho các bài báo ĐÃ VÀO Data Extraction và CÓ file PDF
+                // ==========================================
+                foreach (var item in newPapers)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.Paper.PdfUrl))
+                    {
+                        // Gọi Queue Background processing
+                        await _ragQueue.QueuePaperForIngestionAsync(item.PaperId, item.Paper.PdfUrl, cancellationToken);
+                    }
+                }
             }
         }
 
         public async Task<ExtractionDashboardResponseDto> GetDashboardAsync(Guid extractionProcessId, ExtractionDashboardFilterDto filter)
         {
-            await SyncEligiblePapersAsync(extractionProcessId);
-
             // --- Role-Based Filtering ---
             var currentUserIdStr = _currentUserService.GetUserId();
             if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
@@ -242,6 +260,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             task.Reviewer1Id = dto.Reviewer1Id;
             task.Reviewer2Id = dto.Reviewer2Id;
+            task.Reviewer1Status = ReviewerTaskStatus.InProgress;
+            task.Reviewer2Status = ReviewerTaskStatus.InProgress;
             task.Status = PaperExtractionStatus.InProgress;
             task.ModifiedAt = DateTimeOffset.UtcNow;
 
@@ -283,9 +303,12 @@ namespace SRSS.IAM.Services.DataExtractionService
                 entity.Status = ExtractionProcessStatus.InProgress;
                 entity.StartedAt ??= DateTimeOffset.UtcNow;
                 entity.ModifiedAt = DateTimeOffset.UtcNow;
+
+                await _unitOfWork.SaveChangesAsync();
+
+                await SyncEligiblePapersAsync(extractionProcessId);
             }
 
-            await _unitOfWork.SaveChangesAsync();
 
             return new DataExtractionProcessResponse
             {
@@ -401,8 +424,12 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed)
                 throw new InvalidOperationException($"Task is not in a valid state to view consensus. Current status: {task.Status}");
 
-            if (!task.Reviewer1Id.HasValue || !task.Reviewer2Id.HasValue)
-                throw new InvalidOperationException("Consensus requires two reviewers.");
+            // Determine extraction mode
+            bool isDirectExtraction = task.AdjudicatorId.HasValue && !task.Reviewer1Id.HasValue && !task.Reviewer2Id.HasValue;
+            bool isDoubleBlind = task.Reviewer1Id.HasValue && task.Reviewer2Id.HasValue;
+
+            if (!isDirectExtraction && !isDoubleBlind)
+                throw new InvalidOperationException("Cannot view consensus: task is neither a valid double-blind nor a direct extraction.");
 
             // Get protocol ID
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
@@ -425,10 +452,23 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (template == null)
                 throw new InvalidOperationException("Extraction template not found.");
 
-            // Fetch extracted answers
-            var extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
-                e.PaperId == paperId &&
-                (e.ReviewerId == task.Reviewer1Id.Value || e.ReviewerId == task.Reviewer2Id.Value || e.IsConsensusFinal == true));
+            // Safe reviewer IDs: fall back to Guid.Empty for direct extraction (no-op in MapConsensusField)
+            var r1Id = task.Reviewer1Id ?? Guid.Empty;
+            var r2Id = task.Reviewer2Id ?? Guid.Empty;
+
+            // Fetch extracted answers — for direct extraction only load final consensus records
+            IEnumerable<ExtractedDataValue> extractedValues;
+            if (isDirectExtraction)
+            {
+                extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                    e.PaperId == paperId && e.IsConsensusFinal == true);
+            }
+            else
+            {
+                extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                    e.PaperId == paperId &&
+                    (e.ReviewerId == r1Id || e.ReviewerId == r2Id || e.IsConsensusFinal == true));
+            }
 
             var valuesList = extractedValues.ToList();
 
@@ -436,8 +476,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 PaperId = paperId,
                 TemplateId = template.Id,
-                Reviewer1Id = task.Reviewer1Id.Value,
-                Reviewer2Id = task.Reviewer2Id.Value,
+                Reviewer1Id = r1Id,
+                Reviewer2Id = r2Id,
                 Sections = template.Sections.OrderBy(s => s.OrderIndex).Select(s => new ConsensusSectionDto
                 {
                     SectionId = s.Id,
@@ -453,7 +493,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                         OrderIndex = c.OrderIndex
                     }).ToList() ?? new List<ExtractionMatrixColumnDto>(),
                     Fields = s.Fields.Where(f => f.ParentFieldId == null).OrderBy(f => f.OrderIndex)
-                        .Select(f => MapConsensusField(f, valuesList, task.Reviewer1Id.Value, task.Reviewer2Id.Value))
+                        .Select(f => MapConsensusField(f, valuesList, r1Id, r2Id))
                         .ToList()
                 }).ToList()
             };
@@ -917,34 +957,84 @@ namespace SRSS.IAM.Services.DataExtractionService
                 throw new InvalidOperationException($"Extraction task for paper {paperId} in process {extractionProcessId} not found.");
             }
 
-            if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed)
+            if (task.Status != PaperExtractionStatus.AwaitingConsensus && task.Status != PaperExtractionStatus.Completed && task.Status != PaperExtractionStatus.InProgress)
             {
-                throw new InvalidOperationException($"Cannot reopen extraction from status '{task.Status}'. Task must be in AwaitingConsensus or Completed status.");
+                throw new InvalidOperationException($"Cannot reopen extraction from status '{task.Status}'.");
+            }
+
+            if (request.Target == TargetReviewer.Reviewer1 && task.Reviewer1Status != ReviewerTaskStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen extraction for Reviewer 1. Reviewer 1 is not completed.");
+            }
+
+            if (request.Target == TargetReviewer.Reviewer2 && task.Reviewer2Status != ReviewerTaskStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen extraction for Reviewer 2. Reviewer 2 is not completed.");
+            }
+
+            if (request.Target == TargetReviewer.Both && task.Reviewer1Status != ReviewerTaskStatus.Completed && task.Reviewer2Status != ReviewerTaskStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen extraction for both Reviewers. Both Reviewers are not completed.");
             }
 
             // 3. State Reversal
-            if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
+            if (request.Target == TargetReviewer.Direct)
             {
-                task.Reviewer1Status = ReviewerTaskStatus.InProgress;
+                task.AdjudicatorId = null;
+                task.Status = PaperExtractionStatus.NotStarted;
+                task.Reviewer1Status = ReviewerTaskStatus.NotStarted;
+                task.Reviewer2Status = ReviewerTaskStatus.NotStarted;
             }
-
-            if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+            else
             {
-                task.Reviewer2Status = ReviewerTaskStatus.InProgress;
-            }
-
-            task.Status = PaperExtractionStatus.InProgress;
-
-            // 4. Data Cleanup: Remove any existing consensus data (IsConsensusFinal == true)
-            var consensusValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
-                e.PaperId == paperId && e.IsConsensusFinal == true);
-
-            if (consensusValues != null && consensusValues.Any())
-            {
-                foreach (var val in consensusValues)
+                if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
                 {
-                    await _unitOfWork.ExtractedDataValues.RemoveAsync(val);
+                    task.Reviewer1Status = ReviewerTaskStatus.InProgress;
                 }
+
+                if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+                {
+                    task.Reviewer2Status = ReviewerTaskStatus.InProgress;
+                }
+
+                task.Status = PaperExtractionStatus.InProgress;
+            }
+
+            // 4. Data Cleanup: Remove consensus data AND the targeted reviewer's data
+            var allExtractedValues = await _unitOfWork.ExtractedDataValues
+                .FindAllAsync(e => e.PaperId == paperId);
+
+            var valuesToDelete = new List<ExtractedDataValue>();
+
+            // Always delete consensus data
+            valuesToDelete.AddRange(allExtractedValues.Where(e => e.IsConsensusFinal == true));
+
+            if (request.Target == TargetReviewer.Direct)
+            {
+                // Clear the adjudicator's own submitted data
+                if (task.AdjudicatorId.HasValue)
+                    valuesToDelete.AddRange(allExtractedValues.Where(e => e.ReviewerId == task.AdjudicatorId.Value));
+            }
+            else
+            {
+                if (request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both)
+                {
+                    if (task.Reviewer1Id.HasValue)
+                        valuesToDelete.AddRange(allExtractedValues.Where(e =>
+                            e.ReviewerId == task.Reviewer1Id.Value && e.IsConsensusFinal == false));
+                }
+
+                if (request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both)
+                {
+                    if (task.Reviewer2Id.HasValue)
+                        valuesToDelete.AddRange(allExtractedValues.Where(e =>
+                            e.ReviewerId == task.Reviewer2Id.Value && e.IsConsensusFinal == false));
+                }
+            }
+
+            foreach (var val in valuesToDelete.DistinctBy(v => v.Id))
+            {
+                await _unitOfWork.ExtractedDataValues.RemoveAsync(val);
             }
 
             // 5. Save
@@ -1001,16 +1091,29 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (!string.IsNullOrWhiteSpace(title)) sb.AppendLine($"TITLE: {title}\n");
 
             // 2. Extract Authors
-            var authorNodes = doc.Descendants().Where(x => x.Name.LocalName == "author");
+            var teiHeaderNode = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "teiHeader");
+
+            var authorNodes = teiHeaderNode != null
+                ? teiHeaderNode.Descendants().Where(x => x.Name.LocalName == "author")
+                : Enumerable.Empty<XElement>();
+
             var authorsList = new List<string>();
             foreach (var author in authorNodes)
             {
                 var names = author.Descendants()
                                 .Where(x => x.Name.LocalName == "forename" || x.Name.LocalName == "surname")
                                 .Select(x => x.Value);
-                if (names.Any()) authorsList.Add(string.Join(" ", names));
+
+                if (names.Any())
+                {
+                    authorsList.Add(string.Join(" ", names));
+                }
             }
-            if (authorsList.Any()) sb.AppendLine($"AUTHORS: {string.Join(", ", authorsList)}\n");
+
+            if (authorsList.Any())
+            {
+                sb.AppendLine($"AUTHORS: {string.Join(", ", authorsList)}\n");
+            }
 
             // 3. Extract Publication Date/Year
             var dateNode = doc.Descendants().FirstOrDefault(x => x.Name.LocalName == "date" && x.Attribute("type")?.Value == "published");
@@ -1176,6 +1279,222 @@ If no data is found for a field, omit it or leave values as null.
             }
         }
 
+        public async Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var extractionTask = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == request.PaperId, cancellationToken);
+
+            if (extractionTask == null)
+                throw new InvalidOperationException($"Extraction task for paper {request.PaperId} not found.");
+
+            // string searchQuestion = $"{request.FieldName}. {request.FieldInstruction}".Trim();
+
+            string searchQuestion = request.FieldName;
+            if (!string.IsNullOrWhiteSpace(request.FieldInstruction))
+            {
+                searchQuestion += $". {request.FieldInstruction}";
+            }
+            searchQuestion += ". Identify related methods, techniques, approaches, or strategies.";
+
+            var relevantChunks = await _ragRetrievalService.GetRelevantChunksAsync(request.PaperId, searchQuestion, topK: 12, cancellationToken);
+            if (relevantChunks == null || !relevantChunks.Any())
+                return null;
+
+            var coordinatesList = new List<object>();
+            var textContextBuilder = new System.Text.StringBuilder();
+
+            foreach (var chunk in relevantChunks)
+            {
+                textContextBuilder.AppendLine(chunk.TextContent);
+                textContextBuilder.AppendLine("---");
+
+                if (!string.IsNullOrWhiteSpace(chunk.CoordinatesJson))
+                {
+                    try
+                    {
+                        var coords = JsonSerializer.Deserialize<List<object>>(chunk.CoordinatesJson);
+                        if (coords != null)
+                        {
+                            coordinatesList.AddRange(coords);
+                        }
+                    }
+                    catch { /* ignore invalid json */ }
+                }
+            }
+
+            string combinedCoordinates = JsonSerializer.Serialize(coordinatesList);
+            string combinedContext = textContextBuilder.ToString();
+
+            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException("Gemini API key is not configured.");
+
+            string optionsInstruction = string.IsNullOrWhiteSpace(request.OptionsJson)
+                ? ""
+                : $"\nValid Options (JSON format: [OptionId, Value]): {request.OptionsJson}\nYou MUST match your extracted answer to ONE of the OptionIds provided above if applicable.\n";
+
+            string prompt = $@"
+You are an expert academic researcher. 
+Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
+
+Field Name: {request.FieldName}
+Field Type: {request.FieldType}
+Instructions: {request.FieldInstruction}
+{optionsInstruction}
+
+You MUST return ONLY a JSON object that exactly matches the following structure (ExtractedValueDto):
+{{
+  ""FieldId"": ""{request.FieldId}"",
+  ""OptionId"": ""uuid or null"",
+  ""StringValue"": ""extracted text or null"",
+  ""NumericValue"": decimal or null,
+  ""BooleanValue"": boolean or null
+}}
+
+Do not include any other markdown formatting like ```json or comments. 
+If no relevant data is found in the context, return a JSON object with null values for OptionId, StringValue, NumericValue, and BooleanValue.
+
+=== PAPER CONTEXT ===
+{combinedContext}
+";
+
+            var requestPayload = new
+            {
+                contents = new[]
+                {
+                    new
+                    {
+                        parts = new[] { new { text = prompt } }
+                    }
+                },
+                generationConfig = new { responseMimeType = "application/json" }
+            };
+
+            var httpClient = _httpClientFactory.CreateClient();
+            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload, cancellationToken);
+
+            if (!geminiResponse.IsSuccessStatusCode)
+            {
+                var errorStr = await geminiResponse.Content.ReadAsStringAsync(cancellationToken);
+                throw new InvalidOperationException($"Gemini API error: {errorStr}");
+            }
+
+            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
+            try
+            {
+                var responseText = geminiResult?.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text").GetString();
+
+                if (string.IsNullOrWhiteSpace(responseText))
+                    return null;
+
+                responseText = responseText.Trim();
+                if (responseText.StartsWith("```json")) responseText = responseText.Substring(7);
+                if (responseText.StartsWith("```")) responseText = responseText.Substring(3);
+                if (responseText.EndsWith("```")) responseText = responseText.Substring(0, responseText.Length - 3);
+                responseText = responseText.Trim();
+
+                var extractedValue = JsonSerializer.Deserialize<ExtractedValueDto>(responseText, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                if (extractedValue != null)
+                {
+                    extractedValue.EvidenceCoordinates = combinedCoordinates;
+                    extractedValue.MatrixColumnId = request.MatrixColumnId;
+                    extractedValue.MatrixRowIndex = request.MatrixRowIndex;
+                }
+
+                return extractedValue;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Failed to parse Gemini response for single field.", ex);
+            }
+        }
+
+        public async Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken)
+        {
+            // 1. Resolve & validate current user
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+
+            // 2. Load the extraction process to get the project context
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId, cancellationToken);
+
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            // 3. Authorization: current user must be a Project Leader
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId, cancellationToken);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+
+            // 4. Find the ExtractionPaperTask for this paper
+            var task = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId, cancellationToken);
+
+            if (task == null)
+                throw new InvalidOperationException($"Extraction task for paper {paperId} in process {extractionProcessId} not found.");
+
+            if (task.Status == PaperExtractionStatus.Completed)
+                throw new InvalidOperationException($"Extraction task for paper {paperId} is already Completed. Use Reopen to make changes.");
+
+            // 5. Replace-semantics: remove any existing consensus values for this paper
+            var existingConsensusFinalValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(
+                e => e.PaperId == paperId && e.IsConsensusFinal == true);
+
+            if (existingConsensusFinalValues != null && existingConsensusFinalValues.Any())
+            {
+                foreach (var val in existingConsensusFinalValues)
+                    await _unitOfWork.ExtractedDataValues.RemoveAsync(val);
+            }
+
+            // 6. Persist the payload directly as final consensus records (IsConsensusFinal = true)
+            var directValues = payload.Values.Select(v => new ExtractedDataValue
+            {
+                Id = Guid.NewGuid(),
+                PaperId = paperId,
+                FieldId = v.FieldId,
+                ReviewerId = currentUserId,   // the adjudicating leader
+                OptionId = v.OptionId,
+                StringValue = v.StringValue,
+                NumericValue = v.NumericValue,
+                BooleanValue = v.BooleanValue,
+                MatrixColumnId = v.MatrixColumnId,
+                MatrixRowIndex = v.MatrixRowIndex,
+                IsConsensusFinal = true,       // CRITICAL: marks as final, bypassing reviewers
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            }).ToList();
+
+            await _unitOfWork.ExtractedDataValues.AddRangeAsync(directValues);
+
+            // 7. Force task to Completed, bypassing InProgress / AwaitingConsensus
+            task.AdjudicatorId = currentUserId;
+            task.Reviewer1Status = ReviewerTaskStatus.Completed;
+            task.Reviewer2Status = ReviewerTaskStatus.Completed;
+            task.Status = PaperExtractionStatus.Completed;
+            task.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
         private object GetSimplifiedFields(IEnumerable<ExtractionField> fields)
         {
             var result = new List<object>();
@@ -1192,6 +1511,97 @@ If no data is found for a field, omit it or leave values as null.
                 });
             }
             return result;
+        }
+
+        public async Task<ExtractionWorkloadSummaryDto> GetWorkloadSummaryAsync(Guid extractionProcessId, CancellationToken cancellationToken)
+        {
+            // 1. Resolve current user
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+
+            // 2. Resolve the project tied to this extraction process
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId, cancellationToken);
+
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            // 3. Validate membership and determine role
+            var allMembers = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .Include(pm => pm.User)
+                .ToListAsync(cancellationToken);
+
+            var currentMember = allMembers.FirstOrDefault(pm => pm.UserId == currentUserId);
+            if (currentMember == null)
+                throw new UnauthorizedAccessException($"User is not a member of project {projectId}.");
+
+            var isLeader = currentMember.Role == ProjectRole.Leader;
+
+            // 4. Build userId → display name lookup from project members
+            var userNameLookup = allMembers.ToDictionary(
+                pm => pm.UserId,
+                pm => string.IsNullOrWhiteSpace(pm.User?.FullName) ? pm.User?.Username ?? pm.UserId.ToString() : pm.User.FullName);
+
+            // 5. Fetch all ExtractionPaperTask records for this process
+            var allTasks = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Where(t => t.DataExtractionProcessId == extractionProcessId)
+                .ToListAsync(cancellationToken);
+
+            // 6. Compute global stats
+            int totalPapers = allTasks.Count;
+            int fullyCompleted = allTasks.Count(t => t.Status == PaperExtractionStatus.Completed);
+            double overallPct = totalPapers == 0 ? 0 : Math.Round((double)fullyCompleted / totalPapers * 100, 2);
+
+            // 7. Per-reviewer stats using efficient LINQ grouping
+            // A reviewer contributes to a task if they are Reviewer1 OR Reviewer2.
+            // We emit two "participation records" per task when both slots are filled.
+            var participations = allTasks
+                .SelectMany(t =>
+                {
+                    var slots = new List<(Guid ReviewerId, ReviewerTaskStatus Status)>();
+                    if (t.Reviewer1Id.HasValue)
+                        slots.Add((t.Reviewer1Id.Value, t.Reviewer1Status));
+                    if (t.Reviewer2Id.HasValue)
+                        slots.Add((t.Reviewer2Id.Value, t.Reviewer2Status));
+                    return slots;
+                })
+                .GroupBy(x => x.ReviewerId)
+                .Select(g => new ReviewerWorkloadDto
+                {
+                    ReviewerId = g.Key,
+                    ReviewerName = userNameLookup.TryGetValue(g.Key, out var name) ? name : g.Key.ToString(),
+                    TotalAssigned = g.Count(),
+                    Completed = g.Count(x => x.Status == ReviewerTaskStatus.Completed),
+                    InProgress = g.Count(x => x.Status == ReviewerTaskStatus.InProgress),
+                    NotStarted = g.Count(x => x.Status == ReviewerTaskStatus.NotStarted)
+                })
+                .ToList();
+
+            // 8. Role-based filtering: Members see only their own workload
+            List<ReviewerWorkloadDto> reviewerWorkloads;
+            if (isLeader)
+            {
+                reviewerWorkloads = participations;
+            }
+            else
+            {
+                var myWorkload = participations.FirstOrDefault(r => r.ReviewerId == currentUserId);
+                reviewerWorkloads = myWorkload is not null ? new List<ReviewerWorkloadDto> { myWorkload } : new List<ReviewerWorkloadDto>();
+            }
+
+            return new ExtractionWorkloadSummaryDto
+            {
+                TotalPapers = totalPapers,
+                FullyCompletedPapers = fullyCompleted,
+                OverallProgressPercentage = overallPct,
+                ReviewerWorkloads = reviewerWorkloads
+            };
         }
     }
 }

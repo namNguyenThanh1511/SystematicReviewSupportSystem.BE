@@ -122,6 +122,11 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
         public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
         public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
+
+        // ============================================
+        // RAG PIPELINE (Chunk-based semantic search)
+        // ============================================
+        public ICollection<PaperChunk> PaperChunks { get; set; } = new List<PaperChunk>();
     }
 
     public enum AccessType

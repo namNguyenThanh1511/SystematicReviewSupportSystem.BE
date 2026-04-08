@@ -261,13 +261,13 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Stage = PrismaStage.DuplicateRecordsRemoved,
                 Label = "Duplicate records removed before screening",
                 Count = details.DuplicateRecordsRemoved,
-                MetadataJson = JsonSerializer.Serialize(new { 
-                    breakdown = new[] { 
-                        new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
-                        new { label = "Records marked ineligible", count = 0 },
-                        new { label = "Records removed other reasons", count = 0 }
-                    } 
-                }),
+                // MetadataJson = JsonSerializer.Serialize(new { 
+                //     breakdown = new[] { 
+                //         new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
+                //         new { label = "Records marked ineligible", count = 0 },
+                //         new { label = "Records removed other reasons", count = 0 }
+                //     } 
+                // }),
                 DisplayOrder = 2,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow

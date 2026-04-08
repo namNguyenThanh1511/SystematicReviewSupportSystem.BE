@@ -239,19 +239,6 @@ namespace SRSS.IAM.Services.PrismaReportService
         {
             var records = new List<PrismaFlowRecord>();
 
-            // 0. Identification (Root)
-            // records.Add(new PrismaFlowRecord
-            // {
-            //     Id = Guid.NewGuid(),
-            //     PrismaReportId = reportId,
-            //     Stage = PrismaStage.Identification,
-            //     Label = "Identification",
-            //     Count = details.RecordsIdentified,
-            //     DisplayOrder = 0,
-            //     CreatedAt = DateTimeOffset.UtcNow,
-            //     ModifiedAt = DateTimeOffset.UtcNow
-            // });
-
             // 1. RecordsIdentified
             records.Add(new PrismaFlowRecord
             {

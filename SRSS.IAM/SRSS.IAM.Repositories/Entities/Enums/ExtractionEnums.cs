@@ -103,6 +103,7 @@ namespace SRSS.IAM.Repositories.Entities
 	{
 		Reviewer1 = 0,
 		Reviewer2 = 1,
-		Both = 2
+		Both = 2,
+		Direct = 3 // Leader Direct Extraction: resets the task without touching reviewer state
 	}
 }

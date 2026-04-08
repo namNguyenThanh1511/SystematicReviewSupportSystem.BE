@@ -12,6 +12,7 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid StudySelectionProcessId { get; set; }
         public Guid PaperId { get; set; }
         public ScreeningDecisionType FinalDecision { get; set; }
+        public ExclusionReasonCode? ExclusionReasonCode { get; set; }
         public ScreeningPhase Phase { get; set; } = ScreeningPhase.TitleAbstract;
         public string? ResolutionNotes { get; set; }
         public Guid ResolvedBy { get; set; }

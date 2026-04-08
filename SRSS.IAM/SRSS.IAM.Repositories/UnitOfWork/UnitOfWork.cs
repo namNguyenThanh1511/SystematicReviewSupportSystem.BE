@@ -32,8 +32,10 @@ using SRSS.IAM.Repositories.PaperSourceMetadataRepo;
 using SRSS.IAM.Repositories.GrobidHeaderResultRepo;
 using SRSS.IAM.Repositories.CandidatePaperRepo;
 using SRSS.IAM.Repositories.PaperCitationRepo;
-using SRSS.IAM.Repositories.ReferenceEntityRepo;
+using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
+using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
+using SRSS.IAM.Repositories.PaperFullTextRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -69,8 +71,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IGrobidHeaderResultRepository? _grobidHeaderResults;
         private ICandidatePaperRepository? _candidatePapers;
         private IPaperCitationRepository? _paperCitations;
-        private IReferenceEntityRepository? _referenceEntities;
+        private IPaperEmbeddingRepository? _paperEmbeddings;
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
+        private IStudySelectionAIResultRepository? _studySelectionAIResults;
+        private IPaperFullTextRepository? _paperFullTexts;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -311,10 +315,14 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _candidatePapers ??= new CandidatePaperRepository(_dbContext);
         public IPaperCitationRepository PaperCitations
             => _paperCitations ??= new PaperCitationRepository(_dbContext);
-        public IReferenceEntityRepository ReferenceEntities
-            => _referenceEntities ??= new ReferenceEntityRepository(_dbContext);
+        public IPaperEmbeddingRepository PaperEmbeddings
+            => _paperEmbeddings ??= new PaperEmbeddingRepository(_dbContext);
         public IStudySelectionProcessPaperRepository StudySelectionProcessPapers
             => _studySelectionProcessPapers ??= new StudySelectionProcessPaperRepository(_dbContext);
+        public IStudySelectionAIResultRepository StudySelectionAIResults
+            => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
+        public IPaperFullTextRepository PaperFullTexts
+            => _paperFullTexts ??= new PaperFullTextRepository(_dbContext);
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);

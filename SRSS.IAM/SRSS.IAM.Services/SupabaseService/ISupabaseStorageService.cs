@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.IO;
@@ -10,5 +10,6 @@ namespace SRSS.IAM.Services.SupabaseService
 	public interface ISupabaseStorageService
 	{
 		Task<string> UploadArticlePdfAsync(IFormFile file, Guid projectId, Guid processId);
+		Task<byte[]> DownloadFileAsync(string path);
 	}
 }

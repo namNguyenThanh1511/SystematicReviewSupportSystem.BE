@@ -242,7 +242,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
-                    // Exclude papers confirmed as duplicates (CANCEL decision) in this process
+                    // Exclude papers confirmed as duplicates (CANCEL decision) and pending resolve in this process
                     !_context.DeduplicationResults.Any(dr =>
                         dr.PaperId == p.Id &&
                         dr.IdentificationProcessId == identificationProcessId && (
@@ -515,6 +515,16 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(d => d.DecisionItems)
                 .Where(p => paperIds.Contains(p.Id))
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Paper?> GetForAiEvaluationAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.StudySelectionProcessPapers)
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         }
     }
 }

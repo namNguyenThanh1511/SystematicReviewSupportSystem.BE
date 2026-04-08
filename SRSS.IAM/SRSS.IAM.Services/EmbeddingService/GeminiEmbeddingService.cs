@@ -19,12 +19,8 @@ namespace SRSS.IAM.Services.EmbeddingService
 
         public async Task<float[]> GetEmbeddingAsync(string text, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return Array.Empty<float>();
-            }
+            if (string.IsNullOrWhiteSpace(text)) return Array.Empty<float>();
 
-            // Normalize input text (consistent with OpenAIEmbeddingService)
             var normalizedText = text.Trim().Replace("\n", " ").Replace("\r", " ");
 
             try
@@ -32,10 +28,8 @@ namespace SRSS.IAM.Services.EmbeddingService
                 var requestBody = new GeminiEmbeddingRequest
                 {
                     Model = Model,
-                    Content = new Content
-                    {
-                        Parts = new[] { new Part { Text = normalizedText } }
-                    }
+                    Content = new Content { Parts = new[] { new Part { Text = normalizedText } } },
+                    OutputDimensionality = 1536
                 };
 
                 using var httpRequest = new HttpRequestMessage(HttpMethod.Post, ApiUrl);
@@ -43,19 +37,45 @@ namespace SRSS.IAM.Services.EmbeddingService
                 httpRequest.Content = JsonContent.Create(requestBody);
 
                 var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
-                
-                if (!response.IsSuccessStatusCode)
-                {
-                    return Array.Empty<float>();
-                }
+                if (!response.IsSuccessStatusCode) return Array.Empty<float>();
 
                 var result = await response.Content.ReadFromJsonAsync<GeminiEmbeddingResponse>(cancellationToken: cancellationToken);
-                return result?.Embedding?.Values ?? Array.Empty<float>();
+                var values = result?.Embedding?.Values;
+
+                if (values == null || values.Length == 0) return Array.Empty<float>();
+
+                // --- Bắt đầu đoạn chuẩn hóa ---
+                NormalizeVector(values);
+                // --- Kết thúc đoạn chuẩn hóa ---
+
+                return values;
             }
             catch (Exception)
             {
-                // Consistent with OpenAIEmbeddingService: return empty array on failure
                 return Array.Empty<float>();
+            }
+        }
+
+        private void NormalizeVector(float[] vector)
+        {
+            var span = vector.AsSpan();
+            double sum = 0;
+
+            // Tính tổng bình phương các phần tử
+            for (int i = 0; i < span.Length; i++)
+            {
+                sum += (double)span[i] * span[i];
+            }
+
+            float norm = (float)Math.Sqrt(sum);
+
+            // Chia từng phần tử cho norm để đưa độ dài vector về 1
+            if (norm > 1e-10) // Tránh chia cho 0
+            {
+                for (int i = 0; i < span.Length; i++)
+                {
+                    span[i] /= norm;
+                }
             }
         }
 
@@ -65,6 +85,9 @@ namespace SRSS.IAM.Services.EmbeddingService
         {
             public string Model { get; set; } = null!;
             public Content Content { get; set; } = null!;
+
+            // Thêm dòng này để chỉ định số chiều trả về
+            public int OutputDimensionality { get; set; } = 1536;
         }
 
         private class Content

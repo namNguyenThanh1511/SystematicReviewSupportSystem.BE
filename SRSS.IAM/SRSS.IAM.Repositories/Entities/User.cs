@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -14,6 +14,7 @@ namespace SRSS.IAM.Repositories.Entities
         public bool IsRefreshTokenRevoked { get; set; } = false;
         public DateTimeOffset? RefreshTokenExpiryTime { get; set; }
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+        public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
     }
 
     public enum Role

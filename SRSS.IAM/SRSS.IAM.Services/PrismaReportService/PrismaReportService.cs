@@ -193,7 +193,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                 var taExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.RecordsExcluded = taExclusions.Count;
                 
-                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(allDecisions, taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract);
+                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions);
 
                 // Phase 2: Retrieval
                 details.ReportsSoughtForRetrieval = details.RecordsScreened - details.RecordsExcluded;
@@ -205,34 +205,31 @@ namespace SRSS.IAM.Services.PrismaReportService
                 var ftExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.ReportsExcluded = ftExclusions.Count;
                 
-                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(allDecisions, ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText);
+                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions);
 
                 // Final Included
                 details.StudiesIncluded = allResolutions.Count(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Include);
                 
-                // Fallback: If no FT studies included yet, use TA included for preliminary reporting
-                if (details.StudiesIncluded == 0)
-                {
-                    details.StudiesIncluded = allResolutions.Count(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Include);
-                }
             }
 
             return details;
         }
 
         private List<PrismaBreakdownResponse> GetExclusionReasonBreakdown(
-            IEnumerable<ScreeningDecision> allDecisions, 
             HashSet<Guid> excludedPaperIds, 
-            ScreeningPhase phase)
+            ScreeningPhase phase,
+            IEnumerable<ScreeningResolution> allResolutions) // Truyền thêm list resolutions đã load ở trên vào
         {
-            // For excluded papers, count the chosen reasons
-            return allDecisions
-                .Where(d => d.Phase == phase && excludedPaperIds.Contains(d.PaperId) && d.Decision == ScreeningDecisionType.Exclude && d.ExclusionReasonCode.HasValue)
-                .GroupBy(d => d.ExclusionReasonCode!.Value)
+            return allResolutions
+                .Where(r => r.Phase == phase 
+                            && excludedPaperIds.Contains(r.PaperId) 
+                            && r.FinalDecision == ScreeningDecisionType.Exclude)
+                .GroupBy(r => r.ExclusionReasonCode)
                 .Select(g => new PrismaBreakdownResponse 
                 { 
-                    Label = g.Key.ToString(), 
-                    Count = g.Select(d => d.PaperId).Distinct().Count() 
+                    // Nếu ExclusionReasonCode null thì để "No reason specified"
+                    Label = g.Key?.ToString() ?? "Other", 
+                    Count = g.Count() 
                 })
                 .OrderByDescending(x => x.Count)
                 .ToList();
@@ -241,19 +238,6 @@ namespace SRSS.IAM.Services.PrismaReportService
         private List<PrismaFlowRecord> CreateFlowRecords(Guid reportId, PrismaReportDetails details)
         {
             var records = new List<PrismaFlowRecord>();
-
-            // 0. Identification (Root)
-            // records.Add(new PrismaFlowRecord
-            // {
-            //     Id = Guid.NewGuid(),
-            //     PrismaReportId = reportId,
-            //     Stage = PrismaStage.Identification,
-            //     Label = "Identification",
-            //     Count = details.RecordsIdentified,
-            //     DisplayOrder = 0,
-            //     CreatedAt = DateTimeOffset.UtcNow,
-            //     ModifiedAt = DateTimeOffset.UtcNow
-            // });
 
             // 1. RecordsIdentified
             records.Add(new PrismaFlowRecord

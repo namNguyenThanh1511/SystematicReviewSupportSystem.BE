@@ -11,8 +11,6 @@ using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
-using Npgsql;
-using Pgvector.EntityFrameworkCore;
 
 namespace SRSS.IAM.API
 {
@@ -51,7 +49,7 @@ namespace SRSS.IAM.API
             builder.Logging.AddConsole();
 
 
-
+ 
             // Database connection
             var connectionString = config.GetConnectionString("SRSS_IAM_DB")
                 ?? throw new InvalidOperationException("ConnectionStrings:SRSS_IAM_DB is required");

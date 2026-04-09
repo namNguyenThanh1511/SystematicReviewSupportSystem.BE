@@ -5,7 +5,7 @@
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class addPDFHighlight : Migration
+    public partial class QAHighlight : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

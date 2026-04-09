@@ -217,7 +217,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             var studySelectionProcess = await _unitOfWork.StudySelectionProcesses
                 .FindSingleAsync(ssp => ssp.ReviewProcessId == entity.ReviewProcessId);
-            
+
             if (studySelectionProcess != null && studySelectionProcess.Status != SelectionProcessStatus.Completed)
             {
                 throw new InvalidOperationException("Study Selection Process must be completed before starting the Quality Assessment Process.");
@@ -329,7 +329,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                         tracker.ActualDecisions += itemsCount;
 
                         double reviewerCompletionPercentage = criteriaCount > 0 ? (double)itemsCount / criteriaCount * 100 : 0;
-                        
+
                         if (reviewerCompletionPercentage >= 100)
                         {
                             tracker.CompletedPapers++;
@@ -764,7 +764,19 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             }
 
             var prompt = $@"
-Assume you are an expert reviewer conducting a quality assessment of a scientific paper.
+Assume you are an expert reviewer conducting a quality assessment of a scientific paper. I want you to evaluate this paper against the following criteria questions.
+
+Note: 
+- For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
+- Also give pdfHighlightCoordinates (a string following this style: page,x,y,height,width (; to separate 2 highlight)) for any evidence in the paper that supports your judgement for each criterion. If no evidence, leave it empty.
+
+-------------------------
+
+Criteria:
+{string.Join("\n", criteriaQuestions.Select(c => $"- ID: {c.Id} | Question: {c.Question}"))}
+
+--------------------------------
+
 Here are the paper details:
 - Title: {paper.Title}
 - Authors: {paper.Authors}
@@ -774,15 +786,6 @@ Here are the paper details:
 
 --- Full Text Content ---
 {fullTextContent}
--------------------------
-
-I want you to evaluate this paper against the following criteria questions. For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
-
-Criteria:
-{string.Join("\n", criteriaQuestions.Select(c => $"- ID: {c.Id} | Question: {c.Question}"))}
-
-Note: 
-- pdfHighlightCordinates is used by @react-pdf-viewer, generate accordingly
 ";
 
             var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);

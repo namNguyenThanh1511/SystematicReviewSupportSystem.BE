@@ -496,11 +496,17 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {request.IdentificationProcessId} not found.");
             }
 
+            var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId, cancellationToken: cancellationToken);
+            if (searchSource == null)
+            {
+                throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId} not found.");
+            }
+
             var searchExecution = new SearchExecution
             {
                 Id = Guid.NewGuid(),
                 IdentificationProcessId = request.IdentificationProcessId,
-                SearchSource = request.SearchSource,
+                SearchSourceId = request.SearchSourceId,
                 SearchQuery = request.SearchQuery,
                 ExecutedAt = DateTimeOffset.UtcNow,
                 ResultCount = 0,
@@ -536,9 +542,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
+            var searchExecutions = await _unitOfWork.SearchExecutions.GetByProcessIdWithSourceAsync(identificationProcessId, cancellationToken);
 
             var responses = new List<SearchExecutionResponse>();
             foreach (var searchExecution in searchExecutions)
@@ -563,9 +567,14 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"SearchExecution with ID {request.Id} not found.");
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SearchSource))
+            if (request.SearchSourceId.HasValue)
             {
-                searchExecution.SearchSource = request.SearchSource;
+                var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId.Value, cancellationToken: cancellationToken);
+                if (searchSource == null)
+                {
+                    throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId.Value} not found.");
+                }
+                searchExecution.SearchSourceId = request.SearchSourceId.Value;
             }
 
             if (request.SearchQuery != null)
@@ -636,7 +645,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -655,7 +664,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -777,7 +786,7 @@ namespace SRSS.IAM.Services.IdentificationService
         public async Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream,
             string fileName,
-            string? source,
+            Guid? searchSourceId,
             string? importedBy,
             Guid? searchExecutionId,
             Guid identificationProcessId,
@@ -824,7 +833,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         {
                             Id = Guid.NewGuid(),
                             IdentificationProcessId = identificationProcessId,
-                            SearchSource = source ?? "Manual Import",
+                            SearchSourceId = searchSourceId ?? Guid.Empty, // Requires a valid source ID
                             ExecutedAt = DateTimeOffset.UtcNow,
                             ResultCount = 0,
                             Type = SearchExecutionType.ManualImport,
@@ -865,7 +874,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         Id = Guid.NewGuid(),
                         FileName = fileName,
                         FileType = "RIS",
-                        Source = source ?? "Manual Upload",
+                    Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                         TotalRecords = risPapers.Count,
                         ImportedBy = importedBy,
                         ImportedAt = DateTimeOffset.UtcNow,
@@ -1010,7 +1019,7 @@ namespace SRSS.IAM.Services.IdentificationService
                     Keywords = risPaper.Keywords,
                     RawReference = risPaper.RawReference,
                     ProjectId = identificationProcess.ReviewProcess.ProjectId,
-                    Source = searchExecution?.SearchSource ?? "Manual Upload",
+                    Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                     ImportBatchId = importBatch.Id,
                     ImportedAt = importBatch.ImportedAt,
                     ImportedBy = importBatch.ImportedBy,

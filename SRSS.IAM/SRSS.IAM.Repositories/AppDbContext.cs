@@ -47,6 +47,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Outcome> Outcomes { get; set; } = default!;
 		public DbSet<Context> Contexts { get; set; } = default!;
 		public DbSet<SearchSource> SearchSources { get; set; } = default!;
+		public DbSet<MasterSearchSources> MasterSearchSources { get; set; } = default!;
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;

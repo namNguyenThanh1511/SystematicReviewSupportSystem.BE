@@ -29,7 +29,7 @@ namespace SRSS.IAM.Services.IdentificationService
         Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream, 
             string fileName,
-            string? source,
+            Guid? searchSourceId,
             string? importedBy,
             Guid? searchExecutionId,
             Guid identificationProcessId,

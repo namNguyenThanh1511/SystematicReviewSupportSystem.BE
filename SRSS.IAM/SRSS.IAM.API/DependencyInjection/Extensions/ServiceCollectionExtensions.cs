@@ -49,6 +49,7 @@ using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.ReferenceProcessingService;
 using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.AdminMasterSourceService;
 
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
@@ -103,6 +104,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
 
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 

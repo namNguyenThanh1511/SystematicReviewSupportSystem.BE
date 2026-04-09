@@ -121,8 +121,9 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         {
                             await _unitOfWork.CandidatePapers.RemoveMultipleAsync(removableCandidates, cancellationToken);
                         }
+                        var needCloneCandidates = existingCandidates.Where(c => c.Status != CandidateStatus.Rejected && c.IsSelectedInScreening == false).ToList();
 
-                        var clonedCandidates = existingCandidates.Select(c => new CandidatePaper
+                        var clonedCandidates = needCloneCandidates.Select(c => new CandidatePaper
                         {
                             Id = Guid.NewGuid(),
                             ReviewProcessId = processId,

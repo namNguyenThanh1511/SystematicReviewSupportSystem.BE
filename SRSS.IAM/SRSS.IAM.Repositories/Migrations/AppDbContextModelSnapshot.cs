@@ -1573,6 +1573,63 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("paper_assignments", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperChunk", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("CoordinatesJson")
+                        .HasColumnType("text")
+                        .HasColumnName("coordinates_json");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Vector>("Embedding")
+                        .HasColumnType("vector(384)")
+                        .HasColumnName("embedding");
+
+                    b.Property<int>("EmbeddingDimensions")
+                        .HasColumnType("integer")
+                        .HasColumnName("embedding_dimensions");
+
+                    b.Property<string>("EmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("embedding_model");
+
+                    b.Property<string>("EmbeddingProvider")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("embedding_provider");
+
+                    b.Property<Guid>("PaperId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("paper_id");
+
+                    b.Property<string>("TextContent")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("text_content");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Embedding")
+                        .HasAnnotation("Npgsql:StorageParameter:lists", 100);
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Embedding"), "ivfflat");
+                    NpgsqlIndexBuilderExtensions.HasOperators(b.HasIndex("Embedding"), new[] { "vector_cosine_ops" });
+
+                    b.HasIndex("PaperId");
+
+                    b.ToTable("paper_chunks", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3083,9 +3140,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("paper_id");
 
-                    b.Property<Guid?>("PaperId1")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Phase")
                         .IsRequired()
                         .HasColumnType("text")
@@ -3108,23 +3162,11 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("study_selection_process_id");
 
-                    b.Property<Guid?>("StudySelectionProcessId1")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("PaperId");
 
-                    b.HasIndex("PaperId1");
-
                     b.HasIndex("ReviewerId");
-
-                    b.HasIndex("StudySelectionProcessId1");
-
-                    b.HasIndex("UserId");
 
                     b.HasIndex("StudySelectionProcessId", "PaperId", "ReviewerId", "Phase")
                         .IsUnique()
@@ -3946,6 +3988,17 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("StudySelectionProcess");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperChunk", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany("PaperChunks")
+                        .HasForeignKey("PaperId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Paper");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperCitation", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "SourcePaper")
@@ -4412,34 +4465,22 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionAIResult", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithMany()
+                        .WithMany("StudySelectionAIResults")
                         .HasForeignKey("PaperId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
-                        .WithMany("StudySelectionAIResults")
-                        .HasForeignKey("PaperId1");
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.User", "Reviewer")
-                        .WithMany()
+                        .WithMany("StudySelectionAIResults")
                         .HasForeignKey("ReviewerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
-                        .WithMany()
+                        .WithMany("StudySelectionAIResults")
                         .HasForeignKey("StudySelectionProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", null)
-                        .WithMany("StudySelectionAIResults")
-                        .HasForeignKey("StudySelectionProcessId1");
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.User", null)
-                        .WithMany("StudySelectionAIResults")
-                        .HasForeignKey("UserId");
 
                     b.Navigation("Paper");
 
@@ -4587,6 +4628,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("OutgoingCitations");
 
                     b.Navigation("PaperAssignments");
+
+                    b.Navigation("PaperChunks");
 
                     b.Navigation("PaperPdfs");
 

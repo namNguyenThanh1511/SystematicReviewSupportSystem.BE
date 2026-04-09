@@ -668,6 +668,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
             var totalCount = await query.CountAsync(cancellationToken);
             var items = await query
                 .OrderByDescending(c => c.CreatedAt)
+                .ThenByDescending(c => c.Id)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(c => new CandidatePaperDto

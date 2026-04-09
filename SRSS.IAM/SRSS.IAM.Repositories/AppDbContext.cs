@@ -103,5 +103,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+
+		// RAG pipeline
+		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
 	}
 }

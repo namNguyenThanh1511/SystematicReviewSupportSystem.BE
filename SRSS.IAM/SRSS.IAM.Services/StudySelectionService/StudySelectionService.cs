@@ -1095,12 +1095,10 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (request.PageSize < 1) request.PageSize = 20;
             if (request.PageSize > 100) request.PageSize = 100;
 
-            var papers = new List<Paper>();
-            foreach (var paperId in paperIds)
-            {
-                var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, cancellationToken: cancellationToken);
-                if (paper != null) papers.Add(paper);
-            }
+            var papers = (await _unitOfWork.Papers.FindAllAsync(
+                p => paperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken)).ToList();
 
             var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
 
@@ -1130,7 +1128,10 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var search = request.Search.Trim().ToLowerInvariant();
-                filtered = filtered.Where(p => p.Title.ToLowerInvariant().Contains(search));
+                filtered = filtered.Where(p => 
+                    p.Title.ToLowerInvariant().Contains(search) || 
+                    (p.Authors != null && p.Authors.ToLowerInvariant().Contains(search)) ||
+                    (p.PublicationYear != null && p.PublicationYear.ToLowerInvariant().Contains(search)));
             }
 
             if (request.Status.HasValue)
@@ -1421,13 +1422,15 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         private async Task<Dictionary<Guid, string>> GetUserNamesAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken)
         {
-            var distinctIds = userIds.Distinct().ToList();
-            var result = new Dictionary<Guid, string>();
-            foreach (var id in distinctIds)
-            {
-                result[id] = await GetUserNameAsync(id, cancellationToken);
-            }
-            return result;
+            var distinctIds = userIds.Where(id => id != Guid.Empty).Distinct().ToList();
+            if (!distinctIds.Any()) return new Dictionary<Guid, string>();
+
+            var users = await _unitOfWork.Users.FindAllAsync(
+                u => distinctIds.Contains(u.Id),
+                isTracking: false,
+                cancellationToken);
+
+            return users.ToDictionary(u => u.Id, u => u.FullName ?? string.Empty);
         }
 
         private async Task<ScreeningDecisionResponse> MapToDecisionResponse(

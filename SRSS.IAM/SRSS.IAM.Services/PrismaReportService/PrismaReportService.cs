@@ -239,19 +239,6 @@ namespace SRSS.IAM.Services.PrismaReportService
         {
             var records = new List<PrismaFlowRecord>();
 
-            // 0. Identification (Root)
-            // records.Add(new PrismaFlowRecord
-            // {
-            //     Id = Guid.NewGuid(),
-            //     PrismaReportId = reportId,
-            //     Stage = PrismaStage.Identification,
-            //     Label = "Identification",
-            //     Count = details.RecordsIdentified,
-            //     DisplayOrder = 0,
-            //     CreatedAt = DateTimeOffset.UtcNow,
-            //     ModifiedAt = DateTimeOffset.UtcNow
-            // });
-
             // 1. RecordsIdentified
             records.Add(new PrismaFlowRecord
             {
@@ -274,13 +261,13 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Stage = PrismaStage.DuplicateRecordsRemoved,
                 Label = "Duplicate records removed before screening",
                 Count = details.DuplicateRecordsRemoved,
-                MetadataJson = JsonSerializer.Serialize(new { 
-                    breakdown = new[] { 
-                        new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
-                        new { label = "Records marked ineligible", count = 0 },
-                        new { label = "Records removed other reasons", count = 0 }
-                    } 
-                }),
+                // MetadataJson = JsonSerializer.Serialize(new { 
+                //     breakdown = new[] { 
+                //         new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
+                //         new { label = "Records marked ineligible", count = 0 },
+                //         new { label = "Records removed other reasons", count = 0 }
+                //     } 
+                // }),
                 DisplayOrder = 2,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow

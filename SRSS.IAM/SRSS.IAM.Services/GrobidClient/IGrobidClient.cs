@@ -18,7 +18,8 @@ public interface IGrobidClient
         int consolidateHeader = 0,
         int consolidateCitations = 0,
         int consolidateFunders = 0,
-        bool segmentSentences = false);
+        bool segmentSentences = false,
+        IEnumerable<string>? teiCoordinates = null);
 
     Task<string> ProcessReferencesAsync(
         Stream pdfStream,

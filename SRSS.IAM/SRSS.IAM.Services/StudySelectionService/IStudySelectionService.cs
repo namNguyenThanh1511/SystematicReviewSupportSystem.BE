@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.GrobidClient;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -135,5 +136,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             RetryExtractionRequest request,
             CancellationToken cancellationToken = default);
+
+        // Background tasks
+        Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct);
     }
 }

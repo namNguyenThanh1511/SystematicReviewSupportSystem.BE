@@ -21,8 +21,8 @@ namespace SRSS.IAM.Services.PaperService
         private readonly IStudySelectionService _studySelectionService;
 
         public PaperService(
-            IUnitOfWork unitOfWork, 
-            INotificationService notificationService, 
+            IUnitOfWork unitOfWork,
+            INotificationService notificationService,
             MetadataMergeService.IMetadataMergeService metadataMergeService,
             IStudySelectionService studySelectionService,
             ILogger<PaperService> logger)
@@ -577,10 +577,10 @@ namespace SRSS.IAM.Services.PaperService
         private static PaperResponse MapToPaperResponse(Paper paper, ScreeningPhase? phase = null)
         {
             var effectivePhase = phase ?? ScreeningPhase.TitleAbstract;
-            
+
             // Only filter assignments by phase if an explicit phase is provided
-            var filteredAssignments = phase.HasValue 
-                ? paper.PaperAssignments?.Where(pa => pa.Phase == phase.Value).ToList() 
+            var filteredAssignments = phase.HasValue
+                ? paper.PaperAssignments?.Where(pa => pa.Phase == phase.Value).ToList()
                 : paper.PaperAssignments?.ToList();
 
             return new PaperResponse
@@ -607,6 +607,8 @@ namespace SRSS.IAM.Services.PaperService
                 ConferenceYear = paper.ConferenceYear,
                 Journal = paper.Journal,
                 JournalIssn = paper.JournalIssn,
+                JournalEIssn = paper.JournalEIssn,
+                Md5 = paper.Md5,
                 Source = paper.Source,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
@@ -814,7 +816,7 @@ namespace SRSS.IAM.Services.PaperService
 
             // Apply selected fields
             await _metadataMergeService.MergeSelectedFieldsAsync(paper, sourceMetadata, request.Fields);
-            
+
             // Track provenance: merge new fields with previously applied ones
             sourceMetadata.AppliedFields = sourceMetadata.AppliedFields
                 .Union(request.Fields)
@@ -823,18 +825,18 @@ namespace SRSS.IAM.Services.PaperService
 
             sourceMetadata.ModifiedAt = DateTimeOffset.UtcNow;
 
-            _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}", 
+            _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}",
                 request.Fields.Count, request.SourceMetadataId, paperId);
 
             paper.ModifiedAt = DateTimeOffset.UtcNow;
-            
+
             await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
             await _unitOfWork.PaperSourceMetadatas.UpdateAsync(sourceMetadata, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToPaperResponse(paper);
         }
-        
+
 
         public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
@@ -939,8 +941,8 @@ namespace SRSS.IAM.Services.PaperService
             // 1. Get assignments for this user in this phase within the study selection process
             // EF Core translates the navigation property access into a JOIN in the SQL query.
             var assignments = await _unitOfWork.PaperAssignments
-                .FindAllAsync(pa => pa.StudySelectionProcessId == studySelectionProcessId 
-                                    && pa.ProjectMember.UserId == userId 
+                .FindAllAsync(pa => pa.StudySelectionProcessId == studySelectionProcessId
+                                    && pa.ProjectMember.UserId == userId
                                     && pa.Phase == phase,
                 isTracking: false,
                 cancellationToken: cancellationToken);

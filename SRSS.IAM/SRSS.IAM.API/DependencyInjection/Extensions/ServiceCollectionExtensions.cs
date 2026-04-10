@@ -5,6 +5,7 @@ using Shared.Cache;
 using Shared.DependencyInjection;
 using Shared.Middlewares;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.AuthService;
 using SRSS.IAM.Services.Configurations;
@@ -68,6 +69,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddSingleton<IUserConnectionRepository, UserConnectionRepository>();
 
 
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
@@ -146,6 +148,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IPaperFullTextService, PaperFullTextService>();
             services.AddHostedService<PaperFullTextBackgroundService>();
 
+            // GROBID background worker
+            services.AddSingleton<IGrobidProcessingQueue, GrobidProcessingQueue>();
+            services.AddHostedService<GrobidBackgroundService>();
+
             // RAG pipeline — Local CPU embedding (Singleton: ONNX model loads once)
             services.AddSingleton<LocalEmbedder>();
             services.AddSingleton<ILocalEmbeddingService, LocalEmbeddingService>();
@@ -211,6 +217,23 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                     ValidIssuer = validIssuer,
                     ValidAudience = validAudience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/hubs/notification"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
                 };
             });
         }

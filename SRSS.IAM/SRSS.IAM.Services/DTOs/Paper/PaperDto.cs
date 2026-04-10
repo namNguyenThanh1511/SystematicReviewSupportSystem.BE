@@ -35,6 +35,10 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string? Journal { get; set; }
         public string? JournalIssn { get; set; }
 
+        public string? JournalEIssn { get; set; }
+
+        public string? Md5 { get; set; }
+
         // Source Tracking
         public string? Source { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }

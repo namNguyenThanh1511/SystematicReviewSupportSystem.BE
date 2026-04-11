@@ -51,6 +51,8 @@ using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.ReferenceProcessingService;
 using SRSS.IAM.Services.PaperFullTextService;
 using SRSS.IAM.Services.AdminMasterSourceService;
+using SRSS.IAM.Services.Crossref;
+
 
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
@@ -125,6 +127,19 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpClient<IOpenAlexService, OpenAlexService>(client =>
             {
                 client.BaseAddress = new Uri("https://api.openalex.org/");
+            })
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == HttpStatusCode.TooManyRequests)
+                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            // Crossref integration
+            services.Configure<CrossrefSettings>(configuration.GetSection(CrossrefSettings.SectionName));
+            services.AddHttpClient<ICrossrefService, CrossrefService>(client =>
+            {
+                var settings = configuration.GetSection(CrossrefSettings.SectionName).Get<CrossrefSettings>() ?? new CrossrefSettings();
+                client.BaseAddress = new Uri(settings.BaseUrl);
+                client.DefaultRequestHeaders.Add("User-Agent", settings.UserAgent);
             })
             .AddPolicyHandler(HttpPolicyExtensions
                 .HandleTransientHttpError()

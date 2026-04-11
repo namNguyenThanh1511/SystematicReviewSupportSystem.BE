@@ -10,12 +10,12 @@ namespace SRSS.IAM.Services.CandidatePaperService.DTOs
         public string DOI { get; set; } = string.Empty;
         public string SourceType { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
-        public string? PdfUrl { get; set; } 
+        public string? PdfUrl { get; set; }
         public DateTimeOffset ImportedAt { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
         public int CandidateCount { get; set; }
-        public int HighConfidenceCount { get; set; }
+        public int SuggestedCount { get; set; }
         public int DuplicateCount { get; set; }
     }
 }

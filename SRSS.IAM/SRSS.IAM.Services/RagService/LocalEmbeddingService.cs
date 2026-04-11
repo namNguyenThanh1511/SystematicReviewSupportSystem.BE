@@ -22,11 +22,13 @@ namespace SRSS.IAM.Services.RagService
 
         private readonly LocalEmbedder _embedder;
         private readonly ILogger<LocalEmbeddingService> _logger;
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, float[]> _cache;
 
         public LocalEmbeddingService(LocalEmbedder embedder, ILogger<LocalEmbeddingService> logger)
         {
             _embedder = embedder ?? throw new ArgumentNullException(nameof(embedder));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _cache = new System.Collections.Concurrent.ConcurrentDictionary<string, float[]>();
         }
 
         // ============================================
@@ -54,10 +56,17 @@ namespace SRSS.IAM.Services.RagService
                 throw new ArgumentException("Text must not be null or whitespace.", nameof(text));
             }
 
-            var embedding = _embedder.Embed<EmbeddingF32>(text);
+            var cacheKey = NormalizeKey(text);
+            if (_cache.TryGetValue(cacheKey, out var cached))
+            {
+                return new Vector(cached);
+            }
 
-            // EmbeddingF32.Values is ReadOnlyMemory<float>; Pgvector.Vector accepts float[]
-            return new Vector(embedding.Values.ToArray());
+            var embedding = _embedder.Embed<EmbeddingF32>(text);
+            var values = NormalizeL2(embedding.Values.ToArray());
+
+            _cache.TryAdd(cacheKey, values);
+            return new Vector(values);
         }
 
         /// <inheritdoc />
@@ -68,23 +77,61 @@ namespace SRSS.IAM.Services.RagService
                 return new List<Vector>();
             }
 
-            var results = new List<Vector>(texts.Count);
+            var results = new Vector[texts.Count];
 
-            foreach (var text in texts)
+            // Use Parallel.ForEach for CPU-bound embedding generation
+            Parallel.ForEach(System.Linq.Enumerable.Range(0, texts.Count), i =>
             {
+                var text = texts[i];
                 if (string.IsNullOrWhiteSpace(text))
                 {
-                    _logger.LogWarning("Skipping empty or whitespace text during batch embedding.");
-                    // Insert a zero vector as a placeholder to maintain index alignment
-                    results.Add(new Vector(new float[_dimensions]));
-                    continue;
+                    results[i] = new Vector(new float[_dimensions]);
+                    return;
                 }
 
+                var cacheKey = NormalizeKey(text);
+                if (_cache.TryGetValue(cacheKey, out var cached))
+                {
+                    results[i] = new Vector(cached);
+                    return;
+                }
+
+                // Note: SmartComponents.LocalEmbeddings is thread-safe for CPU inference
                 var embedding = _embedder.Embed<EmbeddingF32>(text);
-                results.Add(new Vector(embedding.Values.ToArray()));
+                var values = NormalizeL2(embedding.Values.ToArray());
+
+                _cache.TryAdd(cacheKey, values);
+                results[i] = new Vector(values);
+            });
+
+            return results.ToList();
+        }
+
+        private static string NormalizeKey(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+            return string.Join(" ",
+                input.ToLowerInvariant()
+                     .Split(new[] { ' ', '\r', '\n', '\t' }, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        private static float[] NormalizeL2(float[] vector)
+        {
+            double sum = 0;
+            for (int i = 0; i < vector.Length; i++)
+            {
+                sum += vector[i] * vector[i];
             }
 
-            return results;
+            float precision = (float)Math.Sqrt(sum);
+            if (precision > 0)
+            {
+                for (int i = 0; i < vector.Length; i++)
+                {
+                    vector[i] /= precision;
+                }
+            }
+            return vector;
         }
 
         public void Dispose()

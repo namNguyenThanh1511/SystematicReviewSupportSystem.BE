@@ -52,5 +52,51 @@ namespace SRSS.IAM.API.Controllers
             await _notificationService.MarkAllAsReadAsync(Guid.Parse(userId));
             return Ok("All notifications marked as read successfully.");
         }
+
+        [HttpPost("send-all")]
+        public async Task<ActionResult<ApiResponse>> SendAll([FromBody] SendAllNotificationRequest request, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                throw new ArgumentException("Message is required.");
+            }
+
+            await _notificationService.SendMessageToAllAsync(request.Message, cancellationToken);
+            return Ok("Message sent to all users successfully.");
+        }
+
+        [HttpPost("send-user")]
+        public async Task<ActionResult<ApiResponse>> SendUser([FromBody] SendUserNotificationRequest request, CancellationToken cancellationToken)
+        {
+            if (request.UserId == Guid.Empty)
+            {
+                throw new ArgumentException("UserId is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                throw new ArgumentException("Message is required.");
+            }
+
+            await _notificationService.SendMessageToUserAsync(request.UserId, request.Message, cancellationToken);
+            return Ok("Message sent to user successfully.");
+        }
+
+        [HttpPost("send-group")]
+        public async Task<ActionResult<ApiResponse>> SendGroup([FromBody] SendGroupNotificationRequest request, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(request.GroupName))
+            {
+                throw new ArgumentException("GroupName is required.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                throw new ArgumentException("Message is required.");
+            }
+
+            await _notificationService.SendMessageToGroupAsync(request.GroupName, request.Message, cancellationToken);
+            return Ok("Message sent to group successfully.");
+        }
     }
 }

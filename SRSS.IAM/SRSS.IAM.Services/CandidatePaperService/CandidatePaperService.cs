@@ -73,7 +73,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 pdfMemoryStream.Position = 0;
 
                 var paperPdf = await _unitOfWork.PaperPdfs.GetLatestPaperPdfAsync(paperId, cancellationToken);
-                
+
                 // Update paper and pdf hash if not set (or different)
                 bool needsSave = false;
                 if (paper.CurrentFileHash != hash)
@@ -107,22 +107,23 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                     if (existingCandidates.Any())
                     {
-                        _logger.LogInformation("Cache hit for paper {PaperId} with hash {Hash}. Cloning {Count} candidates from paper {SourcePaperId}.", 
+                        _logger.LogInformation("Cache hit for paper {PaperId} with hash {Hash}. Cloning {Count} candidates from paper {SourcePaperId}.",
                             paperId, hash, existingCandidates.Count(), existingPaperPdfWithRefs.PaperId);
-                        
+
                         // Chỉ xóa những Candidate chưa được Select và chưa bị Reject
                         // Giữ lại những cái Status = Rejected hoặc IsSelectedInScreening = true
                         var removableCandidates = await _unitOfWork.CandidatePapers.FindAllAsync(
-                            c => c.OriginPaperId == paperId 
-                                && c.Status != CandidateStatus.Rejected 
-                                && c.IsSelectedInScreening == false, 
+                            c => c.OriginPaperId == paperId
+                                && c.Status != CandidateStatus.Rejected
+                                && c.IsSelectedInScreening == false,
                             isTracking: true, cancellationToken);
                         if (removableCandidates.Any())
                         {
                             await _unitOfWork.CandidatePapers.RemoveMultipleAsync(removableCandidates, cancellationToken);
                         }
+                        var needCloneCandidates = existingCandidates.Where(c => c.Status != CandidateStatus.Rejected && c.IsSelectedInScreening == false).ToList();
 
-                        var clonedCandidates = existingCandidates.Select(c => new CandidatePaper
+                        var clonedCandidates = needCloneCandidates.Select(c => new CandidatePaper
                         {
                             Id = Guid.NewGuid(),
                             ReviewProcessId = processId,
@@ -140,7 +141,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         }).ToList();
 
                         await _unitOfWork.CandidatePapers.AddRangeAsync(clonedCandidates, cancellationToken);
-                        
+
                         // Update current paperPdf.RefsExtracted = true
                         if (paperPdf != null)
                         {
@@ -161,7 +162,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                 // 3. PDF Splitting & GROBID API (Cache Miss)
                 _logger.LogInformation("Cache miss for paper {PaperId}. Extracting references via GROBID with PDF splitting.", paperId);
-                
+
                 Stream streamToSend = pdfMemoryStream;
                 var fileName = paperPdf?.FileName ?? paper.PdfFileName ?? "paper.pdf";
 
@@ -203,7 +204,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         }).ToList();
 
                         await _unitOfWork.CandidatePapers.AddRangeAsync(newCandidates, cancellationToken);
-                        
+
                         // Finally update current paperPdf.RefsExtracted = true
                         if (paperPdf != null)
                         {
@@ -212,8 +213,8 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                    // Immediately process candidates: match, create papers, create citations
-                    // Converted to background job for performance
+                        // Immediately process candidates: match, create papers, create citations
+                        // Converted to background job for performance
                         await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
                         {
                             ProcessId = processId,
@@ -245,7 +246,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 // Note: PdfDocument.Open might throw if PDF is encrypted or corrupted
                 using var document = PdfDocument.Open(sourceStream);
                 var totalPages = document.NumberOfPages;
-                
+
                 // If the document is small, just use the original stream
                 if (totalPages <= pageCount)
                 {
@@ -255,7 +256,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                 var startPage = Math.Max(1, totalPages - pageCount + 1);
                 var builder = new PdfDocumentBuilder();
-                
+
                 for (int i = startPage; i <= totalPages; i++)
                 {
                     builder.AddPage(document, i);
@@ -264,10 +265,10 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 var pdfBytes = builder.Build();
                 var outputStream = new MemoryStream(pdfBytes);
                 outputStream.Position = 0;
-                
-                _logger.LogInformation("Successfully split PDF to last {Count} pages (from page {StartPage} to {TotalPages}).", 
+
+                _logger.LogInformation("Successfully split PDF to last {Count} pages (from page {StartPage} to {TotalPages}).",
                     pageCount, startPage, totalPages);
-                
+
                 return outputStream;
             }
             catch (Exception ex)
@@ -396,126 +397,126 @@ namespace SRSS.IAM.Services.CandidatePaperService
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-            foreach (var candidate in candidates)
-            {
-                // Step 1: Handle Delayed Paper Creation
-                if (!candidate.TargetPaperId.HasValue)
+                foreach (var candidate in candidates)
                 {
-                    var newPaper = new Paper
+                    // Step 1: Handle Delayed Paper Creation
+                    if (!candidate.TargetPaperId.HasValue)
                     {
-                        Id = Guid.NewGuid(),
-                        ProjectId = reviewProcess.ProjectId,
-                        Title = candidate.Title ?? string.Empty,
-                        Authors = candidate.Authors ?? string.Empty,
-                        DOI = candidate.DOI,
-                        PublicationYear = candidate.PublicationYear,
-                        SourceType = PaperSourceType.Snowballing,
-                        Source = "Snowballing (GROBID)",
-                        ImportedAt = DateTimeOffset.UtcNow,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
-
-                    if (int.TryParse(candidate.PublicationYear, out int year))
-                    {
-                        newPaper.PublicationYearInt = year;
-                    }
-
-                    await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-                    
-                    // Save changes to ensure ID is generated (though we assigned Guid.NewGuid(), 
-                    // it's consistent with the requirement for citation link)
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    
-                    candidate.TargetPaperId = newPaper.Id;
-                }
-
-                var targetPaperId = candidate.TargetPaperId.Value;
-
-                // Step 2: Handle Delayed Citation Creation
-                if (candidate.OriginPaperId.HasValue)
-                {
-                    var existingCitation = await _unitOfWork.PaperCitations.FindSingleAsync(
-                        pc => pc.SourcePaperId == candidate.OriginPaperId.Value 
-                           && pc.TargetPaperId == targetPaperId,
-                        isTracking: false,
-                        cancellationToken);
-
-                    if (existingCitation == null)
-                    {
-                        // Calculate Citation Confidence
-                        decimal extractionQuality = candidate.ExtractionQualityScore;
-                        decimal matchConfidence = candidate.MatchConfidenceScore;
-                        
-                        decimal finalConfidence = matchConfidence == 0 
-                            ? extractionQuality * 0.9m 
-                            : (matchConfidence * 0.7m) + (extractionQuality * 0.3m);
-
-                        finalConfidence = Math.Clamp(finalConfidence, 0m, 1m);
-                        
-                        bool isLowConfidence = finalConfidence < 0.75m 
-                                               || (matchConfidence > 0 && matchConfidence < 0.6m) 
-                                               || extractionQuality < 0.4m;
-
-                        var citation = new PaperCitation
+                        var newPaper = new Paper
                         {
                             Id = Guid.NewGuid(),
-                            SourcePaperId = candidate.OriginPaperId.Value,
-                            TargetPaperId = targetPaperId,
-                            ReferenceType = candidate.ReferenceType,
-                            RawReference = candidate.RawReference,
-                            ConfidenceScore = finalConfidence,
-                            ExtractionQuality = extractionQuality,
-                            MatchConfidence = matchConfidence,
-                            Source = CitationSource.Grobid,
-                            IsLowConfidence = isLowConfidence,
+                            ProjectId = reviewProcess.ProjectId,
+                            Title = candidate.Title ?? string.Empty,
+                            Authors = candidate.Authors ?? string.Empty,
+                            DOI = candidate.DOI,
+                            PublicationYear = candidate.PublicationYear,
+                            SourceType = PaperSourceType.Snowballing,
+                            Source = "Snowballing (GROBID)",
+                            ImportedAt = DateTimeOffset.UtcNow,
                             CreatedAt = DateTimeOffset.UtcNow,
                             ModifiedAt = DateTimeOffset.UtcNow
                         };
 
-                        await _unitOfWork.PaperCitations.AddAsync(citation, cancellationToken);
-                        
-                        // We will save changes at the end of the loop or here if needed.
-                        // Let's call SaveChanges to get CitationId if we were to assign it, 
-                        // though Guid.NewGuid() is assigned.
+                        if (int.TryParse(candidate.PublicationYear, out int year))
+                        {
+                            newPaper.PublicationYearInt = year;
+                        }
+
+                        await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+
+                        // Save changes to ensure ID is generated (though we assigned Guid.NewGuid(), 
+                        // it's consistent with the requirement for citation link)
                         await _unitOfWork.SaveChangesAsync(cancellationToken);
-                        candidate.CitationId = citation.Id;
+
+                        candidate.TargetPaperId = newPaper.Id;
                     }
-                    else
+
+                    var targetPaperId = candidate.TargetPaperId.Value;
+
+                    // Step 2: Handle Delayed Citation Creation
+                    if (candidate.OriginPaperId.HasValue)
                     {
-                        candidate.CitationId = existingCitation.Id;
+                        var existingCitation = await _unitOfWork.PaperCitations.FindSingleAsync(
+                            pc => pc.SourcePaperId == candidate.OriginPaperId.Value
+                               && pc.TargetPaperId == targetPaperId,
+                            isTracking: false,
+                            cancellationToken);
+
+                        if (existingCitation == null)
+                        {
+                            // Calculate Citation Confidence
+                            decimal extractionQuality = candidate.ExtractionQualityScore;
+                            decimal matchConfidence = candidate.MatchConfidenceScore;
+
+                            decimal finalConfidence = matchConfidence == 0
+                                ? extractionQuality * 0.9m
+                                : (matchConfidence * 0.7m) + (extractionQuality * 0.3m);
+
+                            finalConfidence = Math.Clamp(finalConfidence, 0m, 1m);
+
+                            bool isLowConfidence = finalConfidence < 0.75m
+                                                   || (matchConfidence > 0 && matchConfidence < 0.6m)
+                                                   || extractionQuality < 0.4m;
+
+                            var citation = new PaperCitation
+                            {
+                                Id = Guid.NewGuid(),
+                                SourcePaperId = candidate.OriginPaperId.Value,
+                                TargetPaperId = targetPaperId,
+                                ReferenceType = candidate.ReferenceType,
+                                RawReference = candidate.RawReference,
+                                ConfidenceScore = finalConfidence,
+                                ExtractionQuality = extractionQuality,
+                                MatchConfidence = matchConfidence,
+                                Source = CitationSource.Grobid,
+                                IsLowConfidence = isLowConfidence,
+                                CreatedAt = DateTimeOffset.UtcNow,
+                                ModifiedAt = DateTimeOffset.UtcNow
+                            };
+
+                            await _unitOfWork.PaperCitations.AddAsync(citation, cancellationToken);
+
+                            // We will save changes at the end of the loop or here if needed.
+                            // Let's call SaveChanges to get CitationId if we were to assign it, 
+                            // though Guid.NewGuid() is assigned.
+                            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                            candidate.CitationId = citation.Id;
+                        }
+                        else
+                        {
+                            candidate.CitationId = existingCitation.Id;
+                        }
                     }
-                }
 
-                // Step 3: Update Snapshot (IdentificationProcessPaper)
-                var alreadyInSnapshot = await _unitOfWork.IdentificationProcessPapers.FindSingleAsync(
-                    ipp => ipp.IdentificationProcessId == idProcess.Id && ipp.PaperId == targetPaperId,
-                    isTracking: false,
-                    cancellationToken);
+                    // Step 3: Update Snapshot (IdentificationProcessPaper)
+                    var alreadyInSnapshot = await _unitOfWork.IdentificationProcessPapers.FindSingleAsync(
+                        ipp => ipp.IdentificationProcessId == idProcess.Id && ipp.PaperId == targetPaperId,
+                        isTracking: false,
+                        cancellationToken);
 
-                if (alreadyInSnapshot == null)
-                {
-                    var snapshotPaper = new IdentificationProcessPaper
+                    if (alreadyInSnapshot == null)
                     {
-                        Id = Guid.NewGuid(),
-                        IdentificationProcessId = idProcess.Id,
-                        PaperId = targetPaperId,
-                        IncludedAfterDedup = true,
-                        SourceType = PaperSourceType.Snowballing,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
+                        var snapshotPaper = new IdentificationProcessPaper
+                        {
+                            Id = Guid.NewGuid(),
+                            IdentificationProcessId = idProcess.Id,
+                            PaperId = targetPaperId,
+                            IncludedAfterDedup = true,
+                            SourceType = PaperSourceType.Snowballing,
+                            CreatedAt = DateTimeOffset.UtcNow,
+                            ModifiedAt = DateTimeOffset.UtcNow
+                        };
 
-                    await _unitOfWork.IdentificationProcessPapers.AddAsync(snapshotPaper, cancellationToken);
+                        await _unitOfWork.IdentificationProcessPapers.AddAsync(snapshotPaper, cancellationToken);
+                    }
+
+                    // Step 4: Finalize Candidate
+                    candidate.IsSelectedInScreening = true;
+                    candidate.SelectedAt = DateTimeOffset.UtcNow;
+                    candidate.ModifiedAt = DateTimeOffset.UtcNow;
+
+                    await _unitOfWork.CandidatePapers.UpdateAsync(candidate, cancellationToken);
                 }
-
-                // Step 4: Finalize Candidate
-                candidate.IsSelectedInScreening = true;
-                candidate.SelectedAt = DateTimeOffset.UtcNow;
-                candidate.ModifiedAt = DateTimeOffset.UtcNow;
-                
-                await _unitOfWork.CandidatePapers.UpdateAsync(candidate, cancellationToken);
-            }
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -585,12 +586,12 @@ namespace SRSS.IAM.Services.CandidatePaperService
             var candidateStats = _unitOfWork.CandidatePapers.GetCandidatesQueryable(processId)
            .GroupBy(c => c.OriginPaperId)
            .Select(g => new
-               {
-                   PaperId = g.Key,
-                   Count = (int?)g.Count(),
-                   HighConfCount = (int?)g.Count(c => c.ConfidenceScore >= 0.8m),
-                   DupCount = (int?)0 // Duplicate derived via logic if needed, but removed from Status
-               });
+           {
+               PaperId = g.Key,
+               Count = (int?)g.Count(),
+               SuggestedCount = (int?)g.Count(c => c.Status == CandidateStatus.Suggested),
+               DupCount = (int?)g.Count(c => c.Status == CandidateStatus.Matched && c.IsSelectedInScreening)
+           });
 
 
 
@@ -621,7 +622,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         ModifiedAt = x.p.ModifiedAt,
                         // Dùng ?? cho các kiểu int? đã ép ở trên
                         CandidateCount = x.stats.Count ?? 0,
-                        HighConfidenceCount = x.stats.HighConfCount ?? 0,
+                        SuggestedCount = x.stats.SuggestedCount ?? 0,
                         DuplicateCount = x.stats.DupCount ?? 0
                     }).ToListAsync(cancellationToken);
 

@@ -110,7 +110,7 @@ namespace SRSS.IAM.Repositories.Entities
         // FULL-TEXT & EXTRACTED METADATA
         // ============================================
         public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
-        public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
+        public PaperSourceMetadata? SourceMetadata { get; set; }
 
         // Citations where this paper is the source (it cites other papers)
         public ICollection<PaperCitation> OutgoingCitations { get; set; } = new List<PaperCitation>();

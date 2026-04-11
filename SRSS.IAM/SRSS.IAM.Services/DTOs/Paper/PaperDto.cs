@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.DTOs.Paper
 {
@@ -35,10 +36,16 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string? Journal { get; set; }
         public string? JournalIssn { get; set; }
 
+        public string? JournalEIssn { get; set; }
+
+        public string? Md5 { get; set; }
+
         // Source Tracking
         public string? Source { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
+
+        public ExtractionSuggestionResponse? ExtractionSuggestion { get; set; }
 
         // Selection Status (derived dynamically from ScreeningResolution)
         public SelectionStatus? SelectionStatus { get; set; }

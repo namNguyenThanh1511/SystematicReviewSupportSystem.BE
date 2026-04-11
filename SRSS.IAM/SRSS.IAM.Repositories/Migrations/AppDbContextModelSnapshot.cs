@@ -1180,6 +1180,43 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("intervention", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.MasterSearchSources", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("BaseUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("base_url");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("source_name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("master_search_sources", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1720,7 +1757,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<Vector>("Embedding")
                         .IsRequired()
-                        .HasColumnType("vector(1536)")
+                        .HasColumnType("vector")
                         .HasColumnName("embedding");
 
                     b.Property<string>("Model")
@@ -1899,7 +1936,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PaperId");
+                    b.HasIndex("PaperId")
+                        .IsUnique();
 
                     b.ToTable("paper_source_metadatas", (string)null);
                 });
@@ -3067,11 +3105,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("search_query");
 
-                    b.Property<string>("SearchSource")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)")
-                        .HasColumnName("search_source");
+                    b.Property<Guid>("SearchSourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("search_source_id");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -3082,6 +3118,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasIndex("IdentificationProcessId");
 
+                    b.HasIndex("SearchSourceId");
+
                     b.ToTable("search_executions", (string)null);
                 });
 
@@ -3090,11 +3128,15 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
-                        .HasColumnName("source_id");
+                        .HasColumnName("id");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<Guid?>("MasterSourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("master_source_id");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -3102,7 +3144,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("name");
 
                     b.Property<Guid>("ProtocolId")
@@ -3110,6 +3153,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("protocol_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MasterSourceId");
 
                     b.HasIndex("ProtocolId");
 
@@ -4053,8 +4098,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperSourceMetadata", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithMany("SourceMetadatas")
-                        .HasForeignKey("PaperId")
+                        .WithOne("SourceMetadata")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperSourceMetadata", "PaperId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -4448,16 +4493,31 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SearchSource", "SearchSource")
+                        .WithMany()
+                        .HasForeignKey("SearchSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("IdentificationProcess");
+
+                    b.Navigation("SearchSource");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchSource", b =>
                 {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.MasterSearchSources", "MasterSource")
+                        .WithMany()
+                        .HasForeignKey("MasterSourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProtocol", "Protocol")
                         .WithMany("SearchSources")
                         .HasForeignKey("ProtocolId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("MasterSource");
 
                     b.Navigation("Protocol");
                 });
@@ -4639,7 +4699,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("ScreeningResolutions");
 
-                    b.Navigation("SourceMetadatas");
+                    b.Navigation("SourceMetadata");
 
                     b.Navigation("StudySelectionAIResults");
 

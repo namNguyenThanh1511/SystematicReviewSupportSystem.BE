@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SearchStrategy;
 using SRSS.IAM.Services.Mappers;
@@ -22,6 +22,22 @@ namespace SRSS.IAM.Services.SearchStrategyService
 
 			foreach (var dto in dtos)
 			{
+				if (dto.MasterSourceId.HasValue)
+				{
+					// Validate master source existence
+					var masterSource = await _unitOfWork.MasterSearchSources.FindSingleOrDefaultAsync(m => m.Id == dto.MasterSourceId.Value);
+					if (masterSource == null)
+					{
+						throw new InvalidOperationException($"Master source with ID {dto.MasterSourceId} not found.");
+					}
+
+					// Use master source name if not provided
+					if (string.IsNullOrWhiteSpace(dto.Name))
+					{
+						dto.Name = masterSource.SourceName;
+					}
+				}
+
 				SearchSource entity;
 
 				if (dto.SourceId.HasValue && dto.SourceId.Value != Guid.Empty)

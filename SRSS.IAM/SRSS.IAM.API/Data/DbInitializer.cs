@@ -428,7 +428,7 @@ namespace SRSS.IAM.API.Data
 			{
 				Id = ScopusSearchExecutionId,
 				IdentificationProcessId = HarIdentificationProcessId,
-				SearchSource = "Scopus",
+				SearchSourceId = Har2SearchSource1Id,
 				SearchQuery = "TITLE-ABS-KEY(\"human activity recognition\" AND \"deep learning\")",
 				ExecutedAt = DateTimeOffset.UtcNow,
 				ResultCount = 3,

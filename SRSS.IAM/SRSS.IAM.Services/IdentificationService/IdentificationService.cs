@@ -6,8 +6,8 @@ using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
-using SRSS.IAM.Services.EmbeddingService;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
@@ -15,13 +15,13 @@ namespace SRSS.IAM.Services.IdentificationService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IReferenceMatchingService _matchingService;
-        private readonly IEmbeddingService _embeddingService;
+        private readonly ILocalEmbeddingService _embeddingService;
         private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
 
         public IdentificationService(
             IUnitOfWork unitOfWork, 
             IReferenceMatchingService matchingService,
-            IEmbeddingService embeddingService,
+            ILocalEmbeddingService embeddingService,
             IPaperEnrichmentOrchestrator enrichmentOrchestrator)
         {
             _unitOfWork = unitOfWork;
@@ -496,11 +496,17 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {request.IdentificationProcessId} not found.");
             }
 
+            var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId, cancellationToken: cancellationToken);
+            if (searchSource == null)
+            {
+                throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId} not found.");
+            }
+
             var searchExecution = new SearchExecution
             {
                 Id = Guid.NewGuid(),
                 IdentificationProcessId = request.IdentificationProcessId,
-                SearchSource = request.SearchSource,
+                SearchSourceId = request.SearchSourceId,
                 SearchQuery = request.SearchQuery,
                 ExecutedAt = DateTimeOffset.UtcNow,
                 ResultCount = 0,
@@ -536,9 +542,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
+            var searchExecutions = await _unitOfWork.SearchExecutions.GetByProcessIdWithSourceAsync(identificationProcessId, cancellationToken);
 
             var responses = new List<SearchExecutionResponse>();
             foreach (var searchExecution in searchExecutions)
@@ -563,9 +567,14 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"SearchExecution with ID {request.Id} not found.");
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SearchSource))
+            if (request.SearchSourceId.HasValue)
             {
-                searchExecution.SearchSource = request.SearchSource;
+                var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId.Value, cancellationToken: cancellationToken);
+                if (searchSource == null)
+                {
+                    throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId.Value} not found.");
+                }
+                searchExecution.SearchSourceId = request.SearchSourceId.Value;
             }
 
             if (request.SearchQuery != null)
@@ -636,7 +645,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -655,7 +664,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -777,7 +786,7 @@ namespace SRSS.IAM.Services.IdentificationService
         public async Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream,
             string fileName,
-            string? source,
+            Guid? searchSourceId,
             string? importedBy,
             Guid? searchExecutionId,
             Guid identificationProcessId,
@@ -824,7 +833,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         {
                             Id = Guid.NewGuid(),
                             IdentificationProcessId = identificationProcessId,
-                            SearchSource = source ?? "Manual Import",
+                            SearchSourceId = searchSourceId ?? Guid.Empty, // Requires a valid source ID
                             ExecutedAt = DateTimeOffset.UtcNow,
                             ResultCount = 0,
                             Type = SearchExecutionType.ManualImport,
@@ -865,7 +874,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         Id = Guid.NewGuid(),
                         FileName = fileName,
                         FileType = "RIS",
-                        Source = source ?? "Manual Upload",
+                    Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                         TotalRecords = risPapers.Count,
                         ImportedBy = importedBy,
                         ImportedAt = DateTimeOffset.UtcNow,
@@ -927,8 +936,8 @@ namespace SRSS.IAM.Services.IdentificationService
             SearchExecution? searchExecution,
             CancellationToken cancellationToken)
         {
-            // Prepare references for matching service
-            var referencesForMatching = risPapers.Select(p => new ExtractedReference
+            // STEP 1: Normalize data (DOI, Title)
+            var references = risPapers.Select(p => new ExtractedReference
             {
                 Title = p.Title,
                 Authors = p.Authors,
@@ -938,65 +947,89 @@ namespace SRSS.IAM.Services.IdentificationService
                 RawReference = p.RawReference
             }).ToList();
 
-            // Generate embeddings before batch matching
-            for (int i = 0; i < risPapers.Count; i++)
-            {
-                var risPaper = risPapers[i];
-                if (string.IsNullOrWhiteSpace(risPaper.Title))
-                {
-                    continue;
-                }
-
-                var embeddingInput = GenerateEmbeddingInput(
-                    risPaper.Title,
-                    risPaper.Authors,
-                    risPaper.PublicationYear,
-                    risPaper.Journal);
-
-                referencesForMatching[i].TitleEmbedding = await _embeddingService.GetEmbeddingAsync(
-                    embeddingInput,
-                    cancellationToken);
-            }
-
-            // Pre-fetch matches for the full import batch (process-scoped)
-            var prefetchedMatches = (await _matchingService.MatchBatchAsync(
-                referencesForMatching,
+            // STEP 2 & 3: Fast Match (DOI, Exact title) & Fuzzy match (cheap)
+            // MatchBatchAsync without embeddings will perform these steps
+            var preliminaryMatches = (await _matchingService.MatchBatchAsync(
+                references,
                 identificationProcess.Id,
                 cancellationToken)).ToList();
 
-            // Track processed references within this batch for intra-batch detection
+            // STEP 4: FILTER candidates needing embedding
+            // Identify indices that need semantic matching
+            var semanticMatchNeededIndices = new List<int>();
+            for (int i = 0; i < references.Count; i++)
+            {
+                var match = preliminaryMatches[i];
+                // Only embed if no high-confidence DOI/Exact match or if fuzzy match is weak
+                if (match.ConfidenceScore < 0.95m && !string.IsNullOrWhiteSpace(references[i].Title))
+                {
+                    semanticMatchNeededIndices.Add(i);
+                }
+            }
+
+            // STEP 5: BATCH EMBEDDING (only subset)
+            if (semanticMatchNeededIndices.Any())
+            {
+                var inputsToEmbed = semanticMatchNeededIndices
+                    .Select(idx => GenerateEmbeddingInput(
+                        references[idx].Title,
+                        references[idx].Authors,
+                        references[idx].PublishedYear,
+                        references[idx].Journal))
+                    .ToList();
+
+                var embeddings = _embeddingService.GetEmbeddingsBatch(inputsToEmbed);
+
+                for (int i = 0; i < semanticMatchNeededIndices.Count; i++)
+                {
+                    var originalIdx = semanticMatchNeededIndices[i];
+                    references[originalIdx].TitleEmbedding = embeddings[i].ToArray();
+                }
+            }
+
+            // STEP 6: Semantic matching
+            // We only need to re-match the items we just embedded
+            // For simplicity and to handle intra-batch matches, we re-run MatchBatchAsync
+            // with the now-enriched references.
+            var finalMatches = (await _matchingService.MatchBatchAsync(
+                references,
+                identificationProcess.Id,
+                cancellationToken)).ToList();
+
+            // STEP 7: Persist DB (batch)
+            var papersToSource = new List<Paper>();
+            var deduplicationResults = new List<DeduplicationResult>();
             var processedReferences = new List<ProcessedReference>();
 
-            // Process each record
             for (int i = 0; i < risPapers.Count; i++)
             {
                 var risPaper = risPapers[i];
-                var currentReference = referencesForMatching[i];
+                var reference = references[i];
+                var bestMatch = finalMatches[i];
 
-                // Skip records without titles
                 if (string.IsNullOrWhiteSpace(risPaper.Title)) continue;
 
-                var newPaperId = Guid.NewGuid();
-
-                var dbMatch = i < prefetchedMatches.Count ? prefetchedMatches[i] : null;
-
-                // Match against already processed papers in this batch (DOI/fuzzy only)
-                var batchMatch = _matchingService.MatchAgainstProcessed(currentReference, processedReferences);
-
-                var bestMatch = SelectBestMatch(dbMatch, batchMatch);
-                bool isBatchLevelMatch = ReferenceEquals(bestMatch, batchMatch);
+                // Intra-batch detection (match against already processed papers in this batch)
+                var batchMatch = _matchingService.MatchAgainstProcessed(reference, processedReferences);
+                
+                // If batch match is better than DB match, use it
+                bool isBatchLevelMatch = false;
+                if (batchMatch != null && batchMatch.ConfidenceScore > bestMatch.ConfidenceScore)
+                {
+                    bestMatch = batchMatch;
+                    isBatchLevelMatch = true;
+                }
 
                 int? publicationYearInt = null;
                 if (int.TryParse(risPaper.PublicationYear, out var year)) publicationYearInt = year;
 
-                // Create Paper entity
                 var newPaper = new Paper
                 {
-                    Id = newPaperId,
+                    Id = Guid.NewGuid(),
                     Title = risPaper.Title,
                     Authors = risPaper.Authors,
                     Abstract = risPaper.Abstract,
-                    DOI = DoiHelper.Normalize(risPaper.DOI) ?? risPaper.DOI,
+                    DOI = reference.DOI,
                     PublicationType = risPaper.PublicationType,
                     PublicationYear = risPaper.PublicationYear,
                     PublicationYearInt = publicationYearInt,
@@ -1010,7 +1043,7 @@ namespace SRSS.IAM.Services.IdentificationService
                     Keywords = risPaper.Keywords,
                     RawReference = risPaper.RawReference,
                     ProjectId = identificationProcess.ReviewProcess.ProjectId,
-                    Source = searchExecution?.SearchSource ?? "Manual Upload",
+                    Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                     ImportBatchId = importBatch.Id,
                     ImportedAt = importBatch.ImportedAt,
                     ImportedBy = importBatch.ImportedBy,
@@ -1018,27 +1051,25 @@ namespace SRSS.IAM.Services.IdentificationService
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
-                await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-
-                // Save embedding to separate entity
-                if (currentReference.TitleEmbedding is { Length: > 0 })
+                // Add embedding if exists
+                if (reference.TitleEmbedding is { Length: > 0 })
                 {
-                    var paperEmbedding = new PaperEmbedding
+                    newPaper.TitleEmbedding = new PaperEmbedding
                     {
                         Id = Guid.NewGuid(),
                         PaperId = newPaper.Id,
-                        Embedding = new Vector(currentReference.TitleEmbedding),
+                        Embedding = new Vector(reference.TitleEmbedding),
                         Model = _embeddingService.ModelName,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
-                    newPaper.TitleEmbedding = paperEmbedding;
                 }
 
+                papersToSource.Add(newPaper);
                 result.ImportedRecords++;
                 result.ImportedPaperIds.Add(newPaper.Id);
 
-                // Handle duplication results
+                // Handle duplication
                 if (bestMatch != null && bestMatch.ConfidenceScore >= 0.7m)
                 {
                     var deduplicationResult = new DeduplicationResult
@@ -1068,16 +1099,22 @@ namespace SRSS.IAM.Services.IdentificationService
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
 
-                    await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+                    deduplicationResults.Add(deduplicationResult);
                     result.DuplicateRecords++;
                 }
 
-                // Add to processed list for incremental detection of subsequent records
-                processedReferences.Add(new ProcessedReference
-                {
-                    Reference = currentReference,
-                    PaperId = newPaper.Id
-                });
+                processedReferences.Add(new ProcessedReference { Reference = reference, PaperId = newPaper.Id });
+            }
+
+            // Perform batched inserts
+            if (papersToSource.Any())
+            {
+                await _unitOfWork.Papers.AddRangeAsync(papersToSource, cancellationToken);
+            }
+
+            if (deduplicationResults.Any())
+            {
+                await _unitOfWork.DeduplicationResults.AddRangeAsync(deduplicationResults, cancellationToken);
             }
         }
 

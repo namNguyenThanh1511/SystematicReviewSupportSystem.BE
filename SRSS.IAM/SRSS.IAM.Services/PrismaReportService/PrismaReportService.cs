@@ -130,21 +130,21 @@ namespace SRSS.IAM.Services.PrismaReportService
             var identificationProcess = reviewProcess.IdentificationProcess;
 
             // 1. Identification: Database Searches
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcess.Id,
+            var searchExecutions = await _unitOfWork.SearchExecutions.GetByProcessIdWithSourceAsync(
+                identificationProcess.Id,
                 cancellationToken: cancellationToken);
 
             var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
 
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+            var allImportBatches = await _unitOfWork.ImportBatches.GetBySearchExecutionIdsWithSourceAsync(
+                searchExecutionIds,
                 cancellationToken: cancellationToken);
 
             var importBatchList = allImportBatches.ToList();
             
             // Breakdown by Database Source
             details.IdentifiedBreakdown = importBatchList
-                .GroupBy(ib => ib.SearchExecution?.SearchSource ?? "Unknown Source")
+                .GroupBy(ib => ib.SearchExecution?.SearchSource?.Name ?? "Unknown Source")
                 .Select(g => new PrismaBreakdownResponse { Label = g.Key, Count = g.Sum(ib => ib.TotalRecords) })
                 .ToList();
 

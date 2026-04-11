@@ -139,16 +139,16 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		[HttpGet("{id}/assignments/my")]
-		public async Task<ActionResult<ApiResponse<List<AssignedPaperResponse>>>> GetMyAssignedPapers(Guid id)
+		public async Task<ActionResult<ApiResponse<QAMemberDashboardResponse>>> GetMemberDashboard(Guid id)
 		{
-			var result = await _service.GetMyAssignedPapersAsync(id);
+			var result = await _service.GetMemberDashboardAsync(id);
 			return Ok(result, "Lấy danh sách bài báo được phân công thành công");
 		}
 
-		[HttpGet("{id}/papers")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentPaperResponse>>>> GetAllPapersByProcessId(Guid id)
+		[HttpGet("{id}/leader")]
+		public async Task<ActionResult<ApiResponse<QALeaderDashboardResponse>>> GetLeaderDashboardByProcessId(Guid id)
 		{
-			var result = await _service.GetAllPapersAsync(id);
+			var result = await _service.GetLeaderDashboardAsync(id);
 			return Ok(result, "Lấy danh sách bài báo thành công");
 		}
 

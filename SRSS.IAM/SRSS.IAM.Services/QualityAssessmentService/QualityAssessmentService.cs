@@ -404,6 +404,23 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Quality Assessment Process not found");
 
+            var processAssignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
+
+            // Validate reviewer limit per paper (max 2)
+            foreach (var paperId in dto.PaperIds)
+            {
+                var assignedUsers = processAssignments
+                    .Where(a => a.Paper != null && a.Paper.Any(p => p.Id == paperId))
+                    .Select(a => a.UserId)
+                    .ToList();
+                
+                var newUsers = dto.UserIds.Except(assignedUsers).ToList();
+                if (assignedUsers.Count + newUsers.Count > 2)
+                {
+                    throw new InvalidOperationException($"Cannot assign paper with ID {paperId} to more than 2 reviewers.");
+                }
+            }
+
             // Validate Users and Papers exist (optional but recommended)
 
             foreach (var userId in dto.UserIds)
@@ -768,7 +785,7 @@ Assume you are an expert reviewer conducting a quality assessment of a scientifi
 
 Note: 
 - For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
-- Also give pdfHighlightCoordinates (a string following this style: page,x,y,height,width (; to separate 2 highlight)) for any evidence in the paper that supports your judgement for each criterion. If no evidence, leave it empty.
+- Also give pdfHighlightCoordinates (a string following this style: page,x,y,height,width (; to separate 2 highlight)) for any evidence in the paper that supports your judgement for each criterion.
 
 -------------------------
 

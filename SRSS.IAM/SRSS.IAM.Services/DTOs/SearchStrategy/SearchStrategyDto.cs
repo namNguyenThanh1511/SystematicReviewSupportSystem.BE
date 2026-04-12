@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SRSS.IAM.Services.DTOs.SearchStrategy
 {
@@ -6,6 +6,7 @@ namespace SRSS.IAM.Services.DTOs.SearchStrategy
 	public class SearchSourceDto
 	{
 		public Guid? SourceId { get; set; }
+		public Guid? MasterSourceId { get; set; }
 
 		[Required(ErrorMessage = "ProtocolId là bắt buộc")]
 		public Guid ProtocolId { get; set; }

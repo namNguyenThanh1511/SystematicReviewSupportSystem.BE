@@ -36,6 +36,7 @@ using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
+using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
 
 
@@ -76,6 +77,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         private IStudySelectionAIResultRepository? _studySelectionAIResults;
         private IPaperFullTextRepository? _paperFullTexts;
+        private IMasterSearchSourceRepository? _masterSearchSources;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -340,6 +342,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
         public IPaperFullTextRepository PaperFullTexts
             => _paperFullTexts ??= new PaperFullTextRepository(_dbContext);
+        public IMasterSearchSourceRepository MasterSearchSources
+            => _masterSearchSources ??= new MasterSearchSourceRepository(_dbContext);
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);

@@ -25,11 +25,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid qaId);
 
 		// Papers
-		Task<List<QualityAssessmentPaperResponse>> GetAllPapersAsync(Guid qaId);
+		Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid qaId);
 
 		// Assignments
 		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto);
-        Task<List<AssignedPaperResponse>> GetMyAssignedPapersAsync(Guid reviewProcessId);
+        Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid reviewProcessId);
 
         // Decisions
         Task CreateDecisionAsync(CreateQualityAssessmentDecisionRequest dto);

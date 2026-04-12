@@ -20,9 +20,8 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("identification_process_id")
                 .IsRequired();
 
-            builder.Property(se => se.SearchSource)
-                .HasColumnName("search_source")
-                .HasMaxLength(255)
+            builder.Property(se => se.SearchSourceId)
+                .HasColumnName("search_source_id")
                 .IsRequired();
 
             builder.Property(se => se.SearchQuery)
@@ -51,6 +50,17 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(se => se.ModifiedAt)
                 .HasColumnName("modified_at")
                 .IsRequired();
+
+            builder.HasOne(se => se.IdentificationProcess)
+                .WithMany(ip => ip.SearchExecutions)
+                .HasForeignKey(se => se.IdentificationProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(se => se.SearchSource)
+                .WithMany()
+                .HasForeignKey(se => se.SearchSourceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             builder.HasMany(se => se.ImportBatches)
                 .WithOne(ib => ib.SearchExecution)
                 .HasForeignKey(ib => ib.SearchExecutionId)

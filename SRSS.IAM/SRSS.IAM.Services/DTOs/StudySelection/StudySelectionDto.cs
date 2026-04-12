@@ -221,6 +221,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     public class ExtractionSuggestionResponse
     {
         public Guid SourceMetadataId { get; set; }
+        public required Guid PaperId { get; set; }
         public string? Title { get; set; }
         public string? Authors { get; set; }
         public string? Abstract { get; set; }

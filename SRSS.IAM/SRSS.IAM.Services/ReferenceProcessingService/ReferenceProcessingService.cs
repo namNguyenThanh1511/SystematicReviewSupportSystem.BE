@@ -119,17 +119,19 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                     // Match Found: Link to existing paper in the snapshot
                     targetPaperId = match.MatchedPaper.Id;
                     status = CandidateStatus.Matched;
-                    isSelectedInScreening = true;
+                    
 
                     // Tiered Priority: Definite Match vs Uncertain Match
-                    if (matchConfidenceScore >= 0.85m)
+                    if (matchConfidenceScore == 1m)
                     {
-                        notes.Add("Potential duplicate found in screening dataset");
+                        notes.Add("Already exists in screening dataset");
+                        isSelectedInScreening = true;
                     }
                     else
                     {
-                        notes.Add("Uncertain match with existing paper - please verify identity");
+                        notes.Add("Potential duplicate found in screening dataset");
                     }
+
 
                     // Snapshot Metadata
                     if (match.IsSnapshotDuplicate)

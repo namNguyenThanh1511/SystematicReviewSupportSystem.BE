@@ -14,6 +14,7 @@ using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.SearchExecutionRepo;
+using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
@@ -129,6 +130,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
         IStudySelectionAIResultRepository StudySelectionAIResults { get; }
         IPaperFullTextRepository PaperFullTexts { get; }
+        IMasterSearchSourceRepository MasterSearchSources { get; }
 
         // Quality Assessment
         IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }

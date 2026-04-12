@@ -32,7 +32,7 @@ namespace SRSS.IAM.API.Controllers
         /// Import bibliographic records from a RIS file
         /// </summary>
         /// <param name="file">RIS file (.ris extension)</param>
-        /// <param name="source">Source database (e.g., Scopus, IEEE, PubMed)</param>
+        /// <param name="searchSourceId">Source database ID (referencing SearchSource entity)</param>
         /// <param name="importedBy">User who performed the import</param>
         /// <param name="searchExecutionId">Optional SearchExecution ID to associate papers with</param>
         /// <param name="identificationProcessId">IdentificationProcess ID to associate the import with</param>
@@ -41,7 +41,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpPost("import/ris")]
         public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportRisFile(
             IFormFile file,
-            [FromForm] string? source,
+            [FromForm] Guid? searchSourceId,
             [FromForm] string? importedBy,
             [FromForm] Guid? searchExecutionId,
             [FromForm] Guid identificationProcessId,
@@ -71,7 +71,7 @@ namespace SRSS.IAM.API.Controllers
             var result = await _identificationService.ImportRisFileAsync(
                 stream,
                 file.FileName,
-                source,
+                searchSourceId,
                 importedBy,
                 searchExecutionId,
                 identificationProcessId,

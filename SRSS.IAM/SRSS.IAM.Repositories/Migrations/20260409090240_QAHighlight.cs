@@ -5,15 +5,15 @@
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class excludereasonforstudyresolution : Migration
+    public partial class QAHighlight : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "ExclusionReasonCode",
-                table: "screening_resolutions",
-                type: "integer",
+            migrationBuilder.AddColumn<string>(
+                name: "pdf_highlight_coordinates",
+                table: "quality_assessment_decision_items",
+                type: "text",
                 nullable: true);
         }
 
@@ -21,8 +21,8 @@ namespace SRSS.IAM.Repositories.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ExclusionReasonCode",
-                table: "screening_resolutions");
+                name: "pdf_highlight_coordinates",
+                table: "quality_assessment_decision_items");
         }
     }
 }

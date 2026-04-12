@@ -1,4 +1,4 @@
-﻿using Shared.Repositories;
+using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using System;
 using System.Collections.Generic;
@@ -14,5 +14,13 @@ namespace SRSS.IAM.Repositories.ImportBatchRepo
         {
         }
 
+        public async Task<IEnumerable<ImportBatch>> GetBySearchExecutionIdsWithSourceAsync(IEnumerable<Guid> executionIds, CancellationToken cancellationToken = default)
+        {
+            return await _context.ImportBatches
+                .Include(ib => ib.SearchExecution)
+                    .ThenInclude(se => se.SearchSource)
+                .Where(ib => ib.SearchExecutionId != null && executionIds.Contains(ib.SearchExecutionId.Value))
+                .ToListAsync(cancellationToken);
+        }
     }
 }

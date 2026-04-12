@@ -125,10 +125,21 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
+                //Auto-create Synthesis Process for the new ReviewProcess
+                var synthesisProcess = new Repositories.Entities.SynthesisProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Status = Repositories.Entities.Enums.SynthesisProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
                 await _unitOfWork.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess, cancellationToken);
                 await _unitOfWork.DataExtractionProcesses.AddAsync(dataExtractionProcess, cancellationToken);
+                await _unitOfWork.SynthesisProcesses.AddAsync(synthesisProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -504,6 +515,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         Notes = reviewProcess.DataExtractionProcess.Notes,
                         CreatedAt = reviewProcess.DataExtractionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.DataExtractionProcess.ModifiedAt
+                    }
+                    : null,
+                SynthesisProcess = reviewProcess.SynthesisProcess != null
+                    ? new SynthesisProcessResponse
+                    {
+                        Id = reviewProcess.SynthesisProcess.Id,
+                        ReviewProcessId = reviewProcess.SynthesisProcess.ReviewProcessId,
+                        Status = reviewProcess.SynthesisProcess.Status,
+                        StatusText = reviewProcess.SynthesisProcess.Status.ToString(),
+                        StartedAt = reviewProcess.SynthesisProcess.StartedAt,
+                        CompletedAt = reviewProcess.SynthesisProcess.CompletedAt,
+                        CreatedAt = reviewProcess.SynthesisProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.SynthesisProcess.ModifiedAt
                     }
                     : null
             };

@@ -52,6 +52,7 @@ using SRSS.IAM.Services.PaperFullTextService;
 
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
+using SRSS.IAM.Services.SynthesisExecutionService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -150,6 +151,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddSingleton<IRagIngestionQueue, RagIngestionQueue>();
             services.AddHostedService<RagIngestionBackgroundService>();
             services.AddScoped<IRagRetrievalService, RagRetrievalService>();
+
+            // Synthesis Execution
+            services.AddScoped<ISynthesisExecutionService, SynthesisExecutionService>();
         }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

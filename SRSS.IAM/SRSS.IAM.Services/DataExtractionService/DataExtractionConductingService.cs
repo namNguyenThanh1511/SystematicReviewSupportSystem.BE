@@ -918,6 +918,49 @@ namespace SRSS.IAM.Services.DataExtractionService
             return stream.ToArray();
         }
 
+        public async Task<byte[]> ExportExtractedDataCsvAsync(Guid extractionProcessId, CancellationToken cancellationToken = default)
+        {
+            var data = await GetPivotedExtractionDataAsync(extractionProcessId);
+
+            var sb = new System.Text.StringBuilder();
+
+            // Write headers
+            var headerLine = string.Join(",", data.Headers.Select(EscapeCsvValue));
+            sb.AppendLine(headerLine);
+
+            // Write rows
+            foreach (var row in data.Rows)
+            {
+                var rowValues = data.Headers.Select(h => row.TryGetValue(h, out var val) ? EscapeCsvValue(val) : "");
+                sb.AppendLine(string.Join(",", rowValues));
+            }
+
+            // Include UTF-8 BOM
+            var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+            var csvBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+
+            var result = new byte[bom.Length + csvBytes.Length];
+            Buffer.BlockCopy(bom, 0, result, 0, bom.Length);
+            Buffer.BlockCopy(csvBytes, 0, result, bom.Length, csvBytes.Length);
+
+            return result;
+        }
+
+        private string EscapeCsvValue(string? value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+
+            bool requiresQuotes = value.Contains(",") || value.Contains("\"") || value.Contains("\r") || value.Contains("\n");
+            
+            if (requiresQuotes)
+            {
+                value = value.Replace("\"", "\"\"");
+                return $"\"{value}\"";
+            }
+            
+            return value;
+        }
+
         public async Task ReopenExtractionAsync(Guid extractionProcessId, Guid paperId, ReopenExtractionRequestDto request)
         {
             // 1. Authorization: Ensure the current user is the Project Leader
@@ -1603,5 +1646,434 @@ If no relevant data is found in the context, return a JSON object with null valu
                 ReviewerWorkloads = reviewerWorkloads
             };
         }
+        public async Task CompleteAsync(Guid extractionProcessId, CancellationToken cancellationToken)
+        {
+            // 1. Fetch Process
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId, cancellationToken);
+
+            if (extractionProcess?.ReviewProcess == null)
+            {
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} or its ReviewProcess not found.");
+            }
+
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
+
+            // 2. Authorization
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+            {
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+            }
+
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId, cancellationToken);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+            }
+
+            // 3. Validation
+            var tasks = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Where(t => t.DataExtractionProcessId == extractionProcessId)
+                .ToListAsync(cancellationToken);
+
+            // if (tasks.Any() && tasks.Any(t => t.Status != PaperExtractionStatus.Completed))
+            // {
+            //     throw new InvalidOperationException("Cannot complete phase. All papers must be completely extracted and resolved.");
+            // }
+
+            // 4. Update Status
+            extractionProcess.Status = ExtractionProcessStatus.Completed;
+            extractionProcess.CompletedAt = DateTimeOffset.UtcNow;
+            extractionProcess.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<ExtractionEditableGridDto> GetEditableExtractionGridAsync(Guid extractionProcessId)
+        {
+            // 1. Fetch extraction process and protocol
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
+                .Include(dp => dp.ReviewProcess)
+                .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+
+            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
+                throw new InvalidOperationException("Protocol not found for this extraction process.");
+
+            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+
+            // 2. Fetch Template
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateEntity = templateList.FirstOrDefault();
+
+            if (templateEntity == null)
+                throw new InvalidOperationException("Extraction template not found for this protocol.");
+
+            var template = await _unitOfWork.ExtractionTemplates.GetByIdWithFieldsAsync(templateEntity.Id);
+
+            if (template == null)
+                throw new InvalidOperationException("Extraction template not found.");
+
+            // 3. Fetch completed tasks
+            var completedTasks = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .Where(t => t.DataExtractionProcessId == extractionProcessId && t.Status == PaperExtractionStatus.Completed)
+                .ToListAsync();
+
+            var completedPaperIds = completedTasks.Select(t => t.PaperId).ToList();
+
+            if (!completedPaperIds.Any())
+                throw new InvalidOperationException("No completed papers found for this extraction process to export.");
+
+            // 4. Fetch extracted answers (only IsConsensusFinal)
+            var allValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e => completedPaperIds.Contains(e.PaperId) && e.IsConsensusFinal);
+            var valuesList = allValues.ToList();
+
+            // 5. Build columns list and column map
+            var columns = new List<ExtractionGridColumnMetaDto>();
+            var colMap = new Dictionary<(Guid FieldId, Guid? MatrixColumnId), string>();
+
+            Action<ExtractionField, List<ExtractionField>> flatten = null!;
+            flatten = (f, list) =>
+            {
+                list.Add(f);
+                if (f.SubFields != null && f.SubFields.Any())
+                {
+                    foreach (var sf in f.SubFields.OrderBy(x => x.OrderIndex))
+                        flatten(sf, list);
+                }
+            };
+
+            foreach (var section in template.Sections.OrderBy(s => s.OrderIndex))
+            {
+                var orderedFields = section.Fields?.Where(f => f.ParentFieldId == null).OrderBy(f => f.OrderIndex).ToList() ?? new List<ExtractionField>();
+                var sectionFields = new List<ExtractionField>();
+                foreach (var f in orderedFields)
+                {
+                    flatten(f, sectionFields);
+                }
+
+                if (section.SectionType == SectionType.FlatForm)
+                {
+                    foreach (var f in sectionFields)
+                    {
+                        string headerName = $"{section.Name} - {f.Name}";
+                        var colMeta = new ExtractionGridColumnMetaDto
+                        {
+                            FieldId = f.Id,
+                            HeaderName = headerName,
+                            FieldType = f.FieldType.ToString(),
+                            Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
+                        };
+                        columns.Add(colMeta);
+                        colMap[(f.Id, null)] = headerName;
+                    }
+                }
+                else if (section.SectionType == SectionType.MatrixGrid)
+                {
+                    var matrixColumns = section.MatrixColumns?.OrderBy(c => c.OrderIndex).ToList() ?? new List<ExtractionMatrixColumn>();
+                    foreach (var mc in matrixColumns)
+                    {
+                        foreach (var f in sectionFields)
+                        {
+                            string headerName = $"{section.Name} - {mc.Name} - {f.Name}";
+                            var colMeta = new ExtractionGridColumnMetaDto
+                            {
+                                FieldId = f.Id,
+                                HeaderName = headerName,
+                                FieldType = f.FieldType.ToString(),
+                                Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
+                            };
+                            columns.Add(colMeta);
+                            colMap[(f.Id, mc.Id)] = headerName;
+                        }
+                    }
+                }
+            }
+
+            // 6. Build unified fields dictionary
+            var allTemplateFields = template.Sections.SelectMany(s => s.Fields).ToList();
+            var allSubFields = allTemplateFields.SelectMany(f => f.SubFields ?? new List<ExtractionField>()).ToList();
+            var unifiedFieldsDict = allTemplateFields.Concat(allSubFields).DistinctBy(f => f.Id).ToDictionary(f => f.Id);
+
+            // 7. Build rows
+            var rows = new List<ExtractionGridRowDto>();
+
+            foreach (var task in completedTasks)
+            {
+                var paperValues = valuesList.Where(v => v.PaperId == task.PaperId).ToList();
+
+                var rowGroups = paperValues.GroupBy(v => v.MatrixRowIndex ?? 0).ToList();
+
+                if (!rowGroups.Any())
+                {
+                    rowGroups = new List<IGrouping<int, ExtractedDataValue>>
+                    {
+                        new EnumerableQuery<ExtractedDataValue>(new List<ExtractedDataValue>()).GroupBy(x => 0).First()
+                    };
+                }
+
+                string firstAuthor = "Unknown";
+                if (!string.IsNullOrWhiteSpace(task.Paper.Authors))
+                {
+                    var authorParts = task.Paper.Authors.Split(',');
+                    if (authorParts.Any() && !string.IsNullOrWhiteSpace(authorParts[0]))
+                    {
+                        firstAuthor = authorParts[0].Trim();
+                    }
+                }
+                string yearStr = task.Paper.PublicationYearInt?.ToString() ?? "Unknown";
+                string citationStr = $"{firstAuthor} et al., {yearStr}";
+
+                foreach (var group in rowGroups)
+                {
+                    int rowIndex = group.Key;
+                    var rowDto = new ExtractionGridRowDto
+                    {
+                        RowId = $"{task.PaperId}-{rowIndex}",
+                        PaperTitle = task.Paper.Title ?? "",
+                        Citation = citationStr,
+                        Cells = new Dictionary<string, ExtractionGridCellDto>()
+                    };
+
+                    foreach (var headerKvp in colMap)
+                    {
+                        var fieldId = headerKvp.Key.FieldId;
+                        var matrixColumnId = headerKvp.Key.MatrixColumnId;
+                        var headerName = headerKvp.Value;
+
+                        if (!unifiedFieldsDict.TryGetValue(fieldId, out var field))
+                            continue;
+
+                        var cellValues = group.Where(v => v.FieldId == fieldId && v.MatrixColumnId == matrixColumnId).ToList();
+
+                        string valueStr = "";
+
+                        if (cellValues.Any())
+                        {
+                            if (field.FieldType == FieldType.MultiSelect)
+                            {
+                                var optionIds = cellValues.Where(v => v.OptionId.HasValue).Select(v => v.OptionId!.Value).ToList();
+                                var optionValues = field.Options?
+                                    .Where(o => optionIds.Contains(o.Id))
+                                    .Select(o => o.Value)
+                                    .ToList() ?? new List<string>();
+
+                                valueStr = string.Join(", ", optionValues);
+                            }
+                            else
+                            {
+                                var record = cellValues.First();
+                                switch (field.FieldType)
+                                {
+                                    case FieldType.Text:
+                                        valueStr = record.StringValue ?? "";
+                                        break;
+                                    case FieldType.Integer:
+                                    case FieldType.Decimal:
+                                        valueStr = record.NumericValue?.ToString() ?? "";
+                                        break;
+                                    case FieldType.Boolean:
+                                        valueStr = record.BooleanValue.HasValue ? (record.BooleanValue.Value ? "Yes" : "No") : "";
+                                        break;
+                                    case FieldType.SingleSelect:
+                                        if (record.OptionId.HasValue)
+                                        {
+                                            valueStr = field.Options?.FirstOrDefault(o => o.Id == record.OptionId.Value)?.Value ?? "";
+                                        }
+                                        break;
+                                }
+                            }
+                        }
+
+                        rowDto.Cells[headerName] = new ExtractionGridCellDto
+                        {
+                            PaperId = task.PaperId,
+                            FieldId = fieldId,
+                            MatrixColumnId = matrixColumnId,
+                            MatrixRowIndex = matrixColumnId.HasValue ? (int?)rowIndex : null,
+                            Value = valueStr,
+                            FieldType = field.FieldType.ToString()
+                        };
+                    }
+                    rows.Add(rowDto);
+                }
+            }
+
+            return new ExtractionEditableGridDto
+            {
+                Columns = columns,
+                Rows = rows
+            };
+        }
+
+        public async Task UpdateGridCellAsync(Guid extractionProcessId, UpdateGridCellRequestDto request)
+        {
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+            {
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+            }
+
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses.FindFirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
+
+            if (extractionProcess == null)
+            {
+                throw new InvalidOperationException($"DataExtractionProcess {extractionProcessId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindFirstOrDefaultAsync(rp => rp.Id == extractionProcess.ReviewProcessId);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess {extractionProcess.ReviewProcessId} not found.");
+            }
+
+            var projectId = reviewProcess.ProjectId;
+
+            var allMembers = (await _unitOfWork.SystematicReviewProjects.FindAllAsync(p => p.Id == projectId)).FirstOrDefault()?.ProjectMembers ?? new List<ProjectMember>();
+
+            if (!allMembers.Any())
+            {
+                // We might need to load members. Let's just do a direct check using SystematicReviewProjects if possible,
+                // or just rely on a query we know works. Let's use the explicit check:
+            }
+
+            // To be entirely safe and mimic other methods' auth checks:
+            var project = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Include(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(p => p.Id == projectId);
+
+            var currentUserProjectMember = project?.ProjectMembers.FirstOrDefault(pm => pm.UserId == currentUserId);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+            }
+
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == reviewProcess.ProtocolId);
+            var templateEntity = templateList.FirstOrDefault();
+
+            if (templateEntity == null)
+                throw new InvalidOperationException("Extraction template not found for this protocol.");
+
+            var template = await _unitOfWork.ExtractionTemplates.GetByIdWithFieldsAsync(templateEntity.Id);
+
+            if (template == null)
+                throw new InvalidOperationException("Extraction template not found.");
+
+            var allTemplateFields = template.Sections.SelectMany(s => s.Fields).ToList();
+            var allSubFields = allTemplateFields.SelectMany(f => f.SubFields ?? new List<ExtractionField>()).ToList();
+            var fieldEntity = allTemplateFields.Concat(allSubFields).FirstOrDefault(f => f.Id == request.FieldId);
+
+            if (fieldEntity == null)
+                throw new InvalidOperationException($"Field {request.FieldId} not found.");
+
+            var existingRecords = (await _unitOfWork.ExtractedDataValues.FindAllAsync(e =>
+                    e.PaperId == request.PaperId &&
+                    e.FieldId == request.FieldId &&
+                    e.MatrixColumnId == request.MatrixColumnId &&
+                    e.MatrixRowIndex == request.MatrixRowIndex &&
+                    e.IsConsensusFinal == true)).ToList();
+
+            if (existingRecords.Any())
+            {
+                await _unitOfWork.ExtractedDataValues.RemoveMultipleAsync(existingRecords);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.NewValue))
+            {
+                await _unitOfWork.SaveChangesAsync();
+                return;
+            }
+
+            if (fieldEntity.FieldType == FieldType.MultiSelect)
+            {
+                var optionValues = request.NewValue.Split(',').Select(s => s.Trim());
+                var allOptionsForField = fieldEntity.Options ?? new List<FieldOption>();
+                var newOptions = new List<ExtractedDataValue>();
+
+                foreach (var optionVal in optionValues)
+                {
+                    var opt = allOptionsForField.FirstOrDefault(o => o.Value.Equals(optionVal, StringComparison.OrdinalIgnoreCase));
+                    if (opt != null)
+                    {
+                        var newVal = CreateExtractedValue(request, fieldEntity, currentUserId, opt.Id, optionVal, null, null);
+                        newOptions.Add(newVal);
+                    }
+                }
+
+                if (newOptions.Any())
+                {
+                    await _unitOfWork.ExtractedDataValues.AddRangeAsync(newOptions);
+                }
+            }
+            else
+            {
+                var newVal = CreateExtractedValue(request, fieldEntity, currentUserId, null, null, null, null);
+
+                switch (fieldEntity.FieldType)
+                {
+                    case FieldType.Text:
+                        newVal.StringValue = request.NewValue;
+                        break;
+                    case FieldType.Integer:
+                    case FieldType.Decimal:
+                        if (decimal.TryParse(request.NewValue, out var nValue))
+                        {
+                            newVal.NumericValue = nValue;
+                        }
+                        break;
+                    case FieldType.Boolean:
+                        if (bool.TryParse(request.NewValue, out var bValue) || request.NewValue.Equals("Yes", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newVal.BooleanValue = request.NewValue.Equals("Yes", StringComparison.OrdinalIgnoreCase) || bValue;
+                        }
+                        else if (request.NewValue.Equals("No", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newVal.BooleanValue = false;
+                        }
+                        break;
+                    case FieldType.SingleSelect:
+                        var opt = fieldEntity.Options?.FirstOrDefault(o => o.Value.Equals(request.NewValue, StringComparison.OrdinalIgnoreCase));
+                        if (opt != null)
+                        {
+                            newVal.OptionId = opt.Id;
+                            newVal.StringValue = request.NewValue;
+                        }
+                        break;
+                }
+
+                await _unitOfWork.ExtractedDataValues.AddAsync(newVal);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        private ExtractedDataValue CreateExtractedValue(UpdateGridCellRequestDto req, ExtractionField field, Guid reviewerId, Guid? optionId, string? stringVal, decimal? numVal, bool? boolVal)
+        {
+            return new ExtractedDataValue
+            {
+                Id = Guid.NewGuid(),
+                PaperId = req.PaperId,
+                FieldId = field.Id,
+                ReviewerId = reviewerId,
+                OptionId = optionId,
+                StringValue = stringVal,
+                NumericValue = numVal,
+                BooleanValue = boolVal,
+                MatrixColumnId = req.MatrixColumnId,
+                MatrixRowIndex = req.MatrixRowIndex,
+                IsConsensusFinal = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            };
+        }
+
     }
 }

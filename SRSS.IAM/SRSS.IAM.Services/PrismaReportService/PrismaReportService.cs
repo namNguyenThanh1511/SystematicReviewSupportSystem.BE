@@ -130,21 +130,21 @@ namespace SRSS.IAM.Services.PrismaReportService
             var identificationProcess = reviewProcess.IdentificationProcess;
 
             // 1. Identification: Database Searches
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcess.Id,
+            var searchExecutions = await _unitOfWork.SearchExecutions.GetByProcessIdWithSourceAsync(
+                identificationProcess.Id,
                 cancellationToken: cancellationToken);
 
             var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
 
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+            var allImportBatches = await _unitOfWork.ImportBatches.GetBySearchExecutionIdsWithSourceAsync(
+                searchExecutionIds,
                 cancellationToken: cancellationToken);
 
             var importBatchList = allImportBatches.ToList();
             
             // Breakdown by Database Source
             details.IdentifiedBreakdown = importBatchList
-                .GroupBy(ib => ib.SearchExecution?.SearchSource ?? "Unknown Source")
+                .GroupBy(ib => ib.SearchExecution?.SearchSource?.Name ?? "Unknown Source")
                 .Select(g => new PrismaBreakdownResponse { Label = g.Key, Count = g.Sum(ib => ib.TotalRecords) })
                 .ToList();
 
@@ -251,19 +251,6 @@ namespace SRSS.IAM.Services.PrismaReportService
         {
             var records = new List<PrismaFlowRecord>();
 
-            // 0. Identification (Root)
-            // records.Add(new PrismaFlowRecord
-            // {
-            //     Id = Guid.NewGuid(),
-            //     PrismaReportId = reportId,
-            //     Stage = PrismaStage.Identification,
-            //     Label = "Identification",
-            //     Count = details.RecordsIdentified,
-            //     DisplayOrder = 0,
-            //     CreatedAt = DateTimeOffset.UtcNow,
-            //     ModifiedAt = DateTimeOffset.UtcNow
-            // });
-
             // 1. RecordsIdentified
             records.Add(new PrismaFlowRecord
             {
@@ -286,13 +273,13 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Stage = PrismaStage.DuplicateRecordsRemoved,
                 Label = "Duplicate records removed before screening",
                 Count = details.DuplicateRecordsRemoved,
-                MetadataJson = JsonSerializer.Serialize(new { 
-                    breakdown = new[] { 
-                        new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
-                        new { label = "Records marked ineligible", count = 0 },
-                        new { label = "Records removed other reasons", count = 0 }
-                    } 
-                }),
+                // MetadataJson = JsonSerializer.Serialize(new { 
+                //     breakdown = new[] { 
+                //         new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
+                //         new { label = "Records marked ineligible", count = 0 },
+                //         new { label = "Records removed other reasons", count = 0 }
+                //     } 
+                // }),
                 DisplayOrder = 2,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow

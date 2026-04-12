@@ -12,6 +12,8 @@ using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.Utils;
 using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.SupabaseService;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -23,6 +25,9 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly INotificationService _notificationService;
         private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
         private readonly IPaperFullTextQueue _fullTextQueue;
+        private readonly IGrobidProcessingQueue _grobidQueue;
+        private readonly ISupabaseStorageService _storageService;
+        private readonly ICurrentUserService _currentUserService;
         private readonly ILogger<StudySelectionService> _logger;
 
         public StudySelectionService(
@@ -32,6 +37,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             INotificationService notificationService,
             IStudySelectionProcessPaperService studySelectionProcessPaperService,
             IPaperFullTextQueue fullTextQueue,
+            IGrobidProcessingQueue grobidQueue,
+            ISupabaseStorageService storageService,
+            ICurrentUserService currentUserService,
             ILogger<StudySelectionService> logger)
         {
             _unitOfWork = unitOfWork;
@@ -40,6 +48,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             _notificationService = notificationService;
             _studySelectionProcessPaperService = studySelectionProcessPaperService;
             _fullTextQueue = fullTextQueue;
+            _grobidQueue = grobidQueue;
+            _storageService = storageService;
+            _currentUserService = currentUserService;
             _logger = logger;
         }
 
@@ -1542,7 +1553,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 null,
                 cancellationToken);
 
-            var citationCount = paper.ExternalCitationCount ?? 0;
+            var citationCount = await _unitOfWork.PaperCitations.CountByTargetAsync(paper.Id, cancellationToken);
             var referenceCount = await _unitOfWork.PaperCitations.CountBySourceAsync(paper.Id, cancellationToken);
 
             // Batch-resolve user names for decisions + resolution
@@ -2047,14 +2058,14 @@ namespace SRSS.IAM.Services.StudySelectionService
 
                 paper.CurrentFileHash = fileHash;
 
-                // 4. GROBID Extraction (if requested and not skipped)
+                // 4. GROBID Extraction (Background)
                 if (request.ExtractWithGrobid)
                 {
                     if (skipGrobid)
                     {
                         _logger.LogInformation("Skipping GROBID extraction for Paper {PaperId} because file hash matches current record.", paperId);
 
-                        // Retrieve existing PaperSourceMetadata and recalculate suggestions
+                        // Retrieve existing PaperSourceMetadata and recalculate suggestions for the response
                         var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
                             paper.Id,
                             cancellationToken);
@@ -2062,12 +2073,10 @@ namespace SRSS.IAM.Services.StudySelectionService
                         if (sourceMeta != null)
                         {
                             var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
-                            sourceMeta.SuggestedFields = updatedFields;
-                            sourceMeta.ModifiedAt = DateTimeOffset.UtcNow;
-
                             extractionSuggestion = new ExtractionSuggestionResponse
                             {
                                 SourceMetadataId = sourceMeta.Id,
+                                PaperId = paper.Id,
                                 Title = sourceMeta.Title,
                                 Authors = sourceMeta.Authors,
                                 Abstract = sourceMeta.Abstract,
@@ -2086,15 +2095,34 @@ namespace SRSS.IAM.Services.StudySelectionService
                                 UpdatedFields = updatedFields
                             };
 
-                            await _unitOfWork.PaperSourceMetadatas.UpdateAsync(sourceMeta, cancellationToken);
+                            // Even though we skip background processing, we notify the client that metadata is ready
+                            var userIdStr = _currentUserService.GetUserId();
+                            if (Guid.TryParse(userIdStr, out var userId))
+                            {
+                                await _notificationService.SendMetadataExtractedAsync(userId, extractionSuggestion);
+                            }
                         }
                     }
                     else
                     {
-                        extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
+                        _logger.LogInformation("Enqueuing GROBID extraction for Paper {PaperId} in background.", paperId);
+
+                        // We set GrobidProcessed to false to indicate it's pending/processing
+                        paperPdf.GrobidProcessed = false;
+
+                        var userIdStr = _currentUserService.GetUserId();
+                        Guid.TryParse(userIdStr, out var userId);
+
+                        _grobidQueue.TryWrite(new GrobidWorkItem
+                        {
+                            PaperPdfId = paperPdf.Id,
+                            PaperId = paperId,
+                            StudySelectionProcessId = studySelectionProcessId,
+                            UserId = userId
+                        });
                     }
 
-                    // 5. Enqueue Full-text Extraction (Background)
+                    // 5. Enqueue Full-text Extraction (Background) - Always do this if a new file is uploaded
                     // Optimization: Skip if skipGrobid is true AND any other PDF with same hash was already processed
                     bool runFullText = true;
                     if (skipGrobid)
@@ -2115,6 +2143,69 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+        }
+
+        public async Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct)
+        {
+            _logger.LogInformation("Processing background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+
+            try
+            {
+                var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == workItem.PaperId, isTracking: true, cancellationToken: ct);
+                var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(p => p.Id == workItem.PaperPdfId, isTracking: true, cancellationToken: ct);
+
+                if (paper == null || paperPdf == null)
+                {
+                    _logger.LogWarning("Paper or PaperPdf not found for background extraction. PaperId: {PaperId}, PaperPdfId: {PaperPdfId}",
+                        workItem.PaperId, workItem.PaperPdfId);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(paperPdf.FilePath))
+                {
+                    _logger.LogWarning("PaperPdf {PaperPdfId} has no file path. Skipping extraction.", workItem.PaperPdfId);
+                    return;
+                }
+
+                // 1. Download PDF from Supabase
+                byte[] pdfBytes = await _storageService.DownloadFileAsync(paperPdf.FilePath);
+                using var pdfStream = new MemoryStream(pdfBytes);
+
+                // 2. Perform Extraction
+                var extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, pdfStream, paperPdf.FileName ?? "upload.pdf", ct);
+
+                // 3. Mark as processed
+                paperPdf.GrobidProcessed = true;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // 4. Send Notification
+                if (workItem.UserId != Guid.Empty)
+                {
+                    // Send system notification
+                    await _notificationService.SendAsync(
+                        workItem.UserId,
+                        "Extraction Complete",
+                        $"Metadata extraction for '{paper.Title}' has been completed.",
+                        NotificationType.System,
+                        workItem.PaperId,
+                        NotificationEntityType.Paper);
+
+                    // Send real-time metadata update via SignalR
+                    if (extractionSuggestion != null)
+                    {
+                        await _notificationService.SendMetadataExtractedAsync(workItem.UserId, extractionSuggestion);
+                    }
+                }
+
+                _logger.LogInformation("Successfully completed background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+                // We don't throw here to avoid crashing the background worker
+            }
         }
 
         private async Task<ExtractionSuggestionResponse?> PerformGrobidExtractionAsync(
@@ -2249,6 +2340,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             return new ExtractionSuggestionResponse
             {
                 SourceMetadataId = sourceMeta.Id,
+                PaperId = paper.Id,
                 Title = sourceMeta.Title,
                 Authors = sourceMeta.Authors,
                 Abstract = sourceMeta.Abstract,
@@ -2533,12 +2625,14 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
+            var extractionSuggestion = await GetExtractionSuggestionAsync(paper, cancellationToken);
 
             return await MapToPaperWithDecisionsResponseAsync(
                 paper,
                 studySelectionProcessId,
                 status,
-                cancellationToken);
+                cancellationToken,
+                extractionSuggestion);
         }
 
         private string? NormalizeDoi(string? doi)
@@ -2549,7 +2643,40 @@ namespace SRSS.IAM.Services.StudySelectionService
                 .Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
         }
 
-        private List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta)
+        public async Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default)
+        {
+            var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                paper.Id,
+                cancellationToken);
+
+            if (sourceMeta == null) return null;
+
+            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+
+            return new ExtractionSuggestionResponse
+            {
+                SourceMetadataId = sourceMeta.Id,
+                PaperId = paper.Id,
+                Title = sourceMeta.Title,
+                Authors = sourceMeta.Authors,
+                Abstract = sourceMeta.Abstract,
+                DOI = sourceMeta.DOI,
+                Language = sourceMeta.Language,
+                Journal = sourceMeta.Journal,
+                Volume = sourceMeta.Volume,
+                Issue = sourceMeta.Issue,
+                Pages = sourceMeta.Pages,
+                Keywords = sourceMeta.Keywords,
+                Publisher = sourceMeta.Publisher,
+                Year = sourceMeta.Year,
+                Md5 = sourceMeta.Md5,
+                ISSN = sourceMeta.ISSN,
+                EISSN = sourceMeta.EISSN,
+                UpdatedFields = updatedFields
+            };
+        }
+
+        public List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta)
         {
             var updatedFields = new List<string>();
 

@@ -1,6 +1,8 @@
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.GrobidClient;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -146,5 +148,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             ScreeningPhase phase,
             CancellationToken cancellationToken = default);
+
+        // Background tasks
+        Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct);
+
+        Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default);
+        List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta);
     }
 }

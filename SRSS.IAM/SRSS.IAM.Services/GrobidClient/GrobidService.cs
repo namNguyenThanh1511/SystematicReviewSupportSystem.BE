@@ -48,7 +48,7 @@ namespace SRSS.IAM.Services.GrobidClient
 
             var dto = GrobidTeiParser.Parse(teiXml);
             _logger.LogInformation("Successfully parsed TEI XML for {FileName}", fileName);
-            
+
             return dto;
         }
 
@@ -61,11 +61,11 @@ namespace SRSS.IAM.Services.GrobidClient
             {
                 teiXml = await _grobidClient.ProcessReferencesAsync(
                     pdfStream: pdfStream,
-                    consolidateCitations: 0,
+                    consolidateCitations: 1,
                     includeRawCitations: true,
                     returnBibtex: false
                 );
-                
+
                 _logger.LogInformation("Successfully received TEI XML references from GROBID for {FileName}", fileName);
             }
             catch (Exception ex)
@@ -76,11 +76,11 @@ namespace SRSS.IAM.Services.GrobidClient
 
             var dtos = GrobidTeiParser.ParseReferences(teiXml);
             _logger.LogInformation("Successfully parsed {Count} references from TEI XML for {FileName}", dtos.Count, fileName);
-            
+
             return dtos;
         }
 
-        public async Task<string> ProcessFulltextDocumentAsync(Stream pdfStream, CancellationToken cancellationToken = default)
+        public async Task<string> ProcessFulltextDocumentAsync(Stream pdfStream, CancellationToken cancellationToken = default, IEnumerable<string>? teiCoordinates = null)
         {
             _logger.LogInformation("Starting GROBID fulltext extraction");
             try
@@ -90,9 +90,10 @@ namespace SRSS.IAM.Services.GrobidClient
                     consolidateHeader: 0,
                     consolidateCitations: 0,
                     consolidateFunders: 0,
-                    segmentSentences: false
+                    segmentSentences: false,
+                    teiCoordinates: new[] { "p", "head", "s", "ref", "figure", "table" }
                 );
-                
+
                 _logger.LogInformation("Successfully received fulltext TEI XML from GROBID");
                 return teiXml;
             }

@@ -48,6 +48,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Outcome> Outcomes { get; set; } = default!;
 		public DbSet<Context> Contexts { get; set; } = default!;
 		public DbSet<SearchSource> SearchSources { get; set; } = default!;
+		public DbSet<MasterSearchSources> MasterSearchSources { get; set; } = default!;
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
@@ -106,5 +107,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
 		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
 		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
+
+		// RAG pipeline
+		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
 	}
 }

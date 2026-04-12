@@ -5,7 +5,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
     public class CreateSearchExecutionRequest
     {
         public Guid IdentificationProcessId { get; set; }
-        public string SearchSource { get; set; } = string.Empty;
+        public Guid SearchSourceId { get; set; }
         public string? SearchQuery { get; set; }
         public SearchExecutionType Type { get; set; }
         public string? Notes { get; set; }
@@ -14,7 +14,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
     public class UpdateSearchExecutionRequest
     {
         public Guid Id { get; set; }
-        public string? SearchSource { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public string? SearchQuery { get; set; }
         public SearchExecutionType? Type { get; set; }
         public string? Notes { get; set; }

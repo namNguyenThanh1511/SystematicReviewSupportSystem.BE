@@ -240,7 +240,8 @@ namespace SRSS.IAM.Services.Mappers
             {
                 QualityCriterionId = dto.QualityCriterionId,
                 Value = dto.Value,
-                Comment = dto.Comment
+                Comment = dto.Comment,
+                PdfHighlightCoordinates = dto.PdfHighlightCoordinates
             };
         }
 
@@ -248,6 +249,7 @@ namespace SRSS.IAM.Services.Mappers
         {
             entity.Value = dto.Value;
             entity.Comment = dto.Comment;
+            entity.PdfHighlightCoordinates = dto.PdfHighlightCoordinates;
         }
 
         public static QualityAssessmentDecisionItem ToEntity(this UpdateQualityAssessmentDecisionItemRequest dto)
@@ -256,7 +258,8 @@ namespace SRSS.IAM.Services.Mappers
             {
                 QualityCriterionId = dto.QualityCriterionId ?? Guid.Empty,
                 Value = dto.Value,
-                Comment = dto.Comment
+                Comment = dto.Comment,
+                PdfHighlightCoordinates = dto.PdfHighlightCoordinates
             };
         }
 
@@ -277,6 +280,7 @@ namespace SRSS.IAM.Services.Mappers
                 CriterionQuestion = entity.QualityCriterion?.Question,
                 Value = entity.Value,
                 Comment = entity.Comment,
+                PdfHighlightCoordinates = entity.PdfHighlightCoordinates,
             };
         }
 
@@ -350,17 +354,17 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         // ==================== Paper Mapping ====================
-        public static QualityAssessmentPaperResponse ToQualityAssessmentPaperResponse(
+        public static QALeaderDashboardPaperResponse ToLeaderDashboardPaperResponse(
             this Paper paper,
             double percentage,
             QualityAssessmentResolution? resolution,
-            List<User> reviewers,
-            List<QualityAssessmentDecision> decisions,
-            string? resolvedByName)
+            List<User>? reviewers = null,
+            List<QualityAssessmentDecision>? decisions = null,
+            string? resolvedByName = null)
         {
             if (paper == null) return null!;
 
-            var response = new QualityAssessmentPaperResponse
+            var response = new QALeaderDashboardPaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,
@@ -392,7 +396,7 @@ namespace SRSS.IAM.Services.Mappers
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
-                Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
+                Status = resolution != null ? "resolved" : (percentage > 0 ? "in-progress" : "not-started"),
                 Reviewers = reviewers?.Select(u => u.ToQualityAssessmentReviewerResponse()).ToList() ?? new List<QualityAssessmentReviewerResponse>(),
                 Decisions = decisions?.Select(d => d.ToDto()).ToList() ?? new List<QualityAssessmentDecisionResponse>()
             };
@@ -405,15 +409,16 @@ namespace SRSS.IAM.Services.Mappers
             return response;
         }
 
-        public static AssignedPaperResponse ToAssignedPaperResponse(
+        public static QAMemberDashboardPaperResponse ToMemberDashboardPaperResponse(
             this Paper paper,
             double percentage,
             QualityAssessmentResolution? resolution,
-            QualityAssessmentDecision? userDecision)
+            QualityAssessmentDecision? userDecision, 
+            string? resolvedByName = null)
         {
             if (paper == null) return null!;
 
-            return new AssignedPaperResponse
+            var response = new QAMemberDashboardPaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,
@@ -445,10 +450,17 @@ namespace SRSS.IAM.Services.Mappers
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
-                Resolution = resolution != null ? resolution.FinalDecision.ToString() : null,
                 Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
                 Decisions = userDecision != null ? new List<QualityAssessmentDecisionResponse> { userDecision.ToDto() } : new List<QualityAssessmentDecisionResponse>()
             };
+
+            
+            if (resolution != null)
+            {
+                response.Resolution = resolution.ToResponse(resolvedByName);
+            }
+
+            return response;
         }
 
         // ==================== QualityAssessmentAssignment ====================

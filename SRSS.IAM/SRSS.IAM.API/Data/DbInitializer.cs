@@ -428,7 +428,7 @@ namespace SRSS.IAM.API.Data
 			{
 				Id = ScopusSearchExecutionId,
 				IdentificationProcessId = HarIdentificationProcessId,
-				SearchSource = "Scopus",
+				SearchSourceId = Har2SearchSource1Id,
 				SearchQuery = "TITLE-ABS-KEY(\"human activity recognition\" AND \"deep learning\")",
 				ExecutedAt = DateTimeOffset.UtcNow,
 				ResultCount = 3,
@@ -1083,8 +1083,18 @@ namespace SRSS.IAM.API.Data
 				await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
 				await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
 				{
-					new QualityCriterion { Id = Har2QualityCriterion1Id, ChecklistId = Har2QualityChecklist1Id, Question = "Reproducibility in Protocol 2?", Weight = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-					new QualityCriterion { Id = Har2QualityCriterion2Id, ChecklistId = Har2QualityChecklist1Id, Question = "Proper Evaluation Metrics?", Weight = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+					new QualityCriterion { Id = Har2QualityCriterion1Id, ChecklistId = Har2QualityChecklist1Id, Question = "Is the paper based on research (or is it a discussion paper based on expert opinion)?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Har2QualityCriterion2Id, ChecklistId = Har2QualityChecklist1Id, Question = "What research method was used: Experiment, Quasi-Experiment, Lessons learnt, Case study, Opinion Survey, Tertiary Study, Other (specify)? Note This is to be based on our reading of the paper not the method claimed by the author of the paper.", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of the aims of the study?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there an adequate description of the context in which the research or observation was carried out?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the research method appropriate to address the aims of the research? (i.e. Expert Opinion).", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the recruitment strategy (for human-based experiments and quasi-experiments) or experimental material or context (for lessons learnt) appropriate to the aims of the research?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was there a control group or baseline with which to evaluate SR procedures/techniques?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data collected in a way that addressed the research issue?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data analysis sufficiently rigorous?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Has the relationship between researcher and participants been considered to an adequate degree?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of findings?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+					new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is the study of value for research or practice?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
 				});
 				await context.SaveChangesAsync();
 			}

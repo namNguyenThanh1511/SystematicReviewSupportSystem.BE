@@ -110,7 +110,7 @@ namespace SRSS.IAM.Repositories.Entities
         // FULL-TEXT & EXTRACTED METADATA
         // ============================================
         public ICollection<PaperPdf> PaperPdfs { get; set; } = new List<PaperPdf>();
-        public ICollection<PaperSourceMetadata> SourceMetadatas { get; set; } = new List<PaperSourceMetadata>();
+        public PaperSourceMetadata? SourceMetadata { get; set; }
 
         // Citations where this paper is the source (it cites other papers)
         public ICollection<PaperCitation> OutgoingCitations { get; set; } = new List<PaperCitation>();
@@ -122,6 +122,11 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
         public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
         public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
+
+        // ============================================
+        // RAG PIPELINE (Chunk-based semantic search)
+        // ============================================
+        public ICollection<PaperChunk> PaperChunks { get; set; } = new List<PaperChunk>();
     }
 
     public enum AccessType

@@ -9,6 +9,7 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid QualityCriterionId { get; set; }
         public QualityAssessmentDecisionValue? Value { get; set; } // The answer/score
         public string? Comment { get; set; }
+        public string? PdfHighlightCoordinates { get; set; }
 
         // Navigation Properties
         public QualityAssessmentDecision QualityAssessmentDecision { get; set; } = null!;

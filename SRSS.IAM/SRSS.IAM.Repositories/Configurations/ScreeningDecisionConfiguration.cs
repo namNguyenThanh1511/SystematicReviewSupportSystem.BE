@@ -42,12 +42,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasConversion<string>()
                 .IsRequired();
 
-            builder.Property(sd => sd.ExclusionReasonCode)
-                .HasColumnName("exclusion_reason_code")
-                .HasConversion<string?>();
+            builder.Property(sd => sd.ExclusionReasonId)
+                .HasColumnName("exclusion_reason_id");
 
-            builder.Property(sd => sd.ReviewerNotes)
-                .HasColumnName("reviewer_notes");
 
             builder.Property(sd => sd.DecidedAt)
                 .HasColumnName("decided_at")
@@ -71,6 +68,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .WithMany(p => p.ScreeningDecisions)
                 .HasForeignKey(sd => sd.PaperId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(sd => sd.ExclusionReason)
+                .WithMany(er => er.ScreeningDecisions)
+                .HasForeignKey(sd => sd.ExclusionReasonId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Indexes
             builder.HasIndex(sd => sd.StudySelectionProcessId);

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260411050442_optiz exclusion table")]
+    partial class optizexclusiontable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2907,9 +2910,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("decision");
 
-                    b.Property<Guid?>("ExclusionReasonId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("exclusion_reason_id");
+                    b.Property<string>("ExclusionReasonCode")
+                        .HasColumnType("text")
+                        .HasColumnName("exclusion_reason_code");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2932,13 +2935,15 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("reviewer_id");
 
+                    b.Property<string>("ReviewerNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("reviewer_notes");
+
                     b.Property<Guid>("StudySelectionProcessId")
                         .HasColumnType("uuid")
                         .HasColumnName("study_selection_process_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExclusionReasonId");
 
                     b.HasIndex("PaperId");
 
@@ -2964,9 +2969,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<Guid?>("ExclusionReasonId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("exclusion_reason_id");
+                    b.Property<int?>("ExclusionReasonCode")
+                        .HasColumnType("integer");
 
                     b.Property<string>("FinalDecision")
                         .IsRequired()
@@ -3003,8 +3007,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("study_selection_process_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ExclusionReasonId");
 
                     b.HasIndex("PaperId");
 
@@ -4443,11 +4445,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ScreeningDecision", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionExclusionReason", "ExclusionReason")
-                        .WithMany("ScreeningDecisions")
-                        .HasForeignKey("ExclusionReasonId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
                         .WithMany("ScreeningDecisions")
                         .HasForeignKey("PaperId")
@@ -4459,8 +4456,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("StudySelectionProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ExclusionReason");
 
                     b.Navigation("Paper");
 
@@ -4469,11 +4464,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ScreeningResolution", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionExclusionReason", "ExclusionReason")
-                        .WithMany("ScreeningResolutions")
-                        .HasForeignKey("ExclusionReasonId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
                         .WithMany("ScreeningResolutions")
                         .HasForeignKey("PaperId")
@@ -4485,8 +4475,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("StudySelectionProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ExclusionReason");
 
                     b.Navigation("Paper");
 
@@ -4836,13 +4824,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ExclusionCriteria");
 
                     b.Navigation("InclusionCriteria");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionExclusionReason", b =>
-                {
-                    b.Navigation("ScreeningDecisions");
-
-                    b.Navigation("ScreeningResolutions");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionProcess", b =>

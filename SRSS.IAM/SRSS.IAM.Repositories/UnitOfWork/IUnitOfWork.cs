@@ -35,7 +35,9 @@ using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
-
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -130,6 +132,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
         IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
         IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
+        IExclusionReasonLibraryRepository ExclusionReasonLibraries { get; }
+        IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons { get; }
+        IStuSeExclusionCodeRepository StuSeExclusionCodes { get; }
     }
 }
 

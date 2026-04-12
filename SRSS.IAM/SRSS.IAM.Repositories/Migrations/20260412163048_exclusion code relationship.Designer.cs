@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260412163048_exclusion code relationship")]
+    partial class exclusioncoderelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2931,6 +2934,10 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("ReviewerId")
                         .HasColumnType("uuid")
                         .HasColumnName("reviewer_id");
+
+                    b.Property<string>("ReviewerNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("reviewer_notes");
 
                     b.Property<Guid>("StudySelectionProcessId")
                         .HasColumnType("uuid")

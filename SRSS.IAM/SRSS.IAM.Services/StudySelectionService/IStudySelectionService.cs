@@ -62,6 +62,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             ResolveScreeningConflictRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<List<ScreeningResolutionResponse>> BulkResolveConflictsAsync(
+            Guid studySelectionProcessId,
+            BulkResolveConflictsRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
             Guid studySelectionProcessId,
             GetResolutionsRequest request,
@@ -134,6 +139,12 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             Guid paperId,
             RetryExtractionRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ReviewerDecisionDetailResponse>> GetReviewerDecisionsAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            ScreeningPhase phase,
             CancellationToken cancellationToken = default);
     }
 }

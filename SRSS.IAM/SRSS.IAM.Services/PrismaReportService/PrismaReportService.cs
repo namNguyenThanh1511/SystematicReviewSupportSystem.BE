@@ -192,8 +192,6 @@ namespace SRSS.IAM.Services.PrismaReportService
                 // Phase 1: Title/Abstract Exclusions
                 var taExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.RecordsExcluded = taExclusions.Count;
-                
-                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions);
 
                 // Phase 2: Retrieval
                 details.ReportsSoughtForRetrieval = details.RecordsScreened - details.RecordsExcluded;
@@ -204,8 +202,13 @@ namespace SRSS.IAM.Services.PrismaReportService
                 // Phase 3: Full-Text Exclusions
                 var ftExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.ReportsExcluded = ftExclusions.Count;
+
+                // Load exclusion reasons for labels
+                var reasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == sspId, isTracking: false, cancellationToken: cancellationToken);
+                var reasonMap = reasons.ToDictionary(x => x.Id);
                 
-                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions);
+                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions, reasonMap);
+                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions, reasonMap);
 
                 // Final Included
                 details.StudiesIncluded = allResolutions.Count(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Include);
@@ -218,18 +221,27 @@ namespace SRSS.IAM.Services.PrismaReportService
         private List<PrismaBreakdownResponse> GetExclusionReasonBreakdown(
             HashSet<Guid> excludedPaperIds, 
             ScreeningPhase phase,
-            IEnumerable<ScreeningResolution> allResolutions) // Truyền thêm list resolutions đã load ở trên vào
+            IEnumerable<ScreeningResolution> allResolutions,
+            Dictionary<Guid, StudySelectionExclusionReason> reasonMap)
         {
             return allResolutions
                 .Where(r => r.Phase == phase 
                             && excludedPaperIds.Contains(r.PaperId) 
                             && r.FinalDecision == ScreeningDecisionType.Exclude)
-                .GroupBy(r => r.ExclusionReasonCode)
-                .Select(g => new PrismaBreakdownResponse 
-                { 
-                    // Nếu ExclusionReasonCode null thì để "No reason specified"
-                    Label = g.Key?.ToString() ?? "Other", 
-                    Count = g.Count() 
+                .GroupBy(r => r.ExclusionReasonId)
+                .Select(g => 
+                {
+                    var label = "Other";
+                    if (g.Key.HasValue && reasonMap.TryGetValue(g.Key.Value, out var reason))
+                    {
+                        label = reason.Name;
+                    }
+
+                    return new PrismaBreakdownResponse 
+                    { 
+                        Label = label, 
+                        Count = g.Count() 
+                    };
                 })
                 .OrderByDescending(x => x.Count)
                 .ToList();

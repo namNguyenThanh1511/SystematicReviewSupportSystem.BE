@@ -11,10 +11,10 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
             CancellationToken cancellationToken = default,
             int take = 1);
 
-        Task<PaperEmbedding?> FindClosestByCosineDistanceInIdentificationProcessAsync(
+        Task<List<PaperEmbedding>> FindClosestByCosineDistanceInIdentificationProcessAsync(
             float[] embedding,
             Guid identificationProcessId,
             CancellationToken cancellationToken = default,
-            int take = 1);
+            int take = 5);
     }
 }

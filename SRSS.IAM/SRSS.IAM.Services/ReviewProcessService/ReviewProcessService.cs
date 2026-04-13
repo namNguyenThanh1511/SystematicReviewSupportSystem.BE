@@ -11,6 +11,7 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.IdentificationService;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -19,12 +20,14 @@ namespace SRSS.IAM.Services.ReviewProcessService
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStudySelectionService _studySelectionService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IIdentificationService _identificationService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, ICurrentUserService currentUserService)
+        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, ICurrentUserService currentUserService, IIdentificationService identificationService)
         {
             _unitOfWork = unitOfWork;
             _studySelectionService = selectionService;
             _currentUserService = currentUserService;
+            _identificationService = identificationService;
         }
 
         public async Task<ReviewProcessResponse> CreateReviewProcessAsync(
@@ -92,6 +95,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+                //Auto create IdentificationProcessPaper snap
                 //Auto-create Study Selection Process for the new ReviewProcess
                 var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
                 {
@@ -513,28 +517,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
-
-            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
-
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
-                cancellationToken: cancellationToken);
-
-            var importBatchList = allImportBatches.ToList();
-            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
-            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
-            var uniqueRecords = totalRecordsImported - duplicateRecords;
-
-            return new PrismaStatisticsResponse
-            {
-                TotalRecordsImported = totalRecordsImported,
-                DuplicateRecords = duplicateRecords,
-                UniqueRecords = uniqueRecords,
-                ImportBatchCount = importBatchList.Count
-            };
+            return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
         }
 
 

@@ -23,8 +23,6 @@ namespace SRSS.IAM.Services.PaperService
         public PaperService(
             IUnitOfWork unitOfWork,
             INotificationService notificationService,
-            IUnitOfWork unitOfWork,
-            INotificationService notificationService,
             MetadataMergeService.IMetadataMergeService metadataMergeService,
             IStudySelectionService studySelectionService,
             ILogger<PaperService> logger)
@@ -83,7 +81,7 @@ namespace SRSS.IAM.Services.PaperService
             var paperResponses = new List<PaperResponse>();
             foreach (var p in papers)
             {
-                paperResponses.Add(await MapToPaperResponseAsync(p, null, cancellationToken));
+                paperResponses.Add(await MapToPaperResponseAsync(p, null, null, cancellationToken));
             }
 
             return new PaginatedResponse<PaperResponse>
@@ -238,7 +236,7 @@ namespace SRSS.IAM.Services.PaperService
                 throw new InvalidOperationException($"Paper with ID {id} not found.");
             }
 
-            return await MapToPaperResponseAsync(paper, null, cancellationToken);
+            return await MapToPaperResponseAsync(paper, null, null, cancellationToken);
         }
 
         public async Task<PaginatedResponse<PaperResponse>> GetUniquePapersByIdentificationProcessAsync(
@@ -281,7 +279,7 @@ namespace SRSS.IAM.Services.PaperService
             var paperResponses = new List<PaperResponse>();
             foreach (var p in papers)
             {
-                paperResponses.Add(await MapToPaperResponseAsync(p, null, cancellationToken));
+                paperResponses.Add(await MapToPaperResponseAsync(p, null, null, cancellationToken));
             }
 
             return new PaginatedResponse<PaperResponse>
@@ -333,7 +331,7 @@ namespace SRSS.IAM.Services.PaperService
             var paperResponses = new List<PaperResponse>();
             foreach (var p in papers)
             {
-                paperResponses.Add(await MapToPaperResponseAsync(p, null, cancellationToken));
+                paperResponses.Add(await MapToPaperResponseAsync(p, null, null, cancellationToken));
             }
 
             return new PaginatedResponse<PaperResponse>
@@ -588,13 +586,11 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
-        private static PaperResponse MapToPaperResponse(Paper paper, ScreeningPhase? phase = null, Guid? studySelectionProcessId = null)
+        private async Task<PaperResponse> MapToPaperResponseAsync(Paper paper, ScreeningPhase? phase = null, Guid? studySelectionProcessId = null, CancellationToken cancellationToken = default)
         {
             var effectivePhase = phase ?? ScreeningPhase.TitleAbstract;
 
             // Only filter assignments by phase if an explicit phase is provided
-            var filteredAssignments = phase.HasValue
-                ? paper.PaperAssignments?.Where(pa => pa.Phase == phase.Value).ToList()
             var filteredAssignments = phase.HasValue
                 ? paper.PaperAssignments?.Where(pa => pa.Phase == phase.Value).ToList()
                 : paper.PaperAssignments?.ToList();
@@ -603,7 +599,7 @@ namespace SRSS.IAM.Services.PaperService
                 ? paper.ScreeningResolutions.FirstOrDefault(r => r.StudySelectionProcessId == studySelectionProcessId.Value && r.Phase == effectivePhase)
                 : null;
 
-            return new PaperResponse
+            var response = new PaperResponse
             {
                 Id = paper.Id,
                 Title = paper.Title,
@@ -856,7 +852,6 @@ namespace SRSS.IAM.Services.PaperService
             sourceMetadata.ModifiedAt = DateTimeOffset.UtcNow;
 
             _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}",
-            _logger.LogInformation("Applied {FieldCount} metadata fields from SourceMetadata {SourceMetadataId} to Paper {PaperId}",
                 request.Fields.Count, request.SourceMetadataId, paperId);
 
             paper.ModifiedAt = DateTimeOffset.UtcNow;
@@ -866,7 +861,7 @@ namespace SRSS.IAM.Services.PaperService
             await _unitOfWork.PaperSourceMetadatas.UpdateAsync(sourceMetadata, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return await MapToPaperResponseAsync(paper, null, cancellationToken);
+            return await MapToPaperResponseAsync(paper, null, null, cancellationToken);
         }
 
 
@@ -903,7 +898,11 @@ namespace SRSS.IAM.Services.PaperService
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = papers.Select(p => MapToPaperResponse(p, ScreeningPhase.TitleAbstract, studySelectionProcessId)).ToList();
+            var paperResponses = new List<PaperResponse>();
+            foreach (var p in papers)
+            {
+                paperResponses.Add(await MapToPaperResponseAsync(p, ScreeningPhase.TitleAbstract, studySelectionProcessId, cancellationToken));
+            }
 
             return new CheckedDuplicatePapersResponse
             {
@@ -953,7 +952,11 @@ namespace SRSS.IAM.Services.PaperService
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = papers.Select(p => MapToPaperResponse(p, ScreeningPhase.FullText, studySelectionProcessId)).ToList();
+            var paperResponses = new List<PaperResponse>();
+            foreach (var p in papers)
+            {
+                paperResponses.Add(await MapToPaperResponseAsync(p, ScreeningPhase.FullText, studySelectionProcessId, cancellationToken));
+            }
 
             return new CheckedDuplicatePapersResponse
             {
@@ -976,8 +979,6 @@ namespace SRSS.IAM.Services.PaperService
             // 1. Get assignments for this user in this phase within the study selection process
             // EF Core translates the navigation property access into a JOIN in the SQL query.
             var assignments = await _unitOfWork.PaperAssignments
-                .FindAllAsync(pa => pa.StudySelectionProcessId == studySelectionProcessId
-                                    && pa.ProjectMember.UserId == userId
                 .FindAllAsync(pa => pa.StudySelectionProcessId == studySelectionProcessId
                                     && pa.ProjectMember.UserId == userId
                                     && pa.Phase == phase,
@@ -1008,7 +1009,11 @@ namespace SRSS.IAM.Services.PaperService
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = papers.Select(p => MapToPaperResponse(p, phase, studySelectionProcessId)).ToList();
+            var paperResponses = new List<PaperResponse>();
+            foreach (var p in papers)
+            {
+                paperResponses.Add(await MapToPaperResponseAsync(p, phase, studySelectionProcessId, cancellationToken));
+            }
 
             return new PaginatedResponse<PaperResponse>
             {

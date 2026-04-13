@@ -26,6 +26,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
 		// Papers
 		Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid qaId);
+		Task<QualityAssessmentStatisticsResponse> GetQualityStatisticsAsync(Guid processId);
 
 		// Assignments
 		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto);
@@ -34,12 +35,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // Decisions
         Task CreateDecisionAsync(CreateQualityAssessmentDecisionRequest dto);
         Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto);
-        Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByPaperIdAsync(Guid paperId);
+        Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByQaPaperIdAsync(Guid qaPaperId);
 
         // Resolutions
         Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto);
-        Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId);
+        Task<QualityAssessmentResolutionResponse> GetResolutionByQaPaperIdAsync(Guid qaPaperId);
         Task<List<QAPaperResponse>> GetHighQualityPaperIdsAsync(Guid processId);
 
         // Automate

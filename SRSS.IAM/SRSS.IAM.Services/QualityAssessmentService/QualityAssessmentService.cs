@@ -13,6 +13,7 @@ using SRSS.IAM.Services.DTOs.Notification;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.RagService; // Added
 using System.Net.Http;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
@@ -25,6 +26,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         private readonly IGeminiService _geminiService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IGrobidService _grobidService;
+        private readonly IRagRetrievalService _ragRetrievalService; // Added
 
         public QualityAssessmentService(
             IUnitOfWork unitOfWork,
@@ -32,7 +34,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             ICurrentUserService currentUserService,
             IGeminiService geminiService,
             IHttpClientFactory httpClientFactory,
-            IGrobidService grobidService)
+            IGrobidService grobidService,
+            IRagRetrievalService ragRetrievalService) // Added
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
@@ -40,6 +43,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _geminiService = geminiService;
             _httpClientFactory = httpClientFactory;
             _grobidService = grobidService;
+            _ragRetrievalService = ragRetrievalService; // Added
         }
 
         // ==================== Quality Assessment Strategies ====================
@@ -225,6 +229,32 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             entity.Start();
 
+            // Populate QualityAssessmentPaper from StudySelectionProcessPaper
+            if (studySelectionProcess != null)
+            {
+                // Fetch the papers that passed full text screening (and thus are in StudySelectionProcessPaper with Include decision)
+                // Note: The StudySelectionProcessPaper holds the "final snapshot" of included papers after Complete phase.
+                var passedPapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(studySelectionProcess.Id, default);
+                
+                // Get currently existing QualityAssessmentPaper to avoid duplication if Start is called multiple times.
+                var existingQAPapers = await _unitOfWork.QualityAssessmentPapers.FindAllAsync(x => x.QualityAssessmentProcessId == id);
+                var existingPaperIds = existingQAPapers.Select(x => x.PaperId).ToHashSet();
+
+                var newQAPapers = passedPapers
+                    .Where(p => !existingPaperIds.Contains(p.PaperId))
+                    .Select(p => new QualityAssessmentPaper
+                    {
+                        QualityAssessmentProcessId = id,
+                        PaperId = p.PaperId,
+                        CreatedAt = DateTimeOffset.UtcNow
+                    }).ToList();
+
+                if (newQAPapers.Any())
+                {
+                    await _unitOfWork.QualityAssessmentPapers.AddRangeAsync(newQAPapers);
+                }
+            }
+
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
@@ -251,29 +281,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
             if (process == null) return result;
 
-            // TODO: Implement the correct logic later, now we query all paper
-            var eligiblePaper = await _unitOfWork.Papers.FindAllAsync();
-            var eligiblePaperIds = eligiblePaper.Select(p => p.Id).ToList();
-            // var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(ssp => ssp.ReviewProcessId == process.ReviewProcessId);
-            // var eligiblePaperIds = new List<Guid>();
-
-            // if (studySelectionProcess != null)
-            // {
-            // 	var resolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(r => 
-            // 		r.StudySelectionProcessId == studySelectionProcess.Id && 
-            // 		r.Phase == ScreeningPhase.FullText && 
-            // 		r.FinalDecision == ScreeningDecisionType.Include);
-            // 	eligiblePaperIds = resolutions.Select(r => r.PaperId).ToList();
-            // }
+            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
 
             // Also include any papers that are already assigned or have resolutions just in case
             var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
-            var assignedPaperIds = assignments.SelectMany(a => a.Paper).Select(p => p.Id).ToList();
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
-            var resolvedPaperIds = processResolutions.Select(r => r.PaperId).ToList();
-
-            var allPaperIds = eligiblePaperIds.Union(assignedPaperIds).Union(resolvedPaperIds).Distinct().ToList();
-
+            
             // Calculate criteria count to compute percentage
             var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
             var criteriaCount = 0;
@@ -297,22 +310,19 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 {
                     ReviewerId = g.Key,
                     ReviewerName = g.First().User.FullName ?? g.First().User.Username,
-                    TotalExpectedDecisions = g.SelectMany(a => a.Paper).Distinct().Count() * criteriaCount,
+                    TotalExpectedDecisions = g.SelectMany(a => a.QualityAssessmentPapers).Distinct().Count() * criteriaCount,
                     ActualDecisions = 0,
                     CompletedPapers = 0,
                     InProgressPapers = 0,
                     NotStartedPapers = 0
                 });
 
-            foreach (var paperId in allPaperIds)
+            foreach (var paper in eligiblePaper)
             {
-                var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId);
-                if (paper == null) continue;
-
-                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdWithDetailsAsync(paperId);
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
 
                 var reviewersAssignedToPaper = assignments
-                    .Where(a => a.Paper.Any(p => p.Id == paperId))
+                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
                     .Select(a => a.User)
                     .Where(u => u != null)
                     .GroupBy(u => u.Id)
@@ -356,7 +366,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 var percentage = expectedDecisions > 0 ? (double)actualDecisions / expectedDecisions * 100 : 0;
                 if (percentage > 100) percentage = 100;
 
-                var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paperId);
+                var resolution = processResolutions.FirstOrDefault(r => r.QualityAssessmentPaperId == paper.Id);
 
                 string? resolvedByName = null;
                 if (resolution != null)
@@ -398,6 +408,64 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return result;
         }
 
+        public async Task<QualityAssessmentStatisticsResponse> GetQualityStatisticsAsync(Guid processId)
+        {
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
+            if (process == null) return new QualityAssessmentStatisticsResponse();
+
+            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
+            var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
+            
+            var totalPapers = eligiblePaper.Count;
+            var highQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.HighQuality);
+            var lowQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.LowQuality);
+
+            var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
+
+            int notStartedCount = 0;
+            int inProgressCount = 0;
+
+            foreach (var paper in eligiblePaper)
+            {
+                var resolution = processResolutions.FirstOrDefault(r => r.QualityAssessmentPaperId == paper.Id);
+                if (resolution != null) 
+                {
+                    continue; // Handled by High/Low
+                }
+
+                // It's not resolved, check progress
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
+                var reviewersAssignedToPaper = assignments
+                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                    .Select(a => a.User)
+                    .Where(u => u != null)
+                    .GroupBy(u => u.Id)
+                    .Select(g => g.First())
+                    .ToList();
+
+                var expectedDecisionsCount = reviewersAssignedToPaper.Count; // This is just checking if we expect anything
+                var actualDecisionsCount = paperDecisions.Sum(d => d.DecisionItems.Count);
+
+                if (expectedDecisionsCount > 0 && actualDecisionsCount > 0)
+                {
+                    inProgressCount++;
+                }
+                else
+                {
+                    notStartedCount++;
+                }
+            }
+
+            return new QualityAssessmentStatisticsResponse
+            {
+                TotalPapers = totalPapers,
+                HighQualityPapers = highQuality,
+                LowQualityPapers = lowQuality,
+                InProgressPapers = inProgressCount,
+                NotStartedPapers = notStartedCount
+            };
+        }
+
         // ==================== Assignments ====================
         public async Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto)
         {
@@ -407,17 +475,17 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var processAssignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
 
             // Validate reviewer limit per paper (max 2)
-            foreach (var paperId in dto.PaperIds)
+            foreach (var qualityAssessmentPaperId in dto.QualityAssessmentPaperIds)
             {
                 var assignedUsers = processAssignments
-                    .Where(a => a.Paper != null && a.Paper.Any(p => p.Id == paperId))
+                    .Where(a => a.QualityAssessmentPapers != null && a.QualityAssessmentPapers.Any(p => p.Id == qualityAssessmentPaperId))
                     .Select(a => a.UserId)
                     .ToList();
                 
                 var newUsers = dto.UserIds.Except(assignedUsers).ToList();
                 if (assignedUsers.Count + newUsers.Count > 2)
                 {
-                    throw new InvalidOperationException($"Cannot assign paper with ID {paperId} to more than 2 reviewers.");
+                    throw new InvalidOperationException($"Cannot assign paper with ID {qualityAssessmentPaperId} to more than 2 reviewers.");
                 }
             }
 
@@ -438,23 +506,24 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
 
                 // Check resolution for each paper before assigning
-                var papersToAdd = new List<Paper>();
-                foreach (var paperId in dto.PaperIds)
+                var papersToAdd = new List<QualityAssessmentPaper>();
+                foreach (var qualityAssessmentPaperId in dto.QualityAssessmentPaperIds)
                 {
                     // If paper has resolution, skip adding
+                    var qaPaper = await _unitOfWork.QualityAssessmentPapers
+                        .FindSingleAsync(p => p.Id == qualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+                    
+                    if (qaPaper == null) continue;
+
                     var hasResolution = await _unitOfWork.QualityAssessmentResolutions
-                       .AnyAsync(r => r.PaperId == paperId && r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+                       .AnyAsync(r => r.QualityAssessmentPaperId == qaPaper.Id && r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
 
                     if (hasResolution) continue;
 
-                    var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId);
-                    if (paper != null)
-                    {
-                        papersToAdd.Add(paper);
-                    }
+                    papersToAdd.Add(qaPaper);
                 }
 
-                if (assignment.Paper == null) assignment.Paper = new List<Paper>();
+                if (assignment.QualityAssessmentPapers == null) assignment.QualityAssessmentPapers = new List<QualityAssessmentPaper>();
 
                 // Add papers to assignment (many-to-many) - This requires loading the collection or using a direct insert approach if valid
                 // Since EF Core generic repo might not expose direct collection manipulation easily without tracking,
@@ -469,9 +538,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 {
                     foreach (var paper in papersToAdd)
                     {
-                        if (!assignmentWithPapers.Paper.Any(p => p.Id == paper.Id))
+                        if (!assignmentWithPapers.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
                         {
-                            assignmentWithPapers.Paper.Add(paper);
+                            assignmentWithPapers.QualityAssessmentPapers.Add(paper);
                         }
                     }
                     await _unitOfWork.QualityAssessmentAssignments.UpdateAsync(assignmentWithPapers);
@@ -496,7 +565,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(process.Id, userId);
 
-            if (assignment == null || assignment.Paper == null) return new QAMemberDashboardResponse();
+            if (assignment == null || assignment.QualityAssessmentPapers == null) return new QAMemberDashboardResponse();
 
             // Need to calculate completion percentage.
             // 1. Get Protocol -> QA Strategy -> Checklists -> Criteria count
@@ -514,14 +583,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             }
 
             var result = new QAMemberDashboardResponse();
-            var totalExpectedDecisions = assignment.Paper.Count * criteriaCount;
+            var totalExpectedDecisions = assignment.QualityAssessmentPapers.Count * criteriaCount;
             var actualDecisions = 0;
 
-            foreach (var paper in assignment.Paper)
+            foreach (var qaPaper in assignment.QualityAssessmentPapers)
             {
                 // Check for resolution
                 var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                   r => r.PaperId == paper.Id && r.QualityAssessmentProcessId == process.Id);
+                   r => r.QualityAssessmentPaperId == qaPaper.Id && r.QualityAssessmentProcessId == process.Id);
 
                 string? resolvedByName = null;
                 if (resolution != null)
@@ -531,14 +600,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
 
                 // Calculate decisions count for this paper by this user
-                var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdAndUserIdWithDetailsAsync(paper.Id, userId);
+                var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdAndUserIdWithDetailsAsync(qaPaper.Id, userId);
                 var userDecisionsCount = userDecisions?.DecisionItems?.Count ?? 0;
                 actualDecisions += userDecisionsCount;
 
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = paper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions, resolvedByName);
+                var dto = qaPaper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions, resolvedByName);
                 result.Papers.Add(dto);
 
                 if (dto.Status == "completed" || dto.Status == "resolved") result.CompletedPapers++;
@@ -546,7 +615,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 else result.NotStartedPapers++;
             }
 
-            result.TotalPapers = assignment.Paper.Count;
+            result.TotalPapers = assignment.QualityAssessmentPapers.Count;
             result.CompletionPercentage = totalExpectedDecisions > 0 ? (double)actualDecisions / totalExpectedDecisions * 100 : 0;
             if (result.CompletionPercentage > 100) result.CompletionPercentage = 100;
 
@@ -560,12 +629,15 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var userId = Guid.Parse(currentUserIdStr);
 
             // Validate and find assignment
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, dto.PaperId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user and paper");
+            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
+            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+            var qaPaper = assignment.QualityAssessmentPapers.FirstOrDefault(x => x.Id == dto.QualityAssessmentPaperId);
+            if (qaPaper == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
 
             // Check if resolution exists
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == dto.PaperId);
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaper.Id);
 
             if (resolution != null)
             {
@@ -574,13 +646,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             // Check existing decision
             var existing = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                d => d.ReviewerId == userId && d.PaperId == dto.PaperId);
+                d => d.ReviewerId == userId && d.QualityAssessmentPaperId == qaPaper.Id);
 
             if (existing != null)
                 throw new InvalidOperationException("Decision for this paper already exists. Use update instead.");
 
             // Construct new decision
-            var decision = dto.ToEntity(userId);
+            var decision = dto.ToEntity(userId, qaPaper.Id);
 
             if (dto.DecisionItems != null && dto.DecisionItems.Any())
             {
@@ -613,14 +685,17 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (decision.ReviewerId != userId)
                 throw new UnauthorizedAccessException("You can only update your own decisions.");
 
-            var paperId = decision.PaperId;
+            var qaPaperId = decision.QualityAssessmentPaperId;
+
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
+            if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
 
             // Get assignment (to get process ID for resolution check)
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndPaperAsync(userId, paperId);
+            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndQaPaperAsync(userId, qaPaper.Id);
             if (assignment == null) throw new KeyNotFoundException("Assignment not found");
 
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == paperId);
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaperId);
 
             if (resolution != null)
             {
@@ -669,9 +744,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByPaperIdAsync(Guid paperId)
+        public async Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByQaPaperIdAsync(Guid qaPaperId)
         {
-            var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByPaperIdWithDetailsAsync(paperId);
+            var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(qaPaperId);
 
             return decisions.Select(d => d.ToDto()).ToList();
         }
@@ -682,9 +757,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == dto.QualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+            if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
+
             // Verify existing
             var existing = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId && r.PaperId == dto.PaperId);
+                r => r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId && r.QualityAssessmentPaperId == dto.QualityAssessmentPaperId);
 
             if (existing != null) throw new InvalidOperationException("Resolution already exists for this paper");
 
@@ -716,9 +794,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return entity.ToResponse();
         }
 
-        public async Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId)
+        public async Task<QualityAssessmentResolutionResponse> GetResolutionByQaPaperIdAsync(Guid qaPaperId)
         {
-            var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.PaperId == paperId);
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
+            if (qaPaper == null) return null!;
+
+            var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.QualityAssessmentPaperId == qaPaper.Id);
             if (res == null) return null!;
 
             return res.ToResponse();
@@ -729,7 +810,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var resolutions = await _unitOfWork.QualityAssessmentResolutions
                 .FindAllAsync(r => r.QualityAssessmentProcessId == processId && r.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);
 
-            var papers = await _unitOfWork.Papers.FindAllAsync(p => resolutions.Select(r => r.PaperId).Contains(p.Id));
+            var qaPaperIds = resolutions.Select(r => r.QualityAssessmentPaperId).ToList();
+            var qaPapers = await _unitOfWork.QualityAssessmentPapers.FindAllAsync(p => qaPaperIds.Contains(p.Id));
+
+            var papers = await _unitOfWork.Papers.FindAllAsync(p => qaPapers.Select(qa => qa.PaperId).Contains(p.Id));
 
             return papers.Select(p => p.ToResponse()).ToList();
         }
@@ -737,10 +821,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Assessment Automate ====================
         public async Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request)
         {
-            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId)
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.GetByIdWithDetailsAsync(request.QualityAssessmentPaperId)
+                ?? throw new KeyNotFoundException("QA Paper not found");
+
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == qaPaper.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Process not found");
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId)
-                ?? throw new KeyNotFoundException("Paper not found");
 
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
                 ?? throw new KeyNotFoundException("Review process not found");
@@ -752,32 +837,15 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             var criteriaQuestions = strategy.SelectMany(s => s.Checklists.SelectMany(c => c.Criteria)).Select(c => new { c.Id, c.Question }).ToList();
 
-            string fullTextContent = "Full text not available.";
-            if (!string.IsNullOrWhiteSpace(paper.PdfUrl))
+            // RAG Integration: Instead of loading full pdf and extracting via Grobid, fetch relevant semantic chunks for each criterion.
+            var relevantChunksByCriterion = new Dictionary<string, string>();
+            foreach (var c in criteriaQuestions)
             {
-                try
-                {
-                    var httpClient = _httpClientFactory.CreateClient();
-                    var pdfResponse = await httpClient.GetAsync(paper.PdfUrl);
-                    if (pdfResponse.IsSuccessStatusCode)
-                    {
-                        using var networkStream = await pdfResponse.Content.ReadAsStreamAsync();
-                        using var memoryStream = new MemoryStream();
-                        await networkStream.CopyToAsync(memoryStream);
-                        memoryStream.Position = 0;
-
-                        var extractedText = await _grobidService.ProcessFulltextDocumentAsync(memoryStream);
-                        if (!string.IsNullOrWhiteSpace(extractedText))
-                        {
-                            fullTextContent = extractedText;
-                        }
-                    }
-                }
-                catch
-                {
-                    // Fallback if full text extraction fails
-                    fullTextContent = "Error extracting full text. Please rely on abstract and details provided.";
-                }
+                var chunks = await _ragRetrievalService.GetRelevantChunksAsync(qaPaper.PaperId, c.Question, topK: 10);
+                var formattedChunks = string.Join("\n\n---\n\n", chunks.Select(chunk =>
+                    $"[Source Chunk coordinates: {chunk.CoordinatesJson}]\n{chunk.TextContent}"
+                ));
+                relevantChunksByCriterion.Add(c.Question, string.IsNullOrWhiteSpace(formattedChunks) ? "No relevant chunk found." : formattedChunks);
             }
 
             var prompt = $@"
@@ -785,24 +853,28 @@ Assume you are an expert reviewer conducting a quality assessment of a scientifi
 
 Note: 
 - For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
-- Also give pdfHighlightCoordinates (a string following this style: page,x,y,height,width (; to separate 2 highlight)) for any evidence in the paper that supports your judgement for each criterion.
+- Also give pdfHighlightCoordinates based on the [Source Chunk coordinates: ...] provided alongside the evidence for each criterion. Keep precise format `page,x,y,height,width` for example: `'1,72.0,103.0,174.0,20.0'` (semicolon separated for multiple). Ensure the bounding boxes match where you drew your evidence.
 
 -------------------------
 
-Criteria:
-{string.Join("\n", criteriaQuestions.Select(c => $"- ID: {c.Id} | Question: {c.Question}"))}
+Criteria Questions and retrieved relevant excerpts from abstract/full text:
+
+{string.Join("\n\n", criteriaQuestions.Select(c => 
+   $"--- CRITERION START ---\n" +
+   $"ID: {c.Id}\n" +
+   $"Question: {c.Question}\n" +
+   $"Retrieved Evidence Chunks:\n{relevantChunksByCriterion[c.Question]}\n" +
+   $"--- CRITERION END ---"
+))}
 
 --------------------------------
 
 Here are the paper details:
-- Title: {paper.Title}
-- Authors: {paper.Authors}
-- Publication Year: {paper.PublicationYear}
-- Journal/Conference: {(!string.IsNullOrWhiteSpace(paper.Journal) ? paper.Journal : paper.ConferenceName)}
-- Abstract: {paper.Abstract}
-
---- Full Text Content ---
-{fullTextContent}
+- Title: {qaPaper.Paper.Title}
+- Authors: {qaPaper.Paper.Authors}
+- Publication Year: {qaPaper.Paper.PublicationYear}
+- Journal/Conference: {(!string.IsNullOrWhiteSpace(qaPaper.Paper.Journal) ? qaPaper.Paper.Journal : qaPaper.Paper.ConferenceName)}
+- Abstract: {qaPaper.Paper.Abstract}
 ";
 
             var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);
@@ -874,22 +946,22 @@ Here are the paper details:
                 var decisions = paper.Decisions ?? new List<QualityAssessmentDecisionResponse>();
 
                 // Also include resolution as a consensus row if exists
-                if (paper.Resolution != null)
-                {
-                    // Create a synthetic decision row for consensus
-                    decisions = decisions.Append(new QualityAssessmentDecisionResponse
-                    {
-                        ReviewerId = paper.Resolution.ResolvedBy,
-                        ReviewerName = paper.Resolution.ResolvedByName ?? "Consensus",
-                        PaperId = paper.Id,
-                        DecisionItems = new List<QualityAssessmentDecisionItemResponse>()
-                        // Note: Resolution doesn't currently store per-criterion items in DTO easily accessibly 
-                        // unless we load them separately or if they are just the final decision.
-                        // For now, Consensus row might be empty for items unless Resolution has items (it usually doesn't in this simplified model 
-                        // unless we query QualityAssessmentResolution -> which is just FinalDecision/Score in DTO).
-                        // If Resolution had items, we would map them here. Assuming empty for now as per DTO.
-                    }).ToList();
-                }
+                // if (paper.Resolution != null)
+                // {
+                //     // Create a synthetic decision row for consensus
+                //     decisions = decisions.Append(new QualityAssessmentDecisionResponse
+                //     {
+                //         ReviewerId = paper.Resolution.ResolvedBy,
+                //         ReviewerName = paper.Resolution.ResolvedByName ?? "Consensus",
+                //         QualityAssessmentPaperId = paper.Resolution.QualityAssessmentPaperId,
+                //         DecisionItems = new List<QualityAssessmentDecisionItemResponse>()
+                //         // Note: Resolution doesn't currently store per-criterion items in DTO easily accessibly 
+                //         // unless we load them separately or if they are just the final decision.
+                //         // For now, Consensus row might be empty for items unless Resolution has items (it usually doesn't in this simplified model 
+                //         // unless we query QualityAssessmentResolution -> which is just FinalDecision/Score in DTO).
+                //         // If Resolution had items, we would map them here. Assuming empty for now as per DTO.
+                //     }).ToList();
+                // }
 
                 foreach (var dec in decisions)
                 {

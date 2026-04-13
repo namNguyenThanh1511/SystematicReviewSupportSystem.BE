@@ -85,17 +85,8 @@ namespace SRSS.IAM.Services.DataExtractionService
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // ==========================================
-                // KÍCH HOẠT RAG INGESTION TẠI ĐÂY
-                // Chỉ lưu chunk cho các bài báo ĐÃ VÀO Data Extraction và CÓ file PDF
+                // KÍCH HOẠT RAG INGESTION ĐÃ CHUYỂN SANG STUDY SELECTION COMPLETE
                 // ==========================================
-                foreach (var item in newPapers)
-                {
-                    if (!string.IsNullOrWhiteSpace(item.Paper.PdfUrl))
-                    {
-                        // Gọi Queue Background processing
-                        await _ragQueue.QueuePaperForIngestionAsync(item.PaperId, item.Paper.PdfUrl, cancellationToken);
-                    }
-                }
             }
         }
 

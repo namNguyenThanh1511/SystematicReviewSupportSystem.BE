@@ -194,10 +194,10 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Thực hiện tự động đánh giá chất lượng thành công");
 		}
 
-		[HttpGet("papers/{paperId}/decisions")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByPaperId(Guid paperId)
+		[HttpGet("qa-papers/{qaPaperId}/decisions")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByQaPaperId(Guid qaPaperId)
 		{
-			var result = await _service.GetDecisionsByPaperIdAsync(paperId);
+			var result = await _service.GetDecisionsByQaPaperIdAsync(qaPaperId);
 			return Ok(result, "Lấy danh sách quyết định thành công");
 		}
 
@@ -216,10 +216,10 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Cập nhật kết quả cuối cùng thành công");
 		}
 
-		[HttpGet("papers/{paperId}/resolution")]
-		public async Task<ActionResult<ApiResponse<QualityAssessmentResolutionResponse>>> GetResolutionByPaperId(Guid paperId)
+		[HttpGet("qa-papers/{qaPaperId}/resolution")]
+		public async Task<ActionResult<ApiResponse<QualityAssessmentResolutionResponse>>> GetResolutionByQaPaperId(Guid qaPaperId)
 		{
-			var result = await _service.GetResolutionByPaperIdAsync(paperId);
+			var result = await _service.GetResolutionByQaPaperIdAsync(qaPaperId);
 			if (result == null)
 				return NotFound(new ApiResponse<QualityAssessmentResolutionResponse> { IsSuccess = false, Message = "Resolution not found" });
 			return Ok(result, "Lấy kết quả cuối cùng thành công");

@@ -123,5 +123,18 @@ namespace Shared.Repositories
             _context.Set<TEntity>().RemoveRange(entities);
             return Task.CompletedTask;
         }
+
+        public virtual IQueryable<TEntity> GetQueryable(Expression<Func<TEntity, bool>>? predicate = null, bool isTracking = true)
+        {
+            IQueryable<TEntity> query = _context.Set<TEntity>();
+
+            if (!isTracking)
+                query = query.AsNoTracking();
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return query;
+        }
     }
 }

@@ -22,4 +22,8 @@ namespace SRSS.IAM.Services.DTOs.Identification
 
         public PrismaStatisticsResponse PrismaStatistics { get; set; }
     }
+    public class AddPapersToSnapshotRequest
+    {
+        public List<Guid> PaperIds { get; set; } = new List<Guid>();
+    }
 }

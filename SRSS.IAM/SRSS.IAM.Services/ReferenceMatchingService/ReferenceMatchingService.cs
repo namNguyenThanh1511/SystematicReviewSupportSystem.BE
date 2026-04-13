@@ -282,6 +282,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 {
                     semanticMatch = await FindSemanticMatchInProcessAsync(
                         reference.TitleEmbedding,
+                        reference,
                         identificationProcessId,
                         cancellationToken);
                 }
@@ -379,33 +380,82 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
 
         private async Task<MatchResult?> FindSemanticMatchInProcessAsync(
             float[] embedding,
+            ExtractedReference reference,
             Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
-            var nearestEmbedding = await _unitOfWork.PaperEmbeddings.FindClosestByCosineDistanceInIdentificationProcessAsync(
+            // Retrieve top-5 nearest candidates for metadata veto filtering
+            var nearestEmbeddings = await _unitOfWork.PaperEmbeddings.FindClosestByCosineDistanceInIdentificationProcessAsync(
                 embedding,
                 identificationProcessId,
                 cancellationToken,
-                take: 1);
+                take: 5);
 
-            if (nearestEmbedding?.Paper == null)
+            if (!nearestEmbeddings.Any())
             {
                 return null;
             }
 
-            var similarity = CosineSimilarity(embedding, nearestEmbedding.Embedding.ToArray());
-            if (similarity < 0.7f)
+            // Extract reference metadata for cross-check
+            int? refYear = int.TryParse(reference.PublishedYear, out var ry) ? ry : null;
+            var refAuthorTokens = ExtractAuthorTokens(reference.Authors);
+
+            foreach (var candidateEmbedding in nearestEmbeddings)
             {
-                return null;
+                if (candidateEmbedding.Paper == null) continue;
+
+                var similarity = CosineSimilarity(embedding, candidateEmbedding.Embedding.ToArray());
+
+                // Hard threshold: reject anything below 0.85
+                if (similarity < 0.85f)
+                {
+                    continue;
+                }
+
+                // Near-exact semantic match (>= 0.95): accept unconditionally
+                if (similarity < 0.95f)
+                {
+                    // Metadata cross-check veto for sub-0.95 matches
+                    var candidatePaper = candidateEmbedding.Paper;
+
+                    // Year veto: reject if year difference > 2
+                    if (refYear.HasValue && candidatePaper.PublicationYearInt.HasValue)
+                    {
+                        if (Math.Abs(refYear.Value - candidatePaper.PublicationYearInt.Value) > 2)
+                        {
+                            _logger.LogDebug(
+                                "Semantic match vetoed by year difference: ref={RefYear}, candidate={CandYear}, similarity={Similarity}",
+                                refYear.Value, candidatePaper.PublicationYearInt.Value, similarity);
+                            continue;
+                        }
+                    }
+
+                    // Author veto: reject if author overlap < 0.3
+                    var candidateAuthorTokens = ExtractAuthorTokens(candidatePaper.Authors);
+                    if (refAuthorTokens.Any() && candidateAuthorTokens.Any())
+                    {
+                        var authorScore = ComputeAuthorScore(refAuthorTokens, candidateAuthorTokens);
+                        if (authorScore < 0.3m)
+                        {
+                            _logger.LogDebug(
+                                "Semantic match vetoed by low author score: {AuthorScore}, similarity={Similarity}",
+                                authorScore, similarity);
+                            continue;
+                        }
+                    }
+                }
+
+                // Candidate passed all veto checks
+                return new MatchResult
+                {
+                    MatchedPaper = candidateEmbedding.Paper,
+                    MatchedPaperId = candidateEmbedding.PaperId,
+                    ConfidenceScore = (decimal)similarity,
+                    Strategy = MatchStrategy.Semantic
+                };
             }
 
-            return new MatchResult
-            {
-                MatchedPaper = nearestEmbedding.Paper,
-                MatchedPaperId = nearestEmbedding.PaperId,
-                ConfidenceScore = (decimal)similarity,
-                Strategy = MatchStrategy.Semantic
-            };
+            return null;
         }
 
         private static MatchResult SelectBestHybridMatch(params MatchResult?[] matches)
@@ -488,13 +538,6 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             }
 
             decimal titleScore = ComputeTitleScore(refData.NormalizedTitle, candidateData.NormalizedTitle);
-            if (titleScore < 0.3m)
-            {
-                return 0;
-            }
-
-            strategy = MatchStrategy.TitleFuzzy;
-
             decimal authorScore = ComputeAuthorScore(refData.Authors, candidateData.Authors);
             decimal yearScore = 0;
 
@@ -504,9 +547,61 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 else if (Math.Abs(refData.Year.Value - candidateData.Year.Value) == 1) yearScore = 0.5m;
             }
 
-            decimal ruleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+            // Semantic strategy: when both have embeddings, use vector similarity with metadata penalty
+            if (refData.TitleEmbedding is { Length: > 0 } && candidateData.TitleEmbedding is { Length: > 0 })
+            {
+                var vectorSimilarity = (decimal)CosineSimilarity(refData.TitleEmbedding, candidateData.TitleEmbedding);
 
-            return ruleScore > 1.0m ? 1.0m : ruleScore;
+                if (vectorSimilarity >= 0.85m)
+                {
+                    strategy = MatchStrategy.Semantic;
+
+                    // Weighted semantic score
+                    decimal semanticScore = (vectorSimilarity * 0.6m) + (titleScore * 0.2m) + (authorScore * 0.15m) + (yearScore * 0.05m);
+
+                    // Metadata penalty: mismatched DOI
+                    if (!string.IsNullOrWhiteSpace(refData.NormalizedDoi)
+                        && !string.IsNullOrWhiteSpace(candidateData.NormalizedDoi)
+                        && refData.NormalizedDoi != candidateData.NormalizedDoi)
+                    {
+                        semanticScore -= 0.3m;
+                    }
+
+                    // Metadata penalty: very low author overlap
+                    if (refData.Authors.Any() && candidateData.Authors.Any() && authorScore < 0.2m)
+                    {
+                        semanticScore -= 0.15m;
+                    }
+
+                    semanticScore = Math.Clamp(semanticScore, 0m, 1.0m);
+
+                    // Use semantic score if it outperforms the fuzzy rule score
+                    decimal ruleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+                    ruleScore = Math.Clamp(ruleScore, 0m, 1.0m);
+
+                    if (semanticScore >= ruleScore)
+                    {
+                        return semanticScore;
+                    }
+                    else
+                    {
+                        strategy = MatchStrategy.TitleFuzzy;
+                        return ruleScore;
+                    }
+                }
+            }
+
+            // Fallback: fuzzy rule-based scoring
+            if (titleScore < 0.3m)
+            {
+                return 0;
+            }
+
+            strategy = MatchStrategy.TitleFuzzy;
+
+            decimal finalRuleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+
+            return finalRuleScore > 1.0m ? 1.0m : finalRuleScore;
         }
 
         private float CosineSimilarity(float[] v1, float[] v2)
@@ -543,6 +638,12 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             return (jaccard * 0.6m) + (levenshtein * 0.4m);
         }
 
+        /// <summary>
+        /// Normalizes text for fuzzy matching (Jaccard/Levenshtein) only.
+        /// Strips punctuation, lowercases, and removes stopwords.
+        /// NOTE: Do NOT use this for embedding input — BERT-based models benefit from
+        /// natural language with punctuation and structure intact.
+        /// </summary>
         private string NormalizeText(string? input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;

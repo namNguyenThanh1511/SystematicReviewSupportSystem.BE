@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
+using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.IdentificationService;
 
 namespace SRSS.IAM.API.Controllers
@@ -115,6 +117,71 @@ namespace SRSS.IAM.API.Controllers
         {
             await _identificationService.MarkAsDuplicateAsync(identificationProcessId, paperId, request, cancellationToken);
             return Ok("Paper marked as duplicate successfully.");
+        }
+
+        /// <summary>
+        /// Get papers that are ready to be added to the snapshot.
+        /// Excludes duplicates, pending papers, and papers already in the snapshot.
+        /// </summary>
+        [HttpGet("identification-processes/{id}/ready-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetReadyPapers(
+            [FromRoute] Guid id,
+            [FromQuery] string? search,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var (papers, totalCount) = await _identificationService.GetReadyPapersForSnapshotAsync(
+                id, search, year, pageNumber, pageSize, cancellationToken);
+            
+            var result = new PaginatedResponse<PaperResponse>
+            {
+                Items = papers,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+            return Ok(result, "Ready papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Bulk add papers to the identification snapshot.
+        /// Snapshot is append-only.
+        /// </summary>
+        [HttpPost("identification-processes/{id}/snapshot")]
+        public async Task<ActionResult<ApiResponse>> AddPapersToSnapshot(
+            [FromRoute] Guid id,
+            [FromBody] AddPapersToSnapshotRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identificationService.AddPapersToIdentificationSnapshotAsync(id, request.PaperIds, cancellationToken);
+            return Ok("Papers added to snapshot successfully.");
+        }
+
+        /// <summary>
+        /// Get the frozen identification snapshot papers.
+        /// </summary>
+        [HttpGet("identification-processes/{id}/snapshot")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetSnapshot(
+            [FromRoute] Guid id,
+            [FromQuery] string? search,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var (papers, totalCount) = await _identificationService.GetPaperIdentificationProcessSnapshotAsync(
+                id, search, year, pageNumber, pageSize, cancellationToken);
+            
+            var result = new PaginatedResponse<PaperResponse>
+            {
+                Items = papers,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+            return Ok(result, "Snapshot papers retrieved successfully.");
         }
     }
 }

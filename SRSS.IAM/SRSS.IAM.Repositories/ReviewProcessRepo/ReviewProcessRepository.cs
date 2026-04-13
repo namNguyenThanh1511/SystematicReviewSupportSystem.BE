@@ -17,6 +17,7 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
                 .Include(rp => rp.StudySelectionProcess)
                 .Include(rp => rp.QualityAssessmentProcess)
                 .Include(rp => rp.DataExtractionProcess)
+                .Include(rp => rp.SynthesisProcess)
                 .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
 
         }
@@ -29,6 +30,8 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
                 .Include(rp => rp.IdentificationProcess)
                 .Include(rp => rp.StudySelectionProcess)
                 .Include(rp => rp.QualityAssessmentProcess)
+                .Include(rp => rp.DataExtractionProcess)
+                .Include(rp => rp.SynthesisProcess)
                 .FirstOrDefaultAsync(rp => rp.Id == id, cancellationToken);
         }
 
@@ -40,6 +43,8 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
                 .Include(rp => rp.IdentificationProcess)
                 .Include(rp => rp.StudySelectionProcess)
                 .Include(rp => rp.QualityAssessmentProcess)
+                .Include(rp => rp.DataExtractionProcess)
+                .Include(rp => rp.SynthesisProcess)
                 .Where(rp => rp.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }
@@ -49,7 +54,5 @@ namespace SRSS.IAM.Repositories.ReviewProcessRepo
             return await _context.ReviewProcesses
                 .FirstOrDefaultAsync(rp => rp.ProjectId == projectId && rp.Status == ProcessStatus.InProgress, cancellationToken);
         }
-
-
     }
 }

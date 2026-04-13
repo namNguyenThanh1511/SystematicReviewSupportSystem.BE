@@ -9,6 +9,7 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
@@ -101,6 +102,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractedDataValueRepository ExtractedDataValues { get; }
 
         // Synthesis
+        ISynthesisProcessRepository SynthesisProcesses { get; }
+        ISynthesisThemeRepository SynthesisThemes { get; }
+        IThemeEvidenceRepository ThemeEvidences { get; }
+        IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         IDisseminationStrategyRepository DisseminationStrategies { get; }
         IProjectTimetableRepository Timetables { get; }

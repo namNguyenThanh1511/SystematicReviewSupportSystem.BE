@@ -194,7 +194,7 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Thực hiện tự động đánh giá chất lượng thành công");
 		}
 
-		[HttpGet("qa-papers/{qaPaperId}/decisions")]
+		[HttpGet("papers/{qaPaperId}/decisions")]
 		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByQaPaperId(Guid qaPaperId)
 		{
 			var result = await _service.GetDecisionsByQaPaperIdAsync(qaPaperId);
@@ -216,7 +216,7 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Cập nhật kết quả cuối cùng thành công");
 		}
 
-		[HttpGet("qa-papers/{qaPaperId}/resolution")]
+		[HttpGet("papers/{qaPaperId}/resolution")]
 		public async Task<ActionResult<ApiResponse<QualityAssessmentResolutionResponse>>> GetResolutionByQaPaperId(Guid qaPaperId)
 		{
 			var result = await _service.GetResolutionByQaPaperIdAsync(qaPaperId);

@@ -345,7 +345,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
-            string? assignmentStatus,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
             int pageNumber,
             int pageSize,
@@ -358,6 +359,9 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     : p.PaperAssignments)
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
+                .Include(p => phase.HasValue
+                    ? p.ScreeningResolutions.Where(sr => sr.Phase == phase.Value)
+                    : p.ScreeningResolutions)
                 .Where(p => paperIds.Contains(p.Id));
 
             // Apply search filter
@@ -371,17 +375,42 @@ namespace SRSS.IAM.Repositories.PaperRepo
             }
 
             // Apply assignment status filter
-            if (!string.IsNullOrWhiteSpace(assignmentStatus))
+            if (assignmentStatus != AssignmentFilterStatus.All)
             {
-                if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+                if (assignmentStatus == AssignmentFilterStatus.Assigned)
                 {
                     query = query.Where(p => phase.HasValue 
                         ? p.PaperAssignments.Any(pa => pa.Phase == phase.Value)
                         : p.PaperAssignments.Any());
                 }
-                else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+                else if (assignmentStatus == AssignmentFilterStatus.Unassigned)
                 {
-                    query = query.Where(p => phase.HasValue ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) : !p.PaperAssignments.Any());
+                    query = query.Where(p => phase.HasValue 
+                        ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) 
+                        : !p.PaperAssignments.Any());
+                }
+            }
+
+            // Apply resolution status filter
+            if (resolutionStatus != ResolutionFilterStatus.All)
+            {
+                if (resolutionStatus == ResolutionFilterStatus.NotDecided)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? !p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value)
+                        : !p.ScreeningResolutions.Any());
+                }
+                else if (resolutionStatus == ResolutionFilterStatus.Include)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value && sr.FinalDecision == ScreeningDecisionType.Include)
+                        : p.ScreeningResolutions.Any(sr => sr.FinalDecision == ScreeningDecisionType.Include));
+                }
+                else if (resolutionStatus == ResolutionFilterStatus.Exclude)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value && sr.FinalDecision == ScreeningDecisionType.Exclude)
+                        : p.ScreeningResolutions.Any(sr => sr.FinalDecision == ScreeningDecisionType.Exclude));
                 }
             }
 

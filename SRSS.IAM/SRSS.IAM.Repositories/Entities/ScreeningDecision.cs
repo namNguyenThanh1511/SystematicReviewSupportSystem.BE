@@ -14,14 +14,14 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid ReviewerId { get; set; }
         public ScreeningDecisionType Decision { get; set; }
         public ScreeningPhase Phase { get; set; } = ScreeningPhase.TitleAbstract;
-        public ExclusionReasonCode? ExclusionReasonCode { get; set; }
+        public Guid? ExclusionReasonId { get; set; }
         public string? Reason { get; set; }
-        public string? ReviewerNotes { get; set; }
         public DateTimeOffset DecidedAt { get; set; }
 
         // Navigation Properties
         public StudySelectionProcess StudySelectionProcess { get; set; } = null!;
         public Paper Paper { get; set; } = null!;
+        public StudySelectionExclusionReason? ExclusionReason { get; set; }
     }
 
     public enum ScreeningDecisionType

@@ -14,6 +14,7 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
@@ -37,6 +38,9 @@ using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -120,8 +124,15 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
+        private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
+        private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
+        private ISynthesisProcessRepository? _synthesisProcesses;
+        private ISynthesisThemeRepository? _synthesisThemes;
+        private IThemeEvidenceRepository? _themeEvidences;
+        private IResearchQuestionFindingRepository? _researchQuestionFindings;
         private IDisseminationStrategyRepository? _disseminationStrategies;
         private IProjectTimetableRepository? _timetables;
 
@@ -257,6 +268,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IDataSynthesisStrategyRepository SynthesisStrategies =>
             _synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
 
+        public ISynthesisProcessRepository SynthesisProcesses => 
+            _synthesisProcesses ??= new SynthesisProcessRepository(_dbContext);
+        
+        public ISynthesisThemeRepository SynthesisThemes => 
+            _synthesisThemes ??= new SynthesisThemeRepository(_dbContext);
+            
+        public IThemeEvidenceRepository ThemeEvidences => 
+            _themeEvidences ??= new ThemeEvidenceRepository(_dbContext);
+            
+        public IResearchQuestionFindingRepository ResearchQuestionFindings => 
+            _researchQuestionFindings ??= new ResearchQuestionFindingRepository(_dbContext);
+
         public IDisseminationStrategyRepository DisseminationStrategies =>
             _disseminationStrategies ??= new DisseminationStrategyRepository(_dbContext);
 
@@ -335,6 +358,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);
+        public IExclusionReasonLibraryRepository ExclusionReasonLibraries => _exclusionReasonLibraries ??= new ExclusionReasonLibraryRepository(_dbContext);
+        public IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons => _studySelectionExclusionReasons ??= new StudySelectionExclusionReasonRepository(_dbContext);
+        public IStuSeExclusionCodeRepository StuSeExclusionCodes => _stuSeExclusionCodes ??= new StuSeExclusionCodeRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

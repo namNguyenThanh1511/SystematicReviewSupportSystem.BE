@@ -38,5 +38,8 @@ namespace Shared.Repositories
         Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
         Task RemoveAsync(TEntity entity, CancellationToken cancellationToken = default);
         Task RemoveMultipleAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
+
+        //Queryable
+        IQueryable<TEntity> GetQueryable(Expression<Func<TEntity, bool>>? predicate = null, bool isTracking = true);
     }
 }

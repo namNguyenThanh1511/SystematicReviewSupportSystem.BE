@@ -1,4 +1,7 @@
 using SRSS.IAM.Services.DTOs.Identification;
+using SRSS.IAM.Services.DTOs.Paper;
+using Microsoft.EntityFrameworkCore;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
@@ -23,7 +26,7 @@ namespace SRSS.IAM.Services.IdentificationService
         Task<List<ImportBatchResponse>> GetImportBatchesByIdentificationProcessIdAsync(Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<ImportBatchResponse> UpdateImportBatchAsync(UpdateImportBatchRequest request, CancellationToken cancellationToken = default);
         Task<bool> DeleteImportBatchAsync(Guid id, CancellationToken cancellationToken = default);
-        Task<List<DTOs.Paper.PaperResponse>> GetPapersByImportBatchIdAsync(Guid importBatchId, CancellationToken cancellationToken = default);
+        Task<List<PaperResponse>> GetPapersByImportBatchIdAsync(Guid importBatchId, CancellationToken cancellationToken = default);
 
         Task<ImportPaperResponse> ImportPaperAsync(ImportPaperRequest request, CancellationToken cancellationToken = default);
         Task<RisImportResultDto> ImportRisFileAsync(
@@ -39,6 +42,27 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             Guid paperId,
             MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<PaperResponse> Papers, int TotalCount)> GetReadyPapersForSnapshotAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task AddPapersToIdentificationSnapshotAsync(
+            Guid identificationProcessId,
+            List<Guid> paperIds,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<PaperResponse> Papers, int TotalCount)> GetPaperIdentificationProcessSnapshotAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            int pageNumber,
+            int pageSize,
             CancellationToken cancellationToken = default);
     }
 }

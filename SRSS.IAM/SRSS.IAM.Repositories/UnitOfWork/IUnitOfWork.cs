@@ -9,6 +9,7 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
@@ -36,7 +37,9 @@ using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
-
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -99,6 +102,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractedDataValueRepository ExtractedDataValues { get; }
 
         // Synthesis
+        ISynthesisProcessRepository SynthesisProcesses { get; }
+        ISynthesisThemeRepository SynthesisThemes { get; }
+        IThemeEvidenceRepository ThemeEvidences { get; }
+        IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         IDisseminationStrategyRepository DisseminationStrategies { get; }
         IProjectTimetableRepository Timetables { get; }
@@ -133,6 +140,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
         IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
         IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
+        IExclusionReasonLibraryRepository ExclusionReasonLibraries { get; }
+        IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons { get; }
+        IStuSeExclusionCodeRepository StuSeExclusionCodes { get; }
     }
 }
 

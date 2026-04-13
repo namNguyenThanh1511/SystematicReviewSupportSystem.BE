@@ -12,6 +12,7 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.IdentificationService;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -21,13 +22,15 @@ namespace SRSS.IAM.Services.ReviewProcessService
         private readonly IStudySelectionService _studySelectionService;
         private readonly IQualityAssessmentService _qualityAssessmentService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IIdentificationService _identificationService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, IQualityAssessmentService qualityAssessmentService, ICurrentUserService currentUserService)
+        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, IQualityAssessmentService qualityAssessmentService, ICurrentUserService currentUserService, IIdentificationService identificationService)
         {
             _unitOfWork = unitOfWork;
             _studySelectionService = selectionService;
             _qualityAssessmentService = qualityAssessmentService;
             _currentUserService = currentUserService;
+            _identificationService = identificationService;
         }
 
         public async Task<ReviewProcessResponse> CreateReviewProcessAsync(
@@ -95,6 +98,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+                //Auto create IdentificationProcessPaper snap
                 //Auto-create Study Selection Process for the new ReviewProcess
                 var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
                 {
@@ -128,10 +132,21 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
+                //Auto-create Synthesis Process for the new ReviewProcess
+                var synthesisProcess = new Repositories.Entities.SynthesisProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Status = Repositories.Entities.Enums.SynthesisProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
                 await _unitOfWork.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess, cancellationToken);
                 await _unitOfWork.DataExtractionProcesses.AddAsync(dataExtractionProcess, cancellationToken);
+                await _unitOfWork.SynthesisProcesses.AddAsync(synthesisProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -517,6 +532,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         CreatedAt = reviewProcess.DataExtractionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.DataExtractionProcess.ModifiedAt
                     }
+                    : null,
+                SynthesisProcess = reviewProcess.SynthesisProcess != null
+                    ? new SynthesisProcessResponse
+                    {
+                        Id = reviewProcess.SynthesisProcess.Id,
+                        ReviewProcessId = reviewProcess.SynthesisProcess.ReviewProcessId,
+                        Status = reviewProcess.SynthesisProcess.Status,
+                        StatusText = reviewProcess.SynthesisProcess.Status.ToString(),
+                        StartedAt = reviewProcess.SynthesisProcess.StartedAt,
+                        CompletedAt = reviewProcess.SynthesisProcess.CompletedAt,
+                        CreatedAt = reviewProcess.SynthesisProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.SynthesisProcess.ModifiedAt
+                    }
                     : null
             };
         }
@@ -525,28 +553,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
-
-            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
-
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
-                cancellationToken: cancellationToken);
-
-            var importBatchList = allImportBatches.ToList();
-            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
-            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
-            var uniqueRecords = totalRecordsImported - duplicateRecords;
-
-            return new PrismaStatisticsResponse
-            {
-                TotalRecordsImported = totalRecordsImported,
-                DuplicateRecords = duplicateRecords,
-                UniqueRecords = uniqueRecords,
-                ImportBatchCount = importBatchList.Count
-            };
+            return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 
@@ -21,10 +21,20 @@ namespace SRSS.IAM.Repositories.Configurations
 
 			builder.Property(x => x.SynthesisType)
 				.HasColumnName("synthesis_type")
-				.IsRequired();
+				.IsRequired()
+				.HasConversion<string>();
 
 			builder.Property(x => x.Description)
 				.HasColumnName("description");
+
+			builder.Property(x => x.TargetResearchQuestionIds)
+				.HasColumnName("target_research_question_ids");
+
+			builder.Property(x => x.DataGroupingPlan)
+				.HasColumnName("data_grouping_plan");
+
+			builder.Property(x => x.SensitivityAnalysisPlan)
+				.HasColumnName("sensitivity_analysis_plan");
 
 			builder.HasOne(x => x.Protocol)
 				.WithMany(x => x.SynthesisStrategies)

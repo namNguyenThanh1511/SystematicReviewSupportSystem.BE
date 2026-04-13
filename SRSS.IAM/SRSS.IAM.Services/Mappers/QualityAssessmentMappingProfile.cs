@@ -413,7 +413,7 @@ namespace SRSS.IAM.Services.Mappers
             this QualityAssessmentPaper qaPaper,
             double percentage,
             QualityAssessmentResolution? resolution,
-            QualityAssessmentDecision? userDecision, 
+            QualityAssessmentDecision? userDecision,
             string? resolvedByName = null)
         {
             if (qaPaper == null) return null!;
@@ -454,7 +454,7 @@ namespace SRSS.IAM.Services.Mappers
                 Decisions = userDecision != null ? new List<QualityAssessmentDecisionResponse> { userDecision.ToDto() } : new List<QualityAssessmentDecisionResponse>()
             };
 
-            
+
             if (resolution != null)
             {
                 response.Resolution = resolution.ToResponse(resolvedByName);

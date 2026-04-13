@@ -235,7 +235,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 // Fetch the papers that passed full text screening (and thus are in StudySelectionProcessPaper with Include decision)
                 // Note: The StudySelectionProcessPaper holds the "final snapshot" of included papers after Complete phase.
                 var passedPapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(studySelectionProcess.Id, default);
-                
+
                 // Get currently existing QualityAssessmentPaper to avoid duplication if Start is called multiple times.
                 var existingQAPapers = await _unitOfWork.QualityAssessmentPapers.FindAllAsync(x => x.QualityAssessmentProcessId == id);
                 var existingPaperIds = existingQAPapers.Select(x => x.PaperId).ToHashSet();
@@ -286,7 +286,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             // Also include any papers that are already assigned or have resolutions just in case
             var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
-            
+
             // Calculate criteria count to compute percentage
             var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
             var criteriaCount = 0;
@@ -415,7 +415,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
-            
+
             var totalPapers = eligiblePaper.Count;
             var highQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.HighQuality);
             var lowQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.LowQuality);
@@ -428,7 +428,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             foreach (var paper in eligiblePaper)
             {
                 var resolution = processResolutions.FirstOrDefault(r => r.QualityAssessmentPaperId == paper.Id);
-                if (resolution != null) 
+                if (resolution != null)
                 {
                     continue; // Handled by High/Low
                 }
@@ -481,7 +481,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     .Where(a => a.QualityAssessmentPapers != null && a.QualityAssessmentPapers.Any(p => p.Id == qualityAssessmentPaperId))
                     .Select(a => a.UserId)
                     .ToList();
-                
+
                 var newUsers = dto.UserIds.Except(assignedUsers).ToList();
                 if (assignedUsers.Count + newUsers.Count > 2)
                 {
@@ -512,7 +512,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                     // If paper has resolution, skip adding
                     var qaPaper = await _unitOfWork.QualityAssessmentPapers
                         .FindSingleAsync(p => p.Id == qualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
-                    
+
                     if (qaPaper == null) continue;
 
                     var hasResolution = await _unitOfWork.QualityAssessmentResolutions
@@ -859,7 +859,7 @@ Note:
 
 Criteria Questions and retrieved relevant excerpts from abstract/full text:
 
-{string.Join("\n\n", criteriaQuestions.Select(c => 
+{string.Join("\n\n", criteriaQuestions.Select(c =>
    $"--- CRITERION START ---\n" +
    $"ID: {c.Id}\n" +
    $"Question: {c.Question}\n" +

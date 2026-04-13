@@ -82,6 +82,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey<DataExtractionProcess>(ssp => ssp.ReviewProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasOne(rp => rp.SynthesisProcess)
+                .WithOne(ssp => ssp.ReviewProcess)
+                .HasForeignKey<SynthesisProcess>(ssp => ssp.ReviewProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Indexes
             builder.HasIndex(rp => rp.ProjectId)
                 .HasDatabaseName("idx_review_process_project_id");

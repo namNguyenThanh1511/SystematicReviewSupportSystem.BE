@@ -24,6 +24,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
         public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
+        public ICollection<StudySelectionExclusionReason> ExclusionReasons { get; set; } = new List<StudySelectionExclusionReason>();
 
         // Domain Methods
         public void Start()

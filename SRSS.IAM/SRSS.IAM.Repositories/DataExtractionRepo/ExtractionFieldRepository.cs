@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using Shared.Repositories;
 
@@ -7,7 +7,7 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 	public class ExtractionFieldRepository : GenericRepository<ExtractionField, Guid, AppDbContext>, IExtractionFieldRepository
 	{
 		private readonly AppDbContext _context;
-		public ExtractionFieldRepository(AppDbContext context) : base(context) 
+		public ExtractionFieldRepository(AppDbContext context) : base(context)
 		{
 			_context = context;
 		}
@@ -31,9 +31,9 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 				.ToListAsync();
 		}
 
-        public Task<List<ExtractionField>> GetRootFieldsByTemplateIdAsync(Guid templateId)
-        {
-            throw new NotImplementedException();
-        }
-    }
+		public Task<List<ExtractionField>> GetRootFieldsByTemplateIdAsync(Guid templateId)
+		{
+			throw new NotImplementedException();
+		}
+	}
 }

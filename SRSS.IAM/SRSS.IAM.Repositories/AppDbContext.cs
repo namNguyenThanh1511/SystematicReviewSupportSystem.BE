@@ -13,6 +13,7 @@ namespace SRSS.IAM.Repositories
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			builder.HasPostgresExtension("vector");
+			builder.HasPostgresExtension("citext");
 			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
 		}
 		/*
@@ -104,6 +105,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
+		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
 
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;

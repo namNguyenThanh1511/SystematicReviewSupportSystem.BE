@@ -70,7 +70,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
-            string? assignmentStatus,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
             int pageNumber,
             int pageSize,

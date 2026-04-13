@@ -38,6 +38,9 @@ using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -120,6 +123,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
+        private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
+        private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
         private ISynthesisProcessRepository? _synthesisProcesses;
@@ -350,6 +356,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);
+        public IExclusionReasonLibraryRepository ExclusionReasonLibraries => _exclusionReasonLibraries ??= new ExclusionReasonLibraryRepository(_dbContext);
+        public IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons => _studySelectionExclusionReasons ??= new StudySelectionExclusionReasonRepository(_dbContext);
+        public IStuSeExclusionCodeRepository StuSeExclusionCodes => _stuSeExclusionCodes ??= new StuSeExclusionCodeRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

@@ -321,9 +321,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             // Validate exclusion reason when decision is Exclude
-            if (request.Decision == ScreeningDecisionType.Exclude && request.ExclusionReasonCode == null)
+            if (request.Decision == ScreeningDecisionType.Exclude && request.ExclusionReasonId == null)
             {
-                throw new ArgumentException("ExclusionReasonCode is required when decision is Exclude.");
+                throw new ArgumentException("ExclusionReasonId is required when decision is Exclude.");
             }
 
             // Create new decision
@@ -335,9 +335,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReviewerId = request.ReviewerId,
                 Decision = request.Decision,
                 Phase = request.Phase,
-                ExclusionReasonCode = request.ExclusionReasonCode,
+                ExclusionReasonId = request.ExclusionReasonId,
                 Reason = request.Reason,
-                ReviewerNotes = request.ReviewerNotes,
                 DecidedAt = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
@@ -372,7 +371,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var result = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                result.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken));
+                result.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken: cancellationToken));
             }
             return result;
         }
@@ -413,7 +412,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                     var conflictingDecisions = new List<ScreeningDecisionResponse>();
                     foreach (var d in decisions)
                     {
-                        conflictingDecisions.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken));
+                        conflictingDecisions.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken: cancellationToken));
                     }
 
                     result.Add(new ConflictedPaperResponse
@@ -553,6 +552,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PaperId = paperId,
                 FinalDecision = request.FinalDecision,
                 Phase = request.Phase,
+                ExclusionReasonId = request.ExclusionReasonId,
                 ResolutionNotes = request.ResolutionNotes,
                 ResolvedBy = request.ResolvedBy,
                 ResolvedAt = DateTimeOffset.UtcNow,
@@ -576,10 +576,10 @@ namespace SRSS.IAM.Services.StudySelectionService
                     cancellationToken: cancellationToken);
 
                 var ssp = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(s => s.Id == studySelectionProcessId, cancellationToken: cancellationToken);
-                if (ssp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+                if (ssp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
 
                 var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == ssp.ReviewProcessId, cancellationToken: cancellationToken);
-                if (rp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+                if (rp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
 
                 var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(rp.ProjectId);
 
@@ -616,7 +616,139 @@ namespace SRSS.IAM.Services.StudySelectionService
                 // Don't throw - notification failure shouldn't break resolution success
             }
 
-            return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+            return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
+        }
+
+        public async Task<List<ScreeningResolutionResponse>> BulkResolveConflictsAsync(
+            Guid studySelectionProcessId,
+            BulkResolveConflictsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.PaperIds == null || !request.PaperIds.Any())
+            {
+                throw new ArgumentException("PaperIds list cannot be empty.");
+            }
+
+            // Check if any paper has existing assignments (Prevent bulk resolve for assigned papers)
+            var hasAssignments = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId
+                      && request.PaperIds.Contains(pa.PaperId)
+                      && pa.Phase == request.Phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (hasAssignments)
+            {
+                throw new InvalidOperationException("Cannot bulk resolve papers that already have reviewer assignments.");
+            }
+
+            var results = new List<ScreeningResolutionResponse>();
+
+            // Fetch all existing resolutions for these papers and phase to avoid duplicates
+            var existingResolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(
+                sr => sr.StudySelectionProcessId == studySelectionProcessId
+                      && request.PaperIds.Contains(sr.PaperId)
+                      && sr.Phase == request.Phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var existingPaperIds = existingResolutions.Select(sr => sr.PaperId).ToHashSet();
+            var paperIdsToProcess = request.PaperIds.Where(id => !existingPaperIds.Contains(id)).Distinct().ToList();
+
+            if (!paperIdsToProcess.Any())
+            {
+                return results; // All already resolved
+            }
+
+            // Fetch papers for titles
+            var papers = await _unitOfWork.Papers.FindAllAsync(
+                p => paperIdsToProcess.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var paperMap = papers.ToDictionary(p => p.Id);
+
+            foreach (var paperId in paperIdsToProcess)
+            {
+                var resolution = new ScreeningResolution
+                {
+                    Id = Guid.NewGuid(),
+                    StudySelectionProcessId = studySelectionProcessId,
+                    PaperId = paperId,
+                    FinalDecision = request.FinalDecision,
+                    Phase = request.Phase,
+                    ExclusionReasonId = request.ExclusionReasonId,
+                    ResolutionNotes = request.ResolutionNotes,
+                    ResolvedBy = request.ResolvedBy,
+                    ResolvedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await _unitOfWork.ScreeningResolutions.AddAsync(resolution, cancellationToken);
+                results.Add(await MapToResolutionResponse(resolution, paperMap.TryGetValue(paperId, out var p) ? p.Title : string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken));
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Handle notifications in bulk if possible, but for now, the UI logic expects some feedback.
+            // Sending notifications for each paper might be heavy, but we follow the existing pattern.
+            // Optimization: Process notifications asynchronously or in batch.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var resolverName = await GetUserNameAsync(request.ResolvedBy, cancellationToken);
+                    if (string.IsNullOrEmpty(resolverName)) resolverName = "a manager";
+                    var phaseName = request.Phase == ScreeningPhase.TitleAbstract ? "Title/Abstract" : "Full-Text";
+
+                    foreach (var paperId in paperIdsToProcess)
+                    {
+                        var paper = paperMap.GetValueOrDefault(paperId);
+                        var assignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                            pa => pa.StudySelectionProcessId == studySelectionProcessId
+                                  && pa.PaperId == paperId
+                                  && pa.Phase == request.Phase,
+                            isTracking: false,
+                            cancellationToken: cancellationToken);
+
+                        // This is quite heavy in a loop. For bulk, we might want to optimize.
+                        // But following ResolveConflictAsync logic:
+                        var ssp = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(s => s.Id == studySelectionProcessId, cancellationToken: cancellationToken);
+                        if (ssp == null) continue;
+                        var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == ssp.ReviewProcessId, cancellationToken: cancellationToken);
+                        if (rp == null) continue;
+                        var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(rp.ProjectId);
+                        var memberToUserMap = projectMembers.ToDictionary(m => m.Id, m => m.UserId);
+
+                        var assignedUserIds = assignments
+                            .Select(a => memberToUserMap.TryGetValue(a.ProjectMemberId, out var uid) ? uid : (Guid?)null)
+                            .Where(uid => uid.HasValue)
+                            .Select(uid => uid!.Value)
+                            .Distinct()
+                            .ToList();
+
+                        if (assignedUserIds.Any())
+                        {
+                            var title = "Paper Conflict Resolved (Bulk)";
+                            var message = $"The conflict for paper '{paper?.Title}' in the {phaseName} phase has been resolved by {resolverName}. Final decision: {request.FinalDecision}.";
+
+                            await _notificationService.SendToManyAsync(
+                                assignedUserIds,
+                                title,
+                                message,
+                                NotificationType.Review,
+                                paperId,
+                                NotificationEntityType.PaperAssignment);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send bulk conflict resolution notifications.");
+                }
+            }, cancellationToken);
+
+            return results;
         }
 
         public async Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
@@ -624,42 +756,117 @@ namespace SRSS.IAM.Services.StudySelectionService
             GetResolutionsRequest request,
             CancellationToken cancellationToken = default)
         {
-            var resolutions = await _unitOfWork.ScreeningResolutions.GetByProcessAsync(
-                studySelectionProcessId,
-                request.Phase,
-                cancellationToken);
+            var phase = request.Phase ?? ScreeningPhase.TitleAbstract;
+            List<Guid> eligiblePaperIds;
 
-            var paperIds = resolutions.Select(r => r.PaperId).Distinct().ToList();
-            var papers = await _unitOfWork.Papers.FindAllAsync(p => paperIds.Contains(p.Id), isTracking: false, cancellationToken: cancellationToken);
-            var paperMap = papers.ToDictionary(p => p.Id);
-
-            var userIds = resolutions.Select(r => r.ResolvedBy).ToList();
-            var userNames = await GetUserNamesAsync(userIds, cancellationToken);
-
-            var allItems = new List<ScreeningResolutionPaperResponse>();
-            foreach (var r in resolutions)
+            if (phase == ScreeningPhase.FullText)
             {
-                if (paperMap.TryGetValue(r.PaperId, out var paper))
+                eligiblePaperIds = await GetFullTextEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+            }
+            else
+            {
+                eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+            }
+
+            if (!eligiblePaperIds.Any())
+            {
+                return new PaginatedResponse<ScreeningResolutionPaperResponse>
                 {
-                    // Apply Decision Filter
-                    if (request.FinalDecision.HasValue && r.FinalDecision != request.FinalDecision.Value)
-                        continue;
+                    Items = new List<ScreeningResolutionPaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize
+                };
+            }
 
-                    // Apply Search Filter (Title, Authors, DOI)
-                    if (!string.IsNullOrWhiteSpace(request.Search))
-                    {
-                        var search = request.Search.Trim().ToLowerInvariant();
-                        if (!(paper.Title?.ToLowerInvariant().Contains(search) ?? false) &&
-                            !(paper.Authors?.ToLowerInvariant().Contains(search) ?? false) &&
-                            !(paper.DOI?.ToLowerInvariant().Contains(search) ?? false))
-                        {
-                            continue;
-                        }
-                    }
+            // Fetch papers for these IDs
+            var papers = (await _unitOfWork.Papers.FindAllAsync(
+                p => eligiblePaperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken)).ToList();
 
-                    var baseRes = await MapToResolutionResponse(r, paper.Title ?? "Unknown", userNames, cancellationToken);
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            int requiredReviewers = phase == ScreeningPhase.TitleAbstract
+                ? (process?.TitleAbstractScreening?.MinReviewersPerPaper ?? 2)
+                : (process?.FullTextScreening?.MinReviewersPerPaper ?? 2);
 
-                    allItems.Add(new ScreeningResolutionPaperResponse
+            // Fetch decisions and resolutions for this phase in batch
+            var phaseDecisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                d => d.StudySelectionProcessId == studySelectionProcessId && d.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var phaseResolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(
+                r => r.StudySelectionProcessId == studySelectionProcessId && r.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var decisionMap = phaseDecisions.GroupBy(d => d.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+            var resolutionMap = phaseResolutions.ToDictionary(r => r.PaperId);
+
+            var paperStatusMap = new Dictionary<Guid, PaperSelectionStatus>();
+            foreach (var paper in papers)
+            {
+                var dList = decisionMap.TryGetValue(paper.Id, out var list) ? list : new List<ScreeningDecision>();
+                var res = resolutionMap.TryGetValue(paper.Id, out var r) ? r : null;
+                paperStatusMap[paper.Id] = ComputePaperStatus(dList, res, requiredReviewers, phase);
+            }
+
+            // Filtering
+            IEnumerable<Paper> filtered = papers;
+
+            // Search filter
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLowerInvariant();
+                filtered = filtered.Where(p =>
+                    p.Title.ToLowerInvariant().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLowerInvariant().Contains(search)) ||
+                    (p.DOI != null && p.DOI.ToLowerInvariant().Contains(search)));
+            }
+
+            // Status filter (Resolution-based)
+            if (request.Status != ResolutionFilterStatus.All)
+            {
+                filtered = request.Status switch
+                {
+                    ResolutionFilterStatus.NotDecided => filtered.Where(p => !resolutionMap.ContainsKey(p.Id)),
+                    ResolutionFilterStatus.Include => filtered.Where(p => resolutionMap.TryGetValue(p.Id, out var r) && r.FinalDecision == ScreeningDecisionType.Include),
+                    ResolutionFilterStatus.Exclude => filtered.Where(p => resolutionMap.TryGetValue(p.Id, out var r) && r.FinalDecision == ScreeningDecisionType.Exclude),
+                    _ => filtered
+                };
+            }
+
+            var filteredList = filtered.OrderBy(p => p.Title).ToList();
+            var totalCount = filteredList.Count;
+
+            // Pagination
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var pagedPapers = filteredList
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            // Mapping to Response
+            var userIds = phaseResolutions.Select(r => r.ResolvedBy).Distinct().ToList();
+            var userNames = await GetUserNamesAsync(userIds, cancellationToken);
+            var results = new List<ScreeningResolutionPaperResponse>();
+
+            foreach (var paper in pagedPapers)
+            {
+                var resolution = resolutionMap.GetValueOrDefault(paper.Id);
+                var status = paperStatusMap[paper.Id];
+
+                // If there's no resolution record but the status is Included/Excluded (shouldn't happen with TryAutoResolve but safe-guard)
+                // we "derive" a base response or handle it.
+
+                ScreeningResolutionPaperResponse item;
+                if (resolution != null)
+                {
+                    var baseRes = await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken);
+                    item = new ScreeningResolutionPaperResponse
                     {
                         Id = baseRes.Id,
                         StudySelectionProcessId = baseRes.StudySelectionProcessId,
@@ -677,23 +884,40 @@ namespace SRSS.IAM.Services.StudySelectionService
                         DOI = paper.DOI,
                         PublicationYear = paper.PublicationYear,
                         Source = paper.Source
-                    });
+                    };
                 }
+                else
+                {
+                    // For Included/Excluded papers without an explicit resolution record (e.g. if auto-resolve failed or was skipped)
+                    // we can provide a minimal response based on status.
+                    var finalDecision = status == PaperSelectionStatus.Included ? ScreeningDecisionType.Include : ScreeningDecisionType.Exclude;
+
+                    item = new ScreeningResolutionPaperResponse
+                    {
+                        Id = Guid.Empty,
+                        StudySelectionProcessId = studySelectionProcessId,
+                        PaperId = paper.Id,
+                        PaperTitle = paper.Title,
+                        FinalDecision = finalDecision,
+                        FinalDecisionText = finalDecision.ToString(),
+                        Phase = phase,
+                        PhaseText = phase.ToString(),
+                        ResolutionNotes = "Derived from unanimous decisions.",
+                        ResolvedBy = Guid.Empty,
+                        ResolverName = "System",
+                        ResolvedAt = DateTimeOffset.UtcNow,
+                        Authors = paper.Authors,
+                        DOI = paper.DOI,
+                        PublicationYear = paper.PublicationYear,
+                        Source = paper.Source
+                    };
+                }
+                results.Add(item);
             }
-
-            // Pagination
-            var totalCount = allItems.Count;
-            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
-            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
-
-            var items = allItems
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
 
             return new PaginatedResponse<ScreeningResolutionPaperResponse>
             {
-                Items = items,
+                Items = results,
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
@@ -815,14 +1039,22 @@ namespace SRSS.IAM.Services.StudySelectionService
                 : 0;
 
             // Exclusion reason breakdown (phase-aware)
+            var allProcessReasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken: cancellationToken);
+            var reasonMap = allProcessReasons.ToDictionary(x => x.Id);
+
             var exclusionBreakdown = allDecisions
-                .Where(d => d.Decision == ScreeningDecisionType.Exclude && d.ExclusionReasonCode.HasValue)
-                .GroupBy(d => d.ExclusionReasonCode!.Value)
-                .Select(g => new ExclusionReasonBreakdownItem
+                .Where(d => d.Decision == ScreeningDecisionType.Exclude && d.ExclusionReasonId.HasValue)
+                .GroupBy(d => d.ExclusionReasonId!.Value)
+                .Select(g =>
                 {
-                    ReasonCode = g.Key,
-                    ReasonText = g.Key.ToString(),
-                    Count = g.Count()
+                    var reasonName = reasonMap.TryGetValue(g.Key, out var r) ? r.Name : "Unknown";
+                    var reasonCode = reasonMap.TryGetValue(g.Key, out var r2) ? r2.Code : 0;
+                    return new ExclusionReasonBreakdownItem
+                    {
+                        ReasonCode = reasonCode,
+                        ReasonText = reasonName,
+                        Count = g.Count()
+                    };
                 })
                 .OrderByDescending(x => x.Count)
                 .ToList();
@@ -967,7 +1199,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken: cancellationToken));
             }
 
             // Deterministic final decision for THIS PHASE
@@ -1017,7 +1249,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 FinalDecisionText = finalDecision?.ToString(),
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1198,6 +1430,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             var pagedPaperIds = pagedPapers.Select(p => p.Id).ToList();
             var citationCounts = await _unitOfWork.PaperCitations.CountByTargetsAsync(pagedPaperIds, cancellationToken);
             var referenceCounts = await _unitOfWork.PaperCitations.CountBySourcesAsync(pagedPaperIds, cancellationToken);
+            var allProcessReasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken: cancellationToken);
+            var reasonMap = allProcessReasons.ToDictionary(x => x.Id);
 
             var items = new List<PaperWithDecisionsResponse>();
             foreach (var paper in pagedPapers)
@@ -1207,7 +1441,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 var citationCount = citationCounts.TryGetValue(paper.Id, out var cc) ? cc : 0;
                 var referenceCount = referenceCounts.TryGetValue(paper.Id, out var rc) ? rc : 0;
 
-                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, citationCount, referenceCount, cancellationToken));
+                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, citationCount, referenceCount, reasonMap, cancellationToken));
             }
 
             return new PaginatedResponse<PaperWithDecisionsResponse>
@@ -1227,6 +1461,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             ScreeningResolution? resolution,
             int citationCount,
             int referenceCount,
+            Dictionary<Guid, StudySelectionExclusionReason> reasonMap,
             CancellationToken cancellationToken,
             ExtractionSuggestionResponse? extractionSuggestion = null)
         {
@@ -1238,7 +1473,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, reasonMap, cancellationToken));
             }
 
             // Deterministic final decision
@@ -1290,7 +1525,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, reasonMap, cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1329,7 +1564,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken: cancellationToken));
             }
 
             // Deterministic final decision
@@ -1381,7 +1616,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1445,7 +1680,11 @@ namespace SRSS.IAM.Services.StudySelectionService
         }
 
         private async Task<ScreeningDecisionResponse> MapToDecisionResponse(
-            ScreeningDecision d, string paperTitle, Dictionary<Guid, string>? userNames = null, CancellationToken cancellationToken = default)
+            ScreeningDecision d,
+            string paperTitle,
+            Dictionary<Guid, string>? userNames = null,
+            Dictionary<Guid, StudySelectionExclusionReason>? reasonMap = null,
+            CancellationToken cancellationToken = default)
         {
             var reviewerName = userNames != null && userNames.TryGetValue(d.ReviewerId, out var name)
                 ? name
@@ -1463,15 +1702,24 @@ namespace SRSS.IAM.Services.StudySelectionService
                 DecisionText = d.Decision.ToString(),
                 Phase = d.Phase,
                 PhaseText = d.Phase.ToString(),
-                ExclusionReasonCode = d.ExclusionReasonCode,
+                ExclusionReasonId = d.ExclusionReasonId,
+                ExclusionReasonCode = d.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(d.ExclusionReasonId.Value, out var r) ? r.Code : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == d.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Code)
+                    : null,
+                ExclusionReasonName = d.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(d.ExclusionReasonId.Value, out var r2) ? r2.Name : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == d.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Name)
+                    : null,
                 Reason = d.Reason,
-                ReviewerNotes = d.ReviewerNotes,
                 DecidedAt = d.DecidedAt
             };
         }
 
         private async Task<ScreeningResolutionResponse> MapToResolutionResponse(
-            ScreeningResolution resolution, string paperTitle, Dictionary<Guid, string>? userNames = null, CancellationToken cancellationToken = default)
+            ScreeningResolution resolution,
+            string paperTitle,
+            Dictionary<Guid, string>? userNames = null,
+            Dictionary<Guid, StudySelectionExclusionReason>? reasonMap = null,
+            CancellationToken cancellationToken = default)
         {
             var resolverName = userNames != null && userNames.TryGetValue(resolution.ResolvedBy, out var name)
                 ? name
@@ -1487,6 +1735,13 @@ namespace SRSS.IAM.Services.StudySelectionService
                 FinalDecisionText = resolution.FinalDecision.ToString(),
                 Phase = resolution.Phase,
                 PhaseText = resolution.Phase.ToString(),
+                ExclusionReasonId = resolution.ExclusionReasonId,
+                ExclusionReasonCode = resolution.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(resolution.ExclusionReasonId.Value, out var r) ? r.Code : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == resolution.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Code)
+                    : null,
+                ExclusionReasonName = resolution.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(resolution.ExclusionReasonId.Value, out var r2) ? r2.Name : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == resolution.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Name)
+                    : null,
                 ResolutionNotes = resolution.ResolutionNotes,
                 ResolvedBy = resolution.ResolvedBy,
                 ResolverName = resolverName,
@@ -2290,7 +2545,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 StudySelectionProcessId = studySelectionProcessId,
                 PaperId = paperId,
                 FinalDecision = autoDecision.Value,
-                ExclusionReasonCode = decisions.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonCode,
+                ExclusionReasonId = decisions.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonId,
                 Phase = phase,
                 ResolutionNotes = autoNotes,
                 ResolvedBy = Guid.Empty, // System
@@ -2470,6 +2725,97 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (string.IsNullOrEmpty(normalizedExtracted)) return false;
 
             return !string.Equals(normalizedDb, normalizedExtracted, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<List<ReviewerDecisionDetailResponse>> GetReviewerDecisionsAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch Process
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            // 2. Fetch Paper Title (for mapping)
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, isTracking: false, cancellationToken: cancellationToken);
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            // 3. Fetch Assignments for this paper and phase
+            var assignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId
+                      && pa.PaperId == paperId
+                      && pa.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var assignmentList = assignments.ToList();
+
+            // 4. Fetch Decisions for this paper and phase
+            var decisions = await _unitOfWork.ScreeningDecisions.GetByPaperAsync(studySelectionProcessId, paperId, phase, cancellationToken);
+            var decisionMap = decisions.ToDictionary(d => d.ReviewerId);
+
+            // 5. Build user ID list for name resolution
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(reviewProcess!.ProjectId);
+            var memberToUserMap = projectMembers.ToDictionary(m => m.Id, m => m.UserId);
+
+            var assignedUserIds = assignmentList
+                .Select(a => memberToUserMap.TryGetValue(a.ProjectMemberId, out var uid) ? uid : (Guid?)null)
+                .Where(uid => uid.HasValue)
+                .Select(uid => uid!.Value)
+                .ToList();
+
+            var deciderUserIds = decisions.Select(d => d.ReviewerId).ToList();
+            var allUserIds = assignedUserIds.Concat(deciderUserIds).Distinct().ToList();
+
+            var userNames = await GetUserNamesAsync(allUserIds, cancellationToken);
+
+            // 6. Map to DTOs
+            var results = new List<ReviewerDecisionDetailResponse>();
+            var assignedSet = assignedUserIds.ToHashSet();
+
+            // Include assigned reviewers (with or without decisions)
+            foreach (var userId in assignedUserIds)
+            {
+                var response = new ReviewerDecisionDetailResponse
+                {
+                    ReviewerId = userId,
+                    ReviewerName = userNames.GetValueOrDefault(userId, "Unknown")
+                };
+
+                if (decisionMap.TryGetValue(userId, out var decision))
+                {
+                    response.Decision = await MapToDecisionResponse(decision, paper.Title, userNames, cancellationToken: cancellationToken);
+                }
+
+                results.Add(response);
+            }
+
+            // Include decisions from people NOT currently assigned (historical or non-assigned decisions)
+            foreach (var decision in decisions)
+            {
+                if (!assignedSet.Contains(decision.ReviewerId))
+                {
+                    results.Add(new ReviewerDecisionDetailResponse
+                    {
+                        ReviewerId = decision.ReviewerId,
+                        ReviewerName = userNames.GetValueOrDefault(decision.ReviewerId, "Unknown"),
+                        Decision = await MapToDecisionResponse(decision, paper.Title, userNames, cancellationToken: cancellationToken)
+                    });
+                }
+            }
+
+            return results;
         }
     }
 }

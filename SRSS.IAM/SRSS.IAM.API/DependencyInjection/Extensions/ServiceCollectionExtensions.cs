@@ -50,6 +50,8 @@ using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.ReferenceProcessingService;
 using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.ExclusionReasonLibraryService;
+using SRSS.IAM.Services.StuSeExclusionCodeService;
 using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
 
@@ -109,6 +111,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            services.AddScoped<IExclusionReasonLibraryService, ExclusionReasonLibraryService>();
+            services.AddScoped<IStuSeExclusionCodeService, StuSeExclusionCodeService>();
             services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
 
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();

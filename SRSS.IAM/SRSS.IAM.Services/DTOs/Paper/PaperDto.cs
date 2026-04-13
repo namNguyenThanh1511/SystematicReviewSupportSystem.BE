@@ -71,6 +71,8 @@ namespace SRSS.IAM.Services.DTOs.Paper
         // Audit
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+
+        public string DecidedStatus { get; set; } = "None";
     }
 
     public class AssignedReviewerDto
@@ -99,7 +101,8 @@ namespace SRSS.IAM.Services.DTOs.Paper
     public class CheckedDuplicatePapersRequest
     {
         public string? Search { get; set; }
-        public string? AssignmentStatus { get; set; }
+        public AssignmentFilterStatus AssignmentStatus { get; set; } = AssignmentFilterStatus.All;
+        public ResolutionFilterStatus DecisionStatus { get; set; } = ResolutionFilterStatus.All;
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }

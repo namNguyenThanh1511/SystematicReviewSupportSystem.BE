@@ -107,5 +107,11 @@ namespace SRSS.IAM.Repositories
 
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
+
+		// Synthesis Phase
+		public DbSet<SynthesisProcess> SynthesisProcesses { get; set; } = default!;
+		public DbSet<SynthesisTheme> SynthesisThemes { get; set; } = default!;
+		public DbSet<ThemeEvidence> ThemeEvidences { get; set; } = default!;
+		public DbSet<ResearchQuestionFinding> ResearchQuestionFindings { get; set; } = default!;
 	}
 }

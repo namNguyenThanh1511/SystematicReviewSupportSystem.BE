@@ -14,6 +14,7 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
@@ -121,6 +122,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IExtractedDataValueRepository? _extractedDataValues;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
+        private ISynthesisProcessRepository? _synthesisProcesses;
+        private ISynthesisThemeRepository? _synthesisThemes;
+        private IThemeEvidenceRepository? _themeEvidences;
+        private IResearchQuestionFindingRepository? _researchQuestionFindings;
         private IDisseminationStrategyRepository? _disseminationStrategies;
         private IProjectTimetableRepository? _timetables;
 
@@ -255,6 +260,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IDataSynthesisStrategyRepository SynthesisStrategies =>
             _synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
+
+        public ISynthesisProcessRepository SynthesisProcesses => 
+            _synthesisProcesses ??= new SynthesisProcessRepository(_dbContext);
+        
+        public ISynthesisThemeRepository SynthesisThemes => 
+            _synthesisThemes ??= new SynthesisThemeRepository(_dbContext);
+            
+        public IThemeEvidenceRepository ThemeEvidences => 
+            _themeEvidences ??= new ThemeEvidenceRepository(_dbContext);
+            
+        public IResearchQuestionFindingRepository ResearchQuestionFindings => 
+            _researchQuestionFindings ??= new ResearchQuestionFindingRepository(_dbContext);
 
         public IDisseminationStrategyRepository DisseminationStrategies =>
             _disseminationStrategies ??= new DisseminationStrategyRepository(_dbContext);

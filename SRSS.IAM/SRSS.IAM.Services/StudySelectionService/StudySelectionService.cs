@@ -1238,6 +1238,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -1512,6 +1513,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -2006,12 +2009,18 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (!string.IsNullOrWhiteSpace(request.PdfFileName)) paper.PdfFileName = request.PdfFileName;
             if (!string.IsNullOrWhiteSpace(request.Url)) paper.Url = request.Url;
 
+            var hasPdfEvidence = !string.IsNullOrWhiteSpace(request.PdfUrl) || request.PdfStream != null;
+            if (hasPdfEvidence)
+            {
+                paper.FullTextRetrievalStatus = FullTextRetrievalStatus.Retrieved;
+            }
+
             paper.ModifiedAt = DateTimeOffset.UtcNow;
 
             ExtractionSuggestionResponse? extractionSuggestion = null;
 
             // Handle PDF and GROBID Integration
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl) && request.PdfStream != null)
+            if (hasPdfEvidence && request.PdfStream != null)
             {
                 // 1. Calculate File Hash
                 string fileHash = HashHelper.ComputeSha256Hash(request.PdfStream);
@@ -2143,6 +2152,69 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+        }
+
+        public async Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Marking paper {PaperId} as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
+
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {process.ReviewProcessId} not found.");
+            }
+
+            if (paper.ProjectId != reviewProcess.ProjectId)
+            {
+                throw new InvalidOperationException("Paper does not belong to the same project as the study selection process.");
+            }
+
+            if (paper.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved)
+            {
+                _logger.LogInformation(
+                    "Paper {PaperId} is already marked as not retrieved. No state change applied.",
+                    paperId);
+                return;
+            }
+
+            paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Paper {PaperId} marked as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
         }
 
         public async Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct)

@@ -62,6 +62,7 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public string? PdfUrl { get; set; }
         public string? PdfFileName { get; set; }
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; } = FullTextRetrievalStatus.Unknown;
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
 

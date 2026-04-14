@@ -212,6 +212,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? JournalIssn { get; set; }
         public string? JournalEIssn { get; set; }
         public string? Md5 { get; set; }
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; }
         public PaperSelectionStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
         /// <summary>

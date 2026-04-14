@@ -651,6 +651,8 @@ namespace SRSS.IAM.Services.PaperService
 
                 PdfUrl = paper.PdfUrl,
                 FullTextAvailable = paper.FullTextAvailable,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
                 CreatedAt = paper.CreatedAt,

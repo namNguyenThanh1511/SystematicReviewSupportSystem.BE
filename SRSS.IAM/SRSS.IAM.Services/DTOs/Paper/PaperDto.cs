@@ -64,6 +64,10 @@ namespace SRSS.IAM.Services.DTOs.Paper
 
         // Access
         public string? PdfUrl { get; set; }
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; }
+        public string FullTextRetrievalStatusText { get; set; } = string.Empty;
+
+
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
         public string? AccessTypeText { get; set; }

@@ -39,10 +39,10 @@ namespace SRSS.IAM.Repositories.Entities
                 throw new InvalidOperationException("Cannot start study selection before identification process exists.");
             }
 
-            if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
-            {
-                throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
-            }
+            // if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
+            // {
+            //     throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
+            // }
 
             Status = SelectionProcessStatus.InProgress;
             StartedAt = DateTimeOffset.UtcNow;

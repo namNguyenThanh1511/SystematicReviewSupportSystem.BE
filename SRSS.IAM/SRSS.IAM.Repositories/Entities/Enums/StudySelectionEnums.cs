@@ -50,6 +50,16 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         Include = 2,
         Exclude = 3
     }
+
+    /// <summary>
+    /// Full-text retrieval state used for PRISMA-aligned tracking
+    /// </summary>
+    public enum FullTextRetrievalStatus
+    {
+        Unknown = 0,
+        Retrieved = 1,
+        NotRetrieved = 2
+    }
     /// <summary>
     /// Source of an exclusion reason (Library vs Custom)
     /// </summary>

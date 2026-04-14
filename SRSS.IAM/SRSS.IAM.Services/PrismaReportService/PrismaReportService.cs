@@ -235,7 +235,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Id = Guid.NewGuid(),
                 PrismaReportId = reportId,
                 Stage = PrismaStage.RecordsIdentified,
-                Label = "Records identified from databases and registers",
+                Label = "Records identified : ",
                 Count = details.RecordsIdentified,
                 MetadataJson = JsonSerializer.Serialize(new { breakdown = details.IdentifiedBreakdown }),
                 DisplayOrder = 1,

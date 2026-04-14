@@ -11,6 +11,7 @@ namespace SRSS.IAM.Services.IdentificationService
         Task<IdentificationProcessResponse> GetIdentificationProcessByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<IdentificationProcessResponse> StartIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
         Task<IdentificationProcessResponse> CompleteIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
+        Task<IdentificationProcessResponse> ReopenIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
 
         Task<SearchExecutionResponse> CreateSearchExecutionAsync(CreateSearchExecutionRequest request, CancellationToken cancellationToken = default);
         Task<SearchExecutionResponse> GetSearchExecutionByIdAsync(Guid id, CancellationToken cancellationToken = default);

@@ -413,6 +413,19 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Paper full-text updated successfully.");
         }
 
+        /// <summary>
+        /// Mark a paper as not retrieved for full-text.
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/{paperId}/full-text/not-retrieved")]
+        public async Task<ActionResult<ApiResponse<bool>>> MarkPaperAsNotRetrieved(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            await _studySelectionService.MarkPaperAsNotRetrievedAsync(id, paperId, cancellationToken);
+            return Ok(true, "Paper marked as not retrieved successfully.");
+        }
+
         // ============================================
         // Title-Abstract Screening Lifecycle
         // ============================================

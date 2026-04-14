@@ -137,6 +137,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default);
 
+        Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default);
+
         Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
             Guid studySelectionProcessId,
             Guid paperId,

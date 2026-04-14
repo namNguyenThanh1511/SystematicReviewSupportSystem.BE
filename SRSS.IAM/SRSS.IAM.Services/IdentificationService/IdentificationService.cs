@@ -156,6 +156,39 @@ namespace SRSS.IAM.Services.IdentificationService
             return MapToIdentificationProcessResponse(identificationProcess);
         }
 
+        public async Task<IdentificationProcessResponse> ReopenIdentificationProcessAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == id,
+                isTracking: true,
+                cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
+            }
+
+            identificationProcess.Reopen();
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                isTracking: true,
+                cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"Associated ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+
+            reviewProcess.CurrentPhase = ProcessPhase.Identification;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToIdentificationProcessResponse(identificationProcess);
+        }
+
 
         public async Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(
             Guid identificationProcessId,
@@ -248,6 +281,8 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"SearchExecution with ID {request.SearchExecutionId} not found.");
             }
 
+            await EnsureIdentificationProcessCanBeEditedAsync(searchExecution.IdentificationProcessId, cancellationToken);
+
             var importBatch = new ImportBatch
             {
                 Id = Guid.NewGuid(),
@@ -326,6 +361,20 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"ImportBatch with ID {request.Id} not found.");
             }
 
+            if (importBatch.SearchExecutionId.HasValue)
+            {
+                var searchExecution = await _unitOfWork.SearchExecutions.FindSingleAsync(
+                    se => se.Id == importBatch.SearchExecutionId.Value,
+                    cancellationToken: cancellationToken);
+
+                if (searchExecution != null)
+                {
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(request.FileName))
             {
                 importBatch.FileName = request.FileName;
@@ -370,6 +419,20 @@ namespace SRSS.IAM.Services.IdentificationService
             if (importBatch == null)
             {
                 throw new NotFoundException("ImportBatch not found.");
+            }
+
+            if (importBatch.SearchExecutionId.HasValue)
+            {
+                var searchExecution = await _unitOfWork.SearchExecutions.FindSingleAsync(
+                    se => se.Id == importBatch.SearchExecutionId.Value,
+                    cancellationToken: cancellationToken);
+
+                if (searchExecution != null)
+                {
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
+                }
             }
 
             await _unitOfWork.ImportBatches.RemoveAsync(importBatch, cancellationToken);
@@ -428,6 +491,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
                 PdfUrl = paper.PdfUrl,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
@@ -482,6 +546,8 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 throw new InvalidOperationException($"IdentificationProcess with ID {request.IdentificationProcessId} not found.");
             }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId, cancellationToken: cancellationToken);
             if (searchSource == null)
@@ -554,6 +620,17 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"SearchExecution with ID {request.Id} not found.");
             }
 
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == searchExecution.IdentificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+
             if (request.SearchSourceId.HasValue)
             {
                 var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId.Value, cancellationToken: cancellationToken);
@@ -599,6 +676,17 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 throw new NotFoundException("SearchExecution not found.");
             }
+
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == searchExecution.IdentificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             var hasImportBatches = await _unitOfWork.ImportBatches.AnyAsync(
                 ib => ib.SearchExecutionId == id,
@@ -692,6 +780,10 @@ namespace SRSS.IAM.Services.IdentificationService
                         await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                         throw new InvalidOperationException($"SearchExecution with ID {request.SearchExecutionId.Value} not found.");
                     }
+
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
                 }
 
                 // Create ImportBatch for this manual import
@@ -790,6 +882,8 @@ namespace SRSS.IAM.Services.IdentificationService
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             try
             {
@@ -1175,10 +1269,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            if (identificationProcess.Status == IdentificationStatus.Completed)
-            {
-                throw new InvalidOperationException("Cannot mark paper as duplicate because the identification process is already completed.");
-            }
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             var paper = await _unitOfWork.Papers.FindSingleAsync(
                 p => p.Id == paperId,
@@ -1215,6 +1306,30 @@ namespace SRSS.IAM.Services.IdentificationService
 
             await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        private static void EnsureIdentificationProcessCanBeEdited(IdentificationProcess identificationProcess)
+        {
+            if (identificationProcess.Status == IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot modify identification data because the identification process is completed. Reopen the process to continue editing.");
+            }
+        }
+
+        private async Task EnsureIdentificationProcessCanBeEditedAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
         }
 
         public async Task<(List<PaperResponse> Papers, int TotalCount)> GetReadyPapersForSnapshotAsync(
@@ -1294,6 +1409,8 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             // Get existing paper IDs in snapshot to avoid duplicates
             var existingPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(

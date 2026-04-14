@@ -86,6 +86,21 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Reopen Identification Process (transitions from Completed to InProgress)
+        /// </summary>
+        /// <param name="id">Identification Process ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Updated Identification Process details</returns>
+        [HttpPost("identification-processes/{id}/reopen")]
+        public async Task<ActionResult<ApiResponse<IdentificationProcessResponse>>> ReopenIdentificationProcess(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ReopenIdentificationProcessAsync(id, cancellationToken);
+            return Ok(result, "Identification Process reopened successfully.");
+        }
+
+        /// <summary>
         /// Get PRISMA statistics for an Identification Process
         /// </summary>
         /// <param name="id">Identification Process ID</param>

@@ -115,18 +115,16 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task DeleteTemplateAsync(Guid templateId)
         {
+            // Fix #7: throw KeyNotFoundException instead of silently doing nothing
             var template = await _unitOfWork.ExtractionTemplates
-                .FindSingleAsync(t => t.Id == templateId);
+                .FindSingleAsync(t => t.Id == templateId)
+                ?? throw new KeyNotFoundException($"Template {templateId} not found.");
 
-            if (template != null)
-            {
-                // Delete sections first (cascade will handle fields and options)
-                await DeleteSectionsAsync(templateId);
+            // Delete sections first (cascade will handle fields and options)
+            await DeleteSectionsAsync(templateId);
 
-                // Delete template
-                await _unitOfWork.ExtractionTemplates.RemoveAsync(template);
-                await _unitOfWork.SaveChangesAsync();
-            }
+            await _unitOfWork.ExtractionTemplates.RemoveAsync(template);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<TemplateValidationResultDto> ValidateTemplateAsync(ExtractionTemplateDto dto)

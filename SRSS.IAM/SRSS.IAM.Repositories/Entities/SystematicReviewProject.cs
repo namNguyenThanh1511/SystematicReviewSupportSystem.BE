@@ -25,6 +25,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
         public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
         public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
+        public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
 

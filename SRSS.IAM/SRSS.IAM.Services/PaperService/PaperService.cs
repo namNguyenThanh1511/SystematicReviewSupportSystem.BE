@@ -173,6 +173,7 @@ namespace SRSS.IAM.Services.PaperService
                     Journal = paper.Journal,
                     JournalIssn = paper.JournalIssn,
                     Source = paper.Source,
+                    SearchSourceId = paper.SearchSourceId,
                     ImportedAt = paper.ImportedAt,
                     ImportedBy = paper.ImportedBy,
                     // Selection status NOT stored in Paper - must query from ScreeningResolution
@@ -188,6 +189,8 @@ namespace SRSS.IAM.Services.PaperService
                         Name = pa.ProjectMember.User?.FullName ?? "Unknown"
                     }).ToList() ?? new List<AssignedReviewerDto>(),
                     PdfUrl = paper.PdfUrl,
+                    FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                    FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                     FullTextAvailable = paper.FullTextAvailable,
                     AccessType = paper.AccessType,
                     AccessTypeText = paper.AccessType?.ToString(),
@@ -425,11 +428,14 @@ namespace SRSS.IAM.Services.PaperService
                 Journal = paper.Journal,
                 JournalIssn = paper.JournalIssn,
                 Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
                 SelectionStatus = null,
                 SelectionStatusText = null,
                 PdfUrl = paper.PdfUrl,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
@@ -626,6 +632,7 @@ namespace SRSS.IAM.Services.PaperService
                 JournalEIssn = paper.JournalEIssn,
                 Md5 = paper.Md5,
                 Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
 
@@ -870,7 +877,7 @@ namespace SRSS.IAM.Services.PaperService
 
         public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
         {
             // 1. Papers that passed deduplication (eligible for Step 1: Title/Abstract)
@@ -893,6 +900,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 eligiblePaperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
                 ScreeningPhase.TitleAbstract,
@@ -919,7 +928,7 @@ namespace SRSS.IAM.Services.PaperService
 
         public async Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
         {
             // 1. Papers included after Title/Abstract screening (eligible for Step 2: Full-Text)
@@ -947,6 +956,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 eligiblePaperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
                 ScreeningPhase.FullText,
@@ -1004,6 +1015,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 paperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 AssignmentFilterStatus.All,
                 ResolutionFilterStatus.All,
                 phase,

@@ -146,6 +146,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.ImportBatchId)
                 .HasColumnName("import_batch_id");
 
+            builder.Property(p => p.SearchSourceId)
+                .HasColumnName("search_source_id");
+
+            builder.HasIndex(p => p.SearchSourceId);
+
             builder.Property(p => p.ImportedAt)
                 .HasColumnName("imported_at");
 

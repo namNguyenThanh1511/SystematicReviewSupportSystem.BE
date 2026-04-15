@@ -85,12 +85,12 @@ namespace SRSS.IAM.Services.PaperService
 
         Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default);
 
         Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default);
 
         Task<PaginatedResponse<PaperResponse>> GetAssignedPapersByPhaseAsync(

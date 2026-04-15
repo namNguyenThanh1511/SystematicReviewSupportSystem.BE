@@ -410,6 +410,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                             Authors = candidate.Authors ?? string.Empty,
                             DOI = candidate.DOI,
                             PublicationYear = candidate.PublicationYear,
+                            SearchSourceId = null,
                             SourceType = PaperSourceType.Snowballing,
                             Source = "Snowballing (GROBID)",
                             ImportedAt = DateTimeOffset.UtcNow,

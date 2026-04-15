@@ -12,6 +12,7 @@ using SRSS.IAM.Services.DTOs.DataExtraction;
 using ClosedXML.Excel;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.RagService;
+using SRSS.IAM.Services.NotificationService;
 using System.Xml.Linq;
 
 namespace SRSS.IAM.Services.DataExtractionService
@@ -25,6 +26,7 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IConfiguration _configuration;
         private readonly IRagRetrievalService _ragRetrievalService;
         private readonly IRagIngestionQueue _ragQueue;
+        private readonly INotificationService _notificationService;
 
         public DataExtractionConductingService(
             IUnitOfWork unitOfWork,
@@ -33,7 +35,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
             IRagRetrievalService ragRetrievalService,
-            IRagIngestionQueue ragQueue)
+            IRagIngestionQueue ragQueue,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
@@ -42,6 +45,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             _configuration = configuration;
             _ragRetrievalService = ragRetrievalService;
             _ragQueue = ragQueue;
+            _notificationService = notificationService;
         }
 
         private async Task SyncEligiblePapersAsync(Guid extractionProcessId, CancellationToken cancellationToken = default)
@@ -266,6 +270,26 @@ namespace SRSS.IAM.Services.DataExtractionService
             task.ModifiedAt = DateTimeOffset.UtcNow;
 
             await _unitOfWork.SaveChangesAsync();
+
+            // ── Real-time notification ──────────────────────────────────────
+            var paperForNotify = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId);
+
+            var paperTitle = paperForNotify?.Paper?.Title ?? paperId.ToString();
+
+            var assignedIds = new List<Guid>();
+            if (dto.Reviewer1Id.HasValue) assignedIds.Add(dto.Reviewer1Id.Value);
+            if (dto.Reviewer2Id.HasValue) assignedIds.Add(dto.Reviewer2Id.Value);
+
+            await _notificationService.SendToManyAsync(
+                assignedIds,
+                title: "Data Extraction Task Assigned",
+                message: $"You have been assigned to extract data for paper: \"{paperTitle}\".",
+                type: NotificationType.Review,
+                relatedEntityId: task.Id,
+                entityType: NotificationEntityType.PaperAssignment
+            );
         }
 
         private async Task ValidateReviewerInProjectAsync(Guid projectId, Guid? reviewerId)
@@ -1098,6 +1122,31 @@ namespace SRSS.IAM.Services.DataExtractionService
             // 5. Save
             task.ModifiedAt = DateTimeOffset.UtcNow;
             await _unitOfWork.SaveChangesAsync();
+
+            // ── Real-time notification ──────────────────────────────────────
+            var paperForReopen = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                .Include(t => t.Paper)
+                .FirstOrDefaultAsync(t => t.DataExtractionProcessId == extractionProcessId && t.PaperId == paperId);
+
+            var paperTitleReopen = paperForReopen?.Paper?.Title ?? paperId.ToString();
+
+            var reopenedIds = new List<Guid>();
+            if ((request.Target == TargetReviewer.Reviewer1 || request.Target == TargetReviewer.Both) && task.Reviewer1Id.HasValue)
+                reopenedIds.Add(task.Reviewer1Id.Value);
+            if ((request.Target == TargetReviewer.Reviewer2 || request.Target == TargetReviewer.Both) && task.Reviewer2Id.HasValue)
+                reopenedIds.Add(task.Reviewer2Id.Value);
+
+            if (reopenedIds.Any())
+            {
+                await _notificationService.SendToManyAsync(
+                    reopenedIds,
+                    title: "Data Extraction Task Reopened",
+                    message: $"Your extraction submission for paper \"{paperTitleReopen}\" has been reopened by the leader. Please re-submit your extraction.",
+                    type: NotificationType.Review,
+                    relatedEntityId: task.Id,
+                    entityType: NotificationEntityType.PaperAssignment
+                );
+            }
         }
 
         public async Task<List<ExtractedValueDto>> AutoExtractWithAiAsync(Guid extractionProcessId, Guid paperId)

@@ -14,8 +14,8 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260413063702_merged-from-Dong-refac-study-selection")]
-    partial class mergedfromDongrefacstudyselection
+    [Migration("20260415063916_update")]
+    partial class update
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -1478,6 +1478,12 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<bool?>("FullTextAvailable")
                         .HasColumnType("boolean")
                         .HasColumnName("full_text_available");
+
+                    b.Property<int>("FullTextRetrievalStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("full_text_retrieval_status");
 
                     b.Property<Guid?>("ImportBatchId")
                         .HasColumnType("uuid")

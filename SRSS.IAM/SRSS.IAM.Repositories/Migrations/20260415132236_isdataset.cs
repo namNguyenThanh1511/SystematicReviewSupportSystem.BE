@@ -5,25 +5,25 @@
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class addfulltextretrievalstatus : Migration
+    public partial class isdataset : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "full_text_retrieval_status",
-                table: "papers",
-                type: "integer",
+            migrationBuilder.AddColumn<bool>(
+                name: "is_added_to_dataset",
+                table: "study_selection_process_papers",
+                type: "boolean",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "full_text_retrieval_status",
-                table: "papers");
+                name: "is_added_to_dataset",
+                table: "study_selection_process_papers");
         }
     }
 }

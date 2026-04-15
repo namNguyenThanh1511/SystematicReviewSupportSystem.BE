@@ -57,7 +57,10 @@ namespace SRSS.IAM.Services.DataExtractionService
             var selectionProcessId = extractionProcess.ReviewProcess.StudySelectionProcess.Id;
 
             // 2. Lấy danh sách Paper đã PASS vòng Full-Text Screening (Include Paper để lấy PdfUrl)
-            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(selectionProcessId, cancellationToken);
+            var (eligiblePapers, _) = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(
+                selectionProcessId, 
+                pageSize: int.MaxValue, 
+                cancellationToken: cancellationToken);
 
             // 3. Lấy danh sách Task đã tồn tại trong Data Extraction để tránh tạo trùng
             var existingTaskPaperIds = await _unitOfWork.ExtractionPaperTasks.GetQueryable()

@@ -1,4 +1,5 @@
 using Azure.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
@@ -182,8 +183,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Cannot complete process with {unresolvedConflicts.Count} unresolved conflicts.");
             }
 
-            //Save included papers snapshot in phase fulltext resolution
-            await _studySelectionProcessPaperService.SaveFinalIncludedPapersAsync(id, cancellationToken);
             // Use domain method for state transition
             process.Complete();
 
@@ -1514,7 +1513,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
                 FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
-                
+
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -2888,6 +2887,66 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             return results;
+        }
+        public async Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.ScreeningResolutions.GetQueryable(
+                r => r.StudySelectionProcessId == studySelectionProcessId &&
+                     r.Phase == ScreeningPhase.FullText &&
+                     r.FinalDecision == ScreeningDecisionType.Include &&
+                     !r.StudySelectionProcess.StudySelectionProcessPapers.Any(ip => ip.PaperId == r.PaperId && ip.IsAddedToDataset),
+                isTracking: false);
+
+            var paperQuery = query.Select(r => new
+            {
+                r.PaperId,
+                r.Paper.Title,
+                r.Paper.Authors,
+                r.Paper.PublicationYear,
+                r.Paper.DOI,
+                r.Paper.Abstract,
+                Domain = r.StudySelectionProcess.ReviewProcess.Project.Domain
+            });
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLower();
+                paperQuery = paperQuery.Where(p =>
+                    p.Title.ToLower().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(search)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(search)));
+            }
+
+            var totalCount = await paperQuery.CountAsync(cancellationToken);
+
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var items = await paperQuery
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new DatasetPaperResponse
+                {
+                    PaperId = p.PaperId,
+                    Title = p.Title,
+                    Authors = p.Authors,
+                    PublicationYear = p.PublicationYear,
+                    Domain = p.Domain,
+                    Abstract = p.Abstract
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<DatasetPaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

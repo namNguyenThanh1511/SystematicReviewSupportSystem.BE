@@ -70,6 +70,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
+            int? year,
+            Guid? searchSourceId,
             AssignmentFilterStatus assignmentStatus,
             ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
@@ -79,6 +81,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
           List<Guid> paperIds,
+                    Guid? searchSourceId,
           int pageNumber,
           int pageSize,
           CancellationToken cancellationToken = default);

@@ -9,8 +9,16 @@ namespace SRSS.IAM.Services.DTOs.SynthesisExecution
         public Guid ThemeId { get; set; }
         public Guid ExtractedDataValueId { get; set; }
         public string PaperTitle { get; set; } = string.Empty;
+        public string FieldName { get; set; } = string.Empty;
         public string? StringValue { get; set; }
-        public decimal? NumericValue { get; set; }
+
+        private decimal? _numericValue;
+        public decimal? NumericValue 
+        { 
+            get => _numericValue; 
+            set => _numericValue = value.HasValue ? value.Value / 1.000000000000000000000000000000000m : null;
+        }
+
         public bool? BooleanValue { get; set; }
         public Guid? OptionId { get; set; }
         public string DisplayValue { get; set; } = string.Empty;

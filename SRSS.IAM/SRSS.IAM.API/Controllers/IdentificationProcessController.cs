@@ -86,6 +86,21 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Reopen Identification Process (transitions from Completed to InProgress)
+        /// </summary>
+        /// <param name="id">Identification Process ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Updated Identification Process details</returns>
+        [HttpPost("identification-processes/{id}/reopen")]
+        public async Task<ActionResult<ApiResponse<IdentificationProcessResponse>>> ReopenIdentificationProcess(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ReopenIdentificationProcessAsync(id, cancellationToken);
+            return Ok(result, "Identification Process reopened successfully.");
+        }
+
+        /// <summary>
         /// Get PRISMA statistics for an Identification Process
         /// </summary>
         /// <param name="id">Identification Process ID</param>
@@ -126,21 +141,24 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("identification-processes/{id}/ready-papers")]
         public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetReadyPapers(
             [FromRoute] Guid id,
-            [FromQuery] string? search,
-            [FromQuery] int? year,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10,
+            [FromQuery] SnapshotPaperQueryRequest request,
             CancellationToken cancellationToken = default)
         {
             var (papers, totalCount) = await _identificationService.GetReadyPapersForSnapshotAsync(
-                id, search, year, pageNumber, pageSize, cancellationToken);
+                id,
+                request.Search,
+                request.Year,
+                request.SearchSourceId,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
             
             var result = new PaginatedResponse<PaperResponse>
             {
                 Items = papers,
                 TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
             };
             return Ok(result, "Ready papers retrieved successfully.");
         }
@@ -165,21 +183,24 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("identification-processes/{id}/snapshot")]
         public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetSnapshot(
             [FromRoute] Guid id,
-            [FromQuery] string? search,
-            [FromQuery] int? year,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 10,
+            [FromQuery] SnapshotPaperQueryRequest request,
             CancellationToken cancellationToken = default)
         {
             var (papers, totalCount) = await _identificationService.GetPaperIdentificationProcessSnapshotAsync(
-                id, search, year, pageNumber, pageSize, cancellationToken);
+                id,
+                request.Search,
+                request.Year,
+                request.SearchSourceId,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
             
             var result = new PaginatedResponse<PaperResponse>
             {
                 Items = papers,
                 TotalCount = totalCount,
-                PageNumber = pageNumber,
-                PageSize = pageSize
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
             };
             return Ok(result, "Snapshot papers retrieved successfully.");
         }

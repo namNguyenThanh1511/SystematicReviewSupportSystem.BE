@@ -167,6 +167,17 @@ namespace SRSS.IAM.Services.PrismaReportService
                     isTracking: false,
                     cancellationToken: cancellationToken);
 
+                var papersForRetrieval = allResolutions
+                                                    .Where(r => r.Phase == ScreeningPhase.TitleAbstract 
+                                                            && r.FinalDecision != ScreeningDecisionType.Exclude)
+                                                    .Select(r => r.PaperId)
+                                                    .ToHashSet();
+                                                    
+                var papers = await _unitOfWork.Papers.FindAllAsync(
+                                                    p => papersForRetrieval.Contains(p.Id),
+                                                    isTracking: false,
+                                                    cancellationToken: cancellationToken);
+
                 // Phase 1: Title/Abstract Exclusions
                 var taExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.RecordsExcluded = taExclusions.Count;
@@ -174,7 +185,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                 // Phase 2: Retrieval
                 details.ReportsSoughtForRetrieval = details.RecordsScreened - details.RecordsExcluded;
                 // TODO: Implement logic for "Reports not retrieved" if needed
-                details.ReportsNotRetrieved = 0;
+                details.ReportsNotRetrieved = papers.Count(p => p.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved);
                 details.ReportsAssessedForEligibility = details.ReportsSoughtForRetrieval - details.ReportsNotRetrieved;
 
                 // Phase 3: Full-Text Exclusions
@@ -235,7 +246,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Id = Guid.NewGuid(),
                 PrismaReportId = reportId,
                 Stage = PrismaStage.RecordsIdentified,
-                Label = "Records identified from databases and registers",
+                Label = "Records identified : ",
                 Count = details.RecordsIdentified,
                 MetadataJson = JsonSerializer.Serialize(new { breakdown = details.IdentifiedBreakdown }),
                 DisplayOrder = 1,

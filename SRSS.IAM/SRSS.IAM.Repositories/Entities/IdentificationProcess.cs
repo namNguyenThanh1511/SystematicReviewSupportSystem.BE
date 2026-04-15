@@ -39,6 +39,18 @@ namespace SRSS.IAM.Repositories.Entities
             CompletedAt = DateTimeOffset.UtcNow;
             ModifiedAt = DateTimeOffset.UtcNow;
         }
+
+        public void Reopen()
+        {
+            if (Status != IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen identification process from {Status} status.");
+            }
+
+            Status = IdentificationStatus.InProgress;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum IdentificationStatus

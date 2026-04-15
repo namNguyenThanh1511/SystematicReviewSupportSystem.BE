@@ -60,6 +60,7 @@ using SRSS.IAM.Services.Crossref;
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
+using SRSS.IAM.Services.ChecklistService;
 using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -183,6 +184,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Synthesis Execution
             services.AddScoped<ISynthesisExecutionService, SynthesisExecutionService>();
+
+            // Checklist
+            services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
+            services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
 
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<AuditInterceptor>();

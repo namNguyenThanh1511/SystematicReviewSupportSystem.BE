@@ -319,7 +319,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     Role = m.Role,
                     RoleText = m.Role.ToString(),
                     IsLeader = m.Role == ProjectRole.Leader,
-                    CreatedAt = m.Project.CreatedAt
+                    CreatedAt = m.Project.CreatedAt,
+                    ModifiedAt = m.Project.ModifiedAt
                 }).ToList(),
                 TotalCount = totalCount,
                 PageNumber = pageNumber,

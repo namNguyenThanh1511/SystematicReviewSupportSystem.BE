@@ -54,6 +54,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 
@@ -62,6 +63,7 @@ namespace SRSS.IAM.Repositories.Entities
         // ============================================
         public string? PdfUrl { get; set; }
         public string? PdfFileName { get; set; }
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; } = FullTextRetrievalStatus.Unknown;
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
 

@@ -9,6 +9,7 @@ using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.StuSeExclusionCodeService;
@@ -30,6 +31,7 @@ namespace SRSS.IAM.API.Controllers
         private readonly IStuSeAIService _stuSeAIService;
         private readonly IStudySelectionAIResultService _studySelectionAIResultService;
         private readonly IStuSeExclusionCodeService _exclusionCodeService;
+        private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
 
         public StudySelectionController(
             IStudySelectionService studySelectionService,
@@ -37,7 +39,8 @@ namespace SRSS.IAM.API.Controllers
             ICurrentUserService currentUserService,
             IStuSeAIService stuSeAIService,
             IStudySelectionAIResultService studySelectionAIResultService,
-            IStuSeExclusionCodeService exclusionCodeService)
+            IStuSeExclusionCodeService exclusionCodeService,
+            IStudySelectionProcessPaperService studySelectionProcessPaperService)
         {
             _studySelectionService = studySelectionService;
             _paperService = paperService;
@@ -45,6 +48,7 @@ namespace SRSS.IAM.API.Controllers
             _stuSeAIService = stuSeAIService;
             _studySelectionAIResultService = studySelectionAIResultService;
             _exclusionCodeService = exclusionCodeService;
+            _studySelectionProcessPaperService = studySelectionProcessPaperService;
         }
 
         /// <summary>
@@ -413,6 +417,56 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Paper full-text updated successfully.");
         }
 
+        /// <summary>
+        /// Mark a paper as not retrieved for full-text.
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/{paperId}/full-text/not-retrieved")]
+        public async Task<ActionResult<ApiResponse<bool>>> MarkPaperAsNotRetrieved(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            await _studySelectionService.MarkPaperAsNotRetrievedAsync(id, paperId, cancellationToken);
+            return Ok(true, "Paper marked as not retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Save multiple included papers for FullText phase
+        /// Validates papers belong to the process and have Included resolution in FullText phase
+        /// </summary>
+        [HttpPost("study-selection/{id}/bulk-dataset")]
+        public async Task<ActionResult<ApiResponse>> SaveMultipleIncludedPapersInFullTextPhase(
+            [FromRoute] Guid id,
+            [FromBody] SaveMultipleIncludedPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _studySelectionProcessPaperService.SaveMultipleIncludedPapersInFullTextPhaseAsync(id, request.PaperIds, cancellationToken);
+            return Ok("Included papers saved successfully.");
+        }
+
+        /// <summary>
+        /// Get all papers with Included resolution in FullText phase (Dataset view)
+        /// Responses only specific fields: title, author, year, domain, abstract description
+        /// </summary>
+        [HttpGet("study-selection/{id}/included-full-text-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DatasetPaperResponse>>>> GetIncludedFullTextPapers(
+            [FromRoute] Guid id,
+            [FromQuery] string? search = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new GetResolutionsRequest
+            {
+                Search = search,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _studySelectionService.GetIncludedFullTextPapersAsync(id, request, cancellationToken);
+            return Ok(result, $"Retrieved {result.Items.Count} included papers for dataset.");
+        }
+
         // ============================================
         // Title-Abstract Screening Lifecycle
         // ============================================
@@ -471,7 +525,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetTitleAbstractEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
@@ -484,7 +538,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetFullTextEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);

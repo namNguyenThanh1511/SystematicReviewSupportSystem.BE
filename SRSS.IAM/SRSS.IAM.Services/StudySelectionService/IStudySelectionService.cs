@@ -137,6 +137,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default);
 
+        Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default);
+
         Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
             Guid studySelectionProcessId,
             Guid paperId,
@@ -154,5 +159,10 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default);
         List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta);
+
+        Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

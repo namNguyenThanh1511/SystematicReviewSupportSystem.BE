@@ -1,4 +1,5 @@
 using Azure.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
@@ -185,8 +186,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Cannot complete process with {unresolvedConflicts.Count} unresolved conflicts.");
             }
 
-            //Save included papers snapshot in phase fulltext resolution
-            await _studySelectionProcessPaperService.SaveFinalIncludedPapersAsync(id, cancellationToken);
             // Use domain method for state transition
             process.Complete();
 
@@ -1254,6 +1253,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -1528,6 +1528,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -2022,12 +2024,18 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (!string.IsNullOrWhiteSpace(request.PdfFileName)) paper.PdfFileName = request.PdfFileName;
             if (!string.IsNullOrWhiteSpace(request.Url)) paper.Url = request.Url;
 
+            var hasPdfEvidence = !string.IsNullOrWhiteSpace(request.PdfUrl) || request.PdfStream != null;
+            if (hasPdfEvidence)
+            {
+                paper.FullTextRetrievalStatus = FullTextRetrievalStatus.Retrieved;
+            }
+
             paper.ModifiedAt = DateTimeOffset.UtcNow;
 
             ExtractionSuggestionResponse? extractionSuggestion = null;
 
             // Handle PDF and GROBID Integration
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl) && request.PdfStream != null)
+            if (hasPdfEvidence && request.PdfStream != null)
             {
                 // 1. Calculate File Hash
                 string fileHash = HashHelper.ComputeSha256Hash(request.PdfStream);
@@ -2159,6 +2167,69 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+        }
+
+        public async Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Marking paper {PaperId} as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
+
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {process.ReviewProcessId} not found.");
+            }
+
+            if (paper.ProjectId != reviewProcess.ProjectId)
+            {
+                throw new InvalidOperationException("Paper does not belong to the same project as the study selection process.");
+            }
+
+            if (paper.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved)
+            {
+                _logger.LogInformation(
+                    "Paper {PaperId} is already marked as not retrieved. No state change applied.",
+                    paperId);
+                return;
+            }
+
+            paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Paper {PaperId} marked as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
         }
 
         public async Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct)
@@ -2832,6 +2903,66 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             return results;
+        }
+        public async Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.ScreeningResolutions.GetQueryable(
+                r => r.StudySelectionProcessId == studySelectionProcessId &&
+                     r.Phase == ScreeningPhase.FullText &&
+                     r.FinalDecision == ScreeningDecisionType.Include &&
+                     !r.StudySelectionProcess.StudySelectionProcessPapers.Any(ip => ip.PaperId == r.PaperId && ip.IsAddedToDataset),
+                isTracking: false);
+
+            var paperQuery = query.Select(r => new
+            {
+                r.PaperId,
+                r.Paper.Title,
+                r.Paper.Authors,
+                r.Paper.PublicationYear,
+                r.Paper.DOI,
+                r.Paper.Abstract,
+                Domain = r.StudySelectionProcess.ReviewProcess.Project.Domain
+            });
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLower();
+                paperQuery = paperQuery.Where(p =>
+                    p.Title.ToLower().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(search)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(search)));
+            }
+
+            var totalCount = await paperQuery.CountAsync(cancellationToken);
+
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var items = await paperQuery
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new DatasetPaperResponse
+                {
+                    PaperId = p.PaperId,
+                    Title = p.Title,
+                    Authors = p.Authors,
+                    PublicationYear = p.PublicationYear,
+                    Domain = p.Domain,
+                    Abstract = p.Abstract
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<DatasetPaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

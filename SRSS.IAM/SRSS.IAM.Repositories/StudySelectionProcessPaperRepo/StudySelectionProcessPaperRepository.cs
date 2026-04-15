@@ -19,13 +19,35 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessPaperRepo
             _context.StudySelectionProcessPapers.RemoveRange(existing);
         }
 
-        public async Task<List<StudySelectionProcessPaper>> GetWithPaperByProcessAsync(Guid processId, CancellationToken cancellationToken = default)
+        public async Task<(List<StudySelectionProcessPaper> Items, int TotalCount)> GetWithPaperByProcessAsync(
+            Guid processId, 
+            string? search = null, 
+            int pageNumber = 1, 
+            int pageSize = 10, 
+            CancellationToken cancellationToken = default)
         {
-            return await _context.StudySelectionProcessPapers
+            var query = _context.StudySelectionProcessPapers
                 .AsNoTracking()
                 .Include(p => p.Paper)
-                .Where(p => p.StudySelectionProcessId == processId)
+                .Where(p => p.StudySelectionProcessId == processId);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(p =>
+                    p.Paper.Title.ToLower().Contains(searchLower) ||
+                    (p.Paper.Authors != null && p.Paper.Authors.ToLower().Contains(searchLower)) ||
+                    (p.Paper.DOI != null && p.Paper.DOI.ToLower().Contains(searchLower)));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query
+                .OrderBy(p => p.Paper.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync(cancellationToken);
+
+            return (items, totalCount);
         }
     }
 }

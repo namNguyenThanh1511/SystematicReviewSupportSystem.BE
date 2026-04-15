@@ -12,5 +12,9 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessPaperRepo
             int pageNumber = 1, 
             int pageSize = 10, 
             CancellationToken cancellationToken = default);
+        Task<List<StudySelectionProcessPaper>> GetWithPaperByProcessAsync(
+            Guid processId, 
+            CancellationToken cancellationToken = default);
+    
     }
 }

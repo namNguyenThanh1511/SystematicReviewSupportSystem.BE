@@ -92,35 +92,33 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string CurrentPhaseText { get; set; } = string.Empty;
     }
 
-    public class PaperListRequest
+    public class PaperListRequest : PaginationRequest
     {
         public string? Search { get; set; }
         public SelectionStatus? Status { get; set; }
         public int? Year { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public string? AssignmentStatus { get; set; }
         public ScreeningStage? Stage { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
     }
 
-    public class CheckedDuplicatePapersRequest
+    public class EligiblePapersRequest : PaginationRequest
     {
         public string? Search { get; set; }
+        public int? Year { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public AssignmentFilterStatus AssignmentStatus { get; set; } = AssignmentFilterStatus.All;
         public ResolutionFilterStatus DecisionStatus { get; set; } = ResolutionFilterStatus.All;
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
     }
 
-    public class DuplicatePapersRequest
+    public class DuplicatePapersRequest : PaginationRequest
     {
         public string? Search { get; set; }
         public int? Year { get; set; }
         public string? SortBy { get; set; }
         public string? SortOrder { get; set; }
         public DeduplicationReviewStatus? ReviewStatus { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+
     }
 
     /// <summary>

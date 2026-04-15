@@ -345,6 +345,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
+            int? year,
+            Guid? searchSourceId,
             AssignmentFilterStatus assignmentStatus,
             ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
@@ -372,6 +374,22 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
                     (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
                     (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            if (year.HasValue)
+            {
+                query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
             }
 
             // Apply assignment status filter
@@ -427,6 +445,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -437,6 +456,17 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
                 .Where(p => paperIds.Contains(p.Id));
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
+            }
 
             var totalCount = await query.CountAsync(cancellationToken);
 

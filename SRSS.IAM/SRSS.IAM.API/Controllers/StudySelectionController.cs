@@ -484,7 +484,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetTitleAbstractEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
@@ -497,7 +497,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetFullTextEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);

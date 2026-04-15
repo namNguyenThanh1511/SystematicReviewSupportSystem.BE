@@ -877,7 +877,7 @@ namespace SRSS.IAM.Services.PaperService
 
         public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
         {
             // 1. Papers that passed deduplication (eligible for Step 1: Title/Abstract)
@@ -900,6 +900,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 eligiblePaperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
                 ScreeningPhase.TitleAbstract,
@@ -926,7 +928,7 @@ namespace SRSS.IAM.Services.PaperService
 
         public async Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
-            CheckedDuplicatePapersRequest request,
+            EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
         {
             // 1. Papers included after Title/Abstract screening (eligible for Step 2: Full-Text)
@@ -954,6 +956,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 eligiblePaperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
                 ScreeningPhase.FullText,
@@ -1011,6 +1015,8 @@ namespace SRSS.IAM.Services.PaperService
             var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
                 paperIds,
                 request.Search,
+                request.Year,
+                request.SearchSourceId,
                 AssignmentFilterStatus.All,
                 ResolutionFilterStatus.All,
                 phase,

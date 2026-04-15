@@ -54,6 +54,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 

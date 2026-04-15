@@ -42,6 +42,7 @@ namespace SRSS.IAM.Services.DTOs.Paper
 
         // Source Tracking
         public string? Source { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
 

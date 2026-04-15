@@ -488,10 +488,12 @@ namespace SRSS.IAM.Services.IdentificationService
                 Journal = paper.Journal,
                 JournalIssn = paper.JournalIssn,
                 Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
                 PdfUrl = paper.PdfUrl,
                 FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
@@ -823,6 +825,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
                         // Import tracking - Link to ImportBatch only
                         ImportBatchId = importBatch.Id,
+                        SearchSourceId = searchExecution?.SearchSourceId,
                         Source = "Manual",
                         ImportedAt = importBatch.ImportedAt,
                         ImportedBy = importBatch.ImportedBy,
@@ -1125,6 +1128,7 @@ namespace SRSS.IAM.Services.IdentificationService
                     ProjectId = identificationProcess.ReviewProcess.ProjectId,
                     Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                     ImportBatchId = importBatch.Id,
+                    SearchSourceId = searchExecution?.SearchSourceId,
                     ImportedAt = importBatch.ImportedAt,
                     ImportedBy = importBatch.ImportedBy,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -1336,6 +1340,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             string? search,
             int? year,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -1375,6 +1380,17 @@ namespace SRSS.IAM.Services.IdentificationService
             if (year.HasValue)
             {
                 query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
             }
 
             // Get total count
@@ -1447,6 +1463,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             string? search,
             int? year,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -1470,6 +1487,17 @@ namespace SRSS.IAM.Services.IdentificationService
             if (year.HasValue)
             {
                 query = query.Where(ipp => ipp.Paper.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(ipp =>
+                    ipp.Paper.SearchSourceId == sourceId ||
+                    (ipp.Paper.SearchSourceId == null &&
+                     ipp.Paper.ImportBatch != null &&
+                     ipp.Paper.ImportBatch.SearchExecution != null &&
+                     ipp.Paper.ImportBatch.SearchExecution.SearchSourceId == sourceId));
             }
 
             // Get total count

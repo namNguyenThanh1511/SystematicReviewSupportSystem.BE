@@ -49,6 +49,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             string? search,
             int? year,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);
@@ -62,6 +63,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             string? search,
             int? year,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);

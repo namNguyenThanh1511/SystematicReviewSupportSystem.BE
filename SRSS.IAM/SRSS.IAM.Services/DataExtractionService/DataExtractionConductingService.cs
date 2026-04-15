@@ -276,10 +276,14 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(p => p.ProjectMembers)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
-            if (project == null || !project.ProjectMembers.Any(pm => pm.UserId == reviewerId.Value))
-            {
+            var pm = project?.ProjectMembers.FirstOrDefault(pm => pm.UserId == reviewerId.Value);
+
+            if (pm == null)
                 throw new ArgumentException($"User {reviewerId} is not a member of project {projectId}.");
-            }
+
+            // Fix #8: Reviewers must be Members, not Leaders
+            if (pm.Role != ProjectRole.Member)
+                throw new ArgumentException($"User {reviewerId} must be a Member (not a Leader) to be assigned as a reviewer.");
         }
 
         public async Task<DataExtractionProcessResponse> StartAsync(Guid extractionProcessId)
@@ -289,14 +293,24 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
             if (entity == null)
-            {
                 throw new InvalidOperationException($"Data extraction process {extractionProcessId} not found.");
-            }
 
             if (entity.Status == ExtractionProcessStatus.Completed)
-            {
                 throw new InvalidOperationException("Data extraction process already completed.");
-            }
+
+            // Fix #4: Leader authorization to start extraction
+            var currentUserIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+
+            var projectId = entity.ReviewProcess.ProjectId;
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId);
+
+            if (currentUserProjectMember == null || currentUserProjectMember.Role != ProjectRole.Leader)
+                throw new UnauthorizedAccessException($"Only Project Leaders can start the data extraction process.");
 
             if (entity.Status == ExtractionProcessStatus.NotStarted)
             {
@@ -308,7 +322,6 @@ namespace SRSS.IAM.Services.DataExtractionService
 
                 await SyncEligiblePapersAsync(extractionProcessId);
             }
-
 
             return new DataExtractionProcessResponse
             {
@@ -342,9 +355,11 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             if (currentUserId != task.Reviewer1Id && currentUserId != task.Reviewer2Id)
-            {
                 throw new UnauthorizedAccessException("User is not authorized to submit extraction for this paper.");
-            }
+
+            // Fix #12: Block re-submission on a completed task
+            if (task.Status == PaperExtractionStatus.Completed)
+                throw new InvalidOperationException("Cannot re-submit extraction for a task that is already completed.");
 
             // Data Upsert Logic
             var existingExtractedDataValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(e => e.PaperId == paperId && e.ReviewerId == currentUserId);
@@ -594,7 +609,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                     break;
                 case FieldType.Integer:
                 case FieldType.Decimal:
-                    dto.DisplayValue = record.NumericValue?.ToString();
+                    dto.DisplayValue = record.NumericValue?.ToString("G29");
                     break;
                 case FieldType.Boolean:
                     dto.DisplayValue = record.BooleanValue.HasValue ? (record.BooleanValue.Value ? "Yes" : "No") : null;
@@ -852,7 +867,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                                     break;
                                 case FieldType.Integer:
                                 case FieldType.Decimal:
-                                    valueStr = record.NumericValue?.ToString() ?? "";
+                                    valueStr = record.NumericValue?.ToString("G29") ?? "";
                                     break;
                                 case FieldType.Boolean:
                                     valueStr = record.BooleanValue.HasValue ? (record.BooleanValue.Value ? "Yes" : "No") : "";

@@ -6,8 +6,12 @@ using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.ReferenceMatchingService;
 using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
-using SRSS.IAM.Services.EmbeddingService;
+using SRSS.IAM.Services.DTOs.Paper;
+using Microsoft.EntityFrameworkCore;
+using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.PrismaReport;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
@@ -15,13 +19,13 @@ namespace SRSS.IAM.Services.IdentificationService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IReferenceMatchingService _matchingService;
-        private readonly IEmbeddingService _embeddingService;
+        private readonly ILocalEmbeddingService _embeddingService;
         private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
 
         public IdentificationService(
-            IUnitOfWork unitOfWork, 
+            IUnitOfWork unitOfWork,
             IReferenceMatchingService matchingService,
-            IEmbeddingService embeddingService,
+            ILocalEmbeddingService embeddingService,
             IPaperEnrichmentOrchestrator enrichmentOrchestrator)
         {
             _unitOfWork = unitOfWork;
@@ -144,9 +148,6 @@ namespace SRSS.IAM.Services.IdentificationService
 
             identificationProcess.Complete();
 
-            // Generate the dataset snapshot for screening phase
-            await GenerateIdentificationSnapshotAsync(id, cancellationToken);
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Trigger downstream enrichment for final dataset papers (fire-and-forget via Channel)
@@ -155,49 +156,39 @@ namespace SRSS.IAM.Services.IdentificationService
             return MapToIdentificationProcessResponse(identificationProcess);
         }
 
-        /// <summary>
-        /// Generates the frozen dataset snapshot of papers that survived deduplication.
-        /// This snapshot is used by the screening phase instead of dynamic queries.
-        /// </summary>
-        private async Task GenerateIdentificationSnapshotAsync(
-            Guid identificationProcessId,
+        public async Task<IdentificationProcessResponse> ReopenIdentificationProcessAsync(
+            Guid id,
             CancellationToken cancellationToken = default)
         {
-            // Check if snapshot already exists (idempotency guard)
-            var snapshotExists = await _unitOfWork.IdentificationProcessPapers.SnapshotExistsAsync(
-                identificationProcessId, cancellationToken);
-
-            if (snapshotExists)
-            {
-                throw new InvalidOperationException(
-                    $"Snapshot already exists for IdentificationProcess {identificationProcessId}.");
-            }
-
-            // Get all unique papers (not cancelled, not pending) using existing query
-            var (uniquePapers, totalCount) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
-                identificationProcessId,
-                search: null,
-                year: null,
-                pageNumber: 1,
-                pageSize: int.MaxValue,
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == id,
+                isTracking: true,
                 cancellationToken);
 
-            // Create snapshot records
-            var snapshotRecords = uniquePapers.Select(paper => new IdentificationProcessPaper
+            if (identificationProcess == null)
             {
-                Id = Guid.NewGuid(),
-                IdentificationProcessId = identificationProcessId,
-                PaperId = paper.Id,
-                IncludedAfterDedup = true,
-                CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
-            }).ToList();
-
-            if (snapshotRecords.Any())
-            {
-                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(snapshotRecords, cancellationToken);
+                throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
             }
+
+            identificationProcess.Reopen();
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                isTracking: true,
+                cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"Associated ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+
+            reviewProcess.CurrentPhase = ProcessPhase.Identification;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToIdentificationProcessResponse(identificationProcess);
         }
+
 
         public async Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(
             Guid identificationProcessId,
@@ -218,32 +209,61 @@ namespace SRSS.IAM.Services.IdentificationService
 
             var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
 
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
+            var importBatchList = await _unitOfWork.ImportBatches.GetBySearchExecutionIdsWithSourceAsync(
+                searchExecutionIds,
                 cancellationToken: cancellationToken);
-
-            var importBatchList = allImportBatches.ToList();
             var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
 
-            // Query actual unique paper count using the same logic as the unique papers endpoint
-            var (_, uniqueRecords) = await _unitOfWork.Papers.GetUniquePapersByIdentificationProcessAsync(
-                identificationProcessId,
-                search: null,
-                year: null,
-                pageNumber: 1,
-                pageSize: 1,
-                cancellationToken);
+            // Query actual unique paper count from the frozen snapshot
+            var uniquePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(identificationProcessId, cancellationToken);
+            var uniqueRecordsCount = uniquePaperIds.Count;
 
-            // Derive duplicate count from total minus unique to account for ALL removed papers
-            // (both skipped-during-import duplicates and tracked DeduplicationResult duplicates)
-            var duplicateRecords = totalRecordsImported - uniqueRecords;
+            // Get total deduplication result count for this process
+            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
+
+            // Breakdown by Database Source
+            var identifiedBreakdown = importBatchList
+                .GroupBy(ib => ib.SearchExecution?.SearchSource?.Name ?? "Manual")
+                .Select(g => new PrismaBreakdownResponse { Label = g.Key, Count = g.Sum(ib => ib.TotalRecords) })
+                .ToList();
+
+            // 2. Identification: Snowballing
+            var snowballingPapers = await _unitOfWork.IdentificationProcessPapers.FindAllAsync(
+                ipp => ipp.IdentificationProcessId == identificationProcess.Id && ipp.SourceType == PaperSourceType.Snowballing,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var totalFromSnowballing = snowballingPapers.Count();
+            if (totalFromSnowballing > 0)
+            {
+                identifiedBreakdown.Add(new PrismaBreakdownResponse { Label = "Snowballing", Count = totalFromSnowballing });
+            }
+
+            // 3. Pending Selection (Ready but NOT in snapshot)
+            var deduplicationQuery = _unitOfWork.DeduplicationResults.GetQueryable();
+            var snapshotQuery = _unitOfWork.IdentificationProcessPapers.GetQueryable();
+
+            var pendingSelectionCount = await _unitOfWork.Papers.GetQueryable()
+                .Where(p => p.ImportBatchId != null && 
+                            searchExecutionIds.Contains(p.ImportBatch.SearchExecutionId ?? Guid.Empty))
+                // Not a duplicate (CANCEL) and not pending review
+                .Where(p => !deduplicationQuery.Any(d => d.PaperId == p.Id && 
+                                                        d.IdentificationProcessId == identificationProcessId && 
+                                                        (d.ResolvedDecision == DuplicateResolutionDecision.CANCEL || 
+                                                         d.ReviewStatus == DeduplicationReviewStatus.Pending)))
+                // Not already in the snapshot
+                .Where(p => !snapshotQuery.Any(i => i.IdentificationProcessId == identificationProcessId && 
+                                                     i.PaperId == p.Id))
+                .CountAsync(cancellationToken);
 
             return new PrismaStatisticsResponse
             {
-                TotalRecordsImported = totalRecordsImported,
+                TotalRecordsImported = totalRecordsImported + totalFromSnowballing,
                 DuplicateRecords = duplicateRecords,
-                UniqueRecords = uniqueRecords,
-                ImportBatchCount = importBatchList.Count
+                UniqueRecords = uniqueRecordsCount,
+                PendingSelectionCount = pendingSelectionCount,
+                ImportBatchCount = importBatchList.Count(),
+                IdentifiedBreakdown = identifiedBreakdown
             };
         }
 
@@ -260,6 +280,8 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 throw new InvalidOperationException($"SearchExecution with ID {request.SearchExecutionId} not found.");
             }
+
+            await EnsureIdentificationProcessCanBeEditedAsync(searchExecution.IdentificationProcessId, cancellationToken);
 
             var importBatch = new ImportBatch
             {
@@ -339,6 +361,20 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"ImportBatch with ID {request.Id} not found.");
             }
 
+            if (importBatch.SearchExecutionId.HasValue)
+            {
+                var searchExecution = await _unitOfWork.SearchExecutions.FindSingleAsync(
+                    se => se.Id == importBatch.SearchExecutionId.Value,
+                    cancellationToken: cancellationToken);
+
+                if (searchExecution != null)
+                {
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
+                }
+            }
+
             if (!string.IsNullOrWhiteSpace(request.FileName))
             {
                 importBatch.FileName = request.FileName;
@@ -383,6 +419,20 @@ namespace SRSS.IAM.Services.IdentificationService
             if (importBatch == null)
             {
                 throw new NotFoundException("ImportBatch not found.");
+            }
+
+            if (importBatch.SearchExecutionId.HasValue)
+            {
+                var searchExecution = await _unitOfWork.SearchExecutions.FindSingleAsync(
+                    se => se.Id == importBatch.SearchExecutionId.Value,
+                    cancellationToken: cancellationToken);
+
+                if (searchExecution != null)
+                {
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
+                }
             }
 
             await _unitOfWork.ImportBatches.RemoveAsync(importBatch, cancellationToken);
@@ -438,9 +488,12 @@ namespace SRSS.IAM.Services.IdentificationService
                 Journal = paper.Journal,
                 JournalIssn = paper.JournalIssn,
                 Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
                 ImportedAt = paper.ImportedAt,
                 ImportedBy = paper.ImportedBy,
                 PdfUrl = paper.PdfUrl,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                 FullTextAvailable = paper.FullTextAvailable,
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
@@ -496,11 +549,19 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {request.IdentificationProcessId} not found.");
             }
 
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+
+            var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId, cancellationToken: cancellationToken);
+            if (searchSource == null)
+            {
+                throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId} not found.");
+            }
+
             var searchExecution = new SearchExecution
             {
                 Id = Guid.NewGuid(),
                 IdentificationProcessId = request.IdentificationProcessId,
-                SearchSource = request.SearchSource,
+                SearchSourceId = request.SearchSourceId,
                 SearchQuery = request.SearchQuery,
                 ExecutedAt = DateTimeOffset.UtcNow,
                 ResultCount = 0,
@@ -536,9 +597,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
+            var searchExecutions = await _unitOfWork.SearchExecutions.GetByProcessIdWithSourceAsync(identificationProcessId, cancellationToken);
 
             var responses = new List<SearchExecutionResponse>();
             foreach (var searchExecution in searchExecutions)
@@ -563,9 +622,25 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"SearchExecution with ID {request.Id} not found.");
             }
 
-            if (!string.IsNullOrWhiteSpace(request.SearchSource))
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == searchExecution.IdentificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
             {
-                searchExecution.SearchSource = request.SearchSource;
+                throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+
+            if (request.SearchSourceId.HasValue)
+            {
+                var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId.Value, cancellationToken: cancellationToken);
+                if (searchSource == null)
+                {
+                    throw new InvalidOperationException($"SearchSource with ID {request.SearchSourceId.Value} not found.");
+                }
+                searchExecution.SearchSourceId = request.SearchSourceId.Value;
             }
 
             if (request.SearchQuery != null)
@@ -604,6 +679,17 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new NotFoundException("SearchExecution not found.");
             }
 
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == searchExecution.IdentificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+
             var hasImportBatches = await _unitOfWork.ImportBatches.AnyAsync(
                 ib => ib.SearchExecutionId == id,
                 cancellationToken: cancellationToken);
@@ -636,7 +722,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -655,7 +741,7 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 Id = searchExecution.Id,
                 IdentificationProcessId = searchExecution.IdentificationProcessId,
-                SearchSource = searchExecution.SearchSource,
+                SearchSource = searchExecution.SearchSource?.Name ?? string.Empty,
                 SearchQuery = searchExecution.SearchQuery,
                 ExecutedAt = searchExecution.ExecutedAt,
                 ResultCount = searchExecution.ResultCount,
@@ -696,6 +782,10 @@ namespace SRSS.IAM.Services.IdentificationService
                         await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                         throw new InvalidOperationException($"SearchExecution with ID {request.SearchExecutionId.Value} not found.");
                     }
+
+                    await EnsureIdentificationProcessCanBeEditedAsync(
+                        searchExecution.IdentificationProcessId,
+                        cancellationToken);
                 }
 
                 // Create ImportBatch for this manual import
@@ -735,6 +825,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
                         // Import tracking - Link to ImportBatch only
                         ImportBatchId = importBatch.Id,
+                        SearchSourceId = searchExecution?.SearchSourceId,
                         Source = "Manual",
                         ImportedAt = importBatch.ImportedAt,
                         ImportedBy = importBatch.ImportedBy,
@@ -777,7 +868,7 @@ namespace SRSS.IAM.Services.IdentificationService
         public async Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream,
             string fileName,
-            string? source,
+            Guid? searchSourceId,
             string? importedBy,
             Guid? searchExecutionId,
             Guid identificationProcessId,
@@ -794,6 +885,8 @@ namespace SRSS.IAM.Services.IdentificationService
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             try
             {
@@ -824,7 +917,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         {
                             Id = Guid.NewGuid(),
                             IdentificationProcessId = identificationProcessId,
-                            SearchSource = source ?? "Manual Import",
+                            SearchSourceId = searchSourceId ?? Guid.Empty, // Requires a valid source ID
                             ExecutedAt = DateTimeOffset.UtcNow,
                             ResultCount = 0,
                             Type = SearchExecutionType.ManualImport,
@@ -865,7 +958,7 @@ namespace SRSS.IAM.Services.IdentificationService
                         Id = Guid.NewGuid(),
                         FileName = fileName,
                         FileType = "RIS",
-                        Source = source ?? "Manual Upload",
+                        Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                         TotalRecords = risPapers.Count,
                         ImportedBy = importedBy,
                         ImportedAt = DateTimeOffset.UtcNow,
@@ -880,11 +973,11 @@ namespace SRSS.IAM.Services.IdentificationService
 
                     // Process each paper
                     await ProcessPapersAsync(
-                        risPapers, 
-                        identificationProcess, 
-                        importBatch, 
-                        result, 
-                        searchExecution, 
+                        risPapers,
+                        identificationProcess,
+                        importBatch,
+                        result,
+                        searchExecution,
                         cancellationToken);
 
                     // Update SearchExecution result count if provided
@@ -927,76 +1020,99 @@ namespace SRSS.IAM.Services.IdentificationService
             SearchExecution? searchExecution,
             CancellationToken cancellationToken)
         {
-            // Prepare references for matching service
-            var referencesForMatching = risPapers.Select(p => new ExtractedReference
+            // STEP 1: Normalize data (DOI, Title)
+            var references = risPapers.Select(p => new ExtractedReference
             {
                 Title = p.Title,
                 Authors = p.Authors,
+                Abstract = p.Abstract,
                 DOI = DoiHelper.Normalize(p.DOI) ?? p.DOI,
                 PublishedYear = p.PublicationYear,
                 Journal = p.Journal,
                 RawReference = p.RawReference
             }).ToList();
 
-            // Generate embeddings before batch matching
-            for (int i = 0; i < risPapers.Count; i++)
-            {
-                var risPaper = risPapers[i];
-                if (string.IsNullOrWhiteSpace(risPaper.Title))
-                {
-                    continue;
-                }
-
-                var embeddingInput = GenerateEmbeddingInput(
-                    risPaper.Title,
-                    risPaper.Authors,
-                    risPaper.PublicationYear,
-                    risPaper.Journal);
-
-                referencesForMatching[i].TitleEmbedding = await _embeddingService.GetEmbeddingAsync(
-                    embeddingInput,
-                    cancellationToken);
-            }
-
-            // Pre-fetch matches for the full import batch (process-scoped)
-            var prefetchedMatches = (await _matchingService.MatchBatchAsync(
-                referencesForMatching,
+            // STEP 2 & 3: Fast Match (DOI, Exact title) & Fuzzy match (cheap)
+            // MatchBatchAsync without embeddings will perform these steps
+            var preliminaryMatches = (await _matchingService.MatchBatchAsync(
+                references,
                 identificationProcess.Id,
                 cancellationToken)).ToList();
 
-            // Track processed references within this batch for intra-batch detection
+            // STEP 4: FILTER candidates needing embedding
+            // Identify indices that need semantic matching
+            var semanticMatchNeededIndices = new List<int>();
+            for (int i = 0; i < references.Count; i++)
+            {
+                var match = preliminaryMatches[i];
+                // Only embed if no high-confidence DOI/Exact match or if fuzzy match is weak
+                if (match.ConfidenceScore < 0.95m && !string.IsNullOrWhiteSpace(references[i].Title))
+                {
+                    semanticMatchNeededIndices.Add(i);
+                }
+            }
+
+            // STEP 5: BATCH EMBEDDING (only subset)
+            if (semanticMatchNeededIndices.Any())
+            {
+                var inputsToEmbed = semanticMatchNeededIndices
+                    .Select(idx => GenerateEmbeddingInput(
+                        references[idx].Title,
+                        references[idx].Abstract))
+                    .ToList();
+
+                var embeddings = _embeddingService.GetEmbeddingsBatch(inputsToEmbed);
+
+                for (int i = 0; i < semanticMatchNeededIndices.Count; i++)
+                {
+                    var originalIdx = semanticMatchNeededIndices[i];
+                    references[originalIdx].TitleEmbedding = embeddings[i].ToArray();
+                }
+            }
+
+            // STEP 6: Semantic matching
+            // We only need to re-match the items we just embedded
+            // For simplicity and to handle intra-batch matches, we re-run MatchBatchAsync
+            // with the now-enriched references.
+            var finalMatches = (await _matchingService.MatchBatchAsync(
+                references,
+                identificationProcess.Id,
+                cancellationToken)).ToList();
+
+            // STEP 7: Persist DB (batch)
+            var papersToSource = new List<Paper>();
+            var deduplicationResults = new List<DeduplicationResult>();
             var processedReferences = new List<ProcessedReference>();
 
-            // Process each record
             for (int i = 0; i < risPapers.Count; i++)
             {
                 var risPaper = risPapers[i];
-                var currentReference = referencesForMatching[i];
+                var reference = references[i];
+                var bestMatch = finalMatches[i];
 
-                // Skip records without titles
                 if (string.IsNullOrWhiteSpace(risPaper.Title)) continue;
 
-                var newPaperId = Guid.NewGuid();
+                // Intra-batch detection (match against already processed papers in this batch)
+                var batchMatch = _matchingService.MatchAgainstProcessed(reference, processedReferences);
 
-                var dbMatch = i < prefetchedMatches.Count ? prefetchedMatches[i] : null;
-
-                // Match against already processed papers in this batch (DOI/fuzzy only)
-                var batchMatch = _matchingService.MatchAgainstProcessed(currentReference, processedReferences);
-
-                var bestMatch = SelectBestMatch(dbMatch, batchMatch);
-                bool isBatchLevelMatch = ReferenceEquals(bestMatch, batchMatch);
+                // If batch match is better than DB match, use it
+                bool isBatchLevelMatch = false;
+                if (batchMatch != null && batchMatch.ConfidenceScore > bestMatch.ConfidenceScore)
+                {
+                    bestMatch = batchMatch;
+                    isBatchLevelMatch = true;
+                }
 
                 int? publicationYearInt = null;
                 if (int.TryParse(risPaper.PublicationYear, out var year)) publicationYearInt = year;
 
-                // Create Paper entity
                 var newPaper = new Paper
                 {
-                    Id = newPaperId,
+                    Id = Guid.NewGuid(),
                     Title = risPaper.Title,
                     Authors = risPaper.Authors,
                     Abstract = risPaper.Abstract,
-                    DOI = DoiHelper.Normalize(risPaper.DOI) ?? risPaper.DOI,
+                    DOI = reference.DOI,
                     PublicationType = risPaper.PublicationType,
                     PublicationYear = risPaper.PublicationYear,
                     PublicationYearInt = publicationYearInt,
@@ -1010,35 +1126,34 @@ namespace SRSS.IAM.Services.IdentificationService
                     Keywords = risPaper.Keywords,
                     RawReference = risPaper.RawReference,
                     ProjectId = identificationProcess.ReviewProcess.ProjectId,
-                    Source = searchExecution?.SearchSource ?? "Manual Upload",
+                    Source = searchExecution?.SearchSource?.Name ?? "Manual Upload",
                     ImportBatchId = importBatch.Id,
+                    SearchSourceId = searchExecution?.SearchSourceId,
                     ImportedAt = importBatch.ImportedAt,
                     ImportedBy = importBatch.ImportedBy,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
-                await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-
-                // Save embedding to separate entity
-                if (currentReference.TitleEmbedding is { Length: > 0 })
+                // Add embedding if exists
+                if (reference.TitleEmbedding is { Length: > 0 })
                 {
-                    var paperEmbedding = new PaperEmbedding
+                    newPaper.TitleEmbedding = new PaperEmbedding
                     {
                         Id = Guid.NewGuid(),
                         PaperId = newPaper.Id,
-                        Embedding = new Vector(currentReference.TitleEmbedding),
+                        Embedding = new Vector(reference.TitleEmbedding),
                         Model = _embeddingService.ModelName,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
-                    newPaper.TitleEmbedding = paperEmbedding;
                 }
 
+                papersToSource.Add(newPaper);
                 result.ImportedRecords++;
                 result.ImportedPaperIds.Add(newPaper.Id);
 
-                // Handle duplication results
+                // Handle duplication
                 if (bestMatch != null && bestMatch.ConfidenceScore >= 0.7m)
                 {
                     var deduplicationResult = new DeduplicationResult
@@ -1047,7 +1162,8 @@ namespace SRSS.IAM.Services.IdentificationService
                         IdentificationProcessId = identificationProcess.Id,
                         PaperId = newPaper.Id,
                         DuplicateOfPaperId = isBatchLevelMatch ? (bestMatch.MatchedPaperId ?? Guid.Empty) : (bestMatch.MatchedPaper?.Id ?? bestMatch.MatchedPaperId ?? Guid.Empty),
-                        Method = bestMatch.Strategy switch {
+                        Method = bestMatch.Strategy switch
+                        {
                             MatchStrategy.DOI => DeduplicationMethod.DOI_MATCH,
                             MatchStrategy.TitleExact => DeduplicationMethod.TITLE_AUTHOR,
                             MatchStrategy.TitleFuzzy => DeduplicationMethod.TITLE_FUZZY,
@@ -1068,16 +1184,22 @@ namespace SRSS.IAM.Services.IdentificationService
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
 
-                    await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+                    deduplicationResults.Add(deduplicationResult);
                     result.DuplicateRecords++;
                 }
 
-                // Add to processed list for incremental detection of subsequent records
-                processedReferences.Add(new ProcessedReference
-                {
-                    Reference = currentReference,
-                    PaperId = newPaper.Id
-                });
+                processedReferences.Add(new ProcessedReference { Reference = reference, PaperId = newPaper.Id });
+            }
+
+            // Perform batched inserts
+            if (papersToSource.Any())
+            {
+                await _unitOfWork.Papers.AddRangeAsync(papersToSource, cancellationToken);
+            }
+
+            if (deduplicationResults.Any())
+            {
+                await _unitOfWork.DeduplicationResults.AddRangeAsync(deduplicationResults, cancellationToken);
             }
         }
 
@@ -1111,14 +1233,28 @@ namespace SRSS.IAM.Services.IdentificationService
                 .FirstOrDefault();
         }
 
-        private string GenerateEmbeddingInput(string? title, string? authors, string? year, string? journal)
+        /// <summary>
+        /// Generates embedding input focused on semantic content.
+        /// Uses Title + first 200 chars of Abstract to avoid noise from
+        /// metadata fields (author, year, journal, publisher) that cause
+        /// false positives with BERT-based embedding models.
+        /// </summary>
+        private string GenerateEmbeddingInput(string? title, string? abstractText)
         {
             var sb = new System.Text.StringBuilder();
-            if (!string.IsNullOrWhiteSpace(title)) sb.Append($"Title: {title.Trim()} ");
-            if (!string.IsNullOrWhiteSpace(authors)) sb.Append($"| Authors: {authors.Trim()} ");
-            if (!string.IsNullOrWhiteSpace(year)) sb.Append($"| Year: {year.Trim()} ");
-            if (!string.IsNullOrWhiteSpace(journal)) sb.Append($"| Source: {journal.Trim()}");
-            
+            if (!string.IsNullOrWhiteSpace(title)) sb.Append(title.Trim());
+
+            if (!string.IsNullOrWhiteSpace(abstractText))
+            {
+                var trimmedAbstract = abstractText.Trim();
+                if (trimmedAbstract.Length > 200)
+                {
+                    trimmedAbstract = trimmedAbstract.Substring(0, 200);
+                }
+                sb.Append(" ");
+                sb.Append(trimmedAbstract);
+            }
+
             return sb.ToString().Trim();
         }
 
@@ -1137,10 +1273,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            if (identificationProcess.Status == IdentificationStatus.Completed)
-            {
-                throw new InvalidOperationException("Cannot mark paper as duplicate because the identification process is already completed.");
-            }
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
 
             var paper = await _unitOfWork.Papers.FindSingleAsync(
                 p => p.Id == paperId,
@@ -1177,6 +1310,208 @@ namespace SRSS.IAM.Services.IdentificationService
 
             await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        private static void EnsureIdentificationProcessCanBeEdited(IdentificationProcess identificationProcess)
+        {
+            if (identificationProcess.Status == IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException("Cannot modify identification data because the identification process is completed. Reopen the process to continue editing.");
+            }
+        }
+
+        private async Task EnsureIdentificationProcessCanBeEditedAsync(
+            Guid identificationProcessId,
+            CancellationToken cancellationToken)
+        {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+        }
+
+        public async Task<(List<PaperResponse> Papers, int TotalCount)> GetReadyPapersForSnapshotAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            Guid? searchSourceId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            // Define sub-queries outside the expression tree to avoid optional argument translation issues
+            var deduplicationQuery = _unitOfWork.DeduplicationResults.GetQueryable(null, false);
+            var snapshotQuery = _unitOfWork.IdentificationProcessPapers.GetQueryable(null, false);
+
+            // Get base query for unique papers in this process
+            var query = _unitOfWork.Papers.GetQueryable()
+                .AsNoTracking()
+                .Where(p =>
+                    p.ImportBatch != null &&
+                    p.ImportBatch.SearchExecution != null &&
+                    p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
+                    // Exclude duplicates and pending resolutions
+                    !deduplicationQuery.Any(dr =>
+                        dr.PaperId == p.Id &&
+                        dr.IdentificationProcessId == identificationProcessId && (
+                        dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL || dr.ReviewStatus == DeduplicationReviewStatus.Pending)) &&
+                    // Exclude papers already in the snapshot
+                    !snapshotQuery.Any(ip =>
+                        ip.IdentificationProcessId == identificationProcessId &&
+                        ip.PaperId == p.Id));
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(p =>
+                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply year filter
+            if (year.HasValue)
+            {
+                query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply ordering and pagination
+            var papers = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (papers.Select(MapToPaperResponse).ToList(), totalCount);
+        }
+
+        public async Task AddPapersToIdentificationSnapshotAsync(
+            Guid identificationProcessId,
+            List<Guid> paperIds,
+            CancellationToken cancellationToken = default)
+        {
+            if (paperIds == null || !paperIds.Any())
+            {
+                return;
+            }
+
+            // Validate IdentificationProcess
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+
+            // Get existing paper IDs in snapshot to avoid duplicates
+            var existingPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
+                identificationProcessId, cancellationToken);
+
+            var existingPaperIdsSet = existingPaperIds.ToHashSet();
+
+            // Filter out papers already in snapshot
+            var newPaperIds = paperIds.Distinct().Where(id => !existingPaperIdsSet.Contains(id)).ToList();
+
+            if (!newPaperIds.Any())
+            {
+                return;
+            }
+
+            // Optional: Validate that these papers belong to the process and are not duplicates
+            // For now, we trust the bulk select if it came from the "Ready" list
+
+            var snapshotRecords = newPaperIds.Select(paperId => new IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcessId,
+                PaperId = paperId,
+                IncludedAfterDedup = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            }).ToList();
+
+            await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(snapshotRecords, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<(List<PaperResponse> Papers, int TotalCount)> GetPaperIdentificationProcessSnapshotAsync(
+            Guid identificationProcessId,
+            string? search,
+            int? year,
+            Guid? searchSourceId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Include(ipp => ipp.Paper)
+                .Where(ipp => ipp.IdentificationProcessId == identificationProcessId);
+
+            // Apply search filter on paper metadata
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(ipp =>
+                    (ipp.Paper.Title != null && ipp.Paper.Title.ToLower().Contains(searchLower)) ||
+                    (ipp.Paper.DOI != null && ipp.Paper.DOI.ToLower().Contains(searchLower)) ||
+                    (ipp.Paper.Authors != null && ipp.Paper.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply year filter
+            if (year.HasValue)
+            {
+                query = query.Where(ipp => ipp.Paper.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(ipp =>
+                    ipp.Paper.SearchSourceId == sourceId ||
+                    (ipp.Paper.SearchSourceId == null &&
+                     ipp.Paper.ImportBatch != null &&
+                     ipp.Paper.ImportBatch.SearchExecution != null &&
+                     ipp.Paper.ImportBatch.SearchExecution.SearchSourceId == sourceId));
+            }
+
+            // Get total count
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            // Apply ordering and pagination
+            var papers = await query
+                .OrderByDescending(ipp => ipp.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(ipp => ipp.Paper)
+                .ToListAsync(cancellationToken);
+
+            return (papers.Select(MapToPaperResponse).ToList(), totalCount);
         }
     }
 }

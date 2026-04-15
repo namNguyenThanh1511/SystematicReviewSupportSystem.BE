@@ -14,6 +14,7 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
@@ -35,7 +36,12 @@ using SRSS.IAM.Repositories.PaperCitationRepo;
 using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
+using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
+using SRSS.IAM.Repositories.ChecklistRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -59,6 +65,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperRepository? _papers;
         private IImportBatchRepository? _importBatches;
         private IPrismaReportRepository? _prismaReports;
+        private IChecklistTemplateRepository? _checklistTemplates;
+        private IChecklistItemTemplateRepository? _checklistItemTemplates;
+        private IReviewChecklistRepository? _reviewChecklists;
+        private IChecklistItemResponseRepository? _checklistItemResponses;
         private IDeduplicationResultRepository? _deduplicationResults;
         private IScreeningResolutionRepository? _screeningResolutions;
         private IStudySelectionProcessRepository? _studySelectionProcesses;
@@ -75,6 +85,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         private IStudySelectionAIResultRepository? _studySelectionAIResults;
         private IPaperFullTextRepository? _paperFullTexts;
+        private IMasterSearchSourceRepository? _masterSearchSources;
         // Protocol
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
@@ -108,6 +119,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
         private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
         private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
+        private IQualityAssessmentPaperRepository? _qualityAssessmentPapers;
 
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
@@ -117,8 +129,15 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
+        private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
+        private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
+        private ISynthesisProcessRepository? _synthesisProcesses;
+        private ISynthesisThemeRepository? _synthesisThemes;
+        private IThemeEvidenceRepository? _themeEvidences;
+        private IResearchQuestionFindingRepository? _researchQuestionFindings;
         private IDisseminationStrategyRepository? _disseminationStrategies;
         private IProjectTimetableRepository? _timetables;
 
@@ -254,6 +273,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IDataSynthesisStrategyRepository SynthesisStrategies =>
             _synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
 
+        public ISynthesisProcessRepository SynthesisProcesses => 
+            _synthesisProcesses ??= new SynthesisProcessRepository(_dbContext);
+        
+        public ISynthesisThemeRepository SynthesisThemes => 
+            _synthesisThemes ??= new SynthesisThemeRepository(_dbContext);
+            
+        public IThemeEvidenceRepository ThemeEvidences => 
+            _themeEvidences ??= new ThemeEvidenceRepository(_dbContext);
+            
+        public IResearchQuestionFindingRepository ResearchQuestionFindings => 
+            _researchQuestionFindings ??= new ResearchQuestionFindingRepository(_dbContext);
+
         public IDisseminationStrategyRepository DisseminationStrategies =>
             _disseminationStrategies ??= new DisseminationStrategyRepository(_dbContext);
 
@@ -282,6 +313,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IPrismaReportRepository PrismaReports
             => _prismaReports ??= new PrismaReportRepository(_dbContext);
+
+        public IChecklistTemplateRepository ChecklistTemplates
+            => _checklistTemplates ??= new ChecklistTemplateRepository(_dbContext);
+
+        public IChecklistItemTemplateRepository ChecklistItemTemplates
+            => _checklistItemTemplates ??= new ChecklistItemTemplateRepository(_dbContext);
+
+        public IReviewChecklistRepository ReviewChecklists
+            => _reviewChecklists ??= new ReviewChecklistRepository(_dbContext);
+
+        public IChecklistItemResponseRepository ChecklistItemResponses
+            => _checklistItemResponses ??= new ChecklistItemResponseRepository(_dbContext);
 
         public IDeduplicationResultRepository DeduplicationResults
             => _deduplicationResults ??= new DeduplicationResultRepository(_dbContext);
@@ -323,12 +366,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
         public IPaperFullTextRepository PaperFullTexts
             => _paperFullTexts ??= new PaperFullTextRepository(_dbContext);
+        public IMasterSearchSourceRepository MasterSearchSources
+            => _masterSearchSources ??= new MasterSearchSourceRepository(_dbContext);
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
+        public IQualityAssessmentPaperRepository QualityAssessmentPapers => _qualityAssessmentPapers ??= new QualityAssessmentPaperRepository(_dbContext);
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);
+        public IExclusionReasonLibraryRepository ExclusionReasonLibraries => _exclusionReasonLibraries ??= new ExclusionReasonLibraryRepository(_dbContext);
+        public IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons => _studySelectionExclusionReasons ??= new StudySelectionExclusionReasonRepository(_dbContext);
+        public IStuSeExclusionCodeRepository StuSeExclusionCodes => _stuSeExclusionCodes ??= new StuSeExclusionCodeRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

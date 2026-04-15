@@ -59,6 +59,7 @@ namespace SRSS.IAM.Repositories.Entities
     {
         ProjectInvitation = 1,
         Project = 2,
-        PaperAssignment = 3
+        PaperAssignment = 3,
+        Paper = 4
     }
 }

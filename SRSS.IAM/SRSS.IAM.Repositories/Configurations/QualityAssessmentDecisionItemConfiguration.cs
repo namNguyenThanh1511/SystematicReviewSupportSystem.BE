@@ -30,6 +30,9 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(d => d.Comment)
                 .HasColumnName("comment");
 
+            builder.Property(d => d.PdfHighlightCoordinates)
+                .HasColumnName("pdf_highlight_coordinates");
+
             builder.Property(u => u.CreatedAt)
                .HasColumnName("created_at")
                .IsRequired();

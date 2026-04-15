@@ -4,6 +4,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.PrismaReport;
+using SRSS.IAM.Services.IdentificationService;
 using System.Linq;
 using System.Text.Json;
 
@@ -12,10 +13,12 @@ namespace SRSS.IAM.Services.PrismaReportService
     public class PrismaReportService : IPrismaReportService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IIdentificationService _identificationService;
 
-        public PrismaReportService(IUnitOfWork unitOfWork)
+        public PrismaReportService(IUnitOfWork unitOfWork, IIdentificationService identificationService)
         {
             _unitOfWork = unitOfWork;
+            _identificationService = identificationService;
         }
 
         public async Task<PrismaReportResponse> GenerateReportAsync(
@@ -129,48 +132,23 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             var identificationProcess = reviewProcess.IdentificationProcess;
 
-            // 1. Identification: Database Searches
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcess.Id,
-                cancellationToken: cancellationToken);
-
-            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
-
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
-                cancellationToken: cancellationToken);
-
-            var importBatchList = allImportBatches.ToList();
-            
-            // Breakdown by Database Source
-            details.IdentifiedBreakdown = importBatchList
-                .GroupBy(ib => ib.SearchExecution?.SearchSource ?? "Unknown Source")
-                .Select(g => new PrismaBreakdownResponse { Label = g.Key, Count = g.Sum(ib => ib.TotalRecords) })
-                .ToList();
-
-            var totalFromDatabases = importBatchList.Sum(ib => ib.TotalRecords);
-
-            // 2. Identification: Snowballing
-            var snowballingPapers = await _unitOfWork.IdentificationProcessPapers.FindAllAsync(
-                ipp => ipp.IdentificationProcessId == identificationProcess.Id && ipp.SourceType == PaperSourceType.Snowballing,
-                isTracking: false,
-                cancellationToken: cancellationToken);
-            
-            var totalFromSnowballing = snowballingPapers.Count();
-            if (totalFromSnowballing > 0)
-            {
-                details.IdentifiedBreakdown.Add(new PrismaBreakdownResponse { Label = "Snowballing", Count = totalFromSnowballing });
-            }
-
-            details.RecordsIdentified = totalFromDatabases + totalFromSnowballing;
-
-            // 3. Duplicate Removal Snapshot
-            var includedPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
+            // 1, 2, 3. Identification: (Databases + Snowballing + Duplicates)
+            // Use common logic from IdentificationService for consistency
+            var idStats = await _identificationService.GetPrismaStatisticsAsync(
                 identificationProcess.Id,
                 cancellationToken);
 
-            details.RecordsScreened = includedPaperIds.Count();
-            details.DuplicateRecordsRemoved = details.RecordsIdentified - details.RecordsScreened;
+            details.IdentifiedBreakdown = idStats.IdentifiedBreakdown;
+
+            // Identification: Snowballing - counted separately in identify box?
+            // Actually, identifiedBreakdown already has 'Manual' or sources.
+            // In the original code, snowballing was added to IdentifiedBreakdown.
+            // IdentificationService now includes "Manual" for those by default if no source is present.
+
+            details.RecordsIdentified = idStats.TotalRecordsImported;
+            details.DuplicateRecordsRemoved = idStats.DuplicateRecords;
+            details.PendingSelectionCount = idStats.PendingSelectionCount;
+            details.RecordsScreened = idStats.UniqueRecords;
 
             // 4. Screening & Eligibility (from StudySelectionProcess)
             if (reviewProcess.StudySelectionProcess != null)
@@ -189,47 +167,70 @@ namespace SRSS.IAM.Services.PrismaReportService
                     isTracking: false,
                     cancellationToken: cancellationToken);
 
+                var papersForRetrieval = allResolutions
+                                                    .Where(r => r.Phase == ScreeningPhase.TitleAbstract 
+                                                            && r.FinalDecision != ScreeningDecisionType.Exclude)
+                                                    .Select(r => r.PaperId)
+                                                    .ToHashSet();
+                                                    
+                var papers = await _unitOfWork.Papers.FindAllAsync(
+                                                    p => papersForRetrieval.Contains(p.Id),
+                                                    isTracking: false,
+                                                    cancellationToken: cancellationToken);
+
                 // Phase 1: Title/Abstract Exclusions
                 var taExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.RecordsExcluded = taExclusions.Count;
-                
-                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions);
 
                 // Phase 2: Retrieval
                 details.ReportsSoughtForRetrieval = details.RecordsScreened - details.RecordsExcluded;
                 // TODO: Implement logic for "Reports not retrieved" if needed
-                details.ReportsNotRetrieved = 0; 
+                details.ReportsNotRetrieved = papers.Count(p => p.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved);
                 details.ReportsAssessedForEligibility = details.ReportsSoughtForRetrieval - details.ReportsNotRetrieved;
 
                 // Phase 3: Full-Text Exclusions
                 var ftExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
                 details.ReportsExcluded = ftExclusions.Count;
-                
-                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions);
+
+                // Load exclusion reasons for labels
+                var reasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == sspId, isTracking: false, cancellationToken: cancellationToken);
+                var reasonMap = reasons.ToDictionary(x => x.Id);
+
+                details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions, reasonMap);
+                details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions, reasonMap);
 
                 // Final Included
                 details.StudiesIncluded = allResolutions.Count(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Include);
-                
+
             }
 
             return details;
         }
 
         private List<PrismaBreakdownResponse> GetExclusionReasonBreakdown(
-            HashSet<Guid> excludedPaperIds, 
+            HashSet<Guid> excludedPaperIds,
             ScreeningPhase phase,
-            IEnumerable<ScreeningResolution> allResolutions) // Truyền thêm list resolutions đã load ở trên vào
+            IEnumerable<ScreeningResolution> allResolutions,
+            Dictionary<Guid, StudySelectionExclusionReason> reasonMap)
         {
             return allResolutions
-                .Where(r => r.Phase == phase 
-                            && excludedPaperIds.Contains(r.PaperId) 
+                .Where(r => r.Phase == phase
+                            && excludedPaperIds.Contains(r.PaperId)
                             && r.FinalDecision == ScreeningDecisionType.Exclude)
-                .GroupBy(r => r.ExclusionReasonCode)
-                .Select(g => new PrismaBreakdownResponse 
-                { 
-                    // Nếu ExclusionReasonCode null thì để "No reason specified"
-                    Label = g.Key?.ToString() ?? "Other", 
-                    Count = g.Count() 
+                .GroupBy(r => r.ExclusionReasonId)
+                .Select(g =>
+                {
+                    var label = "Other";
+                    if (g.Key.HasValue && reasonMap.TryGetValue(g.Key.Value, out var reason))
+                    {
+                        label = reason.Name;
+                    }
+
+                    return new PrismaBreakdownResponse
+                    {
+                        Label = label,
+                        Count = g.Count()
+                    };
                 })
                 .OrderByDescending(x => x.Count)
                 .ToList();
@@ -245,7 +246,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Id = Guid.NewGuid(),
                 PrismaReportId = reportId,
                 Stage = PrismaStage.RecordsIdentified,
-                Label = "Records identified from databases and registers",
+                Label = "Records identified : ",
                 Count = details.RecordsIdentified,
                 MetadataJson = JsonSerializer.Serialize(new { breakdown = details.IdentifiedBreakdown }),
                 DisplayOrder = 1,
@@ -259,15 +260,16 @@ namespace SRSS.IAM.Services.PrismaReportService
                 Id = Guid.NewGuid(),
                 PrismaReportId = reportId,
                 Stage = PrismaStage.DuplicateRecordsRemoved,
-                Label = "Duplicate records removed before screening",
-                Count = details.DuplicateRecordsRemoved,
-                // MetadataJson = JsonSerializer.Serialize(new { 
-                //     breakdown = new[] { 
-                //         new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
-                //         new { label = "Records marked ineligible", count = 0 },
-                //         new { label = "Records removed other reasons", count = 0 }
-                //     } 
-                // }),
+                Label = "Records removed before screening",
+                Count = details.DuplicateRecordsRemoved + details.PendingSelectionCount,
+                MetadataJson = JsonSerializer.Serialize(new
+                {
+                    breakdown = new[] {
+                        new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
+                        // new { label = "Records marked ineligible", count = 0 },
+                        new { label = "Records removed other reasons", count = details.PendingSelectionCount }
+                    }
+                }),
                 DisplayOrder = 2,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
@@ -402,7 +404,7 @@ namespace SRSS.IAM.Services.PrismaReportService
         private PrismaNodeResponse CreateNode(Dictionary<PrismaStage, PrismaFlowRecord> records, PrismaStage mainStage, PrismaStage? sideStage = null)
         {
             records.TryGetValue(mainStage, out var mainRecord);
-            
+
             var node = new PrismaNodeResponse
             {
                 Stage = mainStage.ToString(),
@@ -461,6 +463,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             public int RecordsIdentified { get; set; }
             public List<PrismaBreakdownResponse> IdentifiedBreakdown { get; set; } = new();
             public int DuplicateRecordsRemoved { get; set; }
+            public int PendingSelectionCount { get; set; }
             public int RecordsScreened { get; set; }
             public int RecordsExcluded { get; set; }
             public List<PrismaBreakdownResponse> ExclusionReasonsTA { get; set; } = new();

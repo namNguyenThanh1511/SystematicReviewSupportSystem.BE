@@ -34,7 +34,7 @@ namespace SRSS.IAM.Services.CitationService
         public async Task<List<PaperNodeDto>> GetCitationsAsync(Guid paperId, CancellationToken cancellationToken = default)
         {
             var citations = await _unitOfWork.PaperCitations.GetCitationsWithSourcePaperAsync(paperId, cancellationToken);
-            
+
             return citations.Select(c => new PaperNodeDto
             {
                 Id = c.SourcePaper.Id,
@@ -51,7 +51,7 @@ namespace SRSS.IAM.Services.CitationService
         public async Task<List<PaperNodeDto>> GetReferencesAsync(Guid paperId, CancellationToken cancellationToken = default)
         {
             var references = await _unitOfWork.PaperCitations.GetReferencesWithTargetPaperAsync(paperId, cancellationToken);
-            
+
             return references
                 .Where(c => c.TargetPaper != null)
                 .Select(c => new PaperNodeDto
@@ -94,7 +94,7 @@ namespace SRSS.IAM.Services.CitationService
                     if (edge.TargetPaperId.HasValue)
                     {
                         var targetId = edge.TargetPaperId.Value;
-                        edges.Add(new CitationEdgeDto 
+                        edges.Add(new CitationEdgeDto
                         {
                             SourcePaperId = edge.SourcePaperId,
                             TargetPaperId = targetId,
@@ -124,7 +124,7 @@ namespace SRSS.IAM.Services.CitationService
 
             // We have all nodes up to maxNodes. Let's fetch their metadata.
             var allNodeIds = visitedNodes.ToList();
-            
+
             // To prevent N+1 for citation count, we load them in bulk
             var papers = await _unitOfWork.Papers.GetPapersWithCitationCountByIdsAsync(allNodeIds, cancellationToken);
             var nodesData = papers.Select(p => new PaperNodeDto
@@ -158,7 +158,7 @@ namespace SRSS.IAM.Services.CitationService
                 Year = p.PublicationYearInt,
                 Authors = p.Authors,
                 Doi = p.DOI,
-                CitationCount = p.IncomingCitations.Count
+                CitationCount = p.ExternalCitationCount ?? 0
             }).ToList();
         }
 

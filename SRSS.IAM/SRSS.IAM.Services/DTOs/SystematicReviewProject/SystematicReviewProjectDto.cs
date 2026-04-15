@@ -76,6 +76,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public string RoleText { get; set; } = string.Empty;
         public bool IsLeader { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset ModifiedAt { get; set; }
     }
 
     public class ProjectMembershipResponse

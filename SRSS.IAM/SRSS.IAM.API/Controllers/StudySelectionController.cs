@@ -9,8 +9,11 @@ using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.PaperService;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 using SRSS.IAM.Services.StudySelectionAIService;
+using SRSS.IAM.Services.StuSeExclusionCodeService;
+using SRSS.IAM.Services.DTOs.StuSeExclusionCode;
 using Microsoft.AspNetCore.Authorization;
 
 namespace SRSS.IAM.API.Controllers
@@ -27,19 +30,25 @@ namespace SRSS.IAM.API.Controllers
         private readonly ICurrentUserService _currentUserService;
         private readonly IStuSeAIService _stuSeAIService;
         private readonly IStudySelectionAIResultService _studySelectionAIResultService;
+        private readonly IStuSeExclusionCodeService _exclusionCodeService;
+        private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
 
         public StudySelectionController(
             IStudySelectionService studySelectionService,
             IPaperService paperService,
             ICurrentUserService currentUserService,
             IStuSeAIService stuSeAIService,
-            IStudySelectionAIResultService studySelectionAIResultService)
+            IStudySelectionAIResultService studySelectionAIResultService,
+            IStuSeExclusionCodeService exclusionCodeService,
+            IStudySelectionProcessPaperService studySelectionProcessPaperService)
         {
             _studySelectionService = studySelectionService;
             _paperService = paperService;
             _currentUserService = currentUserService;
             _stuSeAIService = stuSeAIService;
             _studySelectionAIResultService = studySelectionAIResultService;
+            _exclusionCodeService = exclusionCodeService;
+            _studySelectionProcessPaperService = studySelectionProcessPaperService;
         }
 
         /// <summary>
@@ -132,6 +141,20 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get all assigned reviewers and their decisions for a specific paper and phase
+        /// </summary>
+        [HttpGet("study-selection/{id}/papers/{paperId}/reviewer-decisions")]
+        public async Task<ActionResult<ApiResponse<List<ReviewerDecisionDetailResponse>>>> GetReviewerDecisions(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            [FromQuery] ScreeningPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetReviewerDecisionsAsync(id, paperId, phase, cancellationToken);
+            return Ok(result, $"Retrieved decisions for {result.Count} reviewers.");
+        }
+
+        /// <summary>
         /// Get papers with conflicting decisions (Include vs Exclude)
         /// </summary>
         [HttpGet("study-selection/{id}/conflicts")]
@@ -207,15 +230,28 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Resolve multiple conflicted papers in bulk
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/bulk-resolve")]
+        public async Task<ActionResult<ApiResponse<List<ScreeningResolutionResponse>>>> BulkResolveConflicts(
+            [FromRoute] Guid id,
+            [FromBody] BulkResolveConflictsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.BulkResolveConflictsAsync(id, request, cancellationToken);
+            return Ok(result, $"Successfully resolved {result.Count} papers.");
+        }
+
+        /// <summary>
         /// Get all resolution papers for a specific phase or all phases (paginated, with filter/search)
         /// Includes more paper metadata: Title, Authors, DOI, Year, Source.
         /// </summary>
         [HttpGet("study-selection/{id}/resolutions")]
         public async Task<ActionResult<ApiResponse<PaginatedResponse<ScreeningResolutionPaperResponse>>>> GetResolutions(
             [FromRoute] Guid id,
-            [FromQuery] ScreeningPhase? phase,
-            [FromQuery] ScreeningDecisionType? finalDecision,
-            [FromQuery] string? search,
+            [FromQuery] ScreeningPhase? phase = null,
+            [FromQuery] ResolutionFilterStatus status = ResolutionFilterStatus.All,
+            [FromQuery] string? search = null,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -223,14 +259,14 @@ namespace SRSS.IAM.API.Controllers
             var request = new GetResolutionsRequest
             {
                 Phase = phase,
-                FinalDecision = finalDecision,
+                Status = status,
                 Search = search,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
 
             var result = await _studySelectionService.GetResolutionsAsync(id, request, cancellationToken);
-            
+
             var message = result.TotalCount == 0
                 ? "No resolution papers found matching the criteria."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} resolution papers (page {result.PageNumber}).";
@@ -381,6 +417,56 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Paper full-text updated successfully.");
         }
 
+        /// <summary>
+        /// Mark a paper as not retrieved for full-text.
+        /// </summary>
+        [HttpPost("study-selection/{id}/papers/{paperId}/full-text/not-retrieved")]
+        public async Task<ActionResult<ApiResponse<bool>>> MarkPaperAsNotRetrieved(
+            [FromRoute] Guid id,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            await _studySelectionService.MarkPaperAsNotRetrievedAsync(id, paperId, cancellationToken);
+            return Ok(true, "Paper marked as not retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Save multiple included papers for FullText phase
+        /// Validates papers belong to the process and have Included resolution in FullText phase
+        /// </summary>
+        [HttpPost("study-selection/{id}/bulk-dataset")]
+        public async Task<ActionResult<ApiResponse>> SaveMultipleIncludedPapersInFullTextPhase(
+            [FromRoute] Guid id,
+            [FromBody] SaveMultipleIncludedPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _studySelectionProcessPaperService.SaveMultipleIncludedPapersInFullTextPhaseAsync(id, request.PaperIds, cancellationToken);
+            return Ok("Included papers saved successfully.");
+        }
+
+        /// <summary>
+        /// Get all papers with Included resolution in FullText phase (Dataset view)
+        /// Responses only specific fields: title, author, year, domain, abstract description
+        /// </summary>
+        [HttpGet("study-selection/{id}/included-full-text-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DatasetPaperResponse>>>> GetIncludedFullTextPapers(
+            [FromRoute] Guid id,
+            [FromQuery] string? search = null,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new GetResolutionsRequest
+            {
+                Search = search,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _studySelectionService.GetIncludedFullTextPapersAsync(id, request, cancellationToken);
+            return Ok(result, $"Retrieved {result.Items.Count} included papers for dataset.");
+        }
+
         // ============================================
         // Title-Abstract Screening Lifecycle
         // ============================================
@@ -439,7 +525,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetTitleAbstractEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
@@ -452,7 +538,7 @@ namespace SRSS.IAM.API.Controllers
         [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
         public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
-            [FromQuery] CheckedDuplicatePapersRequest request,
+            [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.GetFullTextEligiblePapersAsync(studySelectionProcessId, request, cancellationToken);
@@ -497,6 +583,70 @@ namespace SRSS.IAM.API.Controllers
 
             var result = await _studySelectionAIResultService.GetByKeysAsync(studySelectionId, paperId, reviewerId, phase, cancellationToken);
             return Ok(result, "AI evaluation result retrieved successfully.");
+        }
+
+        // ============================================
+        // Exclusion Reasons Management
+        // ============================================
+
+        /// <summary>
+        /// Get Exclusion Reasons of a Study Selection Process
+        /// </summary>
+        [HttpGet("study-selection/{id}/exclusion-reasons")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StuSeExclusionCodeResponse>>>> GetExclusionReasons(
+            [FromRoute] Guid id,
+            [FromQuery] bool onlyActive = false,
+            [FromQuery] ExclusionReasonSourceFilter source = ExclusionReasonSourceFilter.All,
+            [FromQuery] string? search = null)
+        {
+            var result = await _exclusionCodeService.GetByProcessIdAsync(id, onlyActive, source, search);
+            return Ok(result, "Exclusion reasons retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Add multiple Exclusion Reasons (Library and/or Custom)
+        /// </summary>
+        [HttpPost("study-selection/{id}/exclusion-reasons")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StuSeExclusionCodeResponse>>>> AddExclusionReasons(
+            [FromRoute] Guid id,
+            [FromBody] AddExclusionReasonsRequest request)
+        {
+            var result = await _exclusionCodeService.AddBatchAsync(id, request);
+            return Created(result, "Exclusion reasons added successfully.");
+        }
+
+        /// <summary>
+        /// Update an Exclusion Reason
+        /// </summary>
+        [HttpPut("study-selection/exclusion-reasons/{id}")]
+        public async Task<ActionResult<ApiResponse<StuSeExclusionCodeResponse>>> UpdateExclusionReason(
+            [FromRoute] Guid id,
+            [FromBody] UpdateExclusionReasonRequest request)
+        {
+            var result = await _exclusionCodeService.UpdateAsync(id, request);
+            return Ok(result, "Exclusion reason updated successfully.");
+        }
+
+        /// <summary>
+        /// Toggle the Active state of an Exclusion Reason
+        /// </summary>
+        [HttpPatch("study-selection/exclusion-reasons/{id}/toggle-active")]
+        public async Task<ActionResult<ApiResponse<StuSeExclusionCodeResponse>>> ToggleExclusionReasonActive(
+            [FromRoute] Guid id)
+        {
+            var result = await _exclusionCodeService.ToggleActiveAsync(id);
+            return Ok(result, $"Exclusion reason {(result.IsActive ? "activated" : "deactivated")} successfully.");
+        }
+
+        /// <summary>
+        /// Delete an Exclusion Reason
+        /// </summary>
+        [HttpDelete("study-selection/exclusion-reasons/{id}")]
+        public async Task<ActionResult<ApiResponse>> DeleteExclusionReason(
+            [FromRoute] Guid id)
+        {
+            await _exclusionCodeService.DeleteAsync(id);
+            return Ok("Exclusion reason deleted successfully.");
         }
     }
 }

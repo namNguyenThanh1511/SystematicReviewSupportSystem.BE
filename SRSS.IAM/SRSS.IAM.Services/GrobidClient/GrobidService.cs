@@ -61,7 +61,7 @@ namespace SRSS.IAM.Services.GrobidClient
             {
                 teiXml = await _grobidClient.ProcessReferencesAsync(
                     pdfStream: pdfStream,
-                    consolidateCitations: 0,
+                    consolidateCitations: 1,
                     includeRawCitations: true,
                     returnBibtex: false
                 );

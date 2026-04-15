@@ -7,6 +7,8 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid StudySelectionProcessId { get; set; }
         public Guid PaperId { get; set; }
 
+        public bool IsAddedToDataset { get; set; } = false;
+
         // Navigation
         public StudySelectionProcess StudySelectionProcess { get; set; } = null!;
         public Paper Paper { get; set; } = null!;

@@ -24,6 +24,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
         public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
+        public ICollection<StudySelectionExclusionReason> ExclusionReasons { get; set; } = new List<StudySelectionExclusionReason>();
 
         // Domain Methods
         public void Start()
@@ -38,10 +39,10 @@ namespace SRSS.IAM.Repositories.Entities
                 throw new InvalidOperationException("Cannot start study selection before identification process exists.");
             }
 
-            if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
-            {
-                throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
-            }
+            // if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
+            // {
+            //     throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
+            // }
 
             Status = SelectionProcessStatus.InProgress;
             StartedAt = DateTimeOffset.UtcNow;

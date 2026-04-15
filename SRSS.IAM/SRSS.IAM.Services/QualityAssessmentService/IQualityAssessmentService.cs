@@ -25,21 +25,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 		Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid qaId);
 
 		// Papers
-		Task<List<QualityAssessmentPaperResponse>> GetAllPapersAsync(Guid qaId);
+		Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid qaId);
+		Task<QualityAssessmentStatisticsResponse> GetQualityStatisticsAsync(Guid processId);
 
 		// Assignments
 		Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto);
-        Task<List<AssignedPaperResponse>> GetMyAssignedPapersAsync(Guid reviewProcessId);
+        Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid reviewProcessId);
 
         // Decisions
         Task CreateDecisionAsync(CreateQualityAssessmentDecisionRequest dto);
         Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto);
-        Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByPaperIdAsync(Guid paperId);
+        Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByQaPaperIdAsync(Guid qaPaperId);
 
         // Resolutions
         Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto);
-        Task<QualityAssessmentResolutionResponse> GetResolutionByPaperIdAsync(Guid paperId);
+        Task<QualityAssessmentResolutionResponse> GetResolutionByQaPaperIdAsync(Guid qaPaperId);
         Task<List<QAPaperResponse>> GetHighQualityPaperIdsAsync(Guid processId);
 
         // Automate

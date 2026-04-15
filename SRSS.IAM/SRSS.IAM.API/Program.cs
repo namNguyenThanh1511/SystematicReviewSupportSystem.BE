@@ -1,4 +1,3 @@
-
 using DotNetEnv;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +10,7 @@ using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
+using SRSS.IAM.Services.NotificationService;
 
 namespace SRSS.IAM.API
 {
@@ -144,7 +144,7 @@ namespace SRSS.IAM.API
             app.UseAuthorization();
             app.UseExceptionHandler();
 
-            //app.MapHub<ChatHub>("/hubs/chat"); // <--- Đường dẫn websocket
+            app.MapHub<NotificationHub>("/hubs/notification");
             app.MapControllers();
 
             app.Run();

@@ -9,10 +9,12 @@ using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
+using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.SearchExecutionRepo;
+using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.SystematicReviewProjectRepo;
@@ -35,7 +37,10 @@ using SRSS.IAM.Repositories.PaperEmbeddingRepo;
 using SRSS.IAM.Repositories.StudySelectionProcessPaperRepo;
 using SRSS.IAM.Repositories.StudySelectionAIResultRepo;
 using SRSS.IAM.Repositories.PaperFullTextRepo;
-
+using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
+using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
+using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
+using SRSS.IAM.Repositories.ChecklistRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -98,6 +103,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExtractedDataValueRepository ExtractedDataValues { get; }
 
         // Synthesis
+        ISynthesisProcessRepository SynthesisProcesses { get; }
+        ISynthesisThemeRepository SynthesisThemes { get; }
+        IThemeEvidenceRepository ThemeEvidences { get; }
+        IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         IDisseminationStrategyRepository DisseminationStrategies { get; }
         IProjectTimetableRepository Timetables { get; }
@@ -108,6 +117,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IPaperRepository Papers { get; }
         IImportBatchRepository ImportBatches { get; }
         IPrismaReportRepository PrismaReports { get; }
+        IChecklistTemplateRepository ChecklistTemplates { get; }
+        IChecklistItemTemplateRepository ChecklistItemTemplates { get; }
+        IReviewChecklistRepository ReviewChecklists { get; }
+        IChecklistItemResponseRepository ChecklistItemResponses { get; }
         IDeduplicationResultRepository DeduplicationResults { get; }
         IScreeningResolutionRepository ScreeningResolutions { get; }
         IStudySelectionProcessRepository StudySelectionProcesses { get; }
@@ -124,12 +137,17 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
         IStudySelectionAIResultRepository StudySelectionAIResults { get; }
         IPaperFullTextRepository PaperFullTexts { get; }
+        IMasterSearchSourceRepository MasterSearchSources { get; }
 
         // Quality Assessment
         IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
+        IQualityAssessmentPaperRepository QualityAssessmentPapers { get; }
         IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
         IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
         IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }
+        IExclusionReasonLibraryRepository ExclusionReasonLibraries { get; }
+        IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons { get; }
+        IStuSeExclusionCodeRepository StuSeExclusionCodes { get; }
     }
 }
 

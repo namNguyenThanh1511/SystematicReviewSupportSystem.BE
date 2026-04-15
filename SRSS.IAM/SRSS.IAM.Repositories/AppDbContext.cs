@@ -13,6 +13,7 @@ namespace SRSS.IAM.Repositories
 		protected override void OnModelCreating(ModelBuilder builder)
 		{
 			builder.HasPostgresExtension("vector");
+			builder.HasPostgresExtension("citext");
 			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
 		}
 		/*
@@ -47,6 +48,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Outcome> Outcomes { get; set; } = default!;
 		public DbSet<Context> Contexts { get; set; } = default!;
 		public DbSet<SearchSource> SearchSources { get; set; } = default!;
+		public DbSet<MasterSearchSources> MasterSearchSources { get; set; } = default!;
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
@@ -63,6 +65,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
 		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
 		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
@@ -86,6 +89,10 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
 		public DbSet<PrismaFlowRecord> PrismaFlowRecords { get; set; } = default!;
+		public DbSet<ChecklistTemplate> ChecklistTemplates { get; set; } = default!;
+		public DbSet<ChecklistItemTemplate> ChecklistItemTemplates { get; set; } = default!;
+		public DbSet<ReviewChecklist> ReviewChecklists { get; set; } = default!;
+		public DbSet<ChecklistItemResponse> ChecklistItemResponses { get; set; } = default!;
 		public DbSet<StudySelectionProcess> StudySelectionProcesses { get; set; } = default!;
 		public DbSet<ScreeningDecision> ScreeningDecisions { get; set; } = default!;
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
@@ -103,8 +110,16 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
+		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
 
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
+
+		// Synthesis Phase
+		public DbSet<SynthesisProcess> SynthesisProcesses { get; set; } = default!;
+		public DbSet<SynthesisTheme> SynthesisThemes { get; set; } = default!;
+		public DbSet<ThemeEvidence> ThemeEvidences { get; set; } = default!;
+		public DbSet<ResearchQuestionFinding> ResearchQuestionFindings { get; set; } = default!;
 	}
 }

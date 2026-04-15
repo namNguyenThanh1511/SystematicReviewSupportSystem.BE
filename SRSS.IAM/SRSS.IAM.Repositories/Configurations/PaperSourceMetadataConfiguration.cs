@@ -12,8 +12,8 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasKey(x => x.Id);
 
             builder.HasOne(x => x.Paper)
-                   .WithMany(p => p.SourceMetadatas)
-                   .HasForeignKey(x => x.PaperId)
+                   .WithOne(p => p.SourceMetadata)
+                   .HasForeignKey<PaperSourceMetadata>(x => x.PaperId)
                    .OnDelete(DeleteBehavior.Cascade);
         }
     }

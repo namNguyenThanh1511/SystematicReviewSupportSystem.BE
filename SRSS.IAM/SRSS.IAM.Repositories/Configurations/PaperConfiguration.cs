@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
@@ -145,6 +146,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.ImportBatchId)
                 .HasColumnName("import_batch_id");
 
+            builder.Property(p => p.SearchSourceId)
+                .HasColumnName("search_source_id");
+
+            builder.HasIndex(p => p.SearchSourceId);
+
             builder.Property(p => p.ImportedAt)
                 .HasColumnName("imported_at");
 
@@ -158,6 +164,10 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.PdfUrl)
                 .HasColumnName("pdf_url")
                 .HasMaxLength(500);
+
+            builder.Property(p => p.FullTextRetrievalStatus)
+                .HasColumnName("full_text_retrieval_status")
+                .HasDefaultValue(FullTextRetrievalStatus.Unknown);
 
             builder.Property(p => p.FullTextAvailable)
                 .HasColumnName("full_text_available");

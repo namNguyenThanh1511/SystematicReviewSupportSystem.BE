@@ -37,15 +37,15 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
-        public async Task<PaperEmbedding?> FindClosestByCosineDistanceInIdentificationProcessAsync(
+        public async Task<List<PaperEmbedding>> FindClosestByCosineDistanceInIdentificationProcessAsync(
             float[] embedding,
             Guid identificationProcessId,
             CancellationToken cancellationToken = default,
-            int take = 1)
+            int take = 5)
         {
             if (embedding == null || embedding.Length == 0)
             {
-                return null;
+                return new List<PaperEmbedding>();
             }
 
             var queryVector = new Vector(embedding);
@@ -71,7 +71,7 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
                     LIMIT {safeTake}")
                 .AsNoTracking()
                 .Include(pe => pe.Paper)
-                .FirstOrDefaultAsync(cancellationToken);
+                .ToListAsync(cancellationToken);
         }
     }
 }

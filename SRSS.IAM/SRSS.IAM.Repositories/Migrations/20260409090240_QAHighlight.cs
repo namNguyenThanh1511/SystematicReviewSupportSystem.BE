@@ -5,25 +5,24 @@
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class isdataset : Migration
+    public partial class QAHighlight : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<bool>(
-                name: "is_added_to_dataset",
-                table: "study_selection_process_papers",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            migrationBuilder.AddColumn<string>(
+                name: "pdf_highlight_coordinates",
+                table: "quality_assessment_decision_items",
+                type: "text",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "is_added_to_dataset",
-                table: "study_selection_process_papers");
+                name: "pdf_highlight_coordinates",
+                table: "quality_assessment_decision_items");
         }
     }
 }

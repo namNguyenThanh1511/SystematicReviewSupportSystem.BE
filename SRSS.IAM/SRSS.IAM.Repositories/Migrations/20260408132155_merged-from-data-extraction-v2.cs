@@ -8,46 +8,13 @@ using Pgvector;
 namespace SRSS.IAM.Repositories.Migrations
 {
     /// <inheritdoc />
-    public partial class update : Migration
+    public partial class mergedfromdataextractionv2 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AlterDatabase()
-                .Annotation("Npgsql:PostgresExtension:citext", ",,")
                 .Annotation("Npgsql:PostgresExtension:vector", ",,");
-
-            migrationBuilder.CreateTable(
-                name: "exclusion_reason_libraries",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    code = table.Column<int>(type: "integer", nullable: false),
-                    name = table.Column<string>(type: "citext", maxLength: 255, nullable: false),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_exclusion_reason_libraries", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "master_search_sources",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    source_name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    base_url = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_master_search_sources", x => x.id);
-                });
 
             migrationBuilder.CreateTable(
                 name: "protocol_reviewer",
@@ -391,9 +358,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
                     synthesis_type = table.Column<string>(type: "text", nullable: false),
                     description = table.Column<string>(type: "text", nullable: true),
-                    target_research_question_ids = table.Column<List<Guid>>(type: "uuid[]", nullable: false),
-                    data_grouping_plan = table.Column<string>(type: "text", nullable: true),
-                    sensitivity_analysis_plan = table.Column<string>(type: "text", nullable: true),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ModifiedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -591,22 +555,15 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "search_source",
                 columns: table => new
                 {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
+                    source_id = table.Column<Guid>(type: "uuid", nullable: false),
                     protocol_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    master_source_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    name = table.Column<string>(type: "text", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_search_source", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_search_source_master_search_sources_master_source_id",
-                        column: x => x.master_source_id,
-                        principalTable: "master_search_sources",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
+                    table.PrimaryKey("PK_search_source", x => x.source_id);
                     table.ForeignKey(
                         name: "FK_search_source_review_protocol_protocol_id",
                         column: x => x.protocol_id,
@@ -952,29 +909,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "synthesis_processes",
-                columns: table => new
-                {
-                    synthesis_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    review_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    status = table.Column<string>(type: "text", nullable: false),
-                    started_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    completed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_synthesis_processes", x => x.synthesis_process_id);
-                    table.ForeignKey(
-                        name: "FK_synthesis_processes_review_processes_review_process_id",
-                        column: x => x.review_process_id,
-                        principalTable: "review_processes",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "exclusion_criterion",
                 columns: table => new
                 {
@@ -1122,7 +1056,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     identification_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    search_source_id = table.Column<Guid>(type: "uuid", nullable: false),
+                    search_source = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     search_query = table.Column<string>(type: "text", nullable: true),
                     executed_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     result_count = table.Column<int>(type: "integer", nullable: false),
@@ -1140,12 +1074,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "identification_processes",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_search_executions_search_source_search_source_id",
-                        column: x => x.search_source_id,
-                        principalTable: "search_source",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1228,36 +1156,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "study_selection_exclusion_reasons",
-                columns: table => new
-                {
-                    id = table.Column<Guid>(type: "uuid", nullable: false),
-                    study_selection_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    library_reason_id = table.Column<Guid>(type: "uuid", nullable: true),
-                    code = table.Column<int>(type: "integer", nullable: false),
-                    name = table.Column<string>(type: "citext", maxLength: 255, nullable: false),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_study_selection_exclusion_reasons", x => x.id);
-                    table.ForeignKey(
-                        name: "FK_study_selection_exclusion_reasons_exclusion_reason_librarie~",
-                        column: x => x.library_reason_id,
-                        principalTable: "exclusion_reason_libraries",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_study_selection_exclusion_reasons_study_selection_processes~",
-                        column: x => x.study_selection_process_id,
-                        principalTable: "study_selection_processes",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "title_abstract_screenings",
                 columns: table => new
                 {
@@ -1280,72 +1178,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "study_selection_processes",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "research_question_findings",
-                columns: table => new
-                {
-                    finding_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    synthesis_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    research_question_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    answer_text = table.Column<string>(type: "text", nullable: false),
-                    status = table.Column<string>(type: "text", nullable: false),
-                    author_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_research_question_findings", x => x.finding_id);
-                    table.ForeignKey(
-                        name: "FK_research_question_findings_research_question_research_quest~",
-                        column: x => x.research_question_id,
-                        principalTable: "research_question",
-                        principalColumn: "research_question_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_research_question_findings_synthesis_processes_synthesis_pr~",
-                        column: x => x.synthesis_process_id,
-                        principalTable: "synthesis_processes",
-                        principalColumn: "synthesis_process_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_research_question_findings_users_author_id",
-                        column: x => x.author_id,
-                        principalTable: "users",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "synthesis_themes",
-                columns: table => new
-                {
-                    synthesis_theme_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    synthesis_process_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    description = table.Column<string>(type: "text", nullable: true),
-                    color_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
-                    created_by_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_synthesis_themes", x => x.synthesis_theme_id);
-                    table.ForeignKey(
-                        name: "FK_synthesis_themes_synthesis_processes_synthesis_process_id",
-                        column: x => x.synthesis_process_id,
-                        principalTable: "synthesis_processes",
-                        principalColumn: "synthesis_process_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_synthesis_themes_users_created_by_id",
-                        column: x => x.created_by_id,
-                        principalTable: "users",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1438,7 +1270,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     imported_by = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
                     pdf_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     PdfFileName = table.Column<string>(type: "text", nullable: true),
-                    full_text_retrieval_status = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
                     full_text_available = table.Column<bool>(type: "boolean", nullable: true),
                     access_type = table.Column<string>(type: "text", nullable: true),
                     internal_notes = table.Column<string>(type: "text", nullable: true),
@@ -1749,7 +1580,7 @@ namespace SRSS.IAM.Repositories.Migrations
                 {
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     paper_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    embedding = table.Column<Vector>(type: "vector", nullable: false),
+                    embedding = table.Column<Vector>(type: "vector(1536)", nullable: false),
                     model = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1940,8 +1771,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     reviewer_id = table.Column<Guid>(type: "uuid", nullable: false),
                     decision = table.Column<string>(type: "text", nullable: false),
                     screening_phase = table.Column<string>(type: "text", nullable: false),
-                    exclusion_reason_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    exclusion_reason_code = table.Column<string>(type: "text", nullable: true),
                     reason = table.Column<string>(type: "text", nullable: true),
+                    reviewer_notes = table.Column<string>(type: "text", nullable: true),
                     decided_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
@@ -1955,12 +1787,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "papers",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_screening_decisions_study_selection_exclusion_reasons_exclu~",
-                        column: x => x.exclusion_reason_id,
-                        principalTable: "study_selection_exclusion_reasons",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_screening_decisions_study_selection_processes_study_selecti~",
                         column: x => x.study_selection_process_id,
@@ -1977,7 +1803,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     study_selection_process_id = table.Column<Guid>(type: "uuid", nullable: false),
                     paper_id = table.Column<Guid>(type: "uuid", nullable: false),
                     final_decision = table.Column<string>(type: "text", nullable: false),
-                    exclusion_reason_id = table.Column<Guid>(type: "uuid", nullable: true),
+                    ExclusionReasonCode = table.Column<int>(type: "integer", nullable: true),
                     screening_phase = table.Column<string>(type: "text", nullable: false),
                     resolution_notes = table.Column<string>(type: "text", nullable: true),
                     resolved_by = table.Column<Guid>(type: "uuid", nullable: false),
@@ -1994,12 +1820,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "papers",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_screening_resolutions_study_selection_exclusion_reasons_exc~",
-                        column: x => x.exclusion_reason_id,
-                        principalTable: "study_selection_exclusion_reasons",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_screening_resolutions_study_selection_processes_study_selec~",
                         column: x => x.study_selection_process_id,
@@ -2071,41 +1891,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         principalTable: "study_selection_processes",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "theme_evidences",
-                columns: table => new
-                {
-                    theme_evidence_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    theme_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    extracted_data_value_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    notes = table.Column<string>(type: "text", nullable: true),
-                    created_by_id = table.Column<Guid>(type: "uuid", nullable: false),
-                    created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_theme_evidences", x => x.theme_evidence_id);
-                    table.ForeignKey(
-                        name: "FK_theme_evidences_extracted_data_value_extracted_data_value_id",
-                        column: x => x.extracted_data_value_id,
-                        principalTable: "extracted_data_value",
-                        principalColumn: "value_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_theme_evidences_synthesis_themes_theme_id",
-                        column: x => x.theme_id,
-                        principalTable: "synthesis_themes",
-                        principalColumn: "synthesis_theme_id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_theme_evidences_users_created_by_id",
-                        column: x => x.created_by_id,
-                        principalTable: "users",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -2221,7 +2006,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     quality_criterion_id = table.Column<Guid>(type: "uuid", nullable: false),
                     value = table.Column<int>(type: "integer", nullable: true),
                     comment = table.Column<string>(type: "text", nullable: true),
-                    pdf_highlight_coordinates = table.Column<string>(type: "text", nullable: true),
                     created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     modified_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -2345,18 +2129,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_exclusion_criterion_criteria_id",
                 table: "exclusion_criterion",
                 column: "criteria_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_exclusion_reason_libraries_code",
-                table: "exclusion_reason_libraries",
-                column: "code",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_exclusion_reason_libraries_name",
-                table: "exclusion_reason_libraries",
-                column: "name",
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_extracted_data_value_field_id",
@@ -2578,8 +2350,7 @@ namespace SRSS.IAM.Repositories.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_paper_source_metadatas_PaperId",
                 table: "paper_source_metadatas",
-                column: "PaperId",
-                unique: true);
+                column: "PaperId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_papers_doi",
@@ -2782,21 +2553,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "question_type_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_research_question_findings_author_id",
-                table: "research_question_findings",
-                column: "author_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_research_question_findings_research_question_id",
-                table: "research_question_findings",
-                column: "research_question_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_research_question_findings_synthesis_process_id",
-                table: "research_question_findings",
-                column: "synthesis_process_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_review_need_project_id",
                 table: "review_need",
                 column: "project_id");
@@ -2828,11 +2584,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 column: "project_id");
 
             migrationBuilder.CreateIndex(
-                name: "IX_screening_decisions_exclusion_reason_id",
-                table: "screening_decisions",
-                column: "exclusion_reason_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_screening_decisions_paper_id",
                 table: "screening_decisions",
                 column: "paper_id");
@@ -2854,11 +2605,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_screening_resolutions_exclusion_reason_id",
-                table: "screening_resolutions",
-                column: "exclusion_reason_id");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_screening_resolutions_paper_id",
                 table: "screening_resolutions",
                 column: "paper_id");
@@ -2878,16 +2624,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_search_executions_identification_process_id",
                 table: "search_executions",
                 column: "identification_process_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_search_executions_search_source_id",
-                table: "search_executions",
-                column: "search_source_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_search_source_master_source_id",
-                table: "search_source",
-                column: "master_source_id");
 
             migrationBuilder.CreateIndex(
                 name: "IX_search_source_protocol_id",
@@ -2914,40 +2650,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "IX_study_selection_criteria_protocol_id",
                 table: "study_selection_criteria",
                 column: "protocol_id");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_study_selection_exclusion_reasons_code",
-                table: "study_selection_exclusion_reasons",
-                column: "code");
-
-            migrationBuilder.CreateIndex(
-                name: "idx_study_selection_exclusion_reasons_process_id",
-                table: "study_selection_exclusion_reasons",
-                column: "study_selection_process_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_study_selection_exclusion_reasons_library_reason_id",
-                table: "study_selection_exclusion_reasons",
-                column: "library_reason_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_study_selection_exclusion_reasons_process_code",
-                table: "study_selection_exclusion_reasons",
-                columns: new[] { "study_selection_process_id", "code" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ux_study_selection_exclusion_reasons_process_library",
-                table: "study_selection_exclusion_reasons",
-                columns: new[] { "study_selection_process_id", "library_reason_id" },
-                unique: true,
-                filter: "library_reason_id IS NOT NULL");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_study_selection_exclusion_reasons_process_name",
-                table: "study_selection_exclusion_reasons",
-                columns: new[] { "study_selection_process_id", "name" },
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_study_selection_procedure_protocol_id",
@@ -2977,22 +2679,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_synthesis_processes_review_process_id",
-                table: "synthesis_processes",
-                column: "review_process_id",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_synthesis_themes_created_by_id",
-                table: "synthesis_themes",
-                column: "created_by_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_synthesis_themes_synthesis_process_id",
-                table: "synthesis_themes",
-                column: "synthesis_process_id");
-
-            migrationBuilder.CreateIndex(
                 name: "idx_project_status",
                 table: "systematic_review_projects",
                 column: "status");
@@ -3001,21 +2687,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "idx_project_title",
                 table: "systematic_review_projects",
                 column: "title");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_theme_evidences_created_by_id",
-                table: "theme_evidences",
-                column: "created_by_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_theme_evidences_extracted_data_value_id",
-                table: "theme_evidences",
-                column: "extracted_data_value_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_theme_evidences_theme_id",
-                table: "theme_evidences",
-                column: "theme_id");
 
             migrationBuilder.CreateIndex(
                 name: "idx_ta_screening_study_selection_process_id_unique",
@@ -3075,6 +2746,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             migrationBuilder.DropTable(
                 name: "exclusion_criterion");
+
+            migrationBuilder.DropTable(
+                name: "extracted_data_value");
 
             migrationBuilder.DropTable(
                 name: "extraction_paper_task");
@@ -3143,9 +2817,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "quality_assessment_resolutions");
 
             migrationBuilder.DropTable(
-                name: "research_question_findings");
-
-            migrationBuilder.DropTable(
                 name: "review_need");
 
             migrationBuilder.DropTable(
@@ -3158,6 +2829,9 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "screening_resolutions");
 
             migrationBuilder.DropTable(
+                name: "search_source");
+
+            migrationBuilder.DropTable(
                 name: "study_selection_ai_results");
 
             migrationBuilder.DropTable(
@@ -3167,9 +2841,6 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "study_selection_process_papers");
 
             migrationBuilder.DropTable(
-                name: "theme_evidences");
-
-            migrationBuilder.DropTable(
                 name: "title_abstract_screenings");
 
             migrationBuilder.DropTable(
@@ -3177,6 +2848,12 @@ namespace SRSS.IAM.Repositories.Migrations
 
             migrationBuilder.DropTable(
                 name: "data_extraction_form");
+
+            migrationBuilder.DropTable(
+                name: "ExtractionMatrixColumns");
+
+            migrationBuilder.DropTable(
+                name: "field_option");
 
             migrationBuilder.DropTable(
                 name: "data_extraction_process");
@@ -3209,79 +2886,52 @@ namespace SRSS.IAM.Repositories.Migrations
                 name: "quality_criterion");
 
             migrationBuilder.DropTable(
-                name: "study_selection_exclusion_reasons");
-
-            migrationBuilder.DropTable(
-                name: "extracted_data_value");
-
-            migrationBuilder.DropTable(
-                name: "synthesis_themes");
+                name: "study_selection_processes");
 
             migrationBuilder.DropTable(
                 name: "data_extraction_strategy");
 
             migrationBuilder.DropTable(
+                name: "extraction_field");
+
+            migrationBuilder.DropTable(
                 name: "research_question");
-
-            migrationBuilder.DropTable(
-                name: "quality_assessment_processes");
-
-            migrationBuilder.DropTable(
-                name: "quality_checklist");
-
-            migrationBuilder.DropTable(
-                name: "exclusion_reason_libraries");
-
-            migrationBuilder.DropTable(
-                name: "study_selection_processes");
-
-            migrationBuilder.DropTable(
-                name: "ExtractionMatrixColumns");
-
-            migrationBuilder.DropTable(
-                name: "field_option");
 
             migrationBuilder.DropTable(
                 name: "papers");
 
             migrationBuilder.DropTable(
-                name: "synthesis_processes");
+                name: "quality_assessment_processes");
 
             migrationBuilder.DropTable(
                 name: "users");
 
             migrationBuilder.DropTable(
-                name: "question_type");
-
-            migrationBuilder.DropTable(
-                name: "quality_assessment_strategy");
-
-            migrationBuilder.DropTable(
-                name: "extraction_field");
-
-            migrationBuilder.DropTable(
-                name: "import_batches");
+                name: "quality_checklist");
 
             migrationBuilder.DropTable(
                 name: "extraction_section");
 
             migrationBuilder.DropTable(
-                name: "search_executions");
+                name: "question_type");
+
+            migrationBuilder.DropTable(
+                name: "import_batches");
+
+            migrationBuilder.DropTable(
+                name: "quality_assessment_strategy");
 
             migrationBuilder.DropTable(
                 name: "extraction_template");
 
             migrationBuilder.DropTable(
+                name: "search_executions");
+
+            migrationBuilder.DropTable(
                 name: "identification_processes");
 
             migrationBuilder.DropTable(
-                name: "search_source");
-
-            migrationBuilder.DropTable(
                 name: "review_processes");
-
-            migrationBuilder.DropTable(
-                name: "master_search_sources");
 
             migrationBuilder.DropTable(
                 name: "review_protocol");

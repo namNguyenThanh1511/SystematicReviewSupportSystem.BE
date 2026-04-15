@@ -65,6 +65,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
 		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
 		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;

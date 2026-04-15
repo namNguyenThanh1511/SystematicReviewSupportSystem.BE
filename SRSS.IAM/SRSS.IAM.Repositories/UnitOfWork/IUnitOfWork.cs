@@ -40,6 +40,7 @@ using SRSS.IAM.Repositories.PaperFullTextRepo;
 using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
+using SRSS.IAM.Repositories.ChecklistRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -116,6 +117,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IPaperRepository Papers { get; }
         IImportBatchRepository ImportBatches { get; }
         IPrismaReportRepository PrismaReports { get; }
+        IChecklistTemplateRepository ChecklistTemplates { get; }
+        IChecklistItemTemplateRepository ChecklistItemTemplates { get; }
+        IReviewChecklistRepository ReviewChecklists { get; }
+        IChecklistItemResponseRepository ChecklistItemResponses { get; }
         IDeduplicationResultRepository DeduplicationResults { get; }
         IScreeningResolutionRepository ScreeningResolutions { get; }
         IStudySelectionProcessRepository StudySelectionProcesses { get; }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260415085833_AddPrisma2020Checklist")]
+    partial class AddPrisma2020Checklist
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3080,9 +3083,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid>("ProjectId")
+                    b.Property<Guid>("ReviewId")
                         .HasColumnType("uuid")
-                        .HasColumnName("project_id");
+                        .HasColumnName("review_id");
 
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uuid")
@@ -3090,14 +3093,14 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId")
-                        .HasDatabaseName("idx_review_checklists_project_id");
+                    b.HasIndex("ReviewId")
+                        .HasDatabaseName("idx_review_checklists_review_id");
 
                     b.HasIndex("TemplateId");
 
-                    b.HasIndex("ProjectId", "TemplateId")
+                    b.HasIndex("ReviewId", "TemplateId")
                         .IsUnique()
-                        .HasDatabaseName("ux_review_checklists_project_template");
+                        .HasDatabaseName("ux_review_checklists_review_template");
 
                     b.ToTable("review_checklists", (string)null);
                 });
@@ -5006,9 +5009,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ReviewChecklist", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Review")
                         .WithMany("ReviewChecklists")
-                        .HasForeignKey("ProjectId")
+                        .HasForeignKey("ReviewId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -5018,7 +5021,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Project");
+                    b.Navigation("Review");
 
                     b.Navigation("Template");
                 });

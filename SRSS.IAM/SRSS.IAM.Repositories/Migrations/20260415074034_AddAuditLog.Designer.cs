@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260415074034_AddAuditLog")]
+    partial class AddAuditLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,10 +35,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("ActionType")
                         .IsRequired()
                         .HasColumnType("text");
@@ -47,48 +46,32 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("Importance")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("IpAddress")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("NewValue")
+                    b.Property<string>("NewValues")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("OldValue")
+                    b.Property<string>("OldValues")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PrimaryKey")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid?>("ProjectId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ResourceId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ResourceType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Status")
+                    b.Property<string>("TableName")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("UserAgent")
-                        .HasColumnType("text");
-
                     b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserName")
                         .IsRequired()
                         .HasColumnType("text");
 

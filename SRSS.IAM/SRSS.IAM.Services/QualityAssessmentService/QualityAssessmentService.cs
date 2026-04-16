@@ -109,7 +109,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             foreach (var dto in dtos)
             {
-                QualityChecklist entity;
+                QualityChecklist? entity;
 
                 if (dto.ChecklistId.HasValue && dto.ChecklistId.Value != Guid.Empty)
                 {
@@ -152,7 +152,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             foreach (var dto in dtos)
             {
-                QualityCriterion entity;
+                QualityCriterion? entity;
 
                 if (dto.CriterionId.HasValue && dto.CriterionId.Value != Guid.Empty)
                 {
@@ -816,6 +816,99 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var papers = await _unitOfWork.Papers.FindAllAsync(p => qaPapers.Select(qa => qa.PaperId).Contains(p.Id));
 
             return papers.Select(p => p.ToResponse()).ToList();
+        }
+
+        public async Task AutoResolveProcessAsync(AutoResolveQualityAssessmentRequest request)
+        {
+            if (!request.Score.HasValue && !request.Percentage.HasValue)
+                throw new ArgumentException("Either Score or Percentage must be provided");
+
+            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+            var currentUserId = Guid.Parse(currentUserIdStr);
+
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId);
+            if (process == null) throw new KeyNotFoundException("Process not found");
+
+            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
+            var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
+            var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
+
+            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
+            var criteriaCount = 0;
+            if (protocolId != null)
+            {
+                var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId.Value);
+                foreach (var strat in strategies)
+                {
+                    foreach (var cl in strat.Checklists)
+                    {
+                        criteriaCount += cl.Criteria.Count;
+                    }
+                }
+            }
+
+            foreach (var paper in eligiblePaper)
+            {
+                if (processResolutions.Any(r => r.QualityAssessmentPaperId == paper.Id)) continue;
+                
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
+
+                var reviewersAssignedToPaper = assignments
+                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                    .Select(a => a.User)
+                    .Where(u => u != null)
+                    .GroupBy(u => u.Id)
+                    .Select(g => g.First())
+                    .ToList();
+
+                var expectedDecisions = reviewersAssignedToPaper.Count * criteriaCount;
+                var actualDecisions = paperDecisions.Sum(d => d.DecisionItems.Count);
+                
+                var completionPercentage = expectedDecisions > 0 ? (double)actualDecisions / expectedDecisions * 100 : 0;
+
+                if (expectedDecisions == 0 || completionPercentage < 100) continue;
+
+                double totalScore = 0;
+                foreach (var decision in paperDecisions)
+                {
+                    foreach (var item in decision.DecisionItems)
+                    {
+                        if (item.Value == QualityAssessmentDecisionValue.Yes) totalScore += 1;
+                        else if (item.Value == QualityAssessmentDecisionValue.Unclear) totalScore += 0.5;
+                    }
+                }
+
+                double avgScore = reviewersAssignedToPaper.Count > 0 ? totalScore / reviewersAssignedToPaper.Count : 0;
+
+                bool isPassed = false;
+                if (request.Score.HasValue)
+                {
+                    isPassed = avgScore >= request.Score.Value;
+                }
+                else if (request.Percentage.HasValue)
+                {
+                    double maxPossibleAvgScore = criteriaCount;
+                    double currPercentage = maxPossibleAvgScore > 0 ? (avgScore / maxPossibleAvgScore) * 100 : 0;
+                    isPassed = currPercentage >= request.Percentage.Value;
+                }
+
+                var resolution = new QualityAssessmentResolution
+                {
+                    QualityAssessmentProcessId = process.Id,
+                    QualityAssessmentPaperId = paper.Id,
+                    FinalDecision = isPassed ? QualityAssessmentResolutionDecision.HighQuality : QualityAssessmentResolutionDecision.LowQuality,
+                    FinalScore = (decimal)avgScore,
+                    ResolutionNotes = "Auto-resolved",
+                    ResolvedBy = currentUserId,
+                    ResolvedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await _unitOfWork.QualityAssessmentResolutions.AddAsync(resolution);
+            }
+            
+            await _unitOfWork.SaveChangesAsync();
         }
 
         // ==================== Quality Assessment Automate ====================

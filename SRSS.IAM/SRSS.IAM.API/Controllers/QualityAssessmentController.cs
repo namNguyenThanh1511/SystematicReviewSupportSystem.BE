@@ -225,6 +225,13 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Lấy kết quả cuối cùng thành công");
 		}
 
+		[HttpPost("auto-resolve")]
+		public async Task<ActionResult<ApiResponse>> AutoResolveProcess([FromBody] AutoResolveQualityAssessmentRequest request)
+		{
+			await _service.AutoResolveProcessAsync(request);
+			return Ok("Tự động quyết định thành công");
+		}
+
 		[HttpGet("process/{processId}/high-quality-papers")]
 		public async Task<ActionResult<ApiResponse<List<QAPaperResponse>>>> GetHighQualityPaperIds(Guid processId)
 		{

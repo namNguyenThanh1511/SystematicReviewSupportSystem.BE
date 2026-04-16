@@ -135,6 +135,13 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid QualityAssessmentPaperId { get; set; }
     }
 
+    public class AutoResolveQualityAssessmentRequest
+    {
+        public Guid QualityAssessmentProcessId { get; set; }
+        public double? Score { get; set; }
+        public double? Percentage { get; set; }
+    }
+
     public class QAPaperResponse
     {
         public Guid Id { get; set; }

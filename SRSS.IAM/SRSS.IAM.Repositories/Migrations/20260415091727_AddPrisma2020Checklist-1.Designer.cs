@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260415091727_AddPrisma2020Checklist-1")]
+    partial class AddPrisma2020Checklist1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2643,9 +2646,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid?>("PaperId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("QualityAssessmentProcessId")
                         .HasColumnType("uuid")
                         .HasColumnName("quality_assessment_process_id");
@@ -2655,8 +2655,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PaperId");
 
                     b.HasIndex("QualityAssessmentProcessId");
 
@@ -2680,12 +2678,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid?>("PaperId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("QualityAssessmentPaperId")
+                    b.Property<Guid>("PaperId")
                         .HasColumnType("uuid")
-                        .HasColumnName("quality_assessment_paper_id");
+                        .HasColumnName("paper_id");
 
                     b.Property<Guid>("QualityAssessmentProcessId")
                         .HasColumnType("uuid")
@@ -2702,8 +2697,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("PaperId");
-
-                    b.HasIndex("QualityAssessmentPaperId");
 
                     b.HasIndex("QualityAssessmentProcessId");
 
@@ -2754,34 +2747,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("QualityCriterionId");
 
                     b.ToTable("quality_assessment_decision_items", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("PaperId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("QualityAssessmentProcessId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperId");
-
-                    b.HasIndex("QualityAssessmentProcessId", "PaperId")
-                        .IsUnique();
-
-                    b.ToTable("QualityAssessmentPapers");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
@@ -2850,9 +2815,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid>("QualityAssessmentPaperId")
+                    b.Property<Guid>("PaperId")
                         .HasColumnType("uuid")
-                        .HasColumnName("quality_assessment_paper_id");
+                        .HasColumnName("paper_id");
 
                     b.Property<Guid>("QualityAssessmentProcessId")
                         .HasColumnType("uuid")
@@ -2872,8 +2837,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QualityAssessmentPaperId")
-                        .IsUnique();
+                    b.HasIndex("PaperId");
 
                     b.HasIndex("QualityAssessmentProcessId");
 
@@ -3792,12 +3756,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<bool>("IsAddedToDataset")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_added_to_dataset");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -4148,15 +4106,15 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("quality_assessment_assignment_papers", b =>
                 {
+                    b.Property<Guid>("paper_id")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("quality_assessment_assignment_id")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("quality_assessment_paper_id")
-                        .HasColumnType("uuid");
+                    b.HasKey("paper_id", "quality_assessment_assignment_id");
 
-                    b.HasKey("quality_assessment_assignment_id", "quality_assessment_paper_id");
-
-                    b.HasIndex("quality_assessment_paper_id");
+                    b.HasIndex("quality_assessment_assignment_id");
 
                     b.ToTable("quality_assessment_assignment_papers");
                 });
@@ -4869,10 +4827,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
-                        .WithMany("QualityAssessmentAssignments")
-                        .HasForeignKey("PaperId");
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
                         .WithMany("QualityAssessmentAssignments")
                         .HasForeignKey("QualityAssessmentProcessId")
@@ -4892,13 +4846,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentDecision", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
                         .WithMany("QualityAssessmentDecisions")
-                        .HasForeignKey("PaperId");
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", "QualityAssessmentPaper")
-                        .WithMany("QualityAssessmentDecisions")
-                        .HasForeignKey("QualityAssessmentPaperId")
+                        .HasForeignKey("PaperId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -4914,7 +4864,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("QualityAssessmentPaper");
+                    b.Navigation("Paper");
 
                     b.Navigation("QualityAssessmentProcess");
 
@@ -4940,25 +4890,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("QualityCriterion");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
-                        .WithMany()
-                        .HasForeignKey("PaperId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
-                        .WithMany("QualityAssessmentPapers")
-                        .HasForeignKey("QualityAssessmentProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Paper");
-
-                    b.Navigation("QualityAssessmentProcess");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
@@ -4972,9 +4903,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentResolution", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", "QualityAssessmentPaper")
-                        .WithOne("QualityAssessmentResolution")
-                        .HasForeignKey("SRSS.IAM.Repositories.Entities.QualityAssessmentResolution", "QualityAssessmentPaperId")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
+                        .WithMany()
+                        .HasForeignKey("PaperId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -4990,7 +4921,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("QualityAssessmentPaper");
+                    b.Navigation("Paper");
 
                     b.Navigation("QualityAssessmentProcess");
 
@@ -5402,15 +5333,15 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("quality_assessment_assignment_papers", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", null)
+                    b.HasOne("SRSS.IAM.Repositories.Entities.Paper", null)
                         .WithMany()
-                        .HasForeignKey("quality_assessment_assignment_id")
+                        .HasForeignKey("paper_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", null)
+                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentAssignment", null)
                         .WithMany()
-                        .HasForeignKey("quality_assessment_paper_id")
+                        .HasForeignKey("quality_assessment_assignment_id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -5495,8 +5426,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("PaperPdfs");
 
-                    b.Navigation("QualityAssessmentAssignments");
-
                     b.Navigation("QualityAssessmentDecisions");
 
                     b.Navigation("ScreeningDecisions");
@@ -5552,20 +5481,11 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("DecisionItems");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentPaper", b =>
-                {
-                    b.Navigation("QualityAssessmentDecisions");
-
-                    b.Navigation("QualityAssessmentResolution");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", b =>
                 {
                     b.Navigation("QualityAssessmentAssignments");
 
                     b.Navigation("QualityAssessmentDecisions");
-
-                    b.Navigation("QualityAssessmentPapers");
 
                     b.Navigation("QualityAssessmentResolutions");
                 });

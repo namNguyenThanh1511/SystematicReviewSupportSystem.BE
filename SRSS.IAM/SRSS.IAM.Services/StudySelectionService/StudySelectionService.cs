@@ -30,6 +30,7 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly ISupabaseStorageService _storageService;
         private readonly ICurrentUserService _currentUserService;
         private readonly ILogger<StudySelectionService> _logger;
+        private readonly SRSS.IAM.Services.RagService.IRagIngestionQueue _ragQueue;
 
         public StudySelectionService(
             IUnitOfWork unitOfWork,
@@ -41,7 +42,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             IGrobidProcessingQueue grobidQueue,
             ISupabaseStorageService storageService,
             ICurrentUserService currentUserService,
-            ILogger<StudySelectionService> logger)
+            ILogger<StudySelectionService> logger,
+            SRSS.IAM.Services.RagService.IRagIngestionQueue ragQueue)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
@@ -53,6 +55,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             _storageService = storageService;
             _currentUserService = currentUserService;
             _logger = logger;
+            _ragQueue = ragQueue;
         }
 
         public async Task<StudySelectionProcessResponse> CreateStudySelectionProcessAsync(
@@ -187,6 +190,19 @@ namespace SRSS.IAM.Services.StudySelectionService
             process.Complete();
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ==========================================
+            // KÍCH HOẠT RAG INGESTION TẠI ĐÂY
+            // Lấy danh sách Paper đã PASS vòng Full-Text Screening
+            // ==========================================
+            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(id, cancellationToken);
+            foreach (var item in eligiblePapers)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Paper?.PdfUrl))
+                {
+                    await _ragQueue.QueuePaperForIngestionAsync(item.PaperId, item.Paper.PdfUrl, cancellationToken);
+                }
+            }
 
             return MapToResponse(process);
         }

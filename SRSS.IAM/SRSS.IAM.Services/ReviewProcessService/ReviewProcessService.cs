@@ -7,6 +7,7 @@ using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.QualityAssessmentService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
@@ -19,13 +20,15 @@ namespace SRSS.IAM.Services.ReviewProcessService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStudySelectionService _studySelectionService;
+        private readonly IQualityAssessmentService _qualityAssessmentService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IIdentificationService _identificationService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, ICurrentUserService currentUserService, IIdentificationService identificationService)
+        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, IQualityAssessmentService qualityAssessmentService, ICurrentUserService currentUserService, IIdentificationService identificationService)
         {
             _unitOfWork = unitOfWork;
             _studySelectionService = selectionService;
+            _qualityAssessmentService = qualityAssessmentService;
             _currentUserService = currentUserService;
             _identificationService = identificationService;
         }
@@ -180,7 +183,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
             {
                 // Optionally, you could add additional statistics for the StudySelectionProcess here
                 response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id, cancellationToken);
+            }
 
+            if (reviewProcess.QualityAssessmentProcess != null)
+            {
+                response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
             }
 
             // if (reviewProcess.DataExtractionProcess != null)
@@ -208,6 +215,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 {
                     response.IdentificationProcess!.PrismaStatistics =
                         await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                }
+
+                if (reviewProcess.QualityAssessmentProcess != null)
+                {
+                    response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
                 }
 
                 responses.Add(response);
@@ -592,7 +604,5 @@ namespace SRSS.IAM.Services.ReviewProcessService
         {
             return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
         }
-
-
     }
 }

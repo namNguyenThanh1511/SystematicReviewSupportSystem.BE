@@ -15,6 +15,7 @@ using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.RagService; // Added
 using System.Net.Http;
+using SRSS.IAM.Services.AuditLogService;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -27,6 +28,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IGrobidService _grobidService;
         private readonly IRagRetrievalService _ragRetrievalService; // Added
+        private readonly IAuditLogService _auditLogService;
 
         public QualityAssessmentService(
             IUnitOfWork unitOfWork,
@@ -35,7 +37,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             IGeminiService geminiService,
             IHttpClientFactory httpClientFactory,
             IGrobidService grobidService,
-            IRagRetrievalService ragRetrievalService) // Added
+            IRagRetrievalService ragRetrievalService, // Added
+            IAuditLogService auditLogService)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
@@ -44,6 +47,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _httpClientFactory = httpClientFactory;
             _grobidService = grobidService;
             _ragRetrievalService = ragRetrievalService; // Added
+            _auditLogService = auditLogService;
         }
 
         // ==================== Quality Assessment Strategies ====================
@@ -883,6 +887,15 @@ Here are the paper details:
             {
                 throw new Exception("AI failed to generate assessment.");
             }
+
+            await _auditLogService.AppendCustomAuditLogAsync(
+                projectId: reviewProcess.ProjectId,
+                action: "AI Automated Quality Assessment executed",
+                actionType: "Automate",
+                resourceType: "QualityAssessmentPaper",
+                resourceId: qaPaper.Id.ToString(),
+                newValue: new { GeneratedDecisionsCount = result.Count, PaperTitle = qaPaper.Paper.Title }
+            );
 
             return result;
         }

@@ -2364,6 +2364,79 @@ namespace SRSS.IAM.API.Data
                     AffectedColumns = "[\"Id\", \"ProjectId\", \"ProtocolVersion\", \"Status\", \"IsDeleted\"]",
                     Timestamp = DateTime.UtcNow.AddDays(-2),
                     ProjectId = HarProjectId
+                },
+                // --- ScientificLiteracyProject Actions ---
+                // 1. Project Creation
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "SystematicReviewProject",
+                    ResourceId = ScientificLiteracyProjectId.ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Id = ScientificLiteracyProjectId,
+                        Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+                        Domain = "Science Education",
+                        Status = "Active"
+                    }),
+                    AffectedColumns = "[\"Id\", \"Title\", \"Domain\", \"Status\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-30),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 2. Member Adding
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "ProjectMember",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        ProjectId = ScientificLiteracyProjectId,
+                        UserId = ClientUserId,
+                        Role = "Reviewer"
+                    }),
+                    AffectedColumns = "[\"ProjectId\", \"UserId\", \"Role\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-28),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 3. Phase Change (e.g. Planning -> Identification)
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Update",
+                    ResourceType = "ReviewProcess",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "{\"CurrentPhase\":\"Planning\"}",
+                    NewValue = "{\"CurrentPhase\":\"Identification\"}",
+                    AffectedColumns = "[\"CurrentPhase\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-15),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 4. Add Paper
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ClientUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "Paper",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Title = "New insights into science education literacy",
+                        PublicationYear = "2023",
+                        ProjectId = ScientificLiteracyProjectId
+                    }),
+                    AffectedColumns = "[\"Title\", \"PublicationYear\", \"ProjectId\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-5),
+                    ProjectId = ScientificLiteracyProjectId
                 }
             };
 

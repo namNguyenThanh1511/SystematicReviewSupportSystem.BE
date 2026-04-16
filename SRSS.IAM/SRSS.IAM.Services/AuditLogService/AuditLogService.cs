@@ -9,13 +9,16 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.AuditLog;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.Interceptors;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.AuditLogService
 {
     public class AuditLogService : IAuditLogService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
         private static readonly string[] AdminLogEntities = new[] 
         { 
@@ -24,9 +27,10 @@ namespace SRSS.IAM.Services.AuditLogService
             "ProjectMember" 
         };
 
-        public AuditLogService(IUnitOfWork unitOfWork)
+        public AuditLogService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
         }
 
         public async Task<PaginatedResponse<AuditLogResponse>> GetAdminLogsAsync(
@@ -186,6 +190,53 @@ namespace SRSS.IAM.Services.AuditLogService
         {
             await _unitOfWork.AuditLogs.AddAsync(log);
             await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task AppendCustomAuditLogAsync(
+            Guid projectId, 
+            string action, 
+            string actionType, 
+            string resourceType, 
+            string resourceId, 
+            object? oldValue = null, 
+            object? newValue = null, 
+            List<string>? affectedColumns = null)
+        {
+            var userId = _currentUserService.GetUserId();
+            var userName = "System";
+
+            if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
+            {
+                var user = await _unitOfWork.Users.GetQueryable().FirstOrDefaultAsync(u => u.Id == userGuid);
+                if (user != null)
+                {
+                    userName = user.Username;
+                }
+            }
+
+            var auditLog = new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                UserId = userId,
+                UserName = userName,
+                Action = action,
+                ActionType = actionType,
+                ResourceType = resourceType,
+                ResourceId = resourceId,
+                OldValue = oldValue != null ? JsonSerializer.Serialize(oldValue) : null,
+                NewValue = newValue != null ? JsonSerializer.Serialize(newValue) : null,
+                AffectedColumns = JsonSerializer.Serialize(affectedColumns ?? new List<string>()),
+                Timestamp = DateTime.UtcNow
+            };
+
+            await _unitOfWork.AuditLogs.AddAsync(auditLog);
+            await _unitOfWork.SaveChangesAsync();
+        }
+
+        public void IgnoreTable(string tableName)
+        {
+            AuditInterceptor.IgnoreTable(tableName);
         }
     }
 }

@@ -20,9 +20,26 @@ namespace SRSS.IAM.Services.Interceptors
         private readonly ICurrentUserService _currentUserService;
 
         private readonly AsyncLocal<List<AuditEntry>?> _auditEntries = new();
+        private static readonly AsyncLocal<HashSet<string>?> _ignoredTables = new();
+
         public AuditInterceptor(ICurrentUserService currentUserService)
         {
             _currentUserService = currentUserService;
+        }
+
+        public static void IgnoreTable(string tableName)
+        {
+            if (_ignoredTables.Value == null)
+            {
+                _ignoredTables.Value = new HashSet<string>();
+            }
+            _ignoredTables.Value.Add(tableName);
+
+            // This track is to make sure static class in dotnet behave like scoped service, which means the ignored tables are only applied to the current scope
+            if (_ignoredTables.Value.Contains(tableName))
+            {
+                throw new InvalidOperationException("Too many tables are ignored for auditing. This might indicate a potential issue.");
+            }
         }
 
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
@@ -45,6 +62,7 @@ namespace SRSS.IAM.Services.Interceptors
 
             var date = DateTime.UtcNow;
             var auditEntries = new List<AuditEntry>();
+            var ignoredTableList = _ignoredTables.Value;
 
             foreach (var entry in dbContext.ChangeTracker.Entries<IBaseEntity>())
             {
@@ -54,9 +72,13 @@ namespace SRSS.IAM.Services.Interceptors
                 if (entry.Entity is AuditLog)
                     continue;
 
+                var tableName = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name;
+                if (ignoredTableList != null && ignoredTableList.Contains(tableName))
+                    continue;
+
                 var auditEntry = new AuditEntry(entry)
                 {
-                    ResourceType = entry.Metadata.GetTableName() ?? entry.Entity.GetType().Name
+                    ResourceType = tableName
                 };
                 
                 auditEntries.Add(auditEntry);

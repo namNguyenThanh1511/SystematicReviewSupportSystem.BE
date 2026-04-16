@@ -33,5 +33,17 @@ namespace SRSS.IAM.Services.AuditLogService
             int pageSize = 10, 
             CancellationToken cancellationToken = default);
         Task CreateAuditLogAsync(AuditLog log);
+
+        Task AppendCustomAuditLogAsync(
+            Guid projectId, 
+            string action, 
+            string actionType, 
+            string resourceType, 
+            string resourceId, 
+            object? oldValue = null, 
+            object? newValue = null, 
+            List<string>? affectedColumns = null);
+
+        void IgnoreTable(string tableName);
     }
 }

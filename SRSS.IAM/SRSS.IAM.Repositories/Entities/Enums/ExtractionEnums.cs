@@ -72,7 +72,8 @@ namespace SRSS.IAM.Repositories.Entities
 	{
 		NotStarted = 0,
 		InProgress = 1,
-		Completed = 2
+		Completed = 2,
+		Reopened = 3
 	}
 
 	/// <summary>

@@ -19,20 +19,38 @@ namespace SRSS.IAM.Repositories.Entities
     
         public void Start()
         {
-            if (Status == QualityAssessmentProcessStatus.NotStarted)
+            if (Status != QualityAssessmentProcessStatus.NotStarted)
             {
-                Status = QualityAssessmentProcessStatus.InProgress;
-                StartedAt = DateTimeOffset.UtcNow;
+                throw new InvalidOperationException($"Cannot start quality assessment process from {Status} status.");
             }
+
+            Status = QualityAssessmentProcessStatus.InProgress;
+            StartedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
         }
 
         public void Complete()
         {
-            if (Status == QualityAssessmentProcessStatus.InProgress)
+            if (Status != QualityAssessmentProcessStatus.InProgress && Status != QualityAssessmentProcessStatus.Reopened)
             {
-                Status = QualityAssessmentProcessStatus.Completed;
-                CompletedAt = DateTimeOffset.UtcNow;
+                throw new InvalidOperationException($"Cannot complete quality assessment process from {Status} status.");
             }
+
+            Status = QualityAssessmentProcessStatus.Completed;
+            CompletedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void Reopen()
+        {
+            if (Status != QualityAssessmentProcessStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen quality assessment process from {Status} status.");
+            }
+
+            Status = QualityAssessmentProcessStatus.Reopened;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
         }
     }
 }

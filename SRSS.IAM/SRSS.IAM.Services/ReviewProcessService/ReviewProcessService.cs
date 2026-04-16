@@ -456,6 +456,55 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return protocol?.ToDetailResponse();
         }
 
+        public async Task<ReviewProcessResponse> ReopenPhaseAsync(
+            Guid reviewProcessId,
+            ProcessPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
+
+            switch (phase)
+            {
+                case ProcessPhase.Identification:
+                    if (reviewProcess.IdentificationProcess == null) throw new NotFoundException("Identification process not found.");
+                    reviewProcess.IdentificationProcess.Reopen();
+                    break;
+                case ProcessPhase.StudySelection:
+                    if (reviewProcess.StudySelectionProcess == null) throw new NotFoundException("Study selection process not found.");
+                    reviewProcess.StudySelectionProcess.Reopen();
+                    break;
+                case ProcessPhase.QualityAssessment:
+                    if (reviewProcess.QualityAssessmentProcess == null) throw new NotFoundException("Quality assessment process not found.");
+                    reviewProcess.QualityAssessmentProcess.Reopen();
+                    break;
+                case ProcessPhase.DataExtraction:
+                    if (reviewProcess.DataExtractionProcess == null) throw new NotFoundException("Data extraction process not found.");
+                    reviewProcess.DataExtractionProcess.Reopen();
+                    break;
+                default:
+                    throw new ArgumentException($"Phase {phase} does not support reopening or is not recognized.", nameof(phase));
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await GetReviewProcessByIdAsync(reviewProcessId, cancellationToken);
+        }
+
+        private async Task EnsureLeaderPermissionAsync(Guid projectId)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can perform this operation.");
+            }
+        }
+
         private static ReviewProcessResponse MapToResponse(Repositories.Entities.ReviewProcess reviewProcess)
         {
             return new ReviewProcessResponse

@@ -277,6 +277,10 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid Har2DisseminationStrategy1Id = Guid.Parse("f2222222-2222-3333-4444-555555555555");
         private static readonly Guid Har2Timetable1Id = Guid.Parse("f3333333-2222-3333-4444-555555555555");
 
+        // ── Checklist Template IDs ─────────────────────────────────────
+        private static readonly Guid PrismaMainChecklistTemplateId = Guid.Parse("90000000-0000-0000-0000-000000000001");
+        private static readonly Guid PrismaAbstractChecklistTemplateId = Guid.Parse("90000000-0000-0000-0000-000000000002");
+
 
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
@@ -312,6 +316,7 @@ namespace SRSS.IAM.API.Data
             await SeedPapersAsync(context);
             await SeedScreeningResolutionsAsync(context);
             await SeedCoreGovernanceAsync(context);
+            await SeedChecklistTemplatesAsync(context);
         }
 
         private static async Task SeedUsersAsync(AppDbContext context, IPasswordHasher<User> passwordHasher)
@@ -2131,6 +2136,156 @@ namespace SRSS.IAM.API.Data
 
             await context.FieldOptions.AddRangeAsync(metricTypeOptions);
             await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedChecklistTemplatesAsync(AppDbContext context)
+        {
+            if (await context.ChecklistTemplates.AnyAsync(x => x.Id == PrismaMainChecklistTemplateId || x.Id == PrismaAbstractChecklistTemplateId))
+            {
+                return;
+            }
+
+            var now = DateTimeOffset.UtcNow;
+
+            var mainTemplate = new ChecklistTemplate
+            {
+                Id = PrismaMainChecklistTemplateId,
+                Name = "PRISMA 2020 Main Checklist",
+                Description = "Official PRISMA 2020 checklist for full systematic review reports.",
+                IsSystem = true,
+                Version = now.ToString("yyyyMMddHHmmss"),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            var abstractTemplate = new ChecklistTemplate
+            {
+                Id = PrismaAbstractChecklistTemplateId,
+                Name = "PRISMA 2020 Abstract Checklist",
+                Description = "Official PRISMA 2020 checklist for abstracts of systematic reviews.",
+                IsSystem = true,
+                Version = now.ToString("yyyyMMddHHmmss"),
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            await context.ChecklistTemplates.AddRangeAsync(mainTemplate, abstractTemplate);
+
+            var mainItems = new List<(string Number, string? Parent, string Section, string Topic, string Description, int Order, bool IsRequired)>
+            {
+                ("1", null, "TITLE", "Title", "Identify the report as a systematic review.", 1, true),
+                ("2", null, "ABSTRACT", "Abstract", "See the PRISMA 2020 for Abstracts checklist.", 2, true),
+                ("3", null, "INTRODUCTION", "Rationale", "Describe the rationale for the review in the context of existing knowledge.", 3, true),
+                ("4", null, "INTRODUCTION", "Objectives", "Provide an explicit statement of the objective(s) or question(s) the review addresses.", 4, true),
+                ("5", null, "METHODS", "Eligibility criteria", "Specify the inclusion and exclusion criteria for the review and how studies were grouped for the syntheses.", 5, true),
+                ("6", null, "METHODS", "Information sources", "Specify all databases, registers, websites, organisations, reference lists and other sources searched or consulted to identify studies. Specify the date when each source was last searched or consulted.", 6, true),
+                ("7", null, "METHODS", "Search strategy", "Present the full search strategies for all databases, registers and websites, including any filters and limits used.", 7, true),
+                ("8", null, "METHODS", "Selection process", "Specify the methods used to decide whether a study met the inclusion criteria of the review, including how many reviewers screened each record and each report retrieved, whether they worked independently, and if applicable, details of automation tools used in the process.", 8, true),
+                ("9", null, "METHODS", "Data collection process", "Specify the methods used to collect data from reports, including how many reviewers collected data from each report, whether they worked independently, any processes for obtaining or confirming data from study investigators, and if applicable, details of automation tools used in the process.", 9, true),
+                ("10a", null, "METHODS", "Data items", "List and define all outcomes for which data were sought. Specify whether all results that were compatible with each outcome domain in each study were sought and, if not, the methods used to decide which results to collect.", 10, true),
+                ("10b", null, "METHODS", "Data items", "List and define all other variables for which data were sought (for example, participant and intervention characteristics, funding sources). Describe any assumptions made about any missing or unclear information.", 11, true),
+                ("11", null, "METHODS", "Study risk of bias assessment", "Specify the methods used to assess risk of bias in the included studies, including details of the tool(s) used, how many reviewers assessed each study and whether they worked independently, and if applicable, details of automation tools used in the process.", 12, true),
+                ("12", null, "METHODS", "Effect measures", "Specify for each outcome the effect measure(s) (for example, risk ratio, mean difference) used in the synthesis or presentation of results.", 13, true),
+                ("13a", null, "METHODS", "Synthesis methods", "Describe the processes used to decide which studies were eligible for each synthesis (for example, tabulating the study intervention characteristics and comparing against the planned groups for each synthesis).", 14, true),
+                ("13b", null, "METHODS", "Synthesis methods", "Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions.", 15, true),
+                ("13c", null, "METHODS", "Synthesis methods", "Describe any methods used to tabulate or visually display results of individual studies and syntheses.", 16, true),
+                ("13d", null, "METHODS", "Synthesis methods", "Describe any methods used to synthesize results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify the presence and extent of statistical heterogeneity, and software package(s) used.", 17, true),
+                ("13e", null, "METHODS", "Synthesis methods", "Describe any methods used to explore possible causes of heterogeneity among study results (for example, subgroup analysis, meta-regression).", 18, true),
+                ("13f", null, "METHODS", "Synthesis methods", "Describe any sensitivity analyses conducted to assess robustness of the synthesized results.", 19, true),
+                ("14", null, "METHODS", "Reporting bias assessment", "Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases).", 20, true),
+                ("15", null, "METHODS", "Certainty assessment", "Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome.", 21, true),
+                ("16a", null, "RESULTS", "Study selection", "Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram.", 22, true),
+                ("16b", null, "RESULTS", "Study selection", "Cite studies that might appear to meet the inclusion criteria, but which were excluded, and explain why they were excluded.", 23, true),
+                ("17", null, "RESULTS", "Study characteristics", "Cite each included study and present its characteristics.", 24, true),
+                ("18", null, "RESULTS", "Risk of bias in studies", "Present assessments of risk of bias for each included study.", 25, true),
+                ("19", null, "RESULTS", "Results of individual studies", "For all outcomes, present, for each study: (a) summary statistics for each group (where appropriate) and (b) an effect estimate and its precision (for example, confidence or credible interval), ideally using structured tables or plots.", 26, true),
+                ("20a", null, "RESULTS", "Results of syntheses", "For each synthesis, briefly summarize the characteristics and risk of bias among contributing studies.", 27, true),
+                ("20b", null, "RESULTS", "Results of syntheses", "Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (for example, confidence or credible interval) and measures of statistical heterogeneity. If comparing groups, describe the direction of the effect.", 28, true),
+                ("20c", null, "RESULTS", "Results of syntheses", "Present results of all investigations of possible causes of heterogeneity among study results.", 29, true),
+                ("20d", null, "RESULTS", "Results of syntheses", "Present results of all sensitivity analyses conducted to assess the robustness of the synthesized results.", 30, true),
+                ("21", null, "RESULTS", "Reporting biases", "Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed.", 31, true),
+                ("22", null, "RESULTS", "Certainty of evidence", "Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed.", 32, true),
+                ("23a", null, "DISCUSSION", "Discussion", "Provide a general interpretation of the results in the context of other evidence.", 33, true),
+                ("23b", null, "DISCUSSION", "Discussion", "Discuss any limitations of the evidence included in the review.", 34, true),
+                ("23c", null, "DISCUSSION", "Discussion", "Discuss any limitations of the review processes used.", 35, true),
+                ("23d", null, "DISCUSSION", "Discussion", "Discuss implications of the results for practice, policy, and future research.", 36, true),
+                ("24a", null, "OTHER INFORMATION", "Registration and protocol", "Provide registration information for the review, including register name and registration number, or state that the review was not registered.", 37, true),
+                ("24b", null, "OTHER INFORMATION", "Registration and protocol", "Indicate where the review protocol can be accessed, or state that a protocol was not prepared.", 38, true),
+                ("24c", null, "OTHER INFORMATION", "Registration and protocol", "Describe and explain any amendments to information provided at registration or in the protocol.", 39, true),
+                ("25", null, "OTHER INFORMATION", "Support", "Describe sources of financial or non-financial support for the review, and the role of the funders or sponsors in the review.", 40, true),
+                ("26", null, "OTHER INFORMATION", "Competing interests", "Declare any competing interests of review authors.", 41, true),
+                ("27", null, "OTHER INFORMATION", "Availability of data, code and other materials", "Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review.", 42, true)
+            };
+
+            var abstractItems = new List<(string Number, string? Parent, string Section, string Topic, string Description, int Order, bool IsRequired)>
+            {
+                ("1", null, "TITLE", "Title", "Identify the report as a systematic review.", 1, true),
+                ("2", null, "BACKGROUND", "Objectives", "Provide an explicit statement of the main objective(s) or question(s) the review addresses.", 2, true),
+                ("3", null, "METHODS", "Eligibility criteria", "Specify the inclusion and exclusion criteria for the review.", 3, true),
+                ("4", null, "METHODS", "Information sources", "Specify the information sources (for example, databases, registers) used to identify studies and the date when each was last searched.", 4, true),
+                ("5", null, "METHODS", "Risk of bias", "Specify the methods used to assess risk of bias in the included studies.", 5, true),
+                ("6", null, "METHODS", "Synthesis of results", "Specify the methods used to present and synthesise results.", 6, true),
+                ("7", null, "RESULTS", "Included studies", "Give the total number of included studies and participants and summarise relevant characteristics of studies.", 7, true),
+                ("8", null, "RESULTS", "Synthesis of results", "Present results for main outcomes, preferably indicating the number of included studies and participants for each. If meta-analysis was done, report the summary estimate and confidence or credible interval.", 8, true),
+                ("9", null, "DISCUSSION", "Limitations of evidence", "Provide a brief summary of limitations of the evidence included in the review (for example, study risk of bias, inconsistency and imprecision).", 9, true),
+                ("10", null, "DISCUSSION", "Interpretation", "Provide a general interpretation of the results and important implications.", 10, true),
+                ("11", null, "OTHER INFORMATION", "Funding", "Specify the primary source of funding for the review.", 11, true),
+                ("12", null, "OTHER INFORMATION", "Registration", "Provide the register name and registration number.", 12, true)
+            };
+
+            var seededItems = new List<ChecklistItemTemplate>();
+            seededItems.AddRange(BuildChecklistItems(mainTemplate.Id, mainItems, now));
+            seededItems.AddRange(BuildChecklistItems(abstractTemplate.Id, abstractItems, now));
+
+            await context.ChecklistItemTemplates.AddRangeAsync(seededItems);
+            await context.SaveChangesAsync();
+        }
+
+        private static List<ChecklistItemTemplate> BuildChecklistItems(
+            Guid templateId,
+            List<(string Number, string? Parent, string Section, string Topic, string Description, int Order, bool IsRequired)> source,
+            DateTimeOffset now)
+        {
+            var items = new List<ChecklistItemTemplate>();
+            var byNumber = new Dictionary<string, ChecklistItemTemplate>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var item in source.OrderBy(x => x.Order))
+            {
+                var entity = new ChecklistItemTemplate
+                {
+                    Id = Guid.NewGuid(),
+                    TemplateId = templateId,
+                    ParentId = null,
+                    ItemNumber = item.Number,
+                    Section = item.Section,
+                    Topic = item.Topic,
+                    Description = item.Description,
+                    Order = item.Order,
+                    IsRequired = item.IsRequired,
+                    HasLocationField = true,
+                    DefaultSampleAnswer = null,
+                    CreatedAt = now,
+                    ModifiedAt = now
+                };
+
+                items.Add(entity);
+                byNumber[item.Number] = entity;
+            }
+
+            foreach (var item in source)
+            {
+                if (string.IsNullOrWhiteSpace(item.Parent))
+                {
+                    continue;
+                }
+
+                if (byNumber.TryGetValue(item.Number, out var current) && byNumber.TryGetValue(item.Parent, out var parent))
+                {
+                    current.ParentId = parent.Id;
+                }
+            }
+
+            return items;
         }
 
     }

@@ -65,6 +65,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
 		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
 		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
@@ -88,6 +89,10 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
 		public DbSet<PrismaFlowRecord> PrismaFlowRecords { get; set; } = default!;
+		public DbSet<ChecklistTemplate> ChecklistTemplates { get; set; } = default!;
+		public DbSet<ChecklistItemTemplate> ChecklistItemTemplates { get; set; } = default!;
+		public DbSet<ReviewChecklist> ReviewChecklists { get; set; } = default!;
+		public DbSet<ChecklistItemResponse> ChecklistItemResponses { get; set; } = default!;
 		public DbSet<StudySelectionProcess> StudySelectionProcesses { get; set; } = default!;
 		public DbSet<ScreeningDecision> ScreeningDecisions { get; set; } = default!;
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;

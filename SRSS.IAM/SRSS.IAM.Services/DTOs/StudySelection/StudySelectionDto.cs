@@ -383,13 +383,37 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
 
     public class IncludedPaperResponse
     {
-        public Guid Id { get; set; }
         public Guid PaperId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string? DOI { get; set; }
         public string? Authors { get; set; }
+        public string? Abstract { get; set; }
         public string? PublicationYear { get; set; }
+        public string? PublicationType { get; set; }
+        public string? Journal { get; set; }
+        public string? Source { get; set; }
+        public string? Keywords { get; set; }
+        public string? Url { get; set; }
+        public string? PdfUrl { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
+    }
+
+    public class DatasetPaperResponse
+    {
+        public Guid PaperId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string? Authors { get; set; }
+        public string? PublicationYear { get; set; }
+        public string? Domain { get; set; }
+        public string? Abstract { get; set; }
+    }
+
+    /// <summary>
+    /// Request to save multiple included papers in FullText phase
+    /// </summary>
+    public class SaveMultipleIncludedPapersRequest
+    {
+        public List<Guid> PaperIds { get; set; } = new();
     }
 
     // ============================================

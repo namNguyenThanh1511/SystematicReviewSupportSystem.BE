@@ -159,5 +159,10 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default);
         List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta);
+
+        Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

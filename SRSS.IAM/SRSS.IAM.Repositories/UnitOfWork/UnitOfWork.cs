@@ -41,6 +41,7 @@ using SRSS.IAM.Repositories.PaperFullTextRepo;
 using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
+using SRSS.IAM.Repositories.ChecklistRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -64,6 +65,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperRepository? _papers;
         private IImportBatchRepository? _importBatches;
         private IPrismaReportRepository? _prismaReports;
+        private IChecklistTemplateRepository? _checklistTemplates;
+        private IChecklistItemTemplateRepository? _checklistItemTemplates;
+        private IReviewChecklistRepository? _reviewChecklists;
+        private IChecklistItemResponseRepository? _checklistItemResponses;
         private IDeduplicationResultRepository? _deduplicationResults;
         private IScreeningResolutionRepository? _screeningResolutions;
         private IStudySelectionProcessRepository? _studySelectionProcesses;
@@ -114,6 +119,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
         private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
         private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
+        private IQualityAssessmentPaperRepository? _qualityAssessmentPapers;
 
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
@@ -308,6 +314,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IPrismaReportRepository PrismaReports
             => _prismaReports ??= new PrismaReportRepository(_dbContext);
 
+        public IChecklistTemplateRepository ChecklistTemplates
+            => _checklistTemplates ??= new ChecklistTemplateRepository(_dbContext);
+
+        public IChecklistItemTemplateRepository ChecklistItemTemplates
+            => _checklistItemTemplates ??= new ChecklistItemTemplateRepository(_dbContext);
+
+        public IReviewChecklistRepository ReviewChecklists
+            => _reviewChecklists ??= new ReviewChecklistRepository(_dbContext);
+
+        public IChecklistItemResponseRepository ChecklistItemResponses
+            => _checklistItemResponses ??= new ChecklistItemResponseRepository(_dbContext);
+
         public IDeduplicationResultRepository DeduplicationResults
             => _deduplicationResults ??= new DeduplicationResultRepository(_dbContext);
 
@@ -353,6 +371,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
+        public IQualityAssessmentPaperRepository QualityAssessmentPapers => _qualityAssessmentPapers ??= new QualityAssessmentPaperRepository(_dbContext);
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);

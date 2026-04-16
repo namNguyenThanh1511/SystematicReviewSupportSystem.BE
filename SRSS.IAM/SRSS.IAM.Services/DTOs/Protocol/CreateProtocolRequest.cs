@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -14,6 +14,5 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 
 		[StringLength(50, ErrorMessage = "Protocol version không được vượt quá 50 ký tự")]
 		public string ProtocolVersion { get; set; } = "1.0.0";
-
 	}
 }

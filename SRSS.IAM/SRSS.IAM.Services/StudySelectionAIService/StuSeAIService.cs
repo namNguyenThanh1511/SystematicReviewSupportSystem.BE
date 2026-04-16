@@ -116,7 +116,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("### DATA INTEGRITY RULES");
             sb.AppendLine("10. RQ MATCHING RULE: The \"Match\" field for a Research Question evaluates ONLY whether the paper topic aligns with the research question text.");
             sb.AppendLine("    - Example: Paper title about \"IoT Security\", Research Question about \"Human Activity Recognition\" -> \"Match\": \"NotMatch\".");
-            sb.AppendLine("11. PICOC COPYING RULE: For PICOC elements (Population, Intervention, etc.), the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
+            sb.AppendLine("11. DATA COPYING RULE: For CriteriaMatching (Domain, Language, StudyType) and PICOC elements, the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
             sb.AppendLine("12. NO REASONING INSIDE STRUCTURED FIELDS: Question, Value, Rule, Highlight MUST contain ONLY structured values. Explanations MUST appear ONLY in the \"Reasoning\" section.");
             sb.AppendLine("13. MATCH VALUES: Must be EXACTLY one of: \"Match\", \"NotMatch\", \"Unknown\". No variations.");
             sb.AppendLine();
@@ -168,6 +168,8 @@ namespace SRSS.IAM.Services.StudySelectionAIService
 
             sb.AppendLine("### REVIEW PROTOCOL");
             sb.AppendLine($"#### Domain: {input.Criteria?.Domain ?? "Not provided"}");
+            sb.AppendLine($"#### Language: {input.Criteria?.Language ?? "Not provided"}");
+            sb.AppendLine($"#### Study Type: {input.Criteria?.StudyType ?? "Not provided"}");
             sb.AppendLine();
 
             if (input.ResearchQuestions != null && input.ResearchQuestions.Any())
@@ -218,7 +220,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("### SCORING MODEL (Deterministic & Hierarchical)");
             sb.AppendLine("Composite Score = (0.20 × CriteriaMatchingScore) + (0.40 × PICOCMatchingScore) + (0.40 × CriteriaGroupsScore)");
             sb.AppendLine();
-            sb.AppendLine("1. Criteria Matching Score (0.20): Average of general rules (Match=1, else=0).");
+            sb.AppendLine("1. Criteria Matching Score (0.20): Average of general rules (Domain, Language, StudyType) (Match=1, else=0). If a field is \"Not provided\" in protocol, skip it from the average.");
             sb.AppendLine("2. PICOC Matching Score (0.40): Average of per-RQ scores. RQScore = Average of PICOC Match (Match=1, else=0).");
             sb.AppendLine("   - If a Research Question has NO PICOC elements defined, RQScore MUST equal the Match result of the Research Question itself.");
             sb.AppendLine("3. Criteria Groups Score (0.40): Average of per-Group scores. GroupScore = 0 if any Exclusion violated; else % of Inclusion rules matched.");

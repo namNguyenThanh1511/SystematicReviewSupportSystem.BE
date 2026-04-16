@@ -41,30 +41,32 @@ using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
+using SRSS.IAM.Repositories.StudyCharacteristicsRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
-    // Service-specific interface extends base
-    public interface IUnitOfWork
-    {
-        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-        Task BeginTransactionAsync(CancellationToken cancellationToken = default);
-        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
-        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
-        IUserRepository Users { get; }
-        INotificationRepository Notifications { get; }
-        IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
+	// Service-specific interface extends base
+	public interface IUnitOfWork
+	{
+		Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+		Task BeginTransactionAsync(CancellationToken cancellationToken = default);
+		Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+		Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+		IUserRepository Users { get; }
+		INotificationRepository Notifications { get; }
+		IProjectMemberInvitationRepository ProjectMemberInvitations { get; }
 
-        // Core Governance
-        IReviewNeedRepository ReviewNeeds { get; }
-        ICommissioningDocumentRepository CommissioningDocuments { get; }
-        IReviewObjectiveRepository ReviewObjectives { get; }
-        IQuestionTypeRepository QuestionTypes { get; }
+		// Core Governance
+		IReviewNeedRepository ReviewNeeds { get; }
+		ICommissioningDocumentRepository CommissioningDocuments { get; }
+		IReviewObjectiveRepository ReviewObjectives { get; }
+		IQuestionTypeRepository QuestionTypes { get; }
 
-        // Protocol
-        IReviewProtocolRepository Protocols { get; }
-        IProtocolVersionRepository ProtocolVersions { get; }
-        IProtocolEvaluationRepository ProtocolEvaluations { get; }
+		// Protocol
+		IReviewProtocolRepository Protocols { get; }
+		IProtocolVersionRepository ProtocolVersions { get; }
+		IProtocolEvaluationRepository ProtocolEvaluations { get; }
+		IStudyCharacteristicsRepository StudyCharacteristics { get; }
 
         // Research Question
         IResearchQuestionRepository ResearchQuestions { get; }

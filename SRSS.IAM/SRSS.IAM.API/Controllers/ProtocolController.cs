@@ -53,7 +53,7 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy chi tiết đầy đủ protocol (bao gồm Search Sources, Study Selection, Quality Assessment, Data Extraction, Synthesis &amp; Dissemination)
+		/// Lấy chi tiết đầy đủ protocol (bao gồm Study Characteristics, Search Sources, Study Selection, Quality Assessment, Data Extraction, Synthesis &amp; Dissemination)
 		/// </summary>
 		[HttpGet("{protocolId}/detail")]
 		public async Task<ActionResult<ApiResponse<ProtocolDetailResponse>>> GetProtocolDetailById(Guid protocolId)

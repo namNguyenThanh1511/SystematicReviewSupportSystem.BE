@@ -26,11 +26,14 @@ namespace SRSS.IAM.Services.Mappers
             AssignIfNotEmpty(v => result.Paper.Abstract = v, paper.Abstract);
             AssignIfNotEmpty(v => result.Paper.Keywords = v, paper.Keywords);
             AssignIfNotEmpty(v => result.Paper.Language = v, paper.Language);
-            if (paper.PublicationYearInt.HasValue) 
+            if (paper.PublicationYearInt.HasValue)
                 result.Paper.PublicationYear = paper.PublicationYearInt.Value;
 
             // 2. CRITERIA
-            AssignIfNotEmpty(v => result.Criteria.Domain = v, project?.Domain);
+            var characteristics = protocol.StudyCharacteristics;
+            AssignIfNotEmpty(v => result.Criteria.Domain = v, characteristics?.Domain);
+            AssignIfNotEmpty(v => result.Criteria.Language = v, characteristics?.Language);
+            AssignIfNotEmpty(v => result.Criteria.StudyType = v, characteristics?.StudyType);
 
             // 3. (PICOC removed - now per RQ)
 
@@ -87,7 +90,9 @@ namespace SRSS.IAM.Services.Mappers
 
         private static bool IsCriteriaEmpty(StuSeCriteriaInput criteria)
         {
-            return string.IsNullOrWhiteSpace(criteria.Domain);
+            return string.IsNullOrWhiteSpace(criteria.Domain) &&
+                   string.IsNullOrWhiteSpace(criteria.Language) &&
+                   string.IsNullOrWhiteSpace(criteria.StudyType);
         }
 
         private static List<string> MapCriteria(IEnumerable<string?>? rules)

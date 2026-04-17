@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Shared.Repositories;
+using SRSS.IAM.Repositories.AuditLogRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
 using SRSS.IAM.Repositories.ProtocolRepo;
@@ -150,6 +151,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExclusionReasonLibraryRepository ExclusionReasonLibraries { get; }
         IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons { get; }
         IStuSeExclusionCodeRepository StuSeExclusionCodes { get; }
+        IAuditLogRepository AuditLogs { get; }
     }
 }
 

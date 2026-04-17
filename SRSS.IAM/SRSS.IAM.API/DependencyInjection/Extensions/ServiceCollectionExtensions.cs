@@ -29,6 +29,7 @@ using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.AuditLogService;
 using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
@@ -61,6 +62,7 @@ using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
+using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -117,7 +119,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IExclusionReasonLibraryService, ExclusionReasonLibraryService>();
             services.AddScoped<IStuSeExclusionCodeService, StuSeExclusionCodeService>();
             services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
-
+            
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
@@ -188,6 +190,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+
+            services.AddScoped<IAuditLogService, AuditLogService>();
+            services.AddScoped<AuditInterceptor>();
         }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

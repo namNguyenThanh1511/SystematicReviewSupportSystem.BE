@@ -43,6 +43,7 @@ using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
+using SRSS.IAM.Repositories.AuditLogRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -52,6 +53,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private readonly AppDbContext _dbContext;
         private IDbContextTransaction? _currentTransaction;
         private IUserRepository? _users;
+        private IAuditLogRepository? _auditLogs;
         private INotificationRepository? _notifications;
         private IProjectMemberInvitationRepository? _projectMemberInvitations;
         private ISystematicReviewProjectRepository? _systematicReviewProjects;
@@ -200,6 +202,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         }
 
         public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+        public IAuditLogRepository AuditLogs => _auditLogs ??= new AuditLogRepository(_dbContext);
         public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_dbContext);
 
         // Core Governance

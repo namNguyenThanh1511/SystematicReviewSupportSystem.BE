@@ -10,6 +10,7 @@ using Shared.Middlewares;
 using Shared.Models;
 using SRSS.IAM.API.DependencyInjection.Extensions;
 using SRSS.IAM.Repositories;
+using SRSS.IAM.Services.Interceptors;
 using SRSS.IAM.Services.NotificationService;
 
 namespace SRSS.IAM.API
@@ -62,14 +63,18 @@ namespace SRSS.IAM.API
             var dataSource = dataSourceBuilder.Build();
 
             // 2. Sử dụng dataSource này cho DbContext và gọi thêm UseVector() + MigrationsAssembly
-            builder.Services.AddDbContext<AppDbContext>(options =>
+            builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+            {
                 options.UseNpgsql(dataSource, o =>
                 {
                     o.UseVector();
                     // BẮT BUỘC: Khai báo cho EF Core biết thư mục Migrations nằm ở project Repositories
                     o.MigrationsAssembly("SRSS.IAM.Repositories");
-                })
-            );
+                });
+                
+                var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
+                options.AddInterceptors(auditInterceptor);
+            });
 
             // Redis connection
             builder.Services.AddRedisCacheWithHealthCheck(config);

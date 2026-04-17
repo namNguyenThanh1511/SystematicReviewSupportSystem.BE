@@ -317,6 +317,8 @@ namespace SRSS.IAM.API.Data
             await SeedScreeningResolutionsAsync(context);
             await SeedCoreGovernanceAsync(context);
             await SeedChecklistTemplatesAsync(context);
+
+            await SeedAuditLogsAsync(context);
         }
 
         private static async Task SeedUsersAsync(AppDbContext context, IPasswordHasher<User> passwordHasher)
@@ -1232,6 +1234,27 @@ namespace SRSS.IAM.API.Data
 
         private static async Task SeedQualityAssessmentAsync(AppDbContext context)
         {
+            if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
+            {
+                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
+                {
+                    new QualityCriterion { Id = Har2QualityCriterion1Id, ChecklistId = Har2QualityChecklist1Id, Question = "Is the paper based on research (or is it a discussion paper based on expert opinion)?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Har2QualityCriterion2Id, ChecklistId = Har2QualityChecklist1Id, Question = "What research method was used: Experiment, Quasi-Experiment, Lessons learnt, Case study, Opinion Survey, Tertiary Study, Other (specify)? Note This is to be based on our reading of the paper not the method claimed by the author of the paper.", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of the aims of the study?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there an adequate description of the context in which the research or observation was carried out?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the research method appropriate to address the aims of the research? (i.e. Expert Opinion).", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the recruitment strategy (for human-based experiments and quasi-experiments) or experimental material or context (for lessons learnt) appropriate to the aims of the research?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was there a control group or baseline with which to evaluate SR procedures/techniques?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data collected in a way that addressed the research issue?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data analysis sufficiently rigorous?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Has the relationship between researcher and participants been considered to an adequate degree?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of findings?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is the study of value for research or practice?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                });
+                await context.SaveChangesAsync();
+            }
             if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
             {
                 await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
@@ -2371,5 +2394,137 @@ namespace SRSS.IAM.API.Data
             };
         }
 
+        private static async Task SeedAuditLogsAsync(AppDbContext context)
+        {
+            if (await context.AuditLogs.AnyAsync())
+            {
+                return;
+            }
+
+            var auditLogs = new List<AuditLog>
+            {
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Update",
+                    ResourceType = "SystematicReviewProject",
+                    ResourceId = HarProjectId.ToString(),
+                    OldValue = "{\"Title\":\"Old Title\"}",
+                    NewValue = "{\"Title\":\"AI-based Human Activity Recognition\"}",
+                    AffectedColumns = "[\"Title\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-5),
+                    ProjectId = HarProjectId
+                },
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Delete",
+                    ResourceType = "Paper",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "{\"Title\":\"Some invalid deleted paper\"}",
+                    NewValue = "",
+                    AffectedColumns = "[\"Title\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-2),
+                    ProjectId = HarProjectId
+                },
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ClientUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "ReviewProtocol",
+                    ResourceId = HarProtocol2Id.ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Id = HarProtocol2Id,
+                        ProjectId = HarProjectId,
+                        ProtocolVersion = "2.0.0",
+                        Status = "UnderReview",
+                    }),
+                    AffectedColumns = "[\"Id\", \"ProjectId\", \"ProtocolVersion\", \"Status\", \"IsDeleted\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-2),
+                    ProjectId = HarProjectId
+                },
+                // --- ScientificLiteracyProject Actions ---
+                // 1. Project Creation
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "SystematicReviewProject",
+                    ResourceId = ScientificLiteracyProjectId.ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Id = ScientificLiteracyProjectId,
+                        Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+                        Domain = "Science Education",
+                        Status = "Active"
+                    }),
+                    AffectedColumns = "[\"Id\", \"Title\", \"Domain\", \"Status\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-30),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 2. Member Adding
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "ProjectMember",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        ProjectId = ScientificLiteracyProjectId,
+                        UserId = ClientUserId,
+                        Role = "Reviewer"
+                    }),
+                    AffectedColumns = "[\"ProjectId\", \"UserId\", \"Role\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-28),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 3. Phase Change (e.g. Planning -> Identification)
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Update",
+                    ResourceType = "ReviewProcess",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "{\"CurrentPhase\":\"Planning\"}",
+                    NewValue = "{\"CurrentPhase\":\"Identification\"}",
+                    AffectedColumns = "[\"CurrentPhase\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-15),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 4. Add Paper
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ClientUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "Paper",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Title = "New insights into science education literacy",
+                        PublicationYear = "2023",
+                        ProjectId = ScientificLiteracyProjectId
+                    }),
+                    AffectedColumns = "[\"Title\", \"PublicationYear\", \"ProjectId\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-5),
+                    ProjectId = ScientificLiteracyProjectId
+                }
+            };
+
+            context.AuditLogs.AddRange(auditLogs);
+            await context.SaveChangesAsync();
+        }
     }
 }

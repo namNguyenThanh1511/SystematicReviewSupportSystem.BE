@@ -32,6 +32,7 @@ namespace SRSS.IAM.Repositories
 
 		public DbSet<User> Users { get; set; } = default!;
 		public DbSet<Notification> Notifications { get; set; } = default!;
+		public DbSet<AuditLog> AuditLogs { get; set; } = default!;
 
 		// Planning Phase
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;

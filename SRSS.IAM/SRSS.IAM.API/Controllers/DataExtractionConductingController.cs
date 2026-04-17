@@ -108,6 +108,18 @@ namespace SRSS.IAM.API.Controllers
             return Ok<object>(new object(), "Grid cell updated successfully.");
         }
 
+        [HttpGet("{extractionProcessId}/audit-logs")]
+        public async Task<ActionResult<ApiResponse<List<ExtractedDataAuditLogDto>>>> GetCellAuditLogs(
+            [FromRoute] Guid extractionProcessId,
+            [FromQuery] Guid paperId,
+            [FromQuery] Guid fieldId,
+            [FromQuery] Guid? matrixColumnId,
+            [FromQuery] int? matrixRowIndex)
+        {
+            var result = await _extractionService.GetCellAuditLogsAsync(extractionProcessId, paperId, fieldId, matrixColumnId, matrixRowIndex);
+            return Ok(result, "Audit logs retrieved successfully.");
+        }
+
         [HttpPost("{extractionProcessId}/papers/{paperId}/reopen")]
         public async Task<ActionResult<ApiResponse<object>>> ReopenExtraction(
             [FromRoute] Guid extractionProcessId,
@@ -166,6 +178,26 @@ namespace SRSS.IAM.API.Controllers
             var result = await _extractionService.GetWorkloadSummaryAsync(extractionProcessId, cancellationToken);
             return Ok(result, "Workload summary retrieved successfully.");
         }
+        [HttpPost("{extractionProcessId}/papers/{paperId}/fields/{fieldId}/comments")]
+        public async Task<ActionResult<ApiResponse<ExtractionCommentDto>>> AddComment(
+            [FromRoute] Guid extractionProcessId,
+            [FromRoute] Guid paperId,
+            [FromRoute] Guid fieldId,
+            [FromBody] AddCommentRequestDto request)
+        {
+            var result = await _extractionService.AddCommentAsync(extractionProcessId, paperId, fieldId, request);
+            return Ok(result, "Comment added successfully.");
+        }
+
+        [HttpGet("{extractionProcessId}/papers/{paperId}/reviewer-workspace")]
+        public async Task<ActionResult<ApiResponse<ReviewerWorkspaceDto>>> GetReviewerWorkspace(
+            [FromRoute] Guid extractionProcessId,
+            [FromRoute] Guid paperId)
+        {
+            var result = await _extractionService.GetReviewerWorkspaceAsync(extractionProcessId, paperId);
+            return Ok(result, "Reviewer workspace retrieved successfully.");
+        }
+
         [HttpPost("{extractionProcessId}/complete")]
         public async Task<ActionResult<ApiResponse<object>>> CompletePhase(
             [FromRoute] Guid extractionProcessId,

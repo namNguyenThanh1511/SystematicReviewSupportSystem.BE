@@ -77,6 +77,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
 		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
 		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
+		public DbSet<ExtractionComment> ExtractionComments { get; set; } = default!;
+		public DbSet<ExtractedDataAuditLog> ExtractedDataAuditLogs { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
 		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;

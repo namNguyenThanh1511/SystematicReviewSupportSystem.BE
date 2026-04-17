@@ -11,6 +11,12 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public int? MatrixRowIndex { get; set; }
         public string? Value { get; set; }
         public string? FieldType { get; set; }
+
+        /// <summary>
+        /// True when the consensus value for this cell is "Not Reported".
+        /// The Value will be "NR" while this flag drives UI rendering.
+        /// </summary>
+        public bool IsNotReported { get; set; } = false;
     }
 
     public class ExtractionGridRowDto

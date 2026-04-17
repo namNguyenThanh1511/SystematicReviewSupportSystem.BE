@@ -1413,7 +1413,7 @@ namespace SRSS.IAM.API.Data
                 Id = SynthesisStrategy1Id,
                 ProtocolId = HarProtocol1Id,
                 SynthesisType = SynthesisType.NarrativeThematic,
-                // TargetResearchQuestionIds = new List<Guid> { HarResearchQuestion1Id, HarResearchQuestion2Id },
+                TargetResearchQuestionIds = new List<Guid> { ResearchQuestion1Id, ResearchQuestion2Id },
                 DataGroupingPlan = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",
                 SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.",
                 Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",

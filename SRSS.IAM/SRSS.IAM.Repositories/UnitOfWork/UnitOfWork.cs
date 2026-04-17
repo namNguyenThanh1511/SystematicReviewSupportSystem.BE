@@ -133,6 +133,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExtractionCommentRepository? _extractionComments;
+        private IExtractedDataAuditLogRepository? _extractedDataAuditLogs;
         private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
         private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
         private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
@@ -274,6 +276,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IExtractedDataValueRepository ExtractedDataValues =>
             _extractedDataValues ??= new ExtractedDataValueRepository(_dbContext);
+
+        public IExtractionCommentRepository ExtractionComments =>
+            _extractionComments ??= new ExtractionCommentRepository(_dbContext);
+
+        public IExtractedDataAuditLogRepository ExtractedDataAuditLogs =>
+            _extractedDataAuditLogs ??= new ExtractedDataAuditLogRepository(_dbContext);
 
 
         public IDataSynthesisStrategyRepository SynthesisStrategies =>

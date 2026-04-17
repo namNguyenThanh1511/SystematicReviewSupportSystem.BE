@@ -104,6 +104,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IDataExtractionProcessRepository DataExtractionProcesses { get; }
         IExtractionPaperTaskRepository ExtractionPaperTasks { get; }
         IExtractedDataValueRepository ExtractedDataValues { get; }
+        IExtractionCommentRepository ExtractionComments { get; }
+        IExtractedDataAuditLogRepository ExtractedDataAuditLogs { get; }
 
         // Synthesis
         ISynthesisProcessRepository SynthesisProcesses { get; }

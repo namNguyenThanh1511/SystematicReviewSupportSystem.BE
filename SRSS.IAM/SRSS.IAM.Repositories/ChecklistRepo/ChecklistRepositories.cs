@@ -36,6 +36,7 @@ namespace SRSS.IAM.Repositories.ChecklistRepo
         public async Task<List<ChecklistTemplate>> GetAllWithItemsAsync(bool? isSystem = null, CancellationToken cancellationToken = default)
         {
             var query = _context.ChecklistTemplates
+                .Include(x => x.Sections)
                 .Include(x => x.ItemTemplates)
                 .AsNoTracking()
                 .AsQueryable();
@@ -47,13 +48,14 @@ namespace SRSS.IAM.Repositories.ChecklistRepo
 
             return await query
                 .OrderByDescending(x => x.IsSystem)
-                .ThenBy(x => x.Name)
+                .ThenBy(x => x.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
 
         public async Task<ChecklistTemplate?> GetByIdWithItemsAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _context.ChecklistTemplates
+                .Include(x => x.Sections)
                 .Include(x => x.ItemTemplates)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -97,6 +99,8 @@ namespace SRSS.IAM.Repositories.ChecklistRepo
             return await _context.ReviewChecklists
                 .Include(x => x.Project)
                 .Include(x => x.Template)
+                    .ThenInclude(t => t.Sections)
+                .Include(x => x.Template)
                     .ThenInclude(t => t.ItemTemplates)
                 .AsNoTracking()
                 .Where(x => x.ProjectId == reviewId)
@@ -108,6 +112,8 @@ namespace SRSS.IAM.Repositories.ChecklistRepo
         {
             return await _context.ReviewChecklists
                 .Include(x => x.Project)
+                .Include(x => x.Template)
+                    .ThenInclude(t => t.Sections)
                 .Include(x => x.Template)
                     .ThenInclude(t => t.ItemTemplates)
                 .Include(x => x.ItemResponses)

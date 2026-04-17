@@ -22,6 +22,14 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public Guid? ExclusionReasonId { get; set; }
     }
 
+    public class UpdateScreeningDecisionRequest
+    {
+        public ScreeningDecisionType Decision { get; set; }
+        public string? Reason { get; set; }
+        public Guid? ExclusionReasonId { get; set; }
+        public Guid? ChecklistSubmissionId { get; set; }
+    }
+
     public class ResolveScreeningConflictRequest
     {
         public ScreeningDecisionType FinalDecision { get; set; }

@@ -42,6 +42,7 @@ using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
 using SRSS.IAM.Repositories.StudyCharacteristicsRepo;
+using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -150,6 +151,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IExclusionReasonLibraryRepository ExclusionReasonLibraries { get; }
         IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons { get; }
         IStuSeExclusionCodeRepository StuSeExclusionCodes { get; }
+
+        // Study Selection Checklist
+        IStudySelectionChecklistTemplateRepository StudySelectionChecklistTemplates { get; }
+        IStudySelectionChecklistTemplateSectionRepository StudySelectionChecklistTemplateSections { get; }
+        IStudySelectionChecklistTemplateItemRepository StudySelectionChecklistTemplateItems { get; }
+        IStudySelectionChecklistSubmissionRepository StudySelectionChecklistSubmissions { get; }
     }
 }
-

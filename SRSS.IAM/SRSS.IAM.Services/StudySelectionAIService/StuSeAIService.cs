@@ -121,6 +121,19 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("13. MATCH VALUES: Must be EXACTLY one of: \"Match\", \"NotMatch\", \"Unknown\". No variations.");
             sb.AppendLine();
 
+            sb.AppendLine("14. REASONING COMPLETENESS RULE:");
+            sb.AppendLine("The Reasoning section MUST include ALL of the following sections in EXACT order:");
+            sb.AppendLine("## Criteria Matching Score");
+            sb.AppendLine("## PICOC Matching Score");
+            sb.AppendLine("## Criteria Groups Score");
+            sb.AppendLine("## Final Score Calculation");
+            sb.AppendLine("## Final Recommendation");
+            sb.AppendLine("If ANY section is missing, the output is INVALID.");
+            sb.AppendLine("The model MUST NOT stop early after the first section.");
+            sb.AppendLine();
+
+            sb.AppendLine("15. REASONING IS MANDATORY: Reasoning quality is as important as JSON correctness. Incomplete reasoning is INVALID.");
+
             sb.AppendLine("### REQUIRED JSON FORMAT");
             sb.AppendLine("{");
             sb.AppendLine("  \"CriteriaMatching\": {");
@@ -239,6 +252,10 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("IMPORTANT: RETURN ONLY VALID JSON. NO MARKDOWN WRAPPER. NO TEXT BEFORE/AFTER.");
+
+            sb.AppendLine("CRITICAL REMINDER:");
+            sb.AppendLine("Do NOT stop after Criteria Matching Score.");
+            sb.AppendLine("You MUST complete ALL 5 reasoning sections.");
 
             return sb.ToString();
         }

@@ -40,6 +40,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             SubmitScreeningDecisionRequest request,
             CancellationToken cancellationToken = default);
+        
+        Task<ScreeningDecisionResponse> UpdateScreeningDecisionAsync(
+            Guid decisionId,
+            UpdateScreeningDecisionRequest request,
+            CancellationToken cancellationToken = default);
 
 
 

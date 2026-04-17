@@ -114,6 +114,12 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
 		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
 
+		// Study Selection Checklist
+		public DbSet<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = default!;
+		public DbSet<StudySelectionChecklistTemplateSection> StudySelectionChecklistTemplateSections { get; set; } = default!;
+		public DbSet<StudySelectionChecklistTemplateItem> StudySelectionChecklistTemplateItems { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmission> StudySelectionChecklistSubmissions { get; set; } = default!;
+
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
 

@@ -61,6 +61,7 @@ using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
+using SRSS.IAM.Services.StudySelectionChecklists;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -188,6 +189,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+
+            // Study Selection Checklist
+            services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
+            services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
         }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)

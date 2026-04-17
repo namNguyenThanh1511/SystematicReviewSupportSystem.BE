@@ -78,4 +78,44 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         Library = 1,
         Custom = 2
     }
+    /// <summary>
+    /// Status for a checklist version
+    /// </summary>
+    public enum ChecklistVersionStatus
+    {
+        Draft = 0,
+        Active = 1,
+        Archived = 2
+    }
+
+    /// <summary>
+    /// Type of input for a checklist item
+    /// </summary>
+    public enum ChecklistItemType
+    {
+        Boolean = 0,
+        SingleChoice = 1,
+        Text = 2
+    }
+
+    /// <summary>
+    /// Impact of a checklist item on the screening decision
+    /// </summary>
+    public enum ChecklistItemImpact
+    {
+        Include = 0,
+        Exclude = 1,
+        Neutral = 2
+    }
+
+    /// <summary>
+    /// Source of a checklist item (where it originated from)
+    /// </summary>
+    public enum ChecklistItemSourceType
+    {
+        Criteria = 0,
+        ResearchQuestion = 1,
+        PICOC = 2,
+        Manual = 3
+    }
 }

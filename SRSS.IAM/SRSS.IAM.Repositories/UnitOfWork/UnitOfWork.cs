@@ -43,6 +43,7 @@ using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
+using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -134,6 +135,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
         private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
         private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
+
+        // Study Selection Checklist
+        private IStudySelectionChecklistTemplateRepository? _studySelectionChecklistTemplates;
+        private IStudySelectionChecklistTemplateSectionRepository? _studySelectionChecklistTemplateSections;
+        private IStudySelectionChecklistTemplateItemRepository? _studySelectionChecklistTemplateItems;
+        private IStudySelectionChecklistSubmissionRepository? _studySelectionChecklistSubmissions;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
         private ISynthesisProcessRepository? _synthesisProcesses;
@@ -381,6 +388,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IExclusionReasonLibraryRepository ExclusionReasonLibraries => _exclusionReasonLibraries ??= new ExclusionReasonLibraryRepository(_dbContext);
         public IStudySelectionExclusionReasonRepository StudySelectionExclusionReasons => _studySelectionExclusionReasons ??= new StudySelectionExclusionReasonRepository(_dbContext);
         public IStuSeExclusionCodeRepository StuSeExclusionCodes => _stuSeExclusionCodes ??= new StuSeExclusionCodeRepository(_dbContext);
+
+        // Study Selection Checklist
+        public IStudySelectionChecklistTemplateRepository StudySelectionChecklistTemplates => _studySelectionChecklistTemplates ??= new StudySelectionChecklistTemplateRepository(_dbContext);
+        public IStudySelectionChecklistTemplateSectionRepository StudySelectionChecklistTemplateSections => _studySelectionChecklistTemplateSections ??= new StudySelectionChecklistTemplateSectionRepository(_dbContext);
+        public IStudySelectionChecklistTemplateItemRepository StudySelectionChecklistTemplateItems => _studySelectionChecklistTemplateItems ??= new StudySelectionChecklistTemplateItemRepository(_dbContext);
+        public IStudySelectionChecklistSubmissionRepository StudySelectionChecklistSubmissions => _studySelectionChecklistSubmissions ??= new StudySelectionChecklistSubmissionRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

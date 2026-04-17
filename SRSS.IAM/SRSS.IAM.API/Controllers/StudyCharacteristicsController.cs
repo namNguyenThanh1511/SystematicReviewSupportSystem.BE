@@ -32,7 +32,7 @@ namespace SRSS.IAM.API.Controllers
 		/// Get Study Characteristics by Protocol ID
 		/// </summary>
 		[HttpGet("protocol/{protocolId}")]
-		public async Task<ActionResult<ApiResponse<StudyCharacteristicsDto>>> GetByProtocolId(Guid protocolId)
+		public async Task<ActionResult<ApiResponse<StudyCharacteristicsDto?>>> GetByProtocolId(Guid protocolId)
 		{
 			var result = await _service.GetByProtocolIdAsync(protocolId);
 			return Ok(result, "Study characteristics retrieved successfully");

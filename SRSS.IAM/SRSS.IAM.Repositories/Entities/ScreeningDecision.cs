@@ -22,6 +22,7 @@ namespace SRSS.IAM.Repositories.Entities
         public StudySelectionProcess StudySelectionProcess { get; set; } = null!;
         public Paper Paper { get; set; } = null!;
         public StudySelectionExclusionReason? ExclusionReason { get; set; }
+        public StudySelectionChecklistSubmission? ChecklistSubmission { get; set; }
     }
 
     public enum ScreeningDecisionType

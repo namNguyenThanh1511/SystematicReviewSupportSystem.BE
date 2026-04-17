@@ -21,6 +21,7 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public DateTimeOffset CreatedAt { get; set; }
 		public DateTimeOffset? ApprovedAt { get; set; }
 		public List<VersionHistoryDto> Versions { get; set; } = new();
+		public StudyCharacteristicsDto? StudyCharacteristics { get; set; }
 
 		// Related Protocol Details
 		public List<SearchSourceDto> SearchSources { get; set; } = new();

@@ -4,7 +4,8 @@ namespace SRSS.IAM.Repositories.Entities.Enums
     {
         NotStarted = 0,
         InProgress = 1,
-        Completed = 2
+        Completed = 2,
+        Reopened = 3
     }
     public enum QualityAssessmentAssignmentStatus
     {

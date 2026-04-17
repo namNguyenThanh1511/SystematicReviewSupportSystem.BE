@@ -37,6 +37,7 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		{
 			return await _context.ReviewProtocols
 				.Include(p => p.Versions)
+				.Include(p => p.StudyCharacteristics)
 				.Include(p => p.SearchSources)
 				.Include(p => p.SelectionCriterias)
 				.ThenInclude(sc => sc.InclusionCriteria)
@@ -60,6 +61,7 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		public async Task<ReviewProtocol?> GetProtocolDetailByIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
 		{
 			return await _context.ReviewProtocols
+				.Include(p => p.StudyCharacteristics)
 				.Include(p => p.SearchSources)
 				.Include(p => p.SelectionCriterias)
 				.Include(p => p.SelectionProcedures)

@@ -18,6 +18,7 @@ using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
 using SRSS.IAM.Services.SearchStrategyService;
 using SRSS.IAM.Services.SelectionCriteriaService;
+using SRSS.IAM.Services.StudyCharacteristicsService;
 using SRSS.IAM.Services.SynthesisService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
@@ -87,6 +88,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
+            services.AddScoped<IStudyCharacteristicsService, StudyCharacteristicsService>();
             services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();

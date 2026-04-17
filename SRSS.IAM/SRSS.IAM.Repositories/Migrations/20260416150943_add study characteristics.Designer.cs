@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260416150943_add study characteristics")]
+    partial class addstudycharacteristics
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,12 +126,18 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("Content")
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)")
+                        .HasColumnName("content");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("boolean");
+                    b.Property<bool>("IsNotApplicable")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_not_applicable");
 
                     b.Property<bool>("IsReported")
                         .HasColumnType("boolean")
@@ -199,12 +208,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_required");
 
-                    b.Property<bool>("IsSectionHeaderOnly")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_section_header_only");
-
                     b.Property<string>("ItemNumber")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -229,10 +232,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("section");
 
-                    b.Property<Guid?>("SectionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("section_id");
-
                     b.Property<Guid>("TemplateId")
                         .HasColumnType("uuid")
                         .HasColumnName("template_id");
@@ -248,9 +247,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ParentId")
                         .HasDatabaseName("idx_checklist_item_templates_parent_id");
 
-                    b.HasIndex("SectionId")
-                        .HasDatabaseName("idx_checklist_item_templates_section_id");
-
                     b.HasIndex("TemplateId", "ItemNumber")
                         .IsUnique()
                         .HasDatabaseName("ux_checklist_item_templates_template_item_number");
@@ -259,58 +255,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasDatabaseName("idx_checklist_item_templates_template_order");
 
                     b.ToTable("checklist_item_templates", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ChecklistSectionTemplate", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer")
-                        .HasColumnName("order_index");
-
-                    b.Property<string>("SectionNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("section_number");
-
-                    b.Property<Guid>("TemplateId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("template_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TemplateId", "Order")
-                        .HasDatabaseName("idx_checklist_section_templates_template_order");
-
-                    b.HasIndex("TemplateId", "SectionNumber")
-                        .IsUnique()
-                        .HasDatabaseName("ux_checklist_section_templates_template_section_number");
-
-                    b.ToTable("checklist_section_templates", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ChecklistTemplate", b =>
@@ -338,9 +282,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")
                         .HasColumnName("name");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -4323,11 +4264,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("ParentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ChecklistSectionTemplate", "SectionTemplate")
-                        .WithMany("ItemTemplates")
-                        .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.ChecklistTemplate", "Template")
                         .WithMany("ItemTemplates")
                         .HasForeignKey("TemplateId")
@@ -4335,19 +4271,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsRequired();
 
                     b.Navigation("Parent");
-
-                    b.Navigation("SectionTemplate");
-
-                    b.Navigation("Template");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ChecklistSectionTemplate", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ChecklistTemplate", "Template")
-                        .WithMany("Sections")
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Template");
                 });
@@ -5557,18 +5480,11 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Responses");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ChecklistSectionTemplate", b =>
-                {
-                    b.Navigation("ItemTemplates");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ChecklistTemplate", b =>
                 {
                     b.Navigation("ItemTemplates");
 
                     b.Navigation("ReviewChecklists");
-
-                    b.Navigation("Sections");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionForm", b =>

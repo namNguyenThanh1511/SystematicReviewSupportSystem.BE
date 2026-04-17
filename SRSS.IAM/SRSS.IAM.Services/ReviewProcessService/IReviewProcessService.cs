@@ -1,5 +1,6 @@
 using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
+using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -45,6 +46,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
         Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
             Guid processId,
+            CancellationToken cancellationToken = default);
+
+        Task<ReviewProcessResponse> ReopenPhaseAsync(
+            Guid reviewProcessId,
+            ProcessPhase phase,
             CancellationToken cancellationToken = default);
     }
 }

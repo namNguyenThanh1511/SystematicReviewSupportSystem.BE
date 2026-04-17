@@ -12,6 +12,7 @@ using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
+using SRSS.IAM.Repositories.StudyCharacteristicsRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
 using SRSS.IAM.Repositories.SynthesisExecutionRepo;
@@ -90,6 +91,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
         private IProtocolEvaluationRepository? _protocolEvaluations;
+        private IStudyCharacteristicsRepository? _studyCharacteristics;
 
         // Research Question
         private IResearchQuestionRepository? _researchQuestions;
@@ -210,6 +212,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);
         public IProtocolVersionRepository ProtocolVersions => _protocolVersions ??= new ProtocolVersionRepository(_dbContext);
         public IProtocolEvaluationRepository ProtocolEvaluations => _protocolEvaluations ??= new ProtocolEvaluationRepository(_dbContext);
+        public IStudyCharacteristicsRepository StudyCharacteristics => _studyCharacteristics ??= new StudyCharacteristicsRepository(_dbContext);
 
         // Research Question
         public IResearchQuestionRepository ResearchQuestions => _researchQuestions ??= new ResearchQuestionRepository(_dbContext);

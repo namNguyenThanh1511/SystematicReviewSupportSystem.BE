@@ -51,7 +51,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public void Complete()
         {
-            if (Status != SelectionProcessStatus.InProgress)
+            if (Status != SelectionProcessStatus.InProgress && Status != SelectionProcessStatus.Reopened)
             {
                 throw new InvalidOperationException($"Cannot complete selection process from {Status} status.");
             }
@@ -60,12 +60,25 @@ namespace SRSS.IAM.Repositories.Entities
             CompletedAt = DateTimeOffset.UtcNow;
             ModifiedAt = DateTimeOffset.UtcNow;
         }
+
+        public void Reopen()
+        {
+            if (Status != SelectionProcessStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen selection process from {Status} status.");
+            }
+
+            Status = SelectionProcessStatus.Reopened;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum SelectionProcessStatus
     {
         NotStarted = 0,
         InProgress = 1,
-        Completed = 2
+        Completed = 2,
+        Reopened = 3
     }
 }

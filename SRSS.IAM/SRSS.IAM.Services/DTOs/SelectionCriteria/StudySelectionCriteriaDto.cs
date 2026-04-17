@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SRSS.IAM.Services.DTOs.SelectionCriteria
 {
@@ -46,5 +46,17 @@ namespace SRSS.IAM.Services.DTOs.SelectionCriteria
 
 		[Required(ErrorMessage = "Steps là bắt buộc")]
 		public string Steps { get; set; } = string.Empty;
+	}
+
+	public class StudyCharacteristicsDto
+	{
+		[StringLength(255, ErrorMessage = "Language không được vượt quá 255 ký tự")]
+		public string? Language { get; set; }
+
+		[StringLength(500, ErrorMessage = "Domain không được vượt quá 500 ký tự")]
+		public string? Domain { get; set; }
+
+		[StringLength(255, ErrorMessage = "StudyType không được vượt quá 255 ký tự")]
+		public string? StudyType { get; set; }
 	}
 }

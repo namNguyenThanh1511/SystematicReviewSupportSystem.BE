@@ -35,7 +35,6 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                 Id = Guid.NewGuid(),
                 ScreeningDecisionId = request.ScreeningDecisionId,
                 ChecklistTemplateId = request.ChecklistTemplateId,
-                Version = template.Version,
                 SubmittedAt = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow

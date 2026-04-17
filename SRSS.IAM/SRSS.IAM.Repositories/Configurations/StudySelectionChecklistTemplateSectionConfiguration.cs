@@ -17,6 +17,7 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(s => s.Title).HasColumnName("title").HasMaxLength(255).IsRequired();
             builder.Property(s => s.Description).HasColumnName("description");
             builder.Property(s => s.Order).HasColumnName("display_order").IsRequired();
+
             builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
             builder.Property(s => s.ModifiedAt).HasColumnName("modified_at").IsRequired();
 

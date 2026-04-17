@@ -7,8 +7,10 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
     {
         // Template
         Task<StudySelectionChecklistTemplateDto> CreateTemplateAsync(Guid projectId, CreateStudySelectionChecklistTemplateRequest request, CancellationToken cancellationToken = default);
-        Task<StudySelectionChecklistTemplateDto> UpdateTemplateAsync(Guid projectId, UpdateStudySelectionChecklistTemplateRequest request, CancellationToken cancellationToken = default);
-        Task<StudySelectionChecklistTemplateDto> GetTemplateByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+
+        Task<IEnumerable<StudySelectionChecklistTemplateSummaryDto>> GetTemplatesByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<StudySelectionChecklistTemplateDto> GetTemplateDetailAsync(Guid projectId, Guid templateId, CancellationToken cancellationToken = default);
+        Task<bool> ActivateTemplateAsync(Guid templateId, CancellationToken cancellationToken = default);
 
         // Reviewer specialized
         Task<PaperChecklistResponse> GetChecklistForPaperAsync(Guid processId, Guid paperId, ScreeningPhase phase, CancellationToken cancellationToken = default);

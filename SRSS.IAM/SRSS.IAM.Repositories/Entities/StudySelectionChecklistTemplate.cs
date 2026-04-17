@@ -6,7 +6,7 @@ namespace SRSS.IAM.Repositories.Entities
 {
     /// <summary>
     /// Represents the logical checklist definition for a project.
-    /// Only one template per project.
+    /// Supporting multiple versions/templates per project.
     /// </summary>
     public class StudySelectionChecklistTemplate : BaseEntity<Guid>
     {
@@ -14,6 +14,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public int Version { get; set; } = 1;
+        public bool IsActive { get; set; }
 
         // Navigation Properties
         public SystematicReviewProject Project { get; set; } = null!;

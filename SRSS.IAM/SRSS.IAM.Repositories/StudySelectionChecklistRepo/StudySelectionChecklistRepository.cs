@@ -8,7 +8,9 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
     public interface IStudySelectionChecklistTemplateRepository : IGenericRepository<StudySelectionChecklistTemplate, Guid, AppDbContext>
     {
         Task<StudySelectionChecklistTemplate?> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<StudySelectionChecklistTemplate>> GetAllByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<StudySelectionChecklistTemplate?> GetWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<StudySelectionChecklistTemplate?> GetByIdWithDetailsAsync(Guid templateId, Guid projectId, CancellationToken cancellationToken = default);
     }
 
     public interface IStudySelectionChecklistTemplateSectionRepository : IGenericRepository<StudySelectionChecklistTemplateSection, Guid, AppDbContext>
@@ -33,7 +35,18 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
         public async Task<StudySelectionChecklistTemplate?> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.StudySelectionChecklistTemplates
-                .FirstOrDefaultAsync(t => t.ProjectId == projectId, cancellationToken);
+                .Where(t => t.ProjectId == projectId)
+                .OrderByDescending(t => t.IsActive)
+                .ThenByDescending(t => t.Version)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<IEnumerable<StudySelectionChecklistTemplate>> GetAllByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            return await _context.StudySelectionChecklistTemplates
+                .Where(t => t.ProjectId == projectId)
+                .OrderByDescending(t => t.Version)
+                .ToListAsync(cancellationToken);
         }
 
         public async Task<StudySelectionChecklistTemplate?> GetWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -41,7 +54,18 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
             return await _context.StudySelectionChecklistTemplates
                 .Include(t => t.Sections.OrderBy(s => s.Order))
                     .ThenInclude(s => s.Items.OrderBy(i => i.Order))
-                .FirstOrDefaultAsync(t => t.ProjectId == projectId, cancellationToken);
+                .Where(t => t.ProjectId == projectId)
+                .OrderByDescending(t => t.IsActive)
+                .ThenByDescending(t => t.Version)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<StudySelectionChecklistTemplate?> GetByIdWithDetailsAsync(Guid templateId, Guid projectId, CancellationToken cancellationToken = default)
+        {
+            return await _context.StudySelectionChecklistTemplates
+                .Include(t => t.Sections.OrderBy(s => s.Order))
+                    .ThenInclude(s => s.Items.OrderBy(i => i.Order))
+                .FirstOrDefaultAsync(t => t.Id == templateId && t.ProjectId == projectId, cancellationToken);
         }
     }
 

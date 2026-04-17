@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260417181025_relationship project and stuse template")]
+    partial class relationshipprojectandstusetemplate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3933,6 +3936,10 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("submitted_at");
 
+                    b.Property<int>("Version")
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ChecklistTemplateId");
@@ -3943,80 +3950,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsUnique();
 
                     b.ToTable("study_selection_checklist_submissions", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmissionItemAnswer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsChecked")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_checked");
-
-                    b.Property<Guid>("ItemId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("item_id");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("SubmissionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("submission_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("SubmissionId", "ItemId")
-                        .IsUnique();
-
-                    b.ToTable("study_selection_checklist_submission_item_answers", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmissionSectionAnswer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsChecked")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_checked");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<Guid>("SectionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("section_id");
-
-                    b.Property<Guid>("SubmissionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("submission_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SectionId");
-
-                    b.HasIndex("SubmissionId", "SectionId")
-                        .IsUnique();
-
-                    b.ToTable("study_selection_checklist_submission_section_answers", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplate", b =>
@@ -4033,9 +3966,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text")
                         .HasColumnName("description");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
@@ -5919,46 +5849,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ScreeningDecision");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmissionItemAnswer", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplateItem", "Item")
-                        .WithMany("ItemAnswers")
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmission", "Submission")
-                        .WithMany("ItemAnswers")
-                        .HasForeignKey("SubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_study_selection_checklist_submission_item_answers_study_se~1");
-
-                    b.Navigation("Item");
-
-                    b.Navigation("Submission");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmissionSectionAnswer", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplateSection", "Section")
-                        .WithMany("SectionAnswers")
-                        .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmission", "Submission")
-                        .WithMany("SectionAnswers")
-                        .HasForeignKey("SubmissionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("FK_study_selection_checklist_submission_section_answers_study~1");
-
-                    b.Navigation("Section");
-
-                    b.Navigation("Submission");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplate", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
@@ -6388,13 +6278,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ImportBatches");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmission", b =>
-                {
-                    b.Navigation("ItemAnswers");
-
-                    b.Navigation("SectionAnswers");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplate", b =>
                 {
                     b.Navigation("Sections");
@@ -6402,16 +6285,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Submissions");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplateItem", b =>
-                {
-                    b.Navigation("ItemAnswers");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistTemplateSection", b =>
                 {
                     b.Navigation("Items");
-
-                    b.Navigation("SectionAnswers");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", b =>

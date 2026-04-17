@@ -123,6 +123,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<StudySelectionChecklistTemplateSection> StudySelectionChecklistTemplateSections { get; set; } = default!;
 		public DbSet<StudySelectionChecklistTemplateItem> StudySelectionChecklistTemplateItems { get; set; } = default!;
 		public DbSet<StudySelectionChecklistSubmission> StudySelectionChecklistSubmissions { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmissionSectionAnswer> StudySelectionChecklistSubmissionSectionAnswers { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmissionItemAnswer> StudySelectionChecklistSubmissionItemAnswers { get; set; } = default!;
 
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;

@@ -22,12 +22,12 @@ namespace SRSS.IAM.Repositories.Configurations
 
             // Relationships
             builder.HasOne(t => t.Project)
-                .WithOne(p => p.ChecklistTemplate)
-                .HasForeignKey<StudySelectionChecklistTemplate>(t => t.ProjectId)
+                .WithMany(p => p.StudySelectionChecklistTemplates)
+                .HasForeignKey(t => t.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes
-            builder.HasIndex(t => t.ProjectId).IsUnique();
+            builder.HasIndex(t => t.ProjectId);
         }
     }
 }

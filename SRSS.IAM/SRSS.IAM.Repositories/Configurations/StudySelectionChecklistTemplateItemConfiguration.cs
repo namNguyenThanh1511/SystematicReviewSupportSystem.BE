@@ -16,6 +16,7 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(i => i.SectionId).HasColumnName("section_id").IsRequired();
             builder.Property(i => i.Text).HasColumnName("text").IsRequired();
             builder.Property(i => i.Order).HasColumnName("display_order").IsRequired();
+
             builder.Property(i => i.CreatedAt).HasColumnName("created_at").IsRequired();
             builder.Property(i => i.ModifiedAt).HasColumnName("modified_at").IsRequired();
 

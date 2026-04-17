@@ -14,7 +14,21 @@ namespace SRSS.IAM.Services.Mappers
                 Name = entity.Name,
                 Description = entity.Description,
                 Version = entity.Version,
+                IsActive = entity.IsActive,
                 Sections = entity.Sections.Select(s => s.MapToDto()).ToList()
+            };
+        }
+
+        public static StudySelectionChecklistTemplateSummaryDto MapToSummaryDto(this StudySelectionChecklistTemplate entity)
+        {
+            return new StudySelectionChecklistTemplateSummaryDto
+            {
+                Id = entity.Id,
+                ProjectId = entity.ProjectId,
+                Name = entity.Name,
+                Description = entity.Description,
+                Version = entity.Version,
+                IsActive = entity.IsActive
             };
         }
 
@@ -27,6 +41,7 @@ namespace SRSS.IAM.Services.Mappers
                 Title = entity.Title,
                 Description = entity.Description,
                 Order = entity.Order,
+
                 Items = entity.Items.Select(i => i.MapToDto()).ToList()
             };
         }
@@ -38,7 +53,8 @@ namespace SRSS.IAM.Services.Mappers
                 Id = entity.Id,
                 SectionId = entity.SectionId,
                 Text = entity.Text,
-                Order = entity.Order
+                Order = entity.Order,
+
             };
         }
 
@@ -49,7 +65,6 @@ namespace SRSS.IAM.Services.Mappers
                 Id = entity.Id,
                 ScreeningDecisionId = entity.ScreeningDecisionId,
                 ChecklistTemplateId = entity.ChecklistTemplateId,
-                Version = entity.Version,
                 SubmittedAt = entity.SubmittedAt
             };
         }

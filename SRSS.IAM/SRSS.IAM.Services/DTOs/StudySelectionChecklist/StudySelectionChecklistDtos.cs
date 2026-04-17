@@ -4,6 +4,16 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
 {
     // Template
     // Template
+    public class StudySelectionChecklistTemplateSummaryDto
+    {
+        public Guid Id { get; set; }
+        public Guid ProjectId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public int Version { get; set; }
+        public bool IsActive { get; set; }
+    }
+
     public class StudySelectionChecklistTemplateDto
     {
         public Guid Id { get; set; }
@@ -11,6 +21,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public int Version { get; set; }
+        public bool IsActive { get; set; }
         public List<StudySelectionChecklistTemplateSectionDto> Sections { get; set; } = new();
     }
 
@@ -21,6 +32,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
         public string Title { get; set; } = string.Empty;
         public string? Description { get; set; }
         public int Order { get; set; }
+
         public List<StudySelectionChecklistTemplateItemDto> Items { get; set; } = new();
     }
 
@@ -30,6 +42,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
         public Guid SectionId { get; set; }
         public string Text { get; set; } = string.Empty;
         public int Order { get; set; }
+
     }
 
     public class CreateStudySelectionChecklistTemplateRequest
@@ -51,28 +64,10 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
     {
         public string Text { get; set; } = string.Empty;
         public int Order { get; set; }
+
     }
 
-    public class UpdateStudySelectionChecklistTemplateRequest
-    {
-        public string Name { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public List<UpdateTemplateSectionRequest> Sections { get; set; } = new();
-    }
 
-    public class UpdateTemplateSectionRequest
-    {
-        public string Title { get; set; } = string.Empty;
-        public string? Description { get; set; }
-        public int Order { get; set; }
-        public List<UpdateTemplateItemRequest> Items { get; set; } = new();
-    }
-
-    public class UpdateTemplateItemRequest
-    {
-        public string Text { get; set; } = string.Empty;
-        public int Order { get; set; }
-    }
 
     // Submission & Answer
     public class ChecklistSubmissionDto
@@ -80,7 +75,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelectionChecklist
         public Guid Id { get; set; }
         public Guid ScreeningDecisionId { get; set; }
         public Guid ChecklistTemplateId { get; set; }
-        public int Version { get; set; }
         public DateTimeOffset? SubmittedAt { get; set; }
     }
 

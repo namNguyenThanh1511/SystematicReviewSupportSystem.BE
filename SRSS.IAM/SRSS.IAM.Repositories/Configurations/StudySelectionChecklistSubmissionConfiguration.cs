@@ -15,7 +15,6 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(s => s.Id).HasColumnName("id");
             builder.Property(s => s.ScreeningDecisionId).HasColumnName("screening_decision_id").IsRequired();
             builder.Property(s => s.ChecklistTemplateId).HasColumnName("checklist_template_id").IsRequired();
-            builder.Property(s => s.Version).HasColumnName("version").IsRequired();
             builder.Property(s => s.SubmittedAt).HasColumnName("submitted_at").IsRequired();
             builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
             builder.Property(s => s.ModifiedAt).HasColumnName("modified_at").IsRequired();

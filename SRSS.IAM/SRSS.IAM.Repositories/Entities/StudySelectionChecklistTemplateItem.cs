@@ -13,7 +13,9 @@ namespace SRSS.IAM.Repositories.Entities
         public string Text { get; set; } = string.Empty;
         public int Order { get; set; }
 
+
         // Navigation Properties
         public StudySelectionChecklistTemplateSection Section { get; set; } = null!;
+        public ICollection<StudySelectionChecklistSubmissionItemAnswer> ItemAnswers { get; set; } = new List<StudySelectionChecklistSubmissionItemAnswer>();
     }
 }

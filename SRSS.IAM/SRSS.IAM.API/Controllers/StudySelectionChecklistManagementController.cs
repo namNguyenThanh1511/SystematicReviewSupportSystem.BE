@@ -29,25 +29,37 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Checklist template created successfully.");
         }
 
-        // 1.1.b Update Checklist Template
-        [HttpPut("projects/{projectId}/study-selection-checklist-template")]
-        public async Task<ActionResult<ApiResponse<StudySelectionChecklistTemplateDto>>> UpdateTemplate(
+
+
+        // 1.2 Get All Checklist Templates for Project
+        [HttpGet("projects/{projectId}/study-selection-checklist-template")]
+        public async Task<ActionResult<ApiResponse<IEnumerable<StudySelectionChecklistTemplateSummaryDto>>>> GetTemplates(
             [FromRoute] Guid projectId,
-            [FromBody] UpdateStudySelectionChecklistTemplateRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _checklistService.UpdateTemplateAsync(projectId, request, cancellationToken);
-            return Ok(result, "Checklist template updated successfully.");
+            var result = await _checklistService.GetTemplatesByProjectIdAsync(projectId, cancellationToken);
+            return Ok(result);
         }
 
-        // 1.2 Get Checklist Template
-        [HttpGet("projects/{projectId}/study-selection-checklist-template")]
-        public async Task<ActionResult<ApiResponse<StudySelectionChecklistTemplateDto>>> GetTemplate(
+        // 1.2.1 Get Checklist Template Detail
+        [HttpGet("projects/{projectId}/study-selection-checklist-templates/{templateId}")]
+        public async Task<ActionResult<ApiResponse<StudySelectionChecklistTemplateDto>>> GetTemplateDetail(
             [FromRoute] Guid projectId,
+            [FromRoute] Guid templateId,
             CancellationToken cancellationToken)
         {
-            var result = await _checklistService.GetTemplateByProjectIdAsync(projectId, cancellationToken);
+            var result = await _checklistService.GetTemplateDetailAsync(projectId, templateId, cancellationToken);
             return Ok(result);
+        }
+
+        // 1.3 Activate Checklist Template
+        [HttpPost("study-selection-checklist-templates/{templateId}/activate")]
+        public async Task<ActionResult<ApiResponse<bool>>> ActivateTemplate(
+            [FromRoute] Guid templateId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _checklistService.ActivateTemplateAsync(templateId, cancellationToken);
+            return Ok(result, "Checklist template activated successfully.");
         }
     }
 }

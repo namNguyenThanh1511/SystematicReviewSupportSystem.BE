@@ -14,10 +14,11 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid ScreeningDecisionId { get; set; }
         public Guid ChecklistTemplateId { get; set; }
         public DateTimeOffset? SubmittedAt { get; set; }
-        public int Version { get; set; }
 
         // Navigation Properties
         public ScreeningDecision ScreeningDecision { get; set; } = null!;
         public StudySelectionChecklistTemplate ChecklistTemplate { get; set; } = null!;
+        public ICollection<StudySelectionChecklistSubmissionSectionAnswer> SectionAnswers { get; set; } = new List<StudySelectionChecklistSubmissionSectionAnswer>();
+        public ICollection<StudySelectionChecklistSubmissionItemAnswer> ItemAnswers { get; set; } = new List<StudySelectionChecklistSubmissionItemAnswer>();
     }
 }

@@ -14,5 +14,10 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public int? MatrixRowIndex { get; set; }
 
         public string? NewValue { get; set; }
+
+        /// <summary>
+        /// When true, the cell is set to "Not Reported". NewValue is ignored and all value fields are nulled.
+        /// </summary>
+        public bool IsNotReported { get; set; } = false;
     }
 }

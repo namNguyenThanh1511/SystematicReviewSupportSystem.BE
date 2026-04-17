@@ -21,5 +21,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 		Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken);
 		Task<ExtractionWorkloadSummaryDto> GetWorkloadSummaryAsync(Guid extractionProcessId, CancellationToken cancellationToken);
 		Task CompleteAsync(Guid extractionProcessId, CancellationToken cancellationToken);
+		Task<List<ExtractedDataAuditLogDto>> GetCellAuditLogsAsync(Guid processId, Guid paperId, Guid fieldId, Guid? matrixColumnId, int? matrixRowIndex);
+		Task<ExtractionCommentDto> AddCommentAsync(Guid extractionProcessId, Guid paperId, Guid fieldId, AddCommentRequestDto request);
+		Task<ReviewerWorkspaceDto> GetReviewerWorkspaceAsync(Guid extractionProcessId, Guid paperId);
 	}
 }

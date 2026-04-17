@@ -42,6 +42,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto);
         Task<QualityAssessmentResolutionResponse> GetResolutionByQaPaperIdAsync(Guid qaPaperId);
         Task<List<QAPaperResponse>> GetHighQualityPaperIdsAsync(Guid processId);
+        Task AutoResolveProcessAsync(AutoResolveQualityAssessmentRequest request);
 
         // Automate
 		Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request);

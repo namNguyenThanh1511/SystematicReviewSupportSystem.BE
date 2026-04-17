@@ -29,6 +29,7 @@ using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.AuditLogService;
 using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
@@ -62,6 +63,7 @@ using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
 using SRSS.IAM.Services.StudySelectionChecklists;
+using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -193,34 +195,39 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Study Selection Checklist
             services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
             services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
+
+            services.AddScoped<IAuditLogService, AuditLogService>();
+            services.AddScoped<AuditInterceptor>();
         }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)
         {
-            var allowedOrigins = configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>()
-                ?? [];
+            // Lấy danh sách từ config
+            var allowedOrigins = configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() ?? [];
 
             services.AddCors(options =>
             {
-                options.AddPolicy(name: policyName,
-                                  builder =>
-                                  {
-                                      if (allowedOrigins.Length == 0)
-                                      {
-                                          builder.AllowAnyOrigin()
-                                                 .AllowAnyMethod()
-                                                 .AllowAnyHeader();
-                                      }
-                                      else
-                                      {
-                                          builder.WithOrigins(allowedOrigins)
-                                                 .AllowAnyMethod()
-                                                 .AllowAnyHeader()
-                                                 .AllowCredentials();
-                                      }
-                                  });
+                options.AddPolicy(name: policyName, builder =>
+                {
+                    // Kiểm tra nếu là môi trường dev (không có origin nào được định nghĩa)
+                    if (allowedOrigins.Length == 0 || allowedOrigins.Contains("*"))
+                    {
+                        builder.SetIsOriginAllowed(origin => true) // Cho phép mọi Origin
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials(); // Quan trọng để không lỗi Preflight
+                    }
+                    else
+                    {
+                        builder.WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
+                    }
+                });
             });
         }
+
 
         public static IServiceCollection ConfigureSwaggerForAuthentication(this IServiceCollection services)
         {

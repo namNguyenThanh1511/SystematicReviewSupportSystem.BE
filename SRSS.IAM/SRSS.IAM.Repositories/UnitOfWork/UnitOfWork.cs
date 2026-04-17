@@ -44,6 +44,7 @@ using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
 using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
+using SRSS.IAM.Repositories.AuditLogRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -53,6 +54,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private readonly AppDbContext _dbContext;
         private IDbContextTransaction? _currentTransaction;
         private IUserRepository? _users;
+        private IAuditLogRepository? _auditLogs;
         private INotificationRepository? _notifications;
         private IProjectMemberInvitationRepository? _projectMemberInvitations;
         private ISystematicReviewProjectRepository? _systematicReviewProjects;
@@ -132,6 +134,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExtractionCommentRepository? _extractionComments;
+        private IExtractedDataAuditLogRepository? _extractedDataAuditLogs;
         private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
         private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
         private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
@@ -207,6 +211,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         }
 
         public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+        public IAuditLogRepository AuditLogs => _auditLogs ??= new AuditLogRepository(_dbContext);
         public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_dbContext);
 
         // Core Governance
@@ -279,20 +284,26 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IExtractedDataValueRepository ExtractedDataValues =>
             _extractedDataValues ??= new ExtractedDataValueRepository(_dbContext);
 
+        public IExtractionCommentRepository ExtractionComments =>
+            _extractionComments ??= new ExtractionCommentRepository(_dbContext);
+
+        public IExtractedDataAuditLogRepository ExtractedDataAuditLogs =>
+            _extractedDataAuditLogs ??= new ExtractedDataAuditLogRepository(_dbContext);
+
 
         public IDataSynthesisStrategyRepository SynthesisStrategies =>
             _synthesisStrategies ??= new DataSynthesisStrategyRepository(_dbContext);
 
-        public ISynthesisProcessRepository SynthesisProcesses => 
+        public ISynthesisProcessRepository SynthesisProcesses =>
             _synthesisProcesses ??= new SynthesisProcessRepository(_dbContext);
-        
-        public ISynthesisThemeRepository SynthesisThemes => 
+
+        public ISynthesisThemeRepository SynthesisThemes =>
             _synthesisThemes ??= new SynthesisThemeRepository(_dbContext);
-            
-        public IThemeEvidenceRepository ThemeEvidences => 
+
+        public IThemeEvidenceRepository ThemeEvidences =>
             _themeEvidences ??= new ThemeEvidenceRepository(_dbContext);
-            
-        public IResearchQuestionFindingRepository ResearchQuestionFindings => 
+
+        public IResearchQuestionFindingRepository ResearchQuestionFindings =>
             _researchQuestionFindings ??= new ResearchQuestionFindingRepository(_dbContext);
 
         public IDisseminationStrategyRepository DisseminationStrategies =>

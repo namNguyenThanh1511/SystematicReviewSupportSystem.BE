@@ -32,6 +32,7 @@ namespace SRSS.IAM.Repositories
 
 		public DbSet<User> Users { get; set; } = default!;
 		public DbSet<Notification> Notifications { get; set; } = default!;
+		public DbSet<AuditLog> AuditLogs { get; set; } = default!;
 
 		// Planning Phase
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
@@ -78,6 +79,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
 		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
 		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
+		public DbSet<ExtractionComment> ExtractionComments { get; set; } = default!;
+		public DbSet<ExtractedDataAuditLog> ExtractedDataAuditLogs { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
 		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
@@ -91,6 +94,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
 		public DbSet<PrismaFlowRecord> PrismaFlowRecords { get; set; } = default!;
 		public DbSet<ChecklistTemplate> ChecklistTemplates { get; set; } = default!;
+		public DbSet<ChecklistSectionTemplate> ChecklistSectionTemplates { get; set; } = default!;
 		public DbSet<ChecklistItemTemplate> ChecklistItemTemplates { get; set; } = default!;
 		public DbSet<ReviewChecklist> ReviewChecklists { get; set; } = default!;
 		public DbSet<ChecklistItemResponse> ChecklistItemResponses { get; set; } = default!;

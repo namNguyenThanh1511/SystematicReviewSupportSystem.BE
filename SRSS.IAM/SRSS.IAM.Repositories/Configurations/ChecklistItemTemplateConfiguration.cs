@@ -20,6 +20,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("template_id")
                 .IsRequired();
 
+            builder.Property(x => x.SectionId)
+                .HasColumnName("section_id");
+
             builder.Property(x => x.ParentId)
                 .HasColumnName("parent_id");
 
@@ -56,6 +59,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasDefaultValue(true)
                 .IsRequired();
 
+            builder.Property(x => x.IsSectionHeaderOnly)
+                .HasColumnName("is_section_header_only")
+                .HasDefaultValue(false)
+                .IsRequired();
+
             builder.Property(x => x.DefaultSampleAnswer)
                 .HasColumnName("default_sample_answer")
                 .HasMaxLength(4000);
@@ -73,6 +81,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(x => x.ParentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.HasOne(x => x.SectionTemplate)
+                .WithMany(x => x.ItemTemplates)
+                .HasForeignKey(x => x.SectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             builder.HasMany(x => x.Responses)
                 .WithOne(x => x.ItemTemplate)
                 .HasForeignKey(x => x.ItemTemplateId)
@@ -83,6 +96,9 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.HasIndex(x => x.ParentId)
                 .HasDatabaseName("idx_checklist_item_templates_parent_id");
+
+            builder.HasIndex(x => x.SectionId)
+                .HasDatabaseName("idx_checklist_item_templates_section_id");
 
             builder.HasIndex(x => new { x.TemplateId, x.ItemNumber })
                 .IsUnique()

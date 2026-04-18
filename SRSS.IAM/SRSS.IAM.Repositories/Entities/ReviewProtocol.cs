@@ -7,170 +7,169 @@ using System.Threading.Tasks;
 
 namespace SRSS.IAM.Repositories.Entities
 {
-	public class ReviewProtocol : BaseEntity<Guid>
-	{
-		public Guid ProjectId { get; set; }
-		public string ProtocolVersion { get; set; } = "1.0.0";
-		public ProtocolStatus Status { get; set; } = ProtocolStatus.Draft;
-		public DateTimeOffset? ApprovedAt { get; set; }
-		public bool IsDeleted { get; set; } = false;
-		public DateTimeOffset? DeletedAt { get; set; }
+    public class ReviewProtocol : BaseEntity<Guid>
+    {
+        public Guid ProjectId { get; set; }
+        public string ProtocolVersion { get; set; } = "1.0.0";
+        public ProtocolStatus Status { get; set; } = ProtocolStatus.Draft;
+        public DateTimeOffset? ApprovedAt { get; set; }
+        public bool IsDeleted { get; set; } = false;
+        public DateTimeOffset? DeletedAt { get; set; }
 
-		// Navigation properties
-		public SystematicReviewProject Project { get; set; } = null!;
-		public ICollection<ProtocolVersion> Versions { get; set; } = new List<ProtocolVersion>();
-		public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
-		public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
-		public ICollection<StudySelectionProcedure> SelectionProcedures { get; set; } = new List<StudySelectionProcedure>();
-		public ICollection<ProtocolEvaluation> Evaluations { get; set; } = new List<ProtocolEvaluation>();
-		public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
-		public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
-		public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
-		public StudyCharacteristics? StudyCharacteristics { get; set; }
-		public ReviewProcess? ReviewProcess { get; set; }
+        // Navigation properties
+        public SystematicReviewProject Project { get; set; } = null!;
+        public ICollection<ProtocolVersion> Versions { get; set; } = new List<ProtocolVersion>();
+        public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
+        public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
+        public ICollection<StudySelectionProcedure> SelectionProcedures { get; set; } = new List<StudySelectionProcedure>();
+        public ICollection<ProtocolEvaluation> Evaluations { get; set; } = new List<ProtocolEvaluation>();
+        public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
+        public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
+        public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
+        public ReviewProcess? ReviewProcess { get; set; }
 
-		// Domain Methods
-		public void Approve(Guid userId)
-		{
-			if (Status == ProtocolStatus.Approved)
-			{
-				throw new InvalidOperationException("Protocol đã được phê duyệt trước đó.");
-			}
+        // Domain Methods
+        public void Approve(Guid userId)
+        {
+            if (Status == ProtocolStatus.Approved)
+            {
+                throw new InvalidOperationException("Protocol đã được phê duyệt trước đó.");
+            }
 
-			if (IsDeleted)
-			{
-				throw new InvalidOperationException("Không thể phê duyệt protocol đã bị xóa.");
-			}
+            if (IsDeleted)
+            {
+                throw new InvalidOperationException("Không thể phê duyệt protocol đã bị xóa.");
+            }
 
-			Status = ProtocolStatus.Approved;
-			ApprovedAt = DateTimeOffset.UtcNow;
-			ModifiedAt = DateTimeOffset.UtcNow;
+            Status = ProtocolStatus.Approved;
+            ApprovedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
 
-			// Create evaluation record with User ID
-			//var evaluation = new ProtocolEvaluation
-			//{
-			//	Id = Guid.NewGuid(),
-			//	ProtocolId = Id,
-			//	ReviewerId = userId, // Direct User ID
-			//	EvaluationResult = "Approved",
-			//	Comment = "Protocol approved",
-			//	EvaluatedAt = DateTimeOffset.UtcNow,
-			//	CreatedAt = DateTimeOffset.UtcNow,
-			//	ModifiedAt = DateTimeOffset.UtcNow
-			//};
+            // Create evaluation record with User ID
+            //var evaluation = new ProtocolEvaluation
+            //{
+            //	Id = Guid.NewGuid(),
+            //	ProtocolId = Id,
+            //	ReviewerId = userId, // Direct User ID
+            //	EvaluationResult = "Approved",
+            //	Comment = "Protocol approved",
+            //	EvaluatedAt = DateTimeOffset.UtcNow,
+            //	CreatedAt = DateTimeOffset.UtcNow,
+            //	ModifiedAt = DateTimeOffset.UtcNow
+            //};
 
-			//Evaluations.Add(evaluation);
-		}
+            //Evaluations.Add(evaluation);
+        }
 
-		public void Reject(Guid userId, string? reason = null)
-		{
-			if (Status == ProtocolStatus.Approved)
-			{
-				throw new InvalidOperationException("Không thể reject protocol đã được phê duyệt.");
-			}
+        public void Reject(Guid userId, string? reason = null)
+        {
+            if (Status == ProtocolStatus.Approved)
+            {
+                throw new InvalidOperationException("Không thể reject protocol đã được phê duyệt.");
+            }
 
-			if (IsDeleted)
-			{
-				throw new InvalidOperationException("Không thể reject protocol đã bị xóa.");
-			}
+            if (IsDeleted)
+            {
+                throw new InvalidOperationException("Không thể reject protocol đã bị xóa.");
+            }
 
-			Status = ProtocolStatus.Rejected;
-			ModifiedAt = DateTimeOffset.UtcNow;
+            Status = ProtocolStatus.Rejected;
+            ModifiedAt = DateTimeOffset.UtcNow;
 
-			// Create evaluation record with User ID
-			//var evaluation = new ProtocolEvaluation
-			//{
-			//	Id = Guid.NewGuid(),
-			//	ProtocolId = Id,
-			//	ReviewerId = userId, // Direct User ID
-			//	EvaluationResult = "Rejected",
-			//	Comment = reason ?? "Protocol rejected",
-			//	EvaluatedAt = DateTimeOffset.UtcNow,
-			//	CreatedAt = DateTimeOffset.UtcNow,
-			//	ModifiedAt = DateTimeOffset.UtcNow
-			//};
+            // Create evaluation record with User ID
+            //var evaluation = new ProtocolEvaluation
+            //{
+            //	Id = Guid.NewGuid(),
+            //	ProtocolId = Id,
+            //	ReviewerId = userId, // Direct User ID
+            //	EvaluationResult = "Rejected",
+            //	Comment = reason ?? "Protocol rejected",
+            //	EvaluatedAt = DateTimeOffset.UtcNow,
+            //	CreatedAt = DateTimeOffset.UtcNow,
+            //	ModifiedAt = DateTimeOffset.UtcNow
+            //};
 
-			//Evaluations.Add(evaluation);
-		}
+            //Evaluations.Add(evaluation);
+        }
 
-		public void SubmitForReview()
-		{
-			if (Status != ProtocolStatus.Draft)
-			{
-				throw new InvalidOperationException($"Chỉ có thể submit protocol ở trạng thái Draft. Hiện tại: {Status}");
-			}
+        public void SubmitForReview()
+        {
+            if (Status != ProtocolStatus.Draft)
+            {
+                throw new InvalidOperationException($"Chỉ có thể submit protocol ở trạng thái Draft. Hiện tại: {Status}");
+            }
 
-			if (IsDeleted)
-			{
-				throw new InvalidOperationException("Không thể submit protocol đã bị xóa.");
-			}
+            if (IsDeleted)
+            {
+                throw new InvalidOperationException("Không thể submit protocol đã bị xóa.");
+            }
 
-			Status = ProtocolStatus.UnderReview;
-			ModifiedAt = DateTimeOffset.UtcNow;
-		}
+            Status = ProtocolStatus.UnderReview;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
 
-		public void SoftDelete()
-		{
-			if (Status == ProtocolStatus.Approved)
-			{
-				throw new InvalidOperationException("Không thể xóa protocol đã được phê duyệt.");
-			}
+        public void SoftDelete()
+        {
+            if (Status == ProtocolStatus.Approved)
+            {
+                throw new InvalidOperationException("Không thể xóa protocol đã được phê duyệt.");
+            }
 
-			if (IsDeleted)
-			{
-				throw new InvalidOperationException("Protocol đã bị xóa trước đó.");
-			}
+            if (IsDeleted)
+            {
+                throw new InvalidOperationException("Protocol đã bị xóa trước đó.");
+            }
 
-			IsDeleted = true;
-			DeletedAt = DateTimeOffset.UtcNow;
-			ModifiedAt = DateTimeOffset.UtcNow;
-		}
+            IsDeleted = true;
+            DeletedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
 
-		public void Restore()
-		{
-			if (!IsDeleted)
-			{
-				throw new InvalidOperationException("Protocol chưa bị xóa.");
-			}
+        public void Restore()
+        {
+            if (!IsDeleted)
+            {
+                throw new InvalidOperationException("Protocol chưa bị xóa.");
+            }
 
-			IsDeleted = false;
-			DeletedAt = null;
-			ModifiedAt = DateTimeOffset.UtcNow;
-		}
+            IsDeleted = false;
+            DeletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
 
-		public bool CanDelete()
-		{
-			return Status != ProtocolStatus.Approved && !IsDeleted;
-		}
+        public bool CanDelete()
+        {
+            return Status != ProtocolStatus.Approved && !IsDeleted;
+        }
 
-		public bool CanEdit()
-		{
-			return Status == ProtocolStatus.Draft && !IsDeleted;
-		}
+        public bool CanEdit()
+        {
+            return Status == ProtocolStatus.Draft && !IsDeleted;
+        }
 
-		/// <summary>
-		/// Locks the protocol once screening starts. Prevents further edits (G-04).
-		/// </summary>
-		public void Lock()
-		{
-			if (Status != ProtocolStatus.Approved)
-			{
-				throw new InvalidOperationException(
-					$"Only an Approved protocol can be locked. Current status: {Status}.");
-			}
+        /// <summary>
+        /// Locks the protocol once screening starts. Prevents further edits (G-04).
+        /// </summary>
+        public void Lock()
+        {
+            if (Status != ProtocolStatus.Approved)
+            {
+                throw new InvalidOperationException(
+                    $"Only an Approved protocol can be locked. Current status: {Status}.");
+            }
 
-			Status = ProtocolStatus.Locked;
-			ModifiedAt = DateTimeOffset.UtcNow;
-		}
-	}
+            Status = ProtocolStatus.Locked;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+    }
 
-	public enum ProtocolStatus
-	{
-		Draft = 0,
-		UnderReview = 1,
-		Approved = 2,
-		Rejected = 3,
-		NeedsRevision = 4,
-		Locked = 5
-	}
+    public enum ProtocolStatus
+    {
+        Draft = 0,
+        UnderReview = 1,
+        Approved = 2,
+        Rejected = 3,
+        NeedsRevision = 4,
+        Locked = 5
+    }
 }

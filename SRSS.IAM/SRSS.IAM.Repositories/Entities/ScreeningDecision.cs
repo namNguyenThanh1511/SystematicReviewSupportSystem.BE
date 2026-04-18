@@ -17,6 +17,7 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid? ExclusionReasonId { get; set; }
         public string? Reason { get; set; }
         public DateTimeOffset DecidedAt { get; set; }
+        public Guid? ChecklistSubmissionId { get; set; }
 
         // Navigation Properties
         public StudySelectionProcess StudySelectionProcess { get; set; } = null!;

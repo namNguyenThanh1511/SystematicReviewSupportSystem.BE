@@ -20,15 +20,10 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public ScreeningPhase Phase { get; set; }
         public string? Reason { get; set; }
         public Guid? ExclusionReasonId { get; set; }
-    }
-
-    public class UpdateScreeningDecisionRequest
-    {
-        public ScreeningDecisionType Decision { get; set; }
-        public string? Reason { get; set; }
-        public Guid? ExclusionReasonId { get; set; }
         public Guid? ChecklistSubmissionId { get; set; }
     }
+
+
 
     public class ResolveScreeningConflictRequest
     {

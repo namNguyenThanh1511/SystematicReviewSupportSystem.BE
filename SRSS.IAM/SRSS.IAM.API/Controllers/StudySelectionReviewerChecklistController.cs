@@ -34,19 +34,15 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result);
         }
 
-        // 2.2 Get Existing Submission
         [HttpGet("study-selection/{processId}/papers/{paperId}/checklist-submission")]
-        public async Task<ActionResult<ApiResponse<ChecklistSubmissionDto>>> GetExistingSubmission(
+        public async Task<ActionResult<ApiResponse<ChecklistReviewDto>>> GetExistingSubmission(
             [FromRoute] Guid processId,
             [FromRoute] Guid paperId,
+            [FromQuery] Guid reviewerId,
             [FromQuery] ScreeningPhase phase,
             CancellationToken cancellationToken)
         {
-            var result = await _submissionService.GetSubmissionByPaperAndPhaseAsync(paperId, phase, cancellationToken);
-            if (result == null)
-            {
-                throw new InvalidOperationException("No checklist submission found for this paper and phase.");
-            }
+            var result = await _submissionService.GetChecklistForReviewByContextAsync(processId, paperId, reviewerId, phase, cancellationToken);
             return Ok(result);
         }
     }

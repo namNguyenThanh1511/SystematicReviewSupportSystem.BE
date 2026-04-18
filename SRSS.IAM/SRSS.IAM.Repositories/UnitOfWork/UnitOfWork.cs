@@ -143,6 +143,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionChecklistTemplateSectionRepository? _studySelectionChecklistTemplateSections;
         private IStudySelectionChecklistTemplateItemRepository? _studySelectionChecklistTemplateItems;
         private IStudySelectionChecklistSubmissionRepository? _studySelectionChecklistSubmissions;
+        private IStudySelectionChecklistSubmissionSectionAnswerRepository? _studySelectionChecklistSubmissionSectionAnswers;
+        private IStudySelectionChecklistSubmissionItemAnswerRepository? _studySelectionChecklistSubmissionItemAnswers;
 
         private IDataSynthesisStrategyRepository? _synthesisStrategies;
         private ISynthesisProcessRepository? _synthesisProcesses;
@@ -402,6 +404,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IStudySelectionChecklistTemplateSectionRepository StudySelectionChecklistTemplateSections => _studySelectionChecklistTemplateSections ??= new StudySelectionChecklistTemplateSectionRepository(_dbContext);
         public IStudySelectionChecklistTemplateItemRepository StudySelectionChecklistTemplateItems => _studySelectionChecklistTemplateItems ??= new StudySelectionChecklistTemplateItemRepository(_dbContext);
         public IStudySelectionChecklistSubmissionRepository StudySelectionChecklistSubmissions => _studySelectionChecklistSubmissions ??= new StudySelectionChecklistSubmissionRepository(_dbContext);
+        public IStudySelectionChecklistSubmissionSectionAnswerRepository StudySelectionChecklistSubmissionSectionAnswers => _studySelectionChecklistSubmissionSectionAnswers ??= new StudySelectionChecklistSubmissionSectionAnswerRepository(_dbContext);
+        public IStudySelectionChecklistSubmissionItemAnswerRepository StudySelectionChecklistSubmissionItemAnswers => _studySelectionChecklistSubmissionItemAnswers ??= new StudySelectionChecklistSubmissionItemAnswerRepository(_dbContext);
 
         public void Dispose() => _dbContext.Dispose();
     }

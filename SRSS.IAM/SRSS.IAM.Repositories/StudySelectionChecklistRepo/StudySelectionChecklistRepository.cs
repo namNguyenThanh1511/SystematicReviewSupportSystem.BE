@@ -9,7 +9,7 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
     {
         Task<StudySelectionChecklistTemplate?> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<IEnumerable<StudySelectionChecklistTemplate>> GetAllByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
-        Task<StudySelectionChecklistTemplate?> GetWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<StudySelectionChecklistTemplate?> GetActiveWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<StudySelectionChecklistTemplate?> GetByIdWithDetailsAsync(Guid templateId, Guid projectId, CancellationToken cancellationToken = default);
     }
 
@@ -23,8 +23,15 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
 
     public interface IStudySelectionChecklistSubmissionRepository : IGenericRepository<StudySelectionChecklistSubmission, Guid, AppDbContext>
     {
-        Task<StudySelectionChecklistSubmission?> GetByDecisionIdAsync(Guid decisionId, CancellationToken cancellationToken = default);
-        Task<StudySelectionChecklistSubmission?> GetByPaperAndPhaseAsync(Guid paperId, ScreeningPhase phase, CancellationToken cancellationToken = default);
+        Task<StudySelectionChecklistSubmission?> GetByContextWithAnswersAsync(Guid processId, Guid paperId, Guid reviewerId, ScreeningPhase phase, CancellationToken cancellationToken = default);
+    }
+
+    public interface IStudySelectionChecklistSubmissionSectionAnswerRepository : IGenericRepository<StudySelectionChecklistSubmissionSectionAnswer, Guid, AppDbContext>
+    {
+    }
+
+    public interface IStudySelectionChecklistSubmissionItemAnswerRepository : IGenericRepository<StudySelectionChecklistSubmissionItemAnswer, Guid, AppDbContext>
+    {
     }
 
 
@@ -49,7 +56,7 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<StudySelectionChecklistTemplate?> GetWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<StudySelectionChecklistTemplate?> GetActiveWithDetailsAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.StudySelectionChecklistTemplates
                 .Include(t => t.Sections.OrderBy(s => s.Order))
@@ -83,19 +90,25 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
     {
         public StudySelectionChecklistSubmissionRepository(AppDbContext context) : base(context) { }
 
-        public async Task<StudySelectionChecklistSubmission?> GetByDecisionIdAsync(Guid decisionId, CancellationToken cancellationToken = default)
+        public async Task<StudySelectionChecklistSubmission?> GetByContextWithAnswersAsync(Guid processId, Guid paperId, Guid reviewerId, ScreeningPhase phase, CancellationToken cancellationToken = default)
         {
             return await _context.StudySelectionChecklistSubmissions
-                .FirstOrDefaultAsync(s => s.ScreeningDecisionId == decisionId, cancellationToken);
+                .Include(s => s.SectionAnswers)
+                .Include(s => s.ItemAnswers)
+                .FirstOrDefaultAsync(s => s.StudySelectionProcessId == processId &&
+                                         s.PaperId == paperId &&
+                                         s.ReviewerId == reviewerId &&
+                                         s.Phase == phase, cancellationToken);
         }
+    }
 
-        public async Task<StudySelectionChecklistSubmission?> GetByPaperAndPhaseAsync(Guid paperId, ScreeningPhase phase, CancellationToken cancellationToken = default)
-        {
-            // Join with ScreeningDecision to filter by PaperId and Phase
-            return await _context.StudySelectionChecklistSubmissions
-                .Include(s => s.ScreeningDecision)
-                .Where(s => s.ScreeningDecision.PaperId == paperId && s.ScreeningDecision.Phase == phase)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
+    public class StudySelectionChecklistSubmissionSectionAnswerRepository : GenericRepository<StudySelectionChecklistSubmissionSectionAnswer, Guid, AppDbContext>, IStudySelectionChecklistSubmissionSectionAnswerRepository
+    {
+        public StudySelectionChecklistSubmissionSectionAnswerRepository(AppDbContext context) : base(context) { }
+    }
+
+    public class StudySelectionChecklistSubmissionItemAnswerRepository : GenericRepository<StudySelectionChecklistSubmissionItemAnswer, Guid, AppDbContext>, IStudySelectionChecklistSubmissionItemAnswerRepository
+    {
+        public StudySelectionChecklistSubmissionItemAnswerRepository(AppDbContext context) : base(context) { }
     }
 }

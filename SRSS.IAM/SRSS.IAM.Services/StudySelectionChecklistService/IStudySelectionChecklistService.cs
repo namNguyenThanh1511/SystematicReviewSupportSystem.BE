@@ -14,13 +14,16 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
 
         // Reviewer specialized
         Task<PaperChecklistResponse> GetChecklistForPaperAsync(Guid processId, Guid paperId, ScreeningPhase phase, CancellationToken cancellationToken = default);
+
+        // Document Live Review Export
+        Task<LiveReviewChecklistDto> GetLiveReviewChecklistByProcessAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default);
     }
 
     public interface IStudySelectionChecklistSubmissionService
     {
         Task<ChecklistSubmissionDto> CreateSubmissionAsync(CreateSubmissionRequest request, CancellationToken cancellationToken = default);
         Task<ChecklistSubmissionDto> GetSubmissionAsync(Guid submissionId, CancellationToken cancellationToken = default);
-        Task<ChecklistSubmissionDto?> GetSubmissionByDecisionIdAsync(Guid decisionId, CancellationToken cancellationToken = default);
-        Task<ChecklistSubmissionDto?> GetSubmissionByPaperAndPhaseAsync(Guid paperId, ScreeningPhase phase, CancellationToken cancellationToken = default);
+        Task<ChecklistReviewDto> GetChecklistForReviewByContextAsync(Guid processId, Guid paperId, Guid reviewerId, ScreeningPhase phase, CancellationToken cancellationToken = default);
+        Task<ChecklistReviewDto> GetSubmissionByContextAsync(Guid processId, Guid paperId, Guid reviewerId, ScreeningPhase phase, CancellationToken cancellationToken = default);
     }
 }

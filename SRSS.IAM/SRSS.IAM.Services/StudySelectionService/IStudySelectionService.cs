@@ -41,10 +41,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             SubmitScreeningDecisionRequest request,
             CancellationToken cancellationToken = default);
         
-        Task<ScreeningDecisionResponse> UpdateScreeningDecisionAsync(
-            Guid decisionId,
-            UpdateScreeningDecisionRequest request,
-            CancellationToken cancellationToken = default);
+
 
 
 

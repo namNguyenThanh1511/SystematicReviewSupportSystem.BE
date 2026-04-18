@@ -341,6 +341,24 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new ArgumentException("ExclusionReasonId is required when decision is Exclude.");
             }
 
+            // Find checklist submission for this context if not provided
+            var checklistSubmissionId = request.ChecklistSubmissionId;
+            if (checklistSubmissionId == null)
+            {
+                var submission = await _unitOfWork.StudySelectionChecklistSubmissions.GetByContextWithAnswersAsync(
+                    studySelectionProcessId,
+                    paperId,
+                    request.ReviewerId,
+                    request.Phase,
+                    cancellationToken);
+                checklistSubmissionId = submission?.Id;
+            }
+
+            if (checklistSubmissionId == null)
+            {
+                throw new InvalidOperationException("Cannot make a screening decision without a checklist submission. Please complete the checklist first.");
+            }
+
             // Create new decision
             var decision = new ScreeningDecision
             {
@@ -353,6 +371,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ExclusionReasonId = request.ExclusionReasonId,
                 Reason = request.Reason,
                 DecidedAt = DateTimeOffset.UtcNow,
+                ChecklistSubmissionId = checklistSubmissionId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
@@ -366,61 +385,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             return await MapToDecisionResponse(decision, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
         }
 
-        public async Task<ScreeningDecisionResponse> UpdateScreeningDecisionAsync(
-            Guid decisionId,
-            UpdateScreeningDecisionRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var decision = await _unitOfWork.ScreeningDecisions.FindSingleAsync(
-                d => d.Id == decisionId,
-                isTracking: true,
-                cancellationToken: cancellationToken);
 
-            if (decision == null)
-            {
-                throw new InvalidOperationException($"ScreeningDecision with ID {decisionId} not found.");
-            }
-
-            // Validate checklist if required
-            if (request.ChecklistSubmissionId.HasValue)
-            {
-                var submission = await _unitOfWork.StudySelectionChecklistSubmissions.FindSingleAsync(s => s.Id == request.ChecklistSubmissionId.Value, cancellationToken: cancellationToken);
-                if (submission == null)
-                {
-                    throw new InvalidOperationException("Checklist submission not found.");
-                }
-
-                if (submission.ScreeningDecisionId != decisionId)
-                {
-                    throw new InvalidOperationException("Checklist submission does not match this screening decision.");
-                }
-
-                // Validate completion
-                await ValidateChecklistCompletionAsync(submission.Id, cancellationToken);
-
-                // Set SubmittedAt if null
-                if (submission.SubmittedAt == null)
-                {
-                    submission.SubmittedAt = DateTimeOffset.UtcNow;
-                    await _unitOfWork.StudySelectionChecklistSubmissions.UpdateAsync(submission, cancellationToken);
-                }
-            }
-
-            // Update fields
-            decision.Decision = request.Decision;
-            decision.Reason = request.Reason;
-            decision.ExclusionReasonId = request.ExclusionReasonId;
-            decision.ModifiedAt = DateTimeOffset.UtcNow;
-
-            await _unitOfWork.ScreeningDecisions.UpdateAsync(decision, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            // Auto-resolution
-            await TryAutoResolveAsync(decision.StudySelectionProcessId, decision.PaperId, decision.Phase, cancellationToken);
-
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == decision.PaperId, cancellationToken: cancellationToken);
-            return await MapToDecisionResponse(decision, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
-        }
 
         private async Task ValidateChecklistCompletionAsync(Guid submissionId, CancellationToken cancellationToken)
         {

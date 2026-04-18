@@ -61,5 +61,15 @@ namespace SRSS.IAM.API.Controllers
             var result = await _checklistService.ActivateTemplateAsync(templateId, cancellationToken);
             return Ok(result, "Checklist template activated successfully.");
         }
+
+        // 1.4 Export to Document Live Review Checklist Import format (by Process)
+        [HttpGet("study-selection/{id}/live-review-import")]
+        public async Task<ActionResult<ApiResponse<LiveReviewChecklistDto>>> ExportProcessToLiveReview(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _checklistService.GetLiveReviewChecklistByProcessAsync(id, cancellationToken);
+            return Ok(result, "Live Review checklist export JSON generated successfully.");
+        }
     }
 }

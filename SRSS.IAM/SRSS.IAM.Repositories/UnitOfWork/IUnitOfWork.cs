@@ -158,6 +158,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionChecklistTemplateSectionRepository StudySelectionChecklistTemplateSections { get; }
         IStudySelectionChecklistTemplateItemRepository StudySelectionChecklistTemplateItems { get; }
         IStudySelectionChecklistSubmissionRepository StudySelectionChecklistSubmissions { get; }
+        IStudySelectionChecklistSubmissionSectionAnswerRepository StudySelectionChecklistSubmissionSectionAnswers { get; }
+        IStudySelectionChecklistSubmissionItemAnswerRepository StudySelectionChecklistSubmissionItemAnswers { get; }
         IAuditLogRepository AuditLogs { get; }
     }
 }

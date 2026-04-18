@@ -24,17 +24,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("item_template_id")
                 .IsRequired();
 
-            builder.Property(x => x.Content)
-                .HasColumnName("content")
-                .HasMaxLength(8000);
-
             builder.Property(x => x.Location)
                 .HasColumnName("location")
                 .HasMaxLength(500);
-
-            builder.Property(x => x.IsNotApplicable)
-                .HasColumnName("is_not_applicable")
-                .IsRequired();
 
             builder.Property(x => x.IsReported)
                 .HasColumnName("is_reported")

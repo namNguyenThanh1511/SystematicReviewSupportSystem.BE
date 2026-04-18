@@ -36,6 +36,8 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     public class StuSeCriteriaInput
     {
         public string? Domain { get; set; }
+        public string? Language { get; set; }
+        public string? StudyType { get; set; }
     }
 
     public class StuSePicocInput

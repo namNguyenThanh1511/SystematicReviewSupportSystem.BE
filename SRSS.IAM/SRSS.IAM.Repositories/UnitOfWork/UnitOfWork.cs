@@ -12,6 +12,7 @@ using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
+using SRSS.IAM.Repositories.StudyCharacteristicsRepo;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
 using SRSS.IAM.Repositories.SynthesisRepo;
 using SRSS.IAM.Repositories.SynthesisExecutionRepo;
@@ -42,6 +43,7 @@ using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
+using SRSS.IAM.Repositories.AuditLogRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -51,6 +53,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private readonly AppDbContext _dbContext;
         private IDbContextTransaction? _currentTransaction;
         private IUserRepository? _users;
+        private IAuditLogRepository? _auditLogs;
         private INotificationRepository? _notifications;
         private IProjectMemberInvitationRepository? _projectMemberInvitations;
         private ISystematicReviewProjectRepository? _systematicReviewProjects;
@@ -90,6 +93,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IReviewProtocolRepository? _protocols;
         private IProtocolVersionRepository? _protocolVersions;
         private IProtocolEvaluationRepository? _protocolEvaluations;
+        private IStudyCharacteristicsRepository? _studyCharacteristics;
 
         // Research Question
         private IResearchQuestionRepository? _researchQuestions;
@@ -129,6 +133,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IDataExtractionProcessRepository? _dataExtractionProcesses;
         private IExtractionPaperTaskRepository? _extractionPaperTasks;
         private IExtractedDataValueRepository? _extractedDataValues;
+        private IExtractionCommentRepository? _extractionComments;
+        private IExtractedDataAuditLogRepository? _extractedDataAuditLogs;
         private IExclusionReasonLibraryRepository? _exclusionReasonLibraries;
         private IStudySelectionExclusionReasonRepository? _studySelectionExclusionReasons;
         private IStuSeExclusionCodeRepository? _stuSeExclusionCodes;
@@ -198,6 +204,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         }
 
         public IUserRepository Users => _users ??= new UserRepository(_dbContext);
+        public IAuditLogRepository AuditLogs => _auditLogs ??= new AuditLogRepository(_dbContext);
         public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_dbContext);
 
         // Core Governance
@@ -210,6 +217,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);
         public IProtocolVersionRepository ProtocolVersions => _protocolVersions ??= new ProtocolVersionRepository(_dbContext);
         public IProtocolEvaluationRepository ProtocolEvaluations => _protocolEvaluations ??= new ProtocolEvaluationRepository(_dbContext);
+        public IStudyCharacteristicsRepository StudyCharacteristics => _studyCharacteristics ??= new StudyCharacteristicsRepository(_dbContext);
 
         // Research Question
         public IResearchQuestionRepository ResearchQuestions => _researchQuestions ??= new ResearchQuestionRepository(_dbContext);
@@ -268,6 +276,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IExtractedDataValueRepository ExtractedDataValues =>
             _extractedDataValues ??= new ExtractedDataValueRepository(_dbContext);
+
+        public IExtractionCommentRepository ExtractionComments =>
+            _extractionComments ??= new ExtractionCommentRepository(_dbContext);
+
+        public IExtractedDataAuditLogRepository ExtractedDataAuditLogs =>
+            _extractedDataAuditLogs ??= new ExtractedDataAuditLogRepository(_dbContext);
 
 
         public IDataSynthesisStrategyRepository SynthesisStrategies =>

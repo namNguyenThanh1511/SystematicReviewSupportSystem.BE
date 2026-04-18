@@ -7,7 +7,8 @@ namespace SRSS.IAM.Repositories.Entities.Enums
     {
         NotStarted,
         InProgress,
-        Completed
+        Completed,
+        Reopened
     }
 
     [JsonConverter(typeof(JsonStringEnumConverter))]

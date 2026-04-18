@@ -48,6 +48,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(x => x.TemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasMany(x => x.Sections)
+                .WithOne(x => x.Template)
+                .HasForeignKey(x => x.TemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasMany(x => x.ReviewChecklists)
                 .WithOne(x => x.Template)
                 .HasForeignKey(x => x.TemplateId)

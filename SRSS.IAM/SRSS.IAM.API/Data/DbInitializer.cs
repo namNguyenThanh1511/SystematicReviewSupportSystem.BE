@@ -317,6 +317,8 @@ namespace SRSS.IAM.API.Data
             await SeedScreeningResolutionsAsync(context);
             await SeedCoreGovernanceAsync(context);
             await SeedChecklistTemplatesAsync(context);
+
+            await SeedAuditLogsAsync(context);
         }
 
         private static async Task SeedUsersAsync(AppDbContext context, IPasswordHasher<User> passwordHasher)
@@ -1253,6 +1255,27 @@ namespace SRSS.IAM.API.Data
                 });
                 await context.SaveChangesAsync();
             }
+            if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
+            {
+                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
+                {
+                    new QualityCriterion { Id = Har2QualityCriterion1Id, ChecklistId = Har2QualityChecklist1Id, Question = "Is the paper based on research (or is it a discussion paper based on expert opinion)?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Har2QualityCriterion2Id, ChecklistId = Har2QualityChecklist1Id, Question = "What research method was used: Experiment, Quasi-Experiment, Lessons learnt, Case study, Opinion Survey, Tertiary Study, Other (specify)? Note This is to be based on our reading of the paper not the method claimed by the author of the paper.", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of the aims of the study?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there an adequate description of the context in which the research or observation was carried out?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the research method appropriate to address the aims of the research? (i.e. Expert Opinion).", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the recruitment strategy (for human-based experiments and quasi-experiments) or experimental material or context (for lessons learnt) appropriate to the aims of the research?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was there a control group or baseline with which to evaluate SR procedures/techniques?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data collected in a way that addressed the research issue?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data analysis sufficiently rigorous?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Has the relationship between researcher and participants been considered to an adequate degree?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of findings?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is the study of value for research or practice?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                });
+                await context.SaveChangesAsync();
+            }
 
             if (await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == QualityStrategy1Id))
             {
@@ -1390,7 +1413,7 @@ namespace SRSS.IAM.API.Data
                 Id = SynthesisStrategy1Id,
                 ProtocolId = HarProtocol1Id,
                 SynthesisType = SynthesisType.NarrativeThematic,
-                // TargetResearchQuestionIds = new List<Guid> { HarResearchQuestion1Id, HarResearchQuestion2Id },
+                TargetResearchQuestionIds = new List<Guid> { ResearchQuestion1Id, ResearchQuestion2Id },
                 DataGroupingPlan = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",
                 SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.",
                 Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",
@@ -2153,6 +2176,7 @@ namespace SRSS.IAM.API.Data
                 Name = "PRISMA 2020 Main Checklist",
                 Description = "Official PRISMA 2020 checklist for full systematic review reports.",
                 IsSystem = true,
+                Type = ChecklistType.Full,
                 Version = now.ToString("yyyyMMddHHmmss"),
                 CreatedAt = now,
                 UpdatedAt = now
@@ -2164,6 +2188,7 @@ namespace SRSS.IAM.API.Data
                 Name = "PRISMA 2020 Abstract Checklist",
                 Description = "Official PRISMA 2020 checklist for abstracts of systematic reviews.",
                 IsSystem = true,
+                Type = ChecklistType.Abstract,
                 Version = now.ToString("yyyyMMddHHmmss"),
                 CreatedAt = now,
                 UpdatedAt = now
@@ -2182,39 +2207,45 @@ namespace SRSS.IAM.API.Data
                 ("7", null, "METHODS", "Search strategy", "Present the full search strategies for all databases, registers and websites, including any filters and limits used.", 7, true),
                 ("8", null, "METHODS", "Selection process", "Specify the methods used to decide whether a study met the inclusion criteria of the review, including how many reviewers screened each record and each report retrieved, whether they worked independently, and if applicable, details of automation tools used in the process.", 8, true),
                 ("9", null, "METHODS", "Data collection process", "Specify the methods used to collect data from reports, including how many reviewers collected data from each report, whether they worked independently, any processes for obtaining or confirming data from study investigators, and if applicable, details of automation tools used in the process.", 9, true),
-                ("10a", null, "METHODS", "Data items", "List and define all outcomes for which data were sought. Specify whether all results that were compatible with each outcome domain in each study were sought and, if not, the methods used to decide which results to collect.", 10, true),
-                ("10b", null, "METHODS", "Data items", "List and define all other variables for which data were sought (for example, participant and intervention characteristics, funding sources). Describe any assumptions made about any missing or unclear information.", 11, true),
-                ("11", null, "METHODS", "Study risk of bias assessment", "Specify the methods used to assess risk of bias in the included studies, including details of the tool(s) used, how many reviewers assessed each study and whether they worked independently, and if applicable, details of automation tools used in the process.", 12, true),
-                ("12", null, "METHODS", "Effect measures", "Specify for each outcome the effect measure(s) (for example, risk ratio, mean difference) used in the synthesis or presentation of results.", 13, true),
-                ("13a", null, "METHODS", "Synthesis methods", "Describe the processes used to decide which studies were eligible for each synthesis (for example, tabulating the study intervention characteristics and comparing against the planned groups for each synthesis).", 14, true),
-                ("13b", null, "METHODS", "Synthesis methods", "Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions.", 15, true),
-                ("13c", null, "METHODS", "Synthesis methods", "Describe any methods used to tabulate or visually display results of individual studies and syntheses.", 16, true),
-                ("13d", null, "METHODS", "Synthesis methods", "Describe any methods used to synthesize results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify the presence and extent of statistical heterogeneity, and software package(s) used.", 17, true),
-                ("13e", null, "METHODS", "Synthesis methods", "Describe any methods used to explore possible causes of heterogeneity among study results (for example, subgroup analysis, meta-regression).", 18, true),
-                ("13f", null, "METHODS", "Synthesis methods", "Describe any sensitivity analyses conducted to assess robustness of the synthesized results.", 19, true),
-                ("14", null, "METHODS", "Reporting bias assessment", "Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases).", 20, true),
-                ("15", null, "METHODS", "Certainty assessment", "Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome.", 21, true),
-                ("16a", null, "RESULTS", "Study selection", "Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram.", 22, true),
-                ("16b", null, "RESULTS", "Study selection", "Cite studies that might appear to meet the inclusion criteria, but which were excluded, and explain why they were excluded.", 23, true),
-                ("17", null, "RESULTS", "Study characteristics", "Cite each included study and present its characteristics.", 24, true),
-                ("18", null, "RESULTS", "Risk of bias in studies", "Present assessments of risk of bias for each included study.", 25, true),
-                ("19", null, "RESULTS", "Results of individual studies", "For all outcomes, present, for each study: (a) summary statistics for each group (where appropriate) and (b) an effect estimate and its precision (for example, confidence or credible interval), ideally using structured tables or plots.", 26, true),
-                ("20a", null, "RESULTS", "Results of syntheses", "For each synthesis, briefly summarize the characteristics and risk of bias among contributing studies.", 27, true),
-                ("20b", null, "RESULTS", "Results of syntheses", "Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (for example, confidence or credible interval) and measures of statistical heterogeneity. If comparing groups, describe the direction of the effect.", 28, true),
-                ("20c", null, "RESULTS", "Results of syntheses", "Present results of all investigations of possible causes of heterogeneity among study results.", 29, true),
-                ("20d", null, "RESULTS", "Results of syntheses", "Present results of all sensitivity analyses conducted to assess the robustness of the synthesized results.", 30, true),
-                ("21", null, "RESULTS", "Reporting biases", "Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed.", 31, true),
-                ("22", null, "RESULTS", "Certainty of evidence", "Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed.", 32, true),
-                ("23a", null, "DISCUSSION", "Discussion", "Provide a general interpretation of the results in the context of other evidence.", 33, true),
-                ("23b", null, "DISCUSSION", "Discussion", "Discuss any limitations of the evidence included in the review.", 34, true),
-                ("23c", null, "DISCUSSION", "Discussion", "Discuss any limitations of the review processes used.", 35, true),
-                ("23d", null, "DISCUSSION", "Discussion", "Discuss implications of the results for practice, policy, and future research.", 36, true),
-                ("24a", null, "OTHER INFORMATION", "Registration and protocol", "Provide registration information for the review, including register name and registration number, or state that the review was not registered.", 37, true),
-                ("24b", null, "OTHER INFORMATION", "Registration and protocol", "Indicate where the review protocol can be accessed, or state that a protocol was not prepared.", 38, true),
-                ("24c", null, "OTHER INFORMATION", "Registration and protocol", "Describe and explain any amendments to information provided at registration or in the protocol.", 39, true),
-                ("25", null, "OTHER INFORMATION", "Support", "Describe sources of financial or non-financial support for the review, and the role of the funders or sponsors in the review.", 40, true),
-                ("26", null, "OTHER INFORMATION", "Competing interests", "Declare any competing interests of review authors.", 41, true),
-                ("27", null, "OTHER INFORMATION", "Availability of data, code and other materials", "Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review.", 42, true)
+                ("10", null, "METHODS", "Data items", "Data items grouping node.", 10, true),
+                ("10a", "10", "METHODS", "Data items", "List and define all outcomes for which data were sought. Specify whether all results that were compatible with each outcome domain in each study were sought and, if not, the methods used to decide which results to collect.", 11, true),
+                ("10b", "10", "METHODS", "Data items", "List and define all other variables for which data were sought (for example, participant and intervention characteristics, funding sources). Describe any assumptions made about any missing or unclear information.", 12, true),
+                ("11", null, "METHODS", "Study risk of bias assessment", "Specify the methods used to assess risk of bias in the included studies, including details of the tool(s) used, how many reviewers assessed each study and whether they worked independently, and if applicable, details of automation tools used in the process.", 13, true),
+                ("12", null, "METHODS", "Effect measures", "Specify for each outcome the effect measure(s) (for example, risk ratio, mean difference) used in the synthesis or presentation of results.", 14, true),
+                ("13", null, "METHODS", "Synthesis methods", "Synthesis methods grouping node.", 15, true),
+                ("13a", "13", "METHODS", "Synthesis methods", "Describe the processes used to decide which studies were eligible for each synthesis (for example, tabulating the study intervention characteristics and comparing against the planned groups for each synthesis).", 16, true),
+                ("13b", "13", "METHODS", "Synthesis methods", "Describe any methods required to prepare the data for presentation or synthesis, such as handling of missing summary statistics, or data conversions.", 17, true),
+                ("13c", "13", "METHODS", "Synthesis methods", "Describe any methods used to tabulate or visually display results of individual studies and syntheses.", 18, true),
+                ("13d", "13", "METHODS", "Synthesis methods", "Describe any methods used to synthesize results and provide a rationale for the choice(s). If meta-analysis was performed, describe the model(s), method(s) to identify the presence and extent of statistical heterogeneity, and software package(s) used.", 19, true),
+                ("13e", "13", "METHODS", "Synthesis methods", "Describe any methods used to explore possible causes of heterogeneity among study results (for example, subgroup analysis, meta-regression).", 20, true),
+                ("13f", "13", "METHODS", "Synthesis methods", "Describe any sensitivity analyses conducted to assess robustness of the synthesized results.", 21, true),
+                ("14", null, "METHODS", "Reporting bias assessment", "Describe any methods used to assess risk of bias due to missing results in a synthesis (arising from reporting biases).", 22, true),
+                ("15", null, "METHODS", "Certainty assessment", "Describe any methods used to assess certainty (or confidence) in the body of evidence for an outcome.", 23, true),
+                ("16", null, "RESULTS", "Study selection", "Study selection grouping node.", 24, true),
+                ("16a", "16", "RESULTS", "Study selection", "Describe the results of the search and selection process, from the number of records identified in the search to the number of studies included in the review, ideally using a flow diagram.", 25, true),
+                ("16b", "16", "RESULTS", "Study selection", "Cite studies that might appear to meet the inclusion criteria, but which were excluded, and explain why they were excluded.", 26, true),
+                ("17", null, "RESULTS", "Study characteristics", "Cite each included study and present its characteristics.", 27, true),
+                ("18", null, "RESULTS", "Risk of bias in studies", "Present assessments of risk of bias for each included study.", 28, true),
+                ("19", null, "RESULTS", "Results of individual studies", "For all outcomes, present, for each study: (a) summary statistics for each group (where appropriate) and (b) an effect estimate and its precision (for example, confidence or credible interval), ideally using structured tables or plots.", 29, true),
+                ("20", null, "RESULTS", "Results of syntheses", "Results of syntheses grouping node.", 30, true),
+                ("20a", "20", "RESULTS", "Results of syntheses", "For each synthesis, briefly summarize the characteristics and risk of bias among contributing studies.", 31, true),
+                ("20b", "20", "RESULTS", "Results of syntheses", "Present results of all statistical syntheses conducted. If meta-analysis was done, present for each the summary estimate and its precision (for example, confidence or credible interval) and measures of statistical heterogeneity. If comparing groups, describe the direction of the effect.", 32, true),
+                ("20c", "20", "RESULTS", "Results of syntheses", "Present results of all investigations of possible causes of heterogeneity among study results.", 33, true),
+                ("20d", "20", "RESULTS", "Results of syntheses", "Present results of all sensitivity analyses conducted to assess the robustness of the synthesized results.", 34, true),
+                ("21", null, "RESULTS", "Reporting biases", "Present assessments of risk of bias due to missing results (arising from reporting biases) for each synthesis assessed.", 35, true),
+                ("22", null, "RESULTS", "Certainty of evidence", "Present assessments of certainty (or confidence) in the body of evidence for each outcome assessed.", 36, true),
+                ("23", null, "DISCUSSION", "Discussion", "Discussion grouping node.", 37, true),
+                ("23a", "23", "DISCUSSION", "Discussion", "Provide a general interpretation of the results in the context of other evidence.", 38, true),
+                ("23b", "23", "DISCUSSION", "Discussion", "Discuss any limitations of the evidence included in the review.", 39, true),
+                ("23c", "23", "DISCUSSION", "Discussion", "Discuss any limitations of the review processes used.", 40, true),
+                ("23d", "23", "DISCUSSION", "Discussion", "Discuss implications of the results for practice, policy, and future research.", 41, true),
+                ("24", null, "OTHER_INFORMATION", "Registration and protocol", "Registration and protocol grouping node.", 42, true),
+                ("24a", "24", "OTHER_INFORMATION", "Registration and protocol", "Provide registration information for the review, including register name and registration number, or state that the review was not registered.", 43, true),
+                ("24b", "24", "OTHER_INFORMATION", "Registration and protocol", "Indicate where the review protocol can be accessed, or state that a protocol was not prepared.", 44, true),
+                ("24c", "24", "OTHER_INFORMATION", "Registration and protocol", "Describe and explain any amendments to information provided at registration or in the protocol.", 45, true),
+                ("25", null, "OTHER_INFORMATION", "Support", "Describe sources of financial or non-financial support for the review, and the role of the funders or sponsors in the review.", 46, true),
+                ("26", null, "OTHER_INFORMATION", "Competing interests", "Declare any competing interests of review authors.", 47, true),
+                ("27", null, "OTHER_INFORMATION", "Availability of data, code and other materials", "Report which of the following are publicly available and where they can be found: template data collection forms; data extracted from included studies; data used for all analyses; analytic code; any other materials used in the review.", 48, true)
             };
 
             var abstractItems = new List<(string Number, string? Parent, string Section, string Topic, string Description, int Order, bool IsRequired)>
@@ -2229,40 +2260,78 @@ namespace SRSS.IAM.API.Data
                 ("8", null, "RESULTS", "Synthesis of results", "Present results for main outcomes, preferably indicating the number of included studies and participants for each. If meta-analysis was done, report the summary estimate and confidence or credible interval.", 8, true),
                 ("9", null, "DISCUSSION", "Limitations of evidence", "Provide a brief summary of limitations of the evidence included in the review (for example, study risk of bias, inconsistency and imprecision).", 9, true),
                 ("10", null, "DISCUSSION", "Interpretation", "Provide a general interpretation of the results and important implications.", 10, true),
-                ("11", null, "OTHER INFORMATION", "Funding", "Specify the primary source of funding for the review.", 11, true),
-                ("12", null, "OTHER INFORMATION", "Registration", "Provide the register name and registration number.", 12, true)
+                ("11", null, "OTHER_INFORMATION", "Funding", "Specify the primary source of funding for the review.", 11, true),
+                ("12", null, "OTHER_INFORMATION", "Registration", "Provide the register name and registration number.", 12, true)
             };
 
-            var seededItems = new List<ChecklistItemTemplate>();
-            seededItems.AddRange(BuildChecklistItems(mainTemplate.Id, mainItems, now));
-            seededItems.AddRange(BuildChecklistItems(abstractTemplate.Id, abstractItems, now));
+            var (mainSections, mainSeededItems) = BuildChecklistTemplateStructure(mainTemplate.Id, ChecklistType.Full, mainItems, now);
+            var (abstractSections, abstractSeededItems) = BuildChecklistTemplateStructure(abstractTemplate.Id, ChecklistType.Abstract, abstractItems, now);
 
-            await context.ChecklistItemTemplates.AddRangeAsync(seededItems);
+            await context.ChecklistSectionTemplates.AddRangeAsync(mainSections);
+            await context.ChecklistSectionTemplates.AddRangeAsync(abstractSections);
+            await context.ChecklistItemTemplates.AddRangeAsync(mainSeededItems);
+            await context.ChecklistItemTemplates.AddRangeAsync(abstractSeededItems);
             await context.SaveChangesAsync();
         }
 
-        private static List<ChecklistItemTemplate> BuildChecklistItems(
+        private static (List<ChecklistSectionTemplate> Sections, List<ChecklistItemTemplate> Items) BuildChecklistTemplateStructure(
             Guid templateId,
+            ChecklistType templateType,
             List<(string Number, string? Parent, string Section, string Topic, string Description, int Order, bool IsRequired)> source,
             DateTimeOffset now)
         {
+            var sections = new List<ChecklistSectionTemplate>();
+            var sectionByKey = new Dictionary<string, ChecklistSectionTemplate>(StringComparer.OrdinalIgnoreCase);
+            var sectionIndex = 1;
+
+            foreach (var sectionKey in source
+                .OrderBy(x => x.Order)
+                .Select(x => x.Section)
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var normalizedName = NormalizeSectionName(sectionKey);
+                var section = new ChecklistSectionTemplate
+                {
+                    Id = Guid.NewGuid(),
+                    TemplateId = templateId,
+                    Name = normalizedName,
+                    Description = null,
+                    Order = sectionIndex,
+                    SectionNumber = sectionIndex.ToString(),
+                    CreatedAt = now,
+                    ModifiedAt = now
+                };
+
+                sections.Add(section);
+                sectionByKey[sectionKey] = section;
+                sectionIndex++;
+            }
+
             var items = new List<ChecklistItemTemplate>();
             var byNumber = new Dictionary<string, ChecklistItemTemplate>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var item in source.OrderBy(x => x.Order))
+            // Create all items first in deterministic order so parent lookup can be resolved in a second pass.
+            foreach (var item in source.OrderBy(x => x.Order).ThenBy(x => x.Number, StringComparer.OrdinalIgnoreCase))
             {
+                if (!sectionByKey.TryGetValue(item.Section, out var section))
+                {
+                    throw new InvalidOperationException($"Section '{item.Section}' not found for checklist item '{item.Number}' in template '{templateId}'.");
+                }
+
                 var entity = new ChecklistItemTemplate
                 {
                     Id = Guid.NewGuid(),
                     TemplateId = templateId,
+                    SectionId = section.Id,
                     ParentId = null,
                     ItemNumber = item.Number,
-                    Section = item.Section,
+                    Section = section.Name,
                     Topic = item.Topic,
                     Description = item.Description,
                     Order = item.Order,
                     IsRequired = item.IsRequired,
-                    HasLocationField = true,
+                    HasLocationField = templateType == ChecklistType.Full,
+                    IsSectionHeaderOnly = false,
                     DefaultSampleAnswer = null,
                     CreatedAt = now,
                     ModifiedAt = now
@@ -2279,14 +2348,183 @@ namespace SRSS.IAM.API.Data
                     continue;
                 }
 
-                if (byNumber.TryGetValue(item.Number, out var current) && byNumber.TryGetValue(item.Parent, out var parent))
+                if (!byNumber.TryGetValue(item.Number, out var current))
                 {
-                    current.ParentId = parent.Id;
+                    throw new InvalidOperationException($"Invalid checklist item number '{item.Number}' while building template '{templateId}'.");
+                }
+
+                if (!byNumber.TryGetValue(item.Parent, out var parent))
+                {
+                    throw new InvalidOperationException($"Parent item '{item.Parent}' not found for checklist item '{item.Number}' in template '{templateId}'.");
+                }
+
+                current.ParentId = parent.Id;
+            }
+
+            var parentIds = items
+                .Where(x => x.ParentId.HasValue)
+                .Select(x => x.ParentId!.Value)
+                .ToHashSet();
+
+            foreach (var item in items)
+            {
+                if (parentIds.Contains(item.Id))
+                {
+                    item.IsSectionHeaderOnly = true;
+                    item.HasLocationField = false;
                 }
             }
 
-            return items;
+            return (sections, items);
         }
 
+        private static string NormalizeSectionName(string section)
+        {
+            return section.Trim().ToUpperInvariant() switch
+            {
+                "TITLE" => "Title",
+                "ABSTRACT" => "Abstract",
+                "BACKGROUND" => "Background",
+                "INTRODUCTION" => "Introduction",
+                "METHODS" => "Methods",
+                "RESULTS" => "Results",
+                "DISCUSSION" => "Discussion",
+                "OTHER_INFORMATION" => "Other information",
+                _ => section.Replace('_', ' ').Trim()
+            };
+        }
+
+        private static async Task SeedAuditLogsAsync(AppDbContext context)
+        {
+            if (await context.AuditLogs.AnyAsync())
+            {
+                return;
+            }
+
+            var auditLogs = new List<AuditLog>
+            {
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Update",
+                    ResourceType = "SystematicReviewProject",
+                    ResourceId = HarProjectId.ToString(),
+                    OldValue = "{\"Title\":\"Old Title\"}",
+                    NewValue = "{\"Title\":\"AI-based Human Activity Recognition\"}",
+                    AffectedColumns = "[\"Title\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-5),
+                    ProjectId = HarProjectId
+                },
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Delete",
+                    ResourceType = "Paper",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "{\"Title\":\"Some invalid deleted paper\"}",
+                    NewValue = "",
+                    AffectedColumns = "[\"Title\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-2),
+                    ProjectId = HarProjectId
+                },
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ClientUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "ReviewProtocol",
+                    ResourceId = HarProtocol2Id.ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Id = HarProtocol2Id,
+                        ProjectId = HarProjectId,
+                        ProtocolVersion = "2.0.0",
+                        Status = "UnderReview",
+                    }),
+                    AffectedColumns = "[\"Id\", \"ProjectId\", \"ProtocolVersion\", \"Status\", \"IsDeleted\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-2),
+                    ProjectId = HarProjectId
+                },
+                // --- ScientificLiteracyProject Actions ---
+                // 1. Project Creation
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "SystematicReviewProject",
+                    ResourceId = ScientificLiteracyProjectId.ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Id = ScientificLiteracyProjectId,
+                        Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+                        Domain = "Science Education",
+                        Status = "Active"
+                    }),
+                    AffectedColumns = "[\"Id\", \"Title\", \"Domain\", \"Status\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-30),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 2. Member Adding
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "ProjectMember",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        ProjectId = ScientificLiteracyProjectId,
+                        UserId = ClientUserId,
+                        Role = "Reviewer"
+                    }),
+                    AffectedColumns = "[\"ProjectId\", \"UserId\", \"Role\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-28),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 3. Phase Change (e.g. Planning -> Identification)
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = AdminUserId.ToString(),
+                    ActionType = "Update",
+                    ResourceType = "ReviewProcess",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "{\"CurrentPhase\":\"Planning\"}",
+                    NewValue = "{\"CurrentPhase\":\"Identification\"}",
+                    AffectedColumns = "[\"CurrentPhase\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-15),
+                    ProjectId = ScientificLiteracyProjectId
+                },
+                // 4. Add Paper
+                new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = ClientUserId.ToString(),
+                    ActionType = "Create",
+                    ResourceType = "Paper",
+                    ResourceId = Guid.NewGuid().ToString(),
+                    OldValue = "",
+                    NewValue = JsonSerializer.Serialize(new
+                    {
+                        Title = "New insights into science education literacy",
+                        PublicationYear = "2023",
+                        ProjectId = ScientificLiteracyProjectId
+                    }),
+                    AffectedColumns = "[\"Title\", \"PublicationYear\", \"ProjectId\"]",
+                    Timestamp = DateTime.UtcNow.AddDays(-5),
+                    ProjectId = ScientificLiteracyProjectId
+                }
+            };
+
+            context.AuditLogs.AddRange(auditLogs);
+            await context.SaveChangesAsync();
+        }
     }
 }

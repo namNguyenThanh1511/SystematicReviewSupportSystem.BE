@@ -30,6 +30,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasConversion<string>()
                 .IsRequired();
 
+            builder.Property(sr => sr.ExclusionReasonId)
+                .HasColumnName("exclusion_reason_id");
+
             builder.Property(sr => sr.ResolutionNotes)
                 .HasColumnName("resolution_notes");
 
@@ -64,6 +67,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .WithMany(p => p.ScreeningResolutions)
                 .HasForeignKey(sr => sr.PaperId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasOne(sr => sr.ExclusionReason)
+                .WithMany(er => er.ScreeningResolutions)
+                .HasForeignKey(sr => sr.ExclusionReasonId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Unique constraint: One resolution per paper per selection process
             builder.HasIndex(sr => new

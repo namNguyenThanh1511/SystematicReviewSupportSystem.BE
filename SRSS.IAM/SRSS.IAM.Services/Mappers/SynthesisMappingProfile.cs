@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Synthesis;
 
 namespace SRSS.IAM.Services.Mappers
@@ -13,7 +13,10 @@ namespace SRSS.IAM.Services.Mappers
 				SynthesisStrategyId = entity.Id,
 				ProtocolId = entity.ProtocolId,
 				SynthesisType = entity.SynthesisType,
-				Description = entity.Description
+				Description = entity.Description,
+				TargetResearchQuestionIds = entity.TargetResearchQuestionIds ?? new List<Guid>(),
+				DataGroupingPlan = entity.DataGroupingPlan,
+				SensitivityAnalysisPlan = entity.SensitivityAnalysisPlan
 			};
 		}
 
@@ -24,7 +27,10 @@ namespace SRSS.IAM.Services.Mappers
 				Id = dto.SynthesisStrategyId ?? Guid.Empty,
 				ProtocolId = dto.ProtocolId,
 				SynthesisType = dto.SynthesisType,
-				Description = dto.Description
+				Description = dto.Description,
+				TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>(),
+				DataGroupingPlan = dto.DataGroupingPlan,
+				SensitivityAnalysisPlan = dto.SensitivityAnalysisPlan
 			};
 		}
 
@@ -33,6 +39,9 @@ namespace SRSS.IAM.Services.Mappers
 			entity.ProtocolId = dto.ProtocolId;
 			entity.SynthesisType = dto.SynthesisType;
 			entity.Description = dto.Description;
+			entity.TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>();
+			entity.DataGroupingPlan = dto.DataGroupingPlan;
+			entity.SensitivityAnalysisPlan = dto.SensitivityAnalysisPlan;
 		}
 
 		// ==================== DisseminationStrategy ====================

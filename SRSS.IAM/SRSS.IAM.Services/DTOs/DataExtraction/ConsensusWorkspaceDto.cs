@@ -49,9 +49,28 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
     {
         public Guid? OptionId { get; set; }
         public string? StringValue { get; set; }
-        public decimal? NumericValue { get; set; }
+        
+        private decimal? _numericValue;
+        public decimal? NumericValue 
+        { 
+            get => _numericValue; 
+            set => _numericValue = value.HasValue ? value.Value / 1.000000000000000000000000000000000m : null;
+        }
+
         public bool? BooleanValue { get; set; }
         public string? DisplayValue { get; set; }
+
+        /// <summary>
+        /// True when the reviewer formally confirmed the data was not reported in the primary study.
+        /// </summary>
+        public bool IsNotReported { get; set; } = false;
+
+        /// <summary>
+        /// JSON-serialized array of bounding box coordinates for evidence traceability.
+        /// </summary>
+        public string? EvidenceCoordinates { get; set; }
+
+        public List<ExtractionCommentDto> Comments { get; set; } = new();
     }
 
     public class SubmitConsensusRequestDto

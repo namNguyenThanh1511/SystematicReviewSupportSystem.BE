@@ -1,4 +1,5 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.Common;
 
 namespace SRSS.IAM.Services.DTOs.Identification
 {
@@ -21,5 +22,16 @@ namespace SRSS.IAM.Services.DTOs.Identification
         public DateTimeOffset ModifiedAt { get; set; }
 
         public PrismaStatisticsResponse PrismaStatistics { get; set; }
+    }
+    public class AddPapersToSnapshotRequest
+    {
+        public List<Guid> PaperIds { get; set; } = new List<Guid>();
+    }
+
+    public class SnapshotPaperQueryRequest : PaginationRequest
+    {
+        public string? Search { get; set; }
+        public int? Year { get; set; }
+        public Guid? SearchSourceId { get; set; }
     }
 }

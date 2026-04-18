@@ -16,23 +16,42 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
         public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
         public ICollection<QualityAssessmentResolution> QualityAssessmentResolutions { get; set; } = new List<QualityAssessmentResolution>();
+        public ICollection<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = new List<QualityAssessmentPaper>();
     
         public void Start()
         {
-            if (Status == QualityAssessmentProcessStatus.NotStarted)
+            if (Status != QualityAssessmentProcessStatus.NotStarted)
             {
-                Status = QualityAssessmentProcessStatus.InProgress;
-                StartedAt = DateTimeOffset.UtcNow;
+                throw new InvalidOperationException($"Cannot start quality assessment process from {Status} status.");
             }
+
+            Status = QualityAssessmentProcessStatus.InProgress;
+            StartedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
         }
 
         public void Complete()
         {
-            if (Status == QualityAssessmentProcessStatus.InProgress)
+            if (Status != QualityAssessmentProcessStatus.InProgress && Status != QualityAssessmentProcessStatus.Reopened)
             {
-                Status = QualityAssessmentProcessStatus.Completed;
-                CompletedAt = DateTimeOffset.UtcNow;
+                throw new InvalidOperationException($"Cannot complete quality assessment process from {Status} status.");
             }
+
+            Status = QualityAssessmentProcessStatus.Completed;
+            CompletedAt = DateTimeOffset.UtcNow;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
+
+        public void Reopen()
+        {
+            if (Status != QualityAssessmentProcessStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen quality assessment process from {Status} status.");
+            }
+
+            Status = QualityAssessmentProcessStatus.Reopened;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
         }
     }
 }

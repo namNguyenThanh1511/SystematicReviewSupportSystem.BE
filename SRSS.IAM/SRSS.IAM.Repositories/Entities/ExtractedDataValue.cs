@@ -36,6 +36,17 @@ namespace SRSS.IAM.Repositories.Entities
 
 		public int? MatrixRowIndex { get; set; }
 
+		/// <summary>
+		/// Indicates that the reviewer formally confirmed this data point was not reported in the primary study.
+		/// When true, all value fields (StringValue, NumericValue, BooleanValue, OptionId) must be null.
+		/// </summary>
+		public bool IsNotReported { get; set; } = false;
+
+		/// <summary>
+		/// JSON-serialized array of bounding box coordinates (page, x, y, w, h) providing evidence from the PDF.
+		/// </summary>
+		public string? EvidenceCoordinates { get; set; }
+
 		public bool IsConsensusFinal { get; set; } = false;
 
 		// Navigation properties

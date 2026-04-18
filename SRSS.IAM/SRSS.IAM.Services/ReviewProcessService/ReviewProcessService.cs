@@ -7,10 +7,12 @@ using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Services.QualityAssessmentService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.IdentificationService;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -18,13 +20,17 @@ namespace SRSS.IAM.Services.ReviewProcessService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStudySelectionService _studySelectionService;
+        private readonly IQualityAssessmentService _qualityAssessmentService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IIdentificationService _identificationService;
 
-        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, ICurrentUserService currentUserService)
+        public ReviewProcessService(IUnitOfWork unitOfWork, IStudySelectionService selectionService, IQualityAssessmentService qualityAssessmentService, ICurrentUserService currentUserService, IIdentificationService identificationService)
         {
             _unitOfWork = unitOfWork;
             _studySelectionService = selectionService;
+            _qualityAssessmentService = qualityAssessmentService;
             _currentUserService = currentUserService;
+            _identificationService = identificationService;
         }
 
         public async Task<ReviewProcessResponse> CreateReviewProcessAsync(
@@ -92,6 +98,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
+                //Auto create IdentificationProcessPaper snap
                 //Auto-create Study Selection Process for the new ReviewProcess
                 var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
                 {
@@ -125,10 +132,21 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
 
+                //Auto-create Synthesis Process for the new ReviewProcess
+                var synthesisProcess = new Repositories.Entities.SynthesisProcess
+                {
+                    Id = Guid.NewGuid(),
+                    ReviewProcessId = reviewProcess.Id,
+                    Status = Repositories.Entities.Enums.SynthesisProcessStatus.NotStarted,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
                 await _unitOfWork.IdentificationProcesses.AddAsync(identificationProcess, cancellationToken);
                 await _unitOfWork.StudySelectionProcesses.AddAsync(studySelectionProcess, cancellationToken);
                 await _unitOfWork.QualityAssessmentProcesses.AddAsync(qualityAssessmentProcess, cancellationToken);
                 await _unitOfWork.DataExtractionProcesses.AddAsync(dataExtractionProcess, cancellationToken);
+                await _unitOfWork.SynthesisProcesses.AddAsync(synthesisProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -165,7 +183,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
             {
                 // Optionally, you could add additional statistics for the StudySelectionProcess here
                 response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id, cancellationToken);
+            }
 
+            if (reviewProcess.QualityAssessmentProcess != null)
+            {
+                response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
             }
 
             // if (reviewProcess.DataExtractionProcess != null)
@@ -193,6 +215,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 {
                     response.IdentificationProcess!.PrismaStatistics =
                         await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                }
+
+                if (reviewProcess.QualityAssessmentProcess != null)
+                {
+                    response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
                 }
 
                 responses.Add(response);
@@ -441,6 +468,55 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return protocol?.ToDetailResponse();
         }
 
+        public async Task<ReviewProcessResponse> ReopenPhaseAsync(
+            Guid reviewProcessId,
+            ProcessPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
+
+            switch (phase)
+            {
+                case ProcessPhase.Identification:
+                    if (reviewProcess.IdentificationProcess == null) throw new NotFoundException("Identification process not found.");
+                    reviewProcess.IdentificationProcess.Reopen();
+                    break;
+                case ProcessPhase.StudySelection:
+                    if (reviewProcess.StudySelectionProcess == null) throw new NotFoundException("Study selection process not found.");
+                    reviewProcess.StudySelectionProcess.Reopen();
+                    break;
+                case ProcessPhase.QualityAssessment:
+                    if (reviewProcess.QualityAssessmentProcess == null) throw new NotFoundException("Quality assessment process not found.");
+                    reviewProcess.QualityAssessmentProcess.Reopen();
+                    break;
+                case ProcessPhase.DataExtraction:
+                    if (reviewProcess.DataExtractionProcess == null) throw new NotFoundException("Data extraction process not found.");
+                    reviewProcess.DataExtractionProcess.Reopen();
+                    break;
+                default:
+                    throw new ArgumentException($"Phase {phase} does not support reopening or is not recognized.", nameof(phase));
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await GetReviewProcessByIdAsync(reviewProcessId, cancellationToken);
+        }
+
+        private async Task EnsureLeaderPermissionAsync(Guid projectId)
+        {
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
+            if (!isLeader)
+            {
+                throw new InvalidOperationException("Only the project leader can perform this operation.");
+            }
+        }
+
         private static ReviewProcessResponse MapToResponse(Repositories.Entities.ReviewProcess reviewProcess)
         {
             return new ReviewProcessResponse
@@ -505,6 +581,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
                         CreatedAt = reviewProcess.DataExtractionProcess.CreatedAt,
                         ModifiedAt = reviewProcess.DataExtractionProcess.ModifiedAt
                     }
+                    : null,
+                SynthesisProcess = reviewProcess.SynthesisProcess != null
+                    ? new SynthesisProcessResponse
+                    {
+                        Id = reviewProcess.SynthesisProcess.Id,
+                        ReviewProcessId = reviewProcess.SynthesisProcess.ReviewProcessId,
+                        Status = reviewProcess.SynthesisProcess.Status,
+                        StatusText = reviewProcess.SynthesisProcess.Status.ToString(),
+                        StartedAt = reviewProcess.SynthesisProcess.StartedAt,
+                        CompletedAt = reviewProcess.SynthesisProcess.CompletedAt,
+                        CreatedAt = reviewProcess.SynthesisProcess.CreatedAt,
+                        ModifiedAt = reviewProcess.SynthesisProcess.ModifiedAt
+                    }
                     : null
             };
         }
@@ -513,30 +602,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid identificationProcessId,
             CancellationToken cancellationToken)
         {
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
-
-            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToHashSet();
-
-            var allImportBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
-                cancellationToken: cancellationToken);
-
-            var importBatchList = allImportBatches.ToList();
-            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
-            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
-            var uniqueRecords = totalRecordsImported - duplicateRecords;
-
-            return new PrismaStatisticsResponse
-            {
-                TotalRecordsImported = totalRecordsImported,
-                DuplicateRecords = duplicateRecords,
-                UniqueRecords = uniqueRecords,
-                ImportBatchCount = importBatchList.Count
-            };
+            return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
         }
-
-
     }
 }

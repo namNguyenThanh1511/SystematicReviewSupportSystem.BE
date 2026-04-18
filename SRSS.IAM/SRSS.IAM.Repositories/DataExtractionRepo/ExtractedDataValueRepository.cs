@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using Shared.Repositories;
 
@@ -7,7 +7,7 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 	public class ExtractedDataValueRepository : GenericRepository<ExtractedDataValue, Guid, AppDbContext>, IExtractedDataValueRepository
 	{
 		private readonly AppDbContext _context;
-		public ExtractedDataValueRepository(AppDbContext context) : base(context) 
+		public ExtractedDataValueRepository(AppDbContext context) : base(context)
 		{
 			_context = context;
 		}

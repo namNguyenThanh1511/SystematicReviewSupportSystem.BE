@@ -24,6 +24,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("paper_id")
                 .IsRequired();
 
+            builder.Property(spp => spp.IsAddedToDataset)
+                .HasColumnName("is_added_to_dataset")
+                .IsRequired()
+                .HasDefaultValue(false);
+
             builder.Property(spp => spp.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();

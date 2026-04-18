@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SRSS.IAM.Repositories.Configurations;
 using SRSS.IAM.Repositories.Entities;
 
@@ -9,7 +11,11 @@ namespace SRSS.IAM.Repositories
 
 		//"Fluent API Configurations" kết hợp với "Reflection".
 		protected override void OnModelCreating(ModelBuilder builder)
-			   => builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		{
+			builder.HasPostgresExtension("vector");
+			builder.HasPostgresExtension("citext");
+			builder.ApplyConfigurationsFromAssembly(AssemblyReference.Assembly);
+		}
 		/*
          Mục đích của việc sử dụng Assembly ở đây là:
             Tự động hóa cấu hình (Automation): Thay vì phải viết thủ công từng dòng builder.Entity<MyEntity>().Has... cho mọi thực thể (entity) trong dự án, bạn có thể tạo các lớp cấu hình riêng biệt (implementing IEntityTypeConfiguration<T>).
@@ -26,6 +32,7 @@ namespace SRSS.IAM.Repositories
 
 		public DbSet<User> Users { get; set; } = default!;
 		public DbSet<Notification> Notifications { get; set; } = default!;
+		public DbSet<AuditLog> AuditLogs { get; set; } = default!;
 
 		// Planning Phase
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
@@ -42,6 +49,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<Outcome> Outcomes { get; set; } = default!;
 		public DbSet<Context> Contexts { get; set; } = default!;
 		public DbSet<SearchSource> SearchSources { get; set; } = default!;
+		public DbSet<MasterSearchSources> MasterSearchSources { get; set; } = default!;
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
@@ -51,24 +59,28 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;
 		public DbSet<StudySelectionProcedure> StudySelectionProcedures { get; set; } = default!;
+		public DbSet<StudyCharacteristics> StudyCharacteristics { get; set; } = default!;
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
-        public DbSet<QualityAssessmentProcess> QualityAssessmentProcesses { get; set; } = default!;
-        public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
-        public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
-        public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentProcess> QualityAssessmentProcesses { get; set; } = default!;
+		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
+		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
+		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
+		public DbSet<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
 		public DbSet<ExtractionTemplate> ExtractionTemplates { get; set; } = default!;
 		public DbSet<ExtractionSection> ExtractionSections { get; set; } = default!;
 		public DbSet<ExtractionMatrixColumn> ExtractionMatrixColumns { get; set; } = default!;
-		
+
 		public DbSet<ExtractionField> ExtractionFields { get; set; } = default!;
 		public DbSet<FieldOption> FieldOptions { get; set; } = default!;
 		public DbSet<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = default!;
 		public DbSet<ExtractedDataValue> ExtractedDataValues { get; set; } = default!;
+		public DbSet<ExtractionComment> ExtractionComments { get; set; } = default!;
+		public DbSet<ExtractedDataAuditLog> ExtractedDataAuditLogs { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
 		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
@@ -81,6 +93,11 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
 		public DbSet<PrismaFlowRecord> PrismaFlowRecords { get; set; } = default!;
+		public DbSet<ChecklistTemplate> ChecklistTemplates { get; set; } = default!;
+		public DbSet<ChecklistSectionTemplate> ChecklistSectionTemplates { get; set; } = default!;
+		public DbSet<ChecklistItemTemplate> ChecklistItemTemplates { get; set; } = default!;
+		public DbSet<ReviewChecklist> ReviewChecklists { get; set; } = default!;
+		public DbSet<ChecklistItemResponse> ChecklistItemResponses { get; set; } = default!;
 		public DbSet<StudySelectionProcess> StudySelectionProcesses { get; set; } = default!;
 		public DbSet<ScreeningDecision> ScreeningDecisions { get; set; } = default!;
 		public DbSet<ScreeningResolution> ScreeningResolutions { get; set; } = default!;
@@ -95,7 +112,19 @@ namespace SRSS.IAM.Repositories
 		public DbSet<GrobidHeaderResult> GrobidHeaderResults { get; set; } = default!;
 		public DbSet<CandidatePaper> CandidatePapers { get; set; } = default!;
 		public DbSet<PaperCitation> PaperCitations { get; set; } = default!;
-		public DbSet<ReferenceEntity> ReferenceEntities { get; set; } = default!;
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
+		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
+		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
+		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
+
+		// RAG pipeline
+		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;
+
+		// Synthesis Phase
+		public DbSet<SynthesisProcess> SynthesisProcesses { get; set; } = default!;
+		public DbSet<SynthesisTheme> SynthesisThemes { get; set; } = default!;
+		public DbSet<ThemeEvidence> ThemeEvidences { get; set; } = default!;
+		public DbSet<ResearchQuestionFinding> ResearchQuestionFindings { get; set; } = default!;
 	}
 }

@@ -30,6 +30,7 @@ namespace SRSS.IAM.Services.Mappers
                 ExtractionTemplates = entity.ExtractionTemplates?.Select(et => et.ToDto()).ToList() ?? new List<ExtractionTemplateDto>(),
                 SynthesisStrategies = entity.SynthesisStrategies?.Select(ss => ss.ToDto()).ToList() ?? new List<DataSynthesisStrategyDto>(),
                 DisseminationStrategies = entity.DisseminationStrategies?.Select(ds => ds.ToDto()).ToList() ?? new List<DisseminationStrategyDto>()
+                StudyCharacteristics = entity.StudyCharacteristics?.ToDto()
             };
         }
 

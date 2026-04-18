@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.DTOs.Paper
 {
@@ -35,10 +36,17 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string? Journal { get; set; }
         public string? JournalIssn { get; set; }
 
+        public string? JournalEIssn { get; set; }
+
+        public string? Md5 { get; set; }
+
         // Source Tracking
         public string? Source { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
+
+        public ExtractionSuggestionResponse? ExtractionSuggestion { get; set; }
 
         // Selection Status (derived dynamically from ScreeningResolution)
         public SelectionStatus? SelectionStatus { get; set; }
@@ -57,6 +65,10 @@ namespace SRSS.IAM.Services.DTOs.Paper
 
         // Access
         public string? PdfUrl { get; set; }
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; }
+        public string FullTextRetrievalStatusText { get; set; } = string.Empty;
+
+
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
         public string? AccessTypeText { get; set; }
@@ -64,6 +76,8 @@ namespace SRSS.IAM.Services.DTOs.Paper
         // Audit
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+
+        public string DecidedStatus { get; set; } = "None";
     }
 
     public class AssignedReviewerDto
@@ -78,34 +92,33 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public string CurrentPhaseText { get; set; } = string.Empty;
     }
 
-    public class PaperListRequest
+    public class PaperListRequest : PaginationRequest
     {
         public string? Search { get; set; }
         public SelectionStatus? Status { get; set; }
         public int? Year { get; set; }
+        public Guid? SearchSourceId { get; set; }
         public string? AssignmentStatus { get; set; }
         public ScreeningStage? Stage { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
     }
 
-    public class CheckedDuplicatePapersRequest
+    public class EligiblePapersRequest : PaginationRequest
     {
         public string? Search { get; set; }
-        public string? AssignmentStatus { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+        public int? Year { get; set; }
+        public Guid? SearchSourceId { get; set; }
+        public AssignmentFilterStatus AssignmentStatus { get; set; } = AssignmentFilterStatus.All;
+        public ResolutionFilterStatus DecisionStatus { get; set; } = ResolutionFilterStatus.All;
     }
 
-    public class DuplicatePapersRequest
+    public class DuplicatePapersRequest : PaginationRequest
     {
         public string? Search { get; set; }
         public int? Year { get; set; }
         public string? SortBy { get; set; }
         public string? SortOrder { get; set; }
         public DeduplicationReviewStatus? ReviewStatus { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+
     }
 
     /// <summary>

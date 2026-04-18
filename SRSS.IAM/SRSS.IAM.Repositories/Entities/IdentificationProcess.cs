@@ -30,7 +30,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public void Complete()
         {
-            if (Status != IdentificationStatus.InProgress)
+            if (Status != IdentificationStatus.InProgress && Status != IdentificationStatus.Reopened)
             {
                 throw new InvalidOperationException($"Cannot complete identification process from {Status} status.");
             }
@@ -39,12 +39,25 @@ namespace SRSS.IAM.Repositories.Entities
             CompletedAt = DateTimeOffset.UtcNow;
             ModifiedAt = DateTimeOffset.UtcNow;
         }
+
+        public void Reopen()
+        {
+            if (Status != IdentificationStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen identification process from {Status} status.");
+            }
+
+            Status = IdentificationStatus.Reopened;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum IdentificationStatus
     {
         NotStarted = 0,
         InProgress = 1,
-        Completed = 2
+        Completed = 2,
+        Reopened = 3
     }
 }

@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pgvector;
+using Pgvector.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
@@ -27,6 +29,45 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
         {
             _unitOfWork = unitOfWork;
             _logger = logger;
+        }
+
+        public async Task<MatchResult?> FindSemanticMatchAsync(
+            float[] embedding,
+            Guid currentPaperId,
+            CancellationToken cancellationToken = default)
+        {
+            if (embedding == null || embedding.Length == 0)
+            {
+                return null;
+            }
+
+            var nearestEmbedding = await _unitOfWork.PaperEmbeddings.FindClosestByCosineDistanceAsync(
+                embedding,
+                currentPaperId,
+                cancellationToken,
+                take: 1);
+
+            if (nearestEmbedding?.Paper == null)
+            {
+                return null;
+            }
+
+            var queryVector = new Vector(embedding);
+            var candidateVector = nearestEmbedding.Embedding.ToArray();
+            var similarity = CosineSimilarity(queryVector.ToArray(), candidateVector);
+
+            if (similarity < 0.85f)
+            {
+                return null;
+            }
+
+            return new MatchResult
+            {
+                MatchedPaper = nearestEmbedding.Paper,
+                MatchedPaperId = nearestEmbedding.PaperId,
+                ConfidenceScore = (decimal)similarity,
+                Strategy = MatchStrategy.Semantic
+            };
         }
 
         public async Task<MatchResult> MatchAsync(ExtractedReference reference, Guid projectId, CancellationToken cancellationToken = default)
@@ -183,50 +224,70 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
-            var results = new List<MatchResult>();
-            if (references == null || !references.Any()) return results;
-
-            // Fetch all existing papers for this identification process to avoid repetitive DB queries
-            // Identifying papers associated with the process through SearchExecutions
-            var searchExecutions = await _unitOfWork.SearchExecutions.FindAllAsync(
-                se => se.IdentificationProcessId == identificationProcessId,
-                cancellationToken: cancellationToken);
-            
-            var searchExecutionIds = searchExecutions.Select(se => se.Id).ToList();
-            
-            var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                ib => ib.SearchExecutionId != null && searchExecutionIds.Contains(ib.SearchExecutionId.Value),
-                cancellationToken: cancellationToken);
-            
-            var importBatchIds = importBatches.Select(ib => ib.Id).ToList();
-
-            var duplicatedPaperIds = await _unitOfWork.DeduplicationResults
-                                            .FindAllAsync(dr =>
-                                                dr.IdentificationProcessId == identificationProcessId &&
-                                                dr.ReviewStatus == DeduplicationReviewStatus.Confirmed &&
-                                                dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL,
-                                                cancellationToken: cancellationToken);
-
-                                                    var duplicatedIds = duplicatedPaperIds
-                                                        .Select(dr => dr.PaperId)
-                                                        .ToHashSet();
-
-            var existingPapers = await _unitOfWork.Papers.FindAllWithEmbeddingAsync(
-                p => p.ImportBatchId != null && importBatchIds.Contains(p.ImportBatchId.Value),
-                isTracking: false,
-                cancellationToken: cancellationToken);
-
-            var existingPaperList = existingPapers
-                         .Where(p => !duplicatedIds.Contains(p.Id))
-                         .ToList();
-
-            foreach (var reference in references)
+            var referenceList = references?.ToList() ?? new List<ExtractedReference>();
+            if (!referenceList.Any())
             {
-                // Apply lightweight filtering before deep comparison
+                return new List<MatchResult>();
+            }
+
+            var cancelledDuplicates = await _unitOfWork.DeduplicationResults.FindAllAsync(
+                dr => dr.IdentificationProcessId == identificationProcessId
+                    && dr.ReviewStatus == DeduplicationReviewStatus.Confirmed
+                    && dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL,
+                cancellationToken: cancellationToken);
+
+            var cancelledDuplicateIds = cancelledDuplicates.Select(dr => dr.PaperId).ToHashSet();
+
+            var scopedPapers = await _unitOfWork.Papers.FindAllAsync(
+                p => p.ImportBatch != null
+                    && p.ImportBatch.SearchExecution != null
+                    && p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId,
+                isTracking: false,
+                cancellationToken);
+
+            var existingPaperList = scopedPapers
+                .Where(p => !cancelledDuplicateIds.Contains(p.Id))
+                .ToList();
+
+            var doiLookup = existingPaperList
+                .Where(p => !string.IsNullOrWhiteSpace(p.DOI))
+                .GroupBy(p => DoiHelper.Normalize(p.DOI) ?? p.DOI!.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.OrderBy(x => x.CreatedAt).First());
+
+            var results = new List<MatchResult>(referenceList.Count);
+
+            foreach (var reference in referenceList)
+            {
+                MatchResult? doiMatch = null;
+                var normalizedRefDoi = DoiHelper.Normalize(reference.DOI);
+                if (!string.IsNullOrWhiteSpace(normalizedRefDoi)
+                    && doiLookup.TryGetValue(normalizedRefDoi, out var doiPaper))
+                {
+                    doiMatch = new MatchResult
+                    {
+                        MatchedPaper = doiPaper,
+                        MatchedPaperId = doiPaper.Id,
+                        ConfidenceScore = 1.0m,
+                        Strategy = MatchStrategy.DOI
+                    };
+                }
+
                 var filteredCandidates = FilterCandidates(reference, existingPaperList);
-                
-                var match = MatchAgainstAsync(reference, filteredCandidates, cancellationToken);
-                results.Add(match);
+                var fuzzyMatch = MatchAgainstAsync(reference, filteredCandidates);
+
+                MatchResult? semanticMatch = null;
+                if (reference.TitleEmbedding is { Length: > 0 }
+                    && !(fuzzyMatch.Strategy == MatchStrategy.TitleExact && fuzzyMatch.ConfidenceScore >= 1.0m)
+                    && doiMatch == null)
+                {
+                    semanticMatch = await FindSemanticMatchInProcessAsync(
+                        reference.TitleEmbedding,
+                        reference,
+                        identificationProcessId,
+                        cancellationToken);
+                }
+
+                results.Add(SelectBestHybridMatch(doiMatch, fuzzyMatch, semanticMatch));
             }
 
             return results;
@@ -240,9 +301,9 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             var normalizedRefDoi = DoiHelper.Normalize(reference.DOI);
             if (!string.IsNullOrEmpty(normalizedRefDoi))
             {
-                var doiMatch = processedReferences.FirstOrDefault(p => 
+                var doiMatch = processedReferences.FirstOrDefault(p =>
                     !string.IsNullOrEmpty(p.Reference.DOI) && DoiHelper.Normalize(p.Reference.DOI) == normalizedRefDoi);
-                
+
                 if (doiMatch != null)
                 {
                     return new MatchResult
@@ -257,7 +318,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             // Step 2: Fuzzy Matching
             if (string.IsNullOrWhiteSpace(reference.Title) || reference.Title.Length < 10)
             {
-                 return new MatchResult { ConfidenceScore = 0 };
+                return new MatchResult { ConfidenceScore = 0 };
             }
 
             var refData = PrepareMatchData(reference);
@@ -285,33 +346,13 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
 
         private MatchResult MatchAgainstAsync(
             ExtractedReference reference,
-            List<Paper> candidates,
-            CancellationToken cancellationToken)
+            List<Paper> candidates)
         {
             if (reference == null) return new MatchResult { ConfidenceScore = 0 };
 
-            // Step 1: DOI Matching
-            var normalizedRefDoi = DoiHelper.Normalize(reference.DOI);
-            if (!string.IsNullOrEmpty(normalizedRefDoi))
-            {
-                var doiMatch = candidates.FirstOrDefault(p => 
-                    !string.IsNullOrEmpty(p.DOI) && DoiHelper.Normalize(p.DOI) == normalizedRefDoi);
-                
-                if (doiMatch != null)
-                {
-                    return new MatchResult
-                    {
-                        MatchedPaper = doiMatch,
-                        ConfidenceScore = 1.0m,
-                        Strategy = MatchStrategy.DOI
-                    };
-                }
-            }
-
-            // Step 2: Fuzzy Matching
             if (string.IsNullOrWhiteSpace(reference.Title) || reference.Title.Length < 10)
             {
-                 return new MatchResult { ConfidenceScore = 0 };
+                return new MatchResult { ConfidenceScore = 0 };
             }
 
             var refData = PrepareMatchData(reference);
@@ -327,6 +368,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                     bestMatch = new MatchResult
                     {
                         MatchedPaper = candidate,
+                        MatchedPaperId = candidate.Id,
                         ConfidenceScore = score,
                         Strategy = strategy
                     };
@@ -336,6 +378,115 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             return bestMatch.ConfidenceScore >= 0.7m ? bestMatch : new MatchResult { ConfidenceScore = 0 };
         }
 
+        private async Task<MatchResult?> FindSemanticMatchInProcessAsync(
+            float[] embedding,
+            ExtractedReference reference,
+            Guid identificationProcessId,
+            CancellationToken cancellationToken)
+        {
+            // Retrieve top-5 nearest candidates for metadata veto filtering
+            var nearestEmbeddings = await _unitOfWork.PaperEmbeddings.FindClosestByCosineDistanceInIdentificationProcessAsync(
+                embedding,
+                identificationProcessId,
+                cancellationToken,
+                take: 5);
+
+            if (!nearestEmbeddings.Any())
+            {
+                return null;
+            }
+
+            // Extract reference metadata for cross-check
+            int? refYear = int.TryParse(reference.PublishedYear, out var ry) ? ry : null;
+            var refAuthorTokens = ExtractAuthorTokens(reference.Authors);
+
+            foreach (var candidateEmbedding in nearestEmbeddings)
+            {
+                if (candidateEmbedding.Paper == null) continue;
+
+                var similarity = CosineSimilarity(embedding, candidateEmbedding.Embedding.ToArray());
+
+                // Hard threshold: reject anything below 0.85
+                if (similarity < 0.85f)
+                {
+                    continue;
+                }
+
+                // Near-exact semantic match (>= 0.95): accept unconditionally
+                if (similarity < 0.95f)
+                {
+                    // Metadata cross-check veto for sub-0.95 matches
+                    var candidatePaper = candidateEmbedding.Paper;
+
+                    // Year veto: reject if year difference > 2
+                    if (refYear.HasValue && candidatePaper.PublicationYearInt.HasValue)
+                    {
+                        if (Math.Abs(refYear.Value - candidatePaper.PublicationYearInt.Value) > 2)
+                        {
+                            _logger.LogDebug(
+                                "Semantic match vetoed by year difference: ref={RefYear}, candidate={CandYear}, similarity={Similarity}",
+                                refYear.Value, candidatePaper.PublicationYearInt.Value, similarity);
+                            continue;
+                        }
+                    }
+
+                    // Author veto: reject if author overlap < 0.3
+                    var candidateAuthorTokens = ExtractAuthorTokens(candidatePaper.Authors);
+                    if (refAuthorTokens.Any() && candidateAuthorTokens.Any())
+                    {
+                        var authorScore = ComputeAuthorScore(refAuthorTokens, candidateAuthorTokens);
+                        if (authorScore < 0.3m)
+                        {
+                            _logger.LogDebug(
+                                "Semantic match vetoed by low author score: {AuthorScore}, similarity={Similarity}",
+                                authorScore, similarity);
+                            continue;
+                        }
+                    }
+                }
+
+                // Candidate passed all veto checks
+                return new MatchResult
+                {
+                    MatchedPaper = candidateEmbedding.Paper,
+                    MatchedPaperId = candidateEmbedding.PaperId,
+                    ConfidenceScore = (decimal)similarity,
+                    Strategy = MatchStrategy.Semantic
+                };
+            }
+
+            return null;
+        }
+
+        private static MatchResult SelectBestHybridMatch(params MatchResult?[] matches)
+        {
+            var validMatches = matches
+                .Where(m => m != null && m.ConfidenceScore > 0)
+                .Select(m => m!)
+                .ToList();
+
+            if (!validMatches.Any())
+            {
+                return new MatchResult { ConfidenceScore = 0, Strategy = MatchStrategy.None };
+            }
+
+            var doiMatch = validMatches.FirstOrDefault(m => m.Strategy == MatchStrategy.DOI && m.ConfidenceScore >= 1.0m);
+            if (doiMatch != null)
+            {
+                return doiMatch;
+            }
+
+            var titleExactMatch = validMatches.FirstOrDefault(m => m.Strategy == MatchStrategy.TitleExact && m.ConfidenceScore >= 1.0m);
+            if (titleExactMatch != null)
+            {
+                return titleExactMatch;
+            }
+
+            return validMatches
+                .Where(m => m.Strategy == MatchStrategy.TitleFuzzy || m.Strategy == MatchStrategy.Semantic)
+                .OrderByDescending(m => m.ConfidenceScore)
+                .FirstOrDefault() ?? new MatchResult { ConfidenceScore = 0, Strategy = MatchStrategy.None };
+        }
 
         private MatchData PrepareMatchData(ExtractedReference reference)
         {
@@ -361,7 +512,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 Year = paper.PublicationYearInt,
                 Journal = paper.Journal,
                 NormalizedDoi = DoiHelper.Normalize(paper.DOI),
-                TitleEmbedding = paper.TitleEmbedding?.Embedding
+                TitleEmbedding = paper.TitleEmbedding?.Embedding?.ToArray()
             };
         }
 
@@ -387,14 +538,6 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             }
 
             decimal titleScore = ComputeTitleScore(refData.NormalizedTitle, candidateData.NormalizedTitle);
-            if (titleScore < 0.3m && 
-                (refData.TitleEmbedding == null || candidateData.TitleEmbedding == null))
-            {
-                return 0;
-            }
-            
-            strategy = MatchStrategy.TitleFuzzy;
-
             decimal authorScore = ComputeAuthorScore(refData.Authors, candidateData.Authors);
             decimal yearScore = 0;
 
@@ -404,38 +547,61 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 else if (Math.Abs(refData.Year.Value - candidateData.Year.Value) == 1) yearScore = 0.5m;
             }
 
-            decimal ruleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
-            
-            // Step 4: Semantic Matching (AI Embedding)
-            if (refData.TitleEmbedding != null && candidateData.TitleEmbedding != null)
+            // Semantic strategy: when both have embeddings, use vector similarity with metadata penalty
+            if (refData.TitleEmbedding is { Length: > 0 } && candidateData.TitleEmbedding is { Length: > 0 })
             {
-                float embeddingSimilarity = CosineSimilarity(refData.TitleEmbedding, candidateData.TitleEmbedding);
-                decimal embeddingScore = (decimal)embeddingSimilarity;
+                var vectorSimilarity = (decimal)CosineSimilarity(refData.TitleEmbedding, candidateData.TitleEmbedding);
 
-                // Strong semantic match
-                if (embeddingScore > 0.9m)
+                if (vectorSimilarity >= 0.85m)
                 {
                     strategy = MatchStrategy.Semantic;
-                    return embeddingScore;
+
+                    // Weighted semantic score
+                    decimal semanticScore = (vectorSimilarity * 0.6m) + (titleScore * 0.2m) + (authorScore * 0.15m) + (yearScore * 0.05m);
+
+                    // Metadata penalty: mismatched DOI
+                    if (!string.IsNullOrWhiteSpace(refData.NormalizedDoi)
+                        && !string.IsNullOrWhiteSpace(candidateData.NormalizedDoi)
+                        && refData.NormalizedDoi != candidateData.NormalizedDoi)
+                    {
+                        semanticScore -= 0.3m;
+                    }
+
+                    // Metadata penalty: very low author overlap
+                    if (refData.Authors.Any() && candidateData.Authors.Any() && authorScore < 0.2m)
+                    {
+                        semanticScore -= 0.15m;
+                    }
+
+                    semanticScore = Math.Clamp(semanticScore, 0m, 1.0m);
+
+                    // Use semantic score if it outperforms the fuzzy rule score
+                    decimal ruleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+                    ruleScore = Math.Clamp(ruleScore, 0m, 1.0m);
+
+                    if (semanticScore >= ruleScore)
+                    {
+                        return semanticScore;
+                    }
+                    else
+                    {
+                        strategy = MatchStrategy.TitleFuzzy;
+                        return ruleScore;
+                    }
                 }
-
-                // Combine scores: 50% Rule-based + 50% Embedding
-                decimal combinedScore = 
-                                        (titleScore * 0.4m) +
-                                        (authorScore * 0.1m) +
-                                        (yearScore * 0.1m) +
-                                        (embeddingScore * 0.4m);
-
-                // If combined or embedding is very strong, assign semantic strategy
-                if (combinedScore > 0.85m || (embeddingScore > 0.85m && ruleScore > 0.4m))
-                {
-                    strategy = MatchStrategy.Semantic;
-                }
-
-                return combinedScore > 1.0m ? 1.0m : combinedScore;
             }
 
-            return ruleScore > 1.0m ? 1.0m : ruleScore;
+            // Fallback: fuzzy rule-based scoring
+            if (titleScore < 0.3m)
+            {
+                return 0;
+            }
+
+            strategy = MatchStrategy.TitleFuzzy;
+
+            decimal finalRuleScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
+
+            return finalRuleScore > 1.0m ? 1.0m : finalRuleScore;
         }
 
         private float CosineSimilarity(float[] v1, float[] v2)
@@ -472,6 +638,12 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             return (jaccard * 0.6m) + (levenshtein * 0.4m);
         }
 
+        /// <summary>
+        /// Normalizes text for fuzzy matching (Jaccard/Levenshtein) only.
+        /// Strips punctuation, lowercases, and removes stopwords.
+        /// NOTE: Do NOT use this for embedding input — BERT-based models benefit from
+        /// natural language with punctuation and structure intact.
+        /// </summary>
         private string NormalizeText(string? input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
@@ -689,115 +861,35 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 }
             }
 
-            if (string.IsNullOrWhiteSpace(reference.Title) || reference.Title.Length < 5)
+            if (string.IsNullOrWhiteSpace(reference.Title) || reference.Title.Length < 10)
             {
                 return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
             }
 
-            var normalizedRefTitle = NormalizeText(reference.Title);
-            var refTokens = Tokenize(normalizedRefTitle);
-
-            if (!refTokens.Any())
-            {
-                return new MatchResult { MatchedPaper = null, ConfidenceScore = 0, Strategy = MatchStrategy.None };
-            }
-
-            int? refYear = null;
-            if (int.TryParse(reference.PublishedYear, out var y))
-            {
-                refYear = y;
-            }
-
-            var keywords = refTokens
-                .OrderByDescending(t => t.Length)
-                .Take(3)
-                .ToList();
-
-            var kw0 = keywords.Count > 0 ? keywords[0].ToLowerInvariant() : null;
-            var kw1 = keywords.Count > 1 ? keywords[1].ToLowerInvariant() : null;
-            var kw2 = keywords.Count > 2 ? keywords[2].ToLowerInvariant() : null;
-
-            int minYear = refYear.HasValue ? refYear.Value - 1 : 0;
-            int maxYear = refYear.HasValue ? refYear.Value + 1 : 0;
-
-            // Tier 2: Fuzzy candidate filtering within snapshot only
-            var candidates = await _unitOfWork.Papers.FindAllWithLimitAsync(
-                p => snapshotPaperIds.Contains(p.Id) && (
-                    (refYear.HasValue && p.PublicationYearInt >= minYear && p.PublicationYearInt <= maxYear) ||
-                    (kw0 != null && p.Title != null && p.Title.ToLower().Contains(kw0)) ||
-                    (kw1 != null && p.Title != null && p.Title.ToLower().Contains(kw1)) ||
-                    (kw2 != null && p.Title != null && p.Title.ToLower().Contains(kw2))),
-                200,
+            var candidates = await _unitOfWork.Papers.FindAllAsync(
+                p => snapshotPaperIds.Contains(p.Id),
                 isTracking: false,
                 cancellationToken);
 
-            // Fallback: if narrowed filter returns empty, evaluate entire snapshot scope
-            if (!candidates.Any())
-            {
-                candidates = await _unitOfWork.Papers.FindAllAsync(
-                    p => snapshotPaperIds.Contains(p.Id),
-                    isTracking: false,
-                    cancellationToken);
-            }
-
+            var refData = PrepareMatchData(reference);
             Paper? bestMatch = null;
             decimal highestScore = 0;
             MatchStrategy bestStrategy = MatchStrategy.None;
 
-            var refAuthors = ExtractAuthorTokens(reference.Authors);
-
             foreach (var candidate in candidates)
             {
-                var candidateNormalizedTitle = NormalizeText(candidate.Title);
+                var candidateData = PrepareMatchData(candidate);
+                var score = CalculateScore(refData, candidateData, out var strategy);
 
-                decimal titleScore;
-                MatchStrategy currentStrategy;
-
-                if (candidateNormalizedTitle == normalizedRefTitle)
+                if (score > highestScore)
                 {
-                    titleScore = 1.0m;
-                    currentStrategy = MatchStrategy.TitleExact;
-                }
-                else
-                {
-                    titleScore = ComputeTitleScore(normalizedRefTitle, candidateNormalizedTitle);
-                    currentStrategy = MatchStrategy.TitleFuzzy;
-                }
-
-                var candidateAuthors = ExtractAuthorTokens(candidate.Authors);
-                decimal authorScore = ComputeAuthorScore(refAuthors, candidateAuthors);
-
-                decimal yearScore = 0;
-                if (refYear.HasValue && candidate.PublicationYearInt.HasValue)
-                {
-                    if (refYear.Value == candidate.PublicationYearInt.Value)
-                    {
-                        yearScore = 1.0m;
-                    }
-                    else if (Math.Abs(refYear.Value - candidate.PublicationYearInt.Value) == 1)
-                    {
-                        yearScore = 0.5m;
-                    }
-                }
-
-                decimal finalScore = (titleScore * 0.7m) + (authorScore * 0.2m) + (yearScore * 0.1m);
-                if (finalScore > 1.0m) finalScore = 1.0m;
-                if (finalScore < 0m) finalScore = 0m;
-
-                if (titleScore < 0.6m || (titleScore < 0.7m && authorScore < 0.3m))
-                {
-                    continue;
-                }
-
-                if (finalScore > highestScore)
-                {
-                    highestScore = finalScore;
+                    highestScore = score;
                     bestMatch = candidate;
-                    bestStrategy = titleScore == 1.0m ? MatchStrategy.TitleExact : currentStrategy;
+                    bestStrategy = strategy;
                 }
             }
 
-            if (bestMatch != null && highestScore >= 0.6m && snapshotPaperIdSet.Contains(bestMatch.Id))
+            if (bestMatch != null && highestScore >= 0.7m && snapshotPaperIdSet.Contains(bestMatch.Id))
             {
                 if (highestScore < 0.75m)
                 {

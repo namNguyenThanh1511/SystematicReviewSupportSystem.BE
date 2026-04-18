@@ -1,4 +1,5 @@
 using Azure.Core;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
@@ -6,9 +7,14 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.GrobidClient.DTOs;
 using SRSS.IAM.Services.MetadataMergeService;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
+using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.SupabaseService;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -19,7 +25,12 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly IMetadataMergeService _metadataMergeService;
         private readonly INotificationService _notificationService;
         private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
+        private readonly IPaperFullTextQueue _fullTextQueue;
+        private readonly IGrobidProcessingQueue _grobidQueue;
+        private readonly ISupabaseStorageService _storageService;
+        private readonly ICurrentUserService _currentUserService;
         private readonly ILogger<StudySelectionService> _logger;
+        private readonly SRSS.IAM.Services.RagService.IRagIngestionQueue _ragQueue;
 
         public StudySelectionService(
             IUnitOfWork unitOfWork,
@@ -27,14 +38,24 @@ namespace SRSS.IAM.Services.StudySelectionService
             IMetadataMergeService metadataMergeService,
             INotificationService notificationService,
             IStudySelectionProcessPaperService studySelectionProcessPaperService,
-            ILogger<StudySelectionService> logger)
+            IPaperFullTextQueue fullTextQueue,
+            IGrobidProcessingQueue grobidQueue,
+            ISupabaseStorageService storageService,
+            ICurrentUserService currentUserService,
+            ILogger<StudySelectionService> logger,
+            SRSS.IAM.Services.RagService.IRagIngestionQueue ragQueue)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _metadataMergeService = metadataMergeService;
             _notificationService = notificationService;
             _studySelectionProcessPaperService = studySelectionProcessPaperService;
+            _fullTextQueue = fullTextQueue;
+            _grobidQueue = grobidQueue;
+            _storageService = storageService;
+            _currentUserService = currentUserService;
             _logger = logger;
+            _ragQueue = ragQueue;
         }
 
         public async Task<StudySelectionProcessResponse> CreateStudySelectionProcessAsync(
@@ -165,12 +186,23 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Cannot complete process with {unresolvedConflicts.Count} unresolved conflicts.");
             }
 
-            //Save included papers snapshot in phase fulltext resolution
-            await _studySelectionProcessPaperService.SaveFinalIncludedPapersAsync(id, cancellationToken);
             // Use domain method for state transition
             process.Complete();
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // ==========================================
+            // KÍCH HOẠT RAG INGESTION TẠI ĐÂY
+            // Lấy danh sách Paper đã PASS vòng Full-Text Screening
+            // ==========================================
+            var eligiblePapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(id, cancellationToken);
+            foreach (var item in eligiblePapers)
+            {
+                if (!string.IsNullOrWhiteSpace(item.Paper?.PdfUrl))
+                {
+                    await _ragQueue.QueuePaperForIngestionAsync(item.PaperId, item.Paper.PdfUrl, cancellationToken);
+                }
+            }
 
             return MapToResponse(process);
         }
@@ -304,9 +336,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             // Validate exclusion reason when decision is Exclude
-            if (request.Decision == ScreeningDecisionType.Exclude && request.ExclusionReasonCode == null)
+            if (request.Decision == ScreeningDecisionType.Exclude && request.ExclusionReasonId == null)
             {
-                throw new ArgumentException("ExclusionReasonCode is required when decision is Exclude.");
+                throw new ArgumentException("ExclusionReasonId is required when decision is Exclude.");
             }
 
             // Create new decision
@@ -318,9 +350,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReviewerId = request.ReviewerId,
                 Decision = request.Decision,
                 Phase = request.Phase,
-                ExclusionReasonCode = request.ExclusionReasonCode,
+                ExclusionReasonId = request.ExclusionReasonId,
                 Reason = request.Reason,
-                ReviewerNotes = request.ReviewerNotes,
                 DecidedAt = DateTimeOffset.UtcNow,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
@@ -355,7 +386,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var result = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                result.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken));
+                result.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken: cancellationToken));
             }
             return result;
         }
@@ -396,7 +427,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                     var conflictingDecisions = new List<ScreeningDecisionResponse>();
                     foreach (var d in decisions)
                     {
-                        conflictingDecisions.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken));
+                        conflictingDecisions.Add(await MapToDecisionResponse(d, paperTitle, userNames, cancellationToken: cancellationToken));
                     }
 
                     result.Add(new ConflictedPaperResponse
@@ -536,6 +567,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PaperId = paperId,
                 FinalDecision = request.FinalDecision,
                 Phase = request.Phase,
+                ExclusionReasonId = request.ExclusionReasonId,
                 ResolutionNotes = request.ResolutionNotes,
                 ResolvedBy = request.ResolvedBy,
                 ResolvedAt = DateTimeOffset.UtcNow,
@@ -559,10 +591,10 @@ namespace SRSS.IAM.Services.StudySelectionService
                     cancellationToken: cancellationToken);
 
                 var ssp = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(s => s.Id == studySelectionProcessId, cancellationToken: cancellationToken);
-                if (ssp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+                if (ssp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
 
                 var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == ssp.ReviewProcessId, cancellationToken: cancellationToken);
-                if (rp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+                if (rp == null) return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
 
                 var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(rp.ProjectId);
 
@@ -599,7 +631,312 @@ namespace SRSS.IAM.Services.StudySelectionService
                 // Don't throw - notification failure shouldn't break resolution success
             }
 
-            return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+            return await MapToResolutionResponse(resolution, paper?.Title ?? string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken);
+        }
+
+        public async Task<List<ScreeningResolutionResponse>> BulkResolveConflictsAsync(
+            Guid studySelectionProcessId,
+            BulkResolveConflictsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.PaperIds == null || !request.PaperIds.Any())
+            {
+                throw new ArgumentException("PaperIds list cannot be empty.");
+            }
+
+            // Check if any paper has existing assignments (Prevent bulk resolve for assigned papers)
+            var hasAssignments = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId
+                      && request.PaperIds.Contains(pa.PaperId)
+                      && pa.Phase == request.Phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (hasAssignments)
+            {
+                throw new InvalidOperationException("Cannot bulk resolve papers that already have reviewer assignments.");
+            }
+
+            var results = new List<ScreeningResolutionResponse>();
+
+            // Fetch all existing resolutions for these papers and phase to avoid duplicates
+            var existingResolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(
+                sr => sr.StudySelectionProcessId == studySelectionProcessId
+                      && request.PaperIds.Contains(sr.PaperId)
+                      && sr.Phase == request.Phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var existingPaperIds = existingResolutions.Select(sr => sr.PaperId).ToHashSet();
+            var paperIdsToProcess = request.PaperIds.Where(id => !existingPaperIds.Contains(id)).Distinct().ToList();
+
+            if (!paperIdsToProcess.Any())
+            {
+                return results; // All already resolved
+            }
+
+            // Fetch papers for titles
+            var papers = await _unitOfWork.Papers.FindAllAsync(
+                p => paperIdsToProcess.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var paperMap = papers.ToDictionary(p => p.Id);
+
+            foreach (var paperId in paperIdsToProcess)
+            {
+                var resolution = new ScreeningResolution
+                {
+                    Id = Guid.NewGuid(),
+                    StudySelectionProcessId = studySelectionProcessId,
+                    PaperId = paperId,
+                    FinalDecision = request.FinalDecision,
+                    Phase = request.Phase,
+                    ExclusionReasonId = request.ExclusionReasonId,
+                    ResolutionNotes = request.ResolutionNotes,
+                    ResolvedBy = request.ResolvedBy,
+                    ResolvedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+
+                await _unitOfWork.ScreeningResolutions.AddAsync(resolution, cancellationToken);
+                results.Add(await MapToResolutionResponse(resolution, paperMap.TryGetValue(paperId, out var p) ? p.Title : string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken));
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Handle notifications in bulk if possible, but for now, the UI logic expects some feedback.
+            // Sending notifications for each paper might be heavy, but we follow the existing pattern.
+            // Optimization: Process notifications asynchronously or in batch.
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var resolverName = await GetUserNameAsync(request.ResolvedBy, cancellationToken);
+                    if (string.IsNullOrEmpty(resolverName)) resolverName = "a manager";
+                    var phaseName = request.Phase == ScreeningPhase.TitleAbstract ? "Title/Abstract" : "Full-Text";
+
+                    foreach (var paperId in paperIdsToProcess)
+                    {
+                        var paper = paperMap.GetValueOrDefault(paperId);
+                        var assignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                            pa => pa.StudySelectionProcessId == studySelectionProcessId
+                                  && pa.PaperId == paperId
+                                  && pa.Phase == request.Phase,
+                            isTracking: false,
+                            cancellationToken: cancellationToken);
+
+                        // This is quite heavy in a loop. For bulk, we might want to optimize.
+                        // But following ResolveConflictAsync logic:
+                        var ssp = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(s => s.Id == studySelectionProcessId, cancellationToken: cancellationToken);
+                        if (ssp == null) continue;
+                        var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == ssp.ReviewProcessId, cancellationToken: cancellationToken);
+                        if (rp == null) continue;
+                        var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(rp.ProjectId);
+                        var memberToUserMap = projectMembers.ToDictionary(m => m.Id, m => m.UserId);
+
+                        var assignedUserIds = assignments
+                            .Select(a => memberToUserMap.TryGetValue(a.ProjectMemberId, out var uid) ? uid : (Guid?)null)
+                            .Where(uid => uid.HasValue)
+                            .Select(uid => uid!.Value)
+                            .Distinct()
+                            .ToList();
+
+                        if (assignedUserIds.Any())
+                        {
+                            var title = "Paper Conflict Resolved (Bulk)";
+                            var message = $"The conflict for paper '{paper?.Title}' in the {phaseName} phase has been resolved by {resolverName}. Final decision: {request.FinalDecision}.";
+
+                            await _notificationService.SendToManyAsync(
+                                assignedUserIds,
+                                title,
+                                message,
+                                NotificationType.Review,
+                                paperId,
+                                NotificationEntityType.PaperAssignment);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send bulk conflict resolution notifications.");
+                }
+            }, cancellationToken);
+
+            return results;
+        }
+
+        public async Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var phase = request.Phase ?? ScreeningPhase.TitleAbstract;
+            List<Guid> eligiblePaperIds;
+
+            if (phase == ScreeningPhase.FullText)
+            {
+                eligiblePaperIds = await GetFullTextEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+            }
+            else
+            {
+                eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+            }
+
+            if (!eligiblePaperIds.Any())
+            {
+                return new PaginatedResponse<ScreeningResolutionPaperResponse>
+                {
+                    Items = new List<ScreeningResolutionPaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize
+                };
+            }
+
+            // Fetch papers for these IDs
+            var papers = (await _unitOfWork.Papers.FindAllAsync(
+                p => eligiblePaperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken)).ToList();
+
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            int requiredReviewers = phase == ScreeningPhase.TitleAbstract
+                ? (process?.TitleAbstractScreening?.MinReviewersPerPaper ?? 2)
+                : (process?.FullTextScreening?.MinReviewersPerPaper ?? 2);
+
+            // Fetch decisions and resolutions for this phase in batch
+            var phaseDecisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                d => d.StudySelectionProcessId == studySelectionProcessId && d.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var phaseResolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(
+                r => r.StudySelectionProcessId == studySelectionProcessId && r.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var decisionMap = phaseDecisions.GroupBy(d => d.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+            var resolutionMap = phaseResolutions.ToDictionary(r => r.PaperId);
+
+            var paperStatusMap = new Dictionary<Guid, PaperSelectionStatus>();
+            foreach (var paper in papers)
+            {
+                var dList = decisionMap.TryGetValue(paper.Id, out var list) ? list : new List<ScreeningDecision>();
+                var res = resolutionMap.TryGetValue(paper.Id, out var r) ? r : null;
+                paperStatusMap[paper.Id] = ComputePaperStatus(dList, res, requiredReviewers, phase);
+            }
+
+            // Filtering
+            IEnumerable<Paper> filtered = papers;
+
+            // Search filter
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLowerInvariant();
+                filtered = filtered.Where(p =>
+                    p.Title.ToLowerInvariant().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLowerInvariant().Contains(search)) ||
+                    (p.DOI != null && p.DOI.ToLowerInvariant().Contains(search)));
+            }
+
+            // Status filter (Resolution-based)
+            if (request.Status != ResolutionFilterStatus.All)
+            {
+                filtered = request.Status switch
+                {
+                    ResolutionFilterStatus.NotDecided => filtered.Where(p => !resolutionMap.ContainsKey(p.Id)),
+                    ResolutionFilterStatus.Include => filtered.Where(p => resolutionMap.TryGetValue(p.Id, out var r) && r.FinalDecision == ScreeningDecisionType.Include),
+                    ResolutionFilterStatus.Exclude => filtered.Where(p => resolutionMap.TryGetValue(p.Id, out var r) && r.FinalDecision == ScreeningDecisionType.Exclude),
+                    _ => filtered
+                };
+            }
+
+            var filteredList = filtered.OrderBy(p => p.Title).ToList();
+            var totalCount = filteredList.Count;
+
+            // Pagination
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var pagedPapers = filteredList
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            // Mapping to Response
+            var userIds = phaseResolutions.Select(r => r.ResolvedBy).Distinct().ToList();
+            var userNames = await GetUserNamesAsync(userIds, cancellationToken);
+            var results = new List<ScreeningResolutionPaperResponse>();
+
+            foreach (var paper in pagedPapers)
+            {
+                var resolution = resolutionMap.GetValueOrDefault(paper.Id);
+                var status = paperStatusMap[paper.Id];
+
+                // If there's no resolution record but the status is Included/Excluded (shouldn't happen with TryAutoResolve but safe-guard)
+                // we "derive" a base response or handle it.
+
+                ScreeningResolutionPaperResponse item;
+                if (resolution != null)
+                {
+                    var baseRes = await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken);
+                    item = new ScreeningResolutionPaperResponse
+                    {
+                        Id = baseRes.Id,
+                        StudySelectionProcessId = baseRes.StudySelectionProcessId,
+                        PaperId = baseRes.PaperId,
+                        PaperTitle = baseRes.PaperTitle,
+                        FinalDecision = baseRes.FinalDecision,
+                        FinalDecisionText = baseRes.FinalDecisionText,
+                        Phase = baseRes.Phase,
+                        PhaseText = baseRes.PhaseText,
+                        ResolutionNotes = baseRes.ResolutionNotes,
+                        ResolvedBy = baseRes.ResolvedBy,
+                        ResolverName = baseRes.ResolverName,
+                        ResolvedAt = baseRes.ResolvedAt,
+                        Authors = paper.Authors,
+                        DOI = paper.DOI,
+                        PublicationYear = paper.PublicationYear,
+                        Source = paper.Source
+                    };
+                }
+                else
+                {
+                    // For Included/Excluded papers without an explicit resolution record (e.g. if auto-resolve failed or was skipped)
+                    // we can provide a minimal response based on status.
+                    var finalDecision = status == PaperSelectionStatus.Included ? ScreeningDecisionType.Include : ScreeningDecisionType.Exclude;
+
+                    item = new ScreeningResolutionPaperResponse
+                    {
+                        Id = Guid.Empty,
+                        StudySelectionProcessId = studySelectionProcessId,
+                        PaperId = paper.Id,
+                        PaperTitle = paper.Title,
+                        FinalDecision = finalDecision,
+                        FinalDecisionText = finalDecision.ToString(),
+                        Phase = phase,
+                        PhaseText = phase.ToString(),
+                        ResolutionNotes = "Derived from unanimous decisions.",
+                        ResolvedBy = Guid.Empty,
+                        ResolverName = "System",
+                        ResolvedAt = DateTimeOffset.UtcNow,
+                        Authors = paper.Authors,
+                        DOI = paper.DOI,
+                        PublicationYear = paper.PublicationYear,
+                        Source = paper.Source
+                    };
+                }
+                results.Add(item);
+            }
+
+            return new PaginatedResponse<ScreeningResolutionPaperResponse>
+            {
+                Items = results,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         public async Task<PaperSelectionStatus> GetPaperSelectionStatusAsync(
@@ -717,14 +1054,22 @@ namespace SRSS.IAM.Services.StudySelectionService
                 : 0;
 
             // Exclusion reason breakdown (phase-aware)
+            var allProcessReasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken: cancellationToken);
+            var reasonMap = allProcessReasons.ToDictionary(x => x.Id);
+
             var exclusionBreakdown = allDecisions
-                .Where(d => d.Decision == ScreeningDecisionType.Exclude && d.ExclusionReasonCode.HasValue)
-                .GroupBy(d => d.ExclusionReasonCode!.Value)
-                .Select(g => new ExclusionReasonBreakdownItem
+                .Where(d => d.Decision == ScreeningDecisionType.Exclude && d.ExclusionReasonId.HasValue)
+                .GroupBy(d => d.ExclusionReasonId!.Value)
+                .Select(g =>
                 {
-                    ReasonCode = g.Key,
-                    ReasonText = g.Key.ToString(),
-                    Count = g.Count()
+                    var reasonName = reasonMap.TryGetValue(g.Key, out var r) ? r.Name : "Unknown";
+                    var reasonCode = reasonMap.TryGetValue(g.Key, out var r2) ? r2.Code : 0;
+                    return new ExclusionReasonBreakdownItem
+                    {
+                        ReasonCode = reasonCode,
+                        ReasonText = reasonName,
+                        Count = g.Count()
+                    };
                 })
                 .OrderByDescending(x => x.Count)
                 .ToList();
@@ -869,7 +1214,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken: cancellationToken));
             }
 
             // Deterministic final decision for THIS PHASE
@@ -908,6 +1253,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -919,7 +1265,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 FinalDecisionText = finalDecision?.ToString(),
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1008,12 +1354,10 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (request.PageSize < 1) request.PageSize = 20;
             if (request.PageSize > 100) request.PageSize = 100;
 
-            var papers = new List<Paper>();
-            foreach (var paperId in paperIds)
-            {
-                var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, cancellationToken: cancellationToken);
-                if (paper != null) papers.Add(paper);
-            }
+            var papers = (await _unitOfWork.Papers.FindAllAsync(
+                p => paperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken)).ToList();
 
             var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
 
@@ -1043,7 +1387,10 @@ namespace SRSS.IAM.Services.StudySelectionService
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var search = request.Search.Trim().ToLowerInvariant();
-                filtered = filtered.Where(p => p.Title.ToLowerInvariant().Contains(search));
+                filtered = filtered.Where(p =>
+                    p.Title.ToLowerInvariant().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLowerInvariant().Contains(search)) ||
+                    (p.PublicationYear != null && p.PublicationYear.ToLowerInvariant().Contains(search)));
             }
 
             if (request.Status.HasValue)
@@ -1099,6 +1446,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             var pagedPaperIds = pagedPapers.Select(p => p.Id).ToList();
             var citationCounts = await _unitOfWork.PaperCitations.CountByTargetsAsync(pagedPaperIds, cancellationToken);
             var referenceCounts = await _unitOfWork.PaperCitations.CountBySourcesAsync(pagedPaperIds, cancellationToken);
+            var allProcessReasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken: cancellationToken);
+            var reasonMap = allProcessReasons.ToDictionary(x => x.Id);
 
             var items = new List<PaperWithDecisionsResponse>();
             foreach (var paper in pagedPapers)
@@ -1108,7 +1457,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 var citationCount = citationCounts.TryGetValue(paper.Id, out var cc) ? cc : 0;
                 var referenceCount = referenceCounts.TryGetValue(paper.Id, out var rc) ? rc : 0;
 
-                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, citationCount, referenceCount, cancellationToken));
+                items.Add(await MapToPaperWithDecisionsResponseBatchAsync(paper, studySelectionProcessId, paperStatusMap[paper.Id], pDecisions, pResolution, citationCount, referenceCount, reasonMap, cancellationToken));
             }
 
             return new PaginatedResponse<PaperWithDecisionsResponse>
@@ -1128,6 +1477,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             ScreeningResolution? resolution,
             int citationCount,
             int referenceCount,
+            Dictionary<Guid, StudySelectionExclusionReason> reasonMap,
             CancellationToken cancellationToken,
             ExtractionSuggestionResponse? extractionSuggestion = null)
         {
@@ -1139,7 +1489,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, reasonMap, cancellationToken));
             }
 
             // Deterministic final decision
@@ -1178,6 +1528,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Url = paper.Url,
                 PdfUrl = paper.PdfUrl,
                 PdfFileName = paper.PdfFileName,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+
                 ConferenceName = paper.ConferenceName,
                 ConferenceLocation = paper.ConferenceLocation,
                 JournalIssn = paper.JournalIssn,
@@ -1191,7 +1543,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, reasonMap, cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1219,7 +1571,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 null,
                 cancellationToken);
 
-            var citationCount = paper.ExternalCitationCount ?? 0;
+            var citationCount = await _unitOfWork.PaperCitations.CountByTargetAsync(paper.Id, cancellationToken);
             var referenceCount = await _unitOfWork.PaperCitations.CountBySourceAsync(paper.Id, cancellationToken);
 
             // Batch-resolve user names for decisions + resolution
@@ -1230,7 +1582,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             var decisionResponses = new List<ScreeningDecisionResponse>();
             foreach (var d in decisions)
             {
-                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken));
+                decisionResponses.Add(await MapToDecisionResponse(d, paper.Title, userNames, cancellationToken: cancellationToken));
             }
 
             // Deterministic final decision
@@ -1282,7 +1634,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ReferenceCount = referenceCount,
                 Decisions = decisionResponses,
                 Resolution = resolution != null
-                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken)
+                    ? await MapToResolutionResponse(resolution, paper.Title, userNames, cancellationToken: cancellationToken)
                     : null,
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
@@ -1334,17 +1686,23 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         private async Task<Dictionary<Guid, string>> GetUserNamesAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken)
         {
-            var distinctIds = userIds.Distinct().ToList();
-            var result = new Dictionary<Guid, string>();
-            foreach (var id in distinctIds)
-            {
-                result[id] = await GetUserNameAsync(id, cancellationToken);
-            }
-            return result;
+            var distinctIds = userIds.Where(id => id != Guid.Empty).Distinct().ToList();
+            if (!distinctIds.Any()) return new Dictionary<Guid, string>();
+
+            var users = await _unitOfWork.Users.FindAllAsync(
+                u => distinctIds.Contains(u.Id),
+                isTracking: false,
+                cancellationToken);
+
+            return users.ToDictionary(u => u.Id, u => u.FullName ?? string.Empty);
         }
 
         private async Task<ScreeningDecisionResponse> MapToDecisionResponse(
-            ScreeningDecision d, string paperTitle, Dictionary<Guid, string>? userNames = null, CancellationToken cancellationToken = default)
+            ScreeningDecision d,
+            string paperTitle,
+            Dictionary<Guid, string>? userNames = null,
+            Dictionary<Guid, StudySelectionExclusionReason>? reasonMap = null,
+            CancellationToken cancellationToken = default)
         {
             var reviewerName = userNames != null && userNames.TryGetValue(d.ReviewerId, out var name)
                 ? name
@@ -1362,15 +1720,24 @@ namespace SRSS.IAM.Services.StudySelectionService
                 DecisionText = d.Decision.ToString(),
                 Phase = d.Phase,
                 PhaseText = d.Phase.ToString(),
-                ExclusionReasonCode = d.ExclusionReasonCode,
+                ExclusionReasonId = d.ExclusionReasonId,
+                ExclusionReasonCode = d.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(d.ExclusionReasonId.Value, out var r) ? r.Code : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == d.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Code)
+                    : null,
+                ExclusionReasonName = d.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(d.ExclusionReasonId.Value, out var r2) ? r2.Name : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == d.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Name)
+                    : null,
                 Reason = d.Reason,
-                ReviewerNotes = d.ReviewerNotes,
                 DecidedAt = d.DecidedAt
             };
         }
 
         private async Task<ScreeningResolutionResponse> MapToResolutionResponse(
-            ScreeningResolution resolution, string paperTitle, Dictionary<Guid, string>? userNames = null, CancellationToken cancellationToken = default)
+            ScreeningResolution resolution,
+            string paperTitle,
+            Dictionary<Guid, string>? userNames = null,
+            Dictionary<Guid, StudySelectionExclusionReason>? reasonMap = null,
+            CancellationToken cancellationToken = default)
         {
             var resolverName = userNames != null && userNames.TryGetValue(resolution.ResolvedBy, out var name)
                 ? name
@@ -1386,6 +1753,13 @@ namespace SRSS.IAM.Services.StudySelectionService
                 FinalDecisionText = resolution.FinalDecision.ToString(),
                 Phase = resolution.Phase,
                 PhaseText = resolution.Phase.ToString(),
+                ExclusionReasonId = resolution.ExclusionReasonId,
+                ExclusionReasonCode = resolution.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(resolution.ExclusionReasonId.Value, out var r) ? r.Code : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == resolution.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Code)
+                    : null,
+                ExclusionReasonName = resolution.ExclusionReasonId.HasValue
+                    ? (reasonMap != null && reasonMap.TryGetValue(resolution.ExclusionReasonId.Value, out var r2) ? r2.Name : (await _unitOfWork.StuSeExclusionCodes.FindSingleAsync(x => x.Id == resolution.ExclusionReasonId.Value, cancellationToken: cancellationToken))?.Name)
+                    : null,
                 ResolutionNotes = resolution.ResolutionNotes,
                 ResolvedBy = resolution.ResolvedBy,
                 ResolverName = resolverName,
@@ -1646,188 +2020,431 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             // Update full-text fields
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl))
-            {
-                paper.PdfUrl = request.PdfUrl;
-            }
+            if (!string.IsNullOrWhiteSpace(request.PdfUrl)) paper.PdfUrl = request.PdfUrl;
+            if (!string.IsNullOrWhiteSpace(request.PdfFileName)) paper.PdfFileName = request.PdfFileName;
+            if (!string.IsNullOrWhiteSpace(request.Url)) paper.Url = request.Url;
 
-            if (!string.IsNullOrWhiteSpace(request.PdfFileName))
+            var hasPdfEvidence = !string.IsNullOrWhiteSpace(request.PdfUrl) || request.PdfStream != null;
+            if (hasPdfEvidence)
             {
-                paper.PdfFileName = request.PdfFileName;
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Url))
-            {
-                paper.Url = request.Url;
+                paper.FullTextRetrievalStatus = FullTextRetrievalStatus.Retrieved;
             }
 
             paper.ModifiedAt = DateTimeOffset.UtcNow;
 
             ExtractionSuggestionResponse? extractionSuggestion = null;
 
-            // Grobid Integration
-            PaperPdf? paperPdf = null;
-            if (!string.IsNullOrWhiteSpace(request.PdfUrl))
+            // Handle PDF and GROBID Integration
+            if (hasPdfEvidence && request.PdfStream != null)
             {
-                paperPdf = new PaperPdf
-                {
-                    Id = Guid.NewGuid(),
-                    PaperId = paperId,
-                    FilePath = request.PdfUrl,
-                    FileName = request.PdfFileName ?? string.Empty,
-                    UploadedAt = DateTimeOffset.UtcNow,
-                    GrobidProcessed = request.ExtractWithGrobid,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                };
-                await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
-            }
-            Console.WriteLine("ExtractWithGrobid: " + request.ExtractWithGrobid);
-            Console.WriteLine("PdfStream: " + request.PdfStream);
-            Console.WriteLine("PaperPdf: " + paperPdf);
-            if (request.ExtractWithGrobid && request.PdfStream != null && paperPdf != null)
-            {
-                _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paperId);
-                var grobidDto = await _grobidService.ExtractHeaderAsync(request.PdfStream, request.PdfFileName ?? "upload.pdf", cancellationToken);
+                // 1. Calculate File Hash
+                string fileHash = HashHelper.ComputeSha256Hash(request.PdfStream);
+                request.PdfStream.Position = 0; // Reset stream for GROBID or other use
 
-                var grobidDoi = grobidDto.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
-                var paperDoi = paper.DOI?.Replace("https://doi.org/", "").Replace("http://doi.org/", "").Trim();
+                // 2. Optimization: Skip GROBID if hash hasn't changed
+                bool skipGrobid = request.ExtractWithGrobid && fileHash == paper.CurrentFileHash;
 
-                if (!string.IsNullOrWhiteSpace(grobidDoi) &&
-                    !string.IsNullOrWhiteSpace(paperDoi) &&
-                    !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
+                // 3. Idempotency for PaperPdf (Update existing instead of duplicates)
+                var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(
+                    p => p.PaperId == paperId,
+                    isTracking: true,
+                    cancellationToken: cancellationToken);
+
+                if (paperPdf != null)
                 {
-                    throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+                    paperPdf.FilePath = request.PdfUrl;
+                    paperPdf.FileName = request.PdfFileName ?? string.Empty;
+                    paperPdf.UploadedAt = DateTimeOffset.UtcNow;
+                    paperPdf.FileHash = fileHash;
+                    paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                    // If we skip GROBID, we don't change GrobidProcessed status but we do if we are extracted now
+                    if (request.ExtractWithGrobid && !skipGrobid) paperPdf.GrobidProcessed = true;
                 }
-
-                if (!string.IsNullOrWhiteSpace(grobidDto.RawXml))
+                else
                 {
-                    var headerResult = new GrobidHeaderResult
+                    paperPdf = new PaperPdf
                     {
                         Id = Guid.NewGuid(),
-                        PaperPdfId = paperPdf.Id,
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        RawXml = grobidDto.RawXml,
-                        ExtractedAt = DateTimeOffset.UtcNow,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
-                    await _unitOfWork.GrobidHeaderResults.AddAsync(headerResult, cancellationToken);
-
-                    var sourceMeta = new PaperSourceMetadata
-                    {
-                        Id = Guid.NewGuid(),
+                        ProjectId = paper.ProjectId,
                         PaperId = paperId,
-                        Source = MetadataSource.GROBID_HEADER,
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        Publisher = grobidDto.Publisher,
-                        PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
-                        Year = grobidDto.Year,
-                        ISSN = grobidDto.ISSN,
-                        EISSN = grobidDto.EISSN,
-                        Keywords = grobidDto.Keywords,
-                        Language = grobidDto.Language,
-                        Md5 = grobidDto.Md5,
-                        ExtractedAt = DateTimeOffset.UtcNow,
+                        FilePath = request.PdfUrl,
+                        FileName = request.PdfFileName ?? string.Empty,
+                        UploadedAt = DateTimeOffset.UtcNow,
+                        GrobidProcessed = request.ExtractWithGrobid && !skipGrobid,
+                        FileHash = fileHash,
+                        RefsExtracted = false,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
-                    await _unitOfWork.PaperSourceMetadatas.AddAsync(sourceMeta, cancellationToken);
+                    await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
 
-                    // REMOVED automatic merge to preserve canonical Paper metadata
-                    // await _metadataMergeService.MergeAsync(paper, sourceMeta);
+                paper.CurrentFileHash = fileHash;
 
-                    // Issue 3: Include ExtractionResult payloads dynamically based on modifications
-                    var extractionResult = new ExtractionResultResponse
+                // 4. GROBID Extraction (Background)
+                if (request.ExtractWithGrobid)
+                {
+                    if (skipGrobid)
                     {
-                        Title = grobidDto.Title,
-                        Authors = grobidDto.Authors,
-                        Abstract = grobidDto.Abstract,
-                        DOI = grobidDto.DOI,
-                        Journal = grobidDto.Journal,
-                        Volume = grobidDto.Volume,
-                        Issue = grobidDto.Issue,
-                        Pages = grobidDto.Pages,
-                        Publisher = grobidDto.Publisher,
-                        PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
-                        Year = grobidDto.Year,
-                        ISSN = grobidDto.ISSN,
-                        EISSN = grobidDto.EISSN,
-                        Keywords = grobidDto.Keywords,
-                        Language = grobidDto.Language,
-                        Md5 = grobidDto.Md5,
-                        UpdatedFields = new List<string>() // Idealy from MetadataMerge logic, keeping it simple for now
-                    };
+                        _logger.LogInformation("Skipping GROBID extraction for Paper {PaperId} because file hash matches current record.", paperId);
 
-                    if (!string.IsNullOrEmpty(grobidDto.Title)) extractionResult.UpdatedFields.Add("Title");
-                    if (!string.IsNullOrEmpty(grobidDto.Authors)) extractionResult.UpdatedFields.Add("Authors");
-                    if (!string.IsNullOrEmpty(grobidDto.Abstract)) extractionResult.UpdatedFields.Add("Abstract");
-                    if (!string.IsNullOrEmpty(grobidDto.DOI)) extractionResult.UpdatedFields.Add("DOI");
-                    if (!string.IsNullOrEmpty(grobidDto.Journal)) extractionResult.UpdatedFields.Add("Journal");
-                    if (!string.IsNullOrEmpty(grobidDto.Volume)) extractionResult.UpdatedFields.Add("Volume");
-                    if (!string.IsNullOrEmpty(grobidDto.Issue)) extractionResult.UpdatedFields.Add("Issue");
-                    if (!string.IsNullOrEmpty(grobidDto.Pages)) extractionResult.UpdatedFields.Add("Pages");
-                    if (!string.IsNullOrEmpty(grobidDto.Keywords)) extractionResult.UpdatedFields.Add("Keywords");
-                    if (!string.IsNullOrEmpty(grobidDto.Language)) extractionResult.UpdatedFields.Add("Language");
-                    if (!string.IsNullOrEmpty(grobidDto.Md5)) extractionResult.UpdatedFields.Add("Md5");
-                    if (!string.IsNullOrEmpty(grobidDto.Publisher)) extractionResult.UpdatedFields.Add("Publisher");
-                    if (!string.IsNullOrEmpty(grobidDto.PublishedDate?.ToString())) extractionResult.UpdatedFields.Add("PublishedDate");
-                    if (!string.IsNullOrEmpty(grobidDto.Year?.ToString())) extractionResult.UpdatedFields.Add("Year");
-                    if (!string.IsNullOrEmpty(grobidDto.ISSN)) extractionResult.UpdatedFields.Add("ISSN");
-                    if (!string.IsNullOrEmpty(grobidDto.EISSN)) extractionResult.UpdatedFields.Add("EISSN");
+                        // Retrieve existing PaperSourceMetadata and recalculate suggestions for the response
+                        var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                            paper.Id,
+                            cancellationToken);
 
-                    // Create extraction suggestion for the frontend
-                    var suggestion = new ExtractionSuggestionResponse
+                        if (sourceMeta != null)
+                        {
+                            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+                            extractionSuggestion = new ExtractionSuggestionResponse
+                            {
+                                SourceMetadataId = sourceMeta.Id,
+                                PaperId = paper.Id,
+                                Title = sourceMeta.Title,
+                                Authors = sourceMeta.Authors,
+                                Abstract = sourceMeta.Abstract,
+                                DOI = sourceMeta.DOI,
+                                Language = sourceMeta.Language,
+                                Journal = sourceMeta.Journal,
+                                Volume = sourceMeta.Volume,
+                                Issue = sourceMeta.Issue,
+                                Pages = sourceMeta.Pages,
+                                Keywords = sourceMeta.Keywords,
+                                Publisher = sourceMeta.Publisher,
+                                Year = sourceMeta.Year,
+                                Md5 = sourceMeta.Md5,
+                                ISSN = sourceMeta.ISSN,
+                                EISSN = sourceMeta.EISSN,
+                                UpdatedFields = updatedFields
+                            };
+
+                            // Even though we skip background processing, we notify the client that metadata is ready
+                            var userIdStr = _currentUserService.GetUserId();
+                            if (Guid.TryParse(userIdStr, out var userId))
+                            {
+                                await _notificationService.SendMetadataExtractedAsync(userId, extractionSuggestion);
+                            }
+                        }
+                    }
+                    else
                     {
-                        SourceMetadataId = sourceMeta.Id,
-                        Title = sourceMeta.Title,
-                        Authors = sourceMeta.Authors,
-                        Abstract = sourceMeta.Abstract,
-                        DOI = sourceMeta.DOI,
-                        Language = sourceMeta.Language,
-                        Journal = sourceMeta.Journal,
-                        Volume = sourceMeta.Volume,
-                        Issue = sourceMeta.Issue,
-                        Pages = sourceMeta.Pages,
-                        Keywords = sourceMeta.Keywords,
-                        Publisher = sourceMeta.Publisher,
-                        Year = sourceMeta.Year,
-                        Md5 = sourceMeta.Md5,
-                        ISSN = sourceMeta.ISSN,
-                        EISSN = sourceMeta.EISSN
-                    };
+                        _logger.LogInformation("Enqueuing GROBID extraction for Paper {PaperId} in background.", paperId);
 
-                    _logger.LogInformation("Created extraction suggestion {SourceMetadataId} for Paper {PaperId}", sourceMeta.Id, paperId);
+                        // We set GrobidProcessed to false to indicate it's pending/processing
+                        paperPdf.GrobidProcessed = false;
 
-                    // Note: In an actual implementation with proper design, we would pass this suggestion nicely through the return DTO
-                    // For now, returning it by packing it in via context or similar depending on the existing architecture.
-                    // Let's modify the PaperWithDecisionsResponse return directly
-                    extractionSuggestion = suggestion;
+                        var userIdStr = _currentUserService.GetUserId();
+                        Guid.TryParse(userIdStr, out var userId);
 
-                    // Stash it in HttpContext.Items to be mapped into the response DTO
-                    // Not ideal domain design, but simplest for gap report resolution
+                        _grobidQueue.TryWrite(new GrobidWorkItem
+                        {
+                            PaperPdfId = paperPdf.Id,
+                            PaperId = paperId,
+                            StudySelectionProcessId = studySelectionProcessId,
+                            UserId = userId
+                        });
+                    }
+
+                    // 5. Enqueue Full-text Extraction (Background) - Always do this if a new file is uploaded
+                    // Optimization: Skip if skipGrobid is true AND any other PDF with same hash was already processed
+                    bool runFullText = true;
+                    if (skipGrobid)
+                    {
+                        runFullText = !await _unitOfWork.PaperPdfs.AnyFullTextProcessedByHashAsync(fileHash, cancellationToken);
+                    }
+
+                    if (runFullText)
+                    {
+                        _logger.LogInformation("Enqueuing PaperPdf {PaperPdfId} for background full-text extraction.", paperPdf.Id);
+                        _fullTextQueue.TryWrite(paperPdf.Id);
+                    }
                 }
             }
 
+            // Ensure changes are persisted before mapping response
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
-
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+        }
+
+        public async Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation(
+                "Marking paper {PaperId} as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
+
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {process.ReviewProcessId} not found.");
+            }
+
+            if (paper.ProjectId != reviewProcess.ProjectId)
+            {
+                throw new InvalidOperationException("Paper does not belong to the same project as the study selection process.");
+            }
+
+            if (paper.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved)
+            {
+                _logger.LogInformation(
+                    "Paper {PaperId} is already marked as not retrieved. No state change applied.",
+                    paperId);
+                return;
+            }
+
+            paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "Paper {PaperId} marked as not retrieved for study selection process {StudySelectionProcessId}.",
+                paperId,
+                studySelectionProcessId);
+        }
+
+        public async Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct)
+        {
+            _logger.LogInformation("Processing background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+
+            try
+            {
+                var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == workItem.PaperId, isTracking: true, cancellationToken: ct);
+                var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(p => p.Id == workItem.PaperPdfId, isTracking: true, cancellationToken: ct);
+
+                if (paper == null || paperPdf == null)
+                {
+                    _logger.LogWarning("Paper or PaperPdf not found for background extraction. PaperId: {PaperId}, PaperPdfId: {PaperPdfId}",
+                        workItem.PaperId, workItem.PaperPdfId);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(paperPdf.FilePath))
+                {
+                    _logger.LogWarning("PaperPdf {PaperPdfId} has no file path. Skipping extraction.", workItem.PaperPdfId);
+                    return;
+                }
+
+                // 1. Download PDF from Supabase
+                byte[] pdfBytes = await _storageService.DownloadFileAsync(paperPdf.FilePath);
+                using var pdfStream = new MemoryStream(pdfBytes);
+
+                // 2. Perform Extraction
+                var extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, pdfStream, paperPdf.FileName ?? "upload.pdf", ct);
+
+                // 3. Mark as processed
+                paperPdf.GrobidProcessed = true;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+
+                await _unitOfWork.SaveChangesAsync(ct);
+
+                // 4. Send Notification
+                if (workItem.UserId != Guid.Empty)
+                {
+                    // Send system notification
+                    await _notificationService.SendAsync(
+                        workItem.UserId,
+                        "Extraction Complete",
+                        $"Metadata extraction for '{paper.Title}' has been completed.",
+                        NotificationType.System,
+                        workItem.PaperId,
+                        NotificationEntityType.Paper);
+
+                    // Send real-time metadata update via SignalR
+                    if (extractionSuggestion != null)
+                    {
+                        await _notificationService.SendMetadataExtractedAsync(workItem.UserId, extractionSuggestion);
+                    }
+                }
+
+                _logger.LogInformation("Successfully completed background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed background GROBID extraction for Paper {PaperId}", workItem.PaperId);
+                // We don't throw here to avoid crashing the background worker
+            }
+        }
+
+        private async Task<ExtractionSuggestionResponse?> PerformGrobidExtractionAsync(
+            Paper paper,
+            PaperPdf paperPdf,
+            Stream pdfStream,
+            string fileName,
+            CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paper.Id);
+            var grobidDto = await _grobidService.ExtractHeaderAsync(pdfStream, fileName, cancellationToken);
+
+            var grobidDoi = NormalizeDoi(grobidDto.DOI);
+            var paperDoi = NormalizeDoi(paper.DOI);
+
+            // DOI strict validation
+            if (!string.IsNullOrWhiteSpace(grobidDoi) &&
+                !string.IsNullOrWhiteSpace(paperDoi) &&
+                !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+            }
+
+            if (string.IsNullOrWhiteSpace(grobidDto.RawXml)) return null;
+
+            // 1. Idempotency for GrobidHeaderResult
+            var existingHeader = await _unitOfWork.GrobidHeaderResults.FindSingleAsync(
+                ghr => ghr.PaperPdfId == paperPdf.Id,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (existingHeader != null)
+            {
+                existingHeader.Title = grobidDto.Title;
+                existingHeader.Authors = grobidDto.Authors;
+                existingHeader.Abstract = grobidDto.Abstract;
+                existingHeader.DOI = grobidDto.DOI;
+                existingHeader.Journal = grobidDto.Journal;
+                existingHeader.Volume = grobidDto.Volume;
+                existingHeader.Issue = grobidDto.Issue;
+                existingHeader.Pages = grobidDto.Pages;
+                existingHeader.RawXml = grobidDto.RawXml;
+                existingHeader.ExtractedAt = DateTimeOffset.UtcNow;
+                existingHeader.ModifiedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                var headerResult = new GrobidHeaderResult
+                {
+                    Id = Guid.NewGuid(),
+                    PaperPdfId = paperPdf.Id,
+                    Title = grobidDto.Title,
+                    Authors = grobidDto.Authors,
+                    Abstract = grobidDto.Abstract,
+                    DOI = grobidDto.DOI,
+                    Journal = grobidDto.Journal,
+                    Volume = grobidDto.Volume,
+                    Issue = grobidDto.Issue,
+                    Pages = grobidDto.Pages,
+                    RawXml = grobidDto.RawXml,
+                    ExtractedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+                await _unitOfWork.GrobidHeaderResults.AddAsync(headerResult, cancellationToken);
+            }
+
+            // 2. Idempotency and Field Merging for PaperSourceMetadata
+            var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                paper.Id,
+                cancellationToken);
+
+            if (sourceMeta != null)
+            {
+                // Update only non-null fields (Field Merging) - keep existing if new extraction is null or empty
+                if (!string.IsNullOrWhiteSpace(grobidDto.Title)) sourceMeta.Title = grobidDto.Title;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Authors)) sourceMeta.Authors = grobidDto.Authors;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Abstract)) sourceMeta.Abstract = grobidDto.Abstract;
+                if (!string.IsNullOrWhiteSpace(grobidDto.DOI)) sourceMeta.DOI = grobidDto.DOI;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Journal)) sourceMeta.Journal = grobidDto.Journal;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Volume)) sourceMeta.Volume = grobidDto.Volume;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Issue)) sourceMeta.Issue = grobidDto.Issue;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Pages)) sourceMeta.Pages = grobidDto.Pages;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Publisher)) sourceMeta.Publisher = grobidDto.Publisher;
+                if (grobidDto.PublishedDate != null) sourceMeta.PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd");
+                if (grobidDto.Year != null) sourceMeta.Year = grobidDto.Year;
+                if (!string.IsNullOrWhiteSpace(grobidDto.ISSN)) sourceMeta.ISSN = grobidDto.ISSN;
+                if (!string.IsNullOrWhiteSpace(grobidDto.EISSN)) sourceMeta.EISSN = grobidDto.EISSN;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Keywords)) sourceMeta.Keywords = grobidDto.Keywords;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Language)) sourceMeta.Language = grobidDto.Language;
+                if (!string.IsNullOrWhiteSpace(grobidDto.Md5)) sourceMeta.Md5 = grobidDto.Md5;
+
+                sourceMeta.ExtractedAt = DateTimeOffset.UtcNow;
+                sourceMeta.ModifiedAt = DateTimeOffset.UtcNow;
+            }
+            else
+            {
+                sourceMeta = new PaperSourceMetadata
+                {
+                    Id = Guid.NewGuid(),
+                    PaperId = paper.Id,
+                    Source = MetadataSource.GROBID_HEADER,
+                    Title = grobidDto.Title,
+                    Authors = grobidDto.Authors,
+                    Abstract = grobidDto.Abstract,
+                    DOI = grobidDto.DOI,
+                    Journal = grobidDto.Journal,
+                    Volume = grobidDto.Volume,
+                    Issue = grobidDto.Issue,
+                    Pages = grobidDto.Pages,
+                    Publisher = grobidDto.Publisher,
+                    PublishedDate = grobidDto.PublishedDate?.ToString("yyyy-MM-dd"),
+                    Year = grobidDto.Year,
+                    ISSN = grobidDto.ISSN,
+                    EISSN = grobidDto.EISSN,
+                    Keywords = grobidDto.Keywords,
+                    Language = grobidDto.Language,
+                    Md5 = grobidDto.Md5,
+                    ExtractedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
+                await _unitOfWork.PaperSourceMetadatas.AddAsync(sourceMeta, cancellationToken);
+            }
+
+            // 3. Smart SuggestedFields Tracking (Compare Consolidated Metadata vs Main Paper)
+            // Recalculate what can be still updated based on current Paper state
+            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+            sourceMeta.SuggestedFields = updatedFields;
+
+            // 4. Map to Suggestion Response
+            return new ExtractionSuggestionResponse
+            {
+                SourceMetadataId = sourceMeta.Id,
+                PaperId = paper.Id,
+                Title = sourceMeta.Title,
+                Authors = sourceMeta.Authors,
+                Abstract = sourceMeta.Abstract,
+                DOI = sourceMeta.DOI,
+                Language = sourceMeta.Language,
+                Journal = sourceMeta.Journal,
+                Volume = sourceMeta.Volume,
+                Issue = sourceMeta.Issue,
+                Pages = sourceMeta.Pages,
+                Keywords = sourceMeta.Keywords,
+                Publisher = sourceMeta.Publisher,
+                Year = sourceMeta.Year,
+                Md5 = sourceMeta.Md5,
+                ISSN = sourceMeta.ISSN,
+                EISSN = sourceMeta.EISSN,
+                UpdatedFields = updatedFields
+            };
         }
 
         public async Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
@@ -2015,6 +2632,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 StudySelectionProcessId = studySelectionProcessId,
                 PaperId = paperId,
                 FinalDecision = autoDecision.Value,
+                ExclusionReasonId = decisions.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonId,
                 Phase = phase,
                 ResolutionNotes = autoNotes,
                 ResolvedBy = Guid.Empty, // System
@@ -2094,12 +2712,257 @@ namespace SRSS.IAM.Services.StudySelectionService
             }
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
+            var extractionSuggestion = await GetExtractionSuggestionAsync(paper, cancellationToken);
 
             return await MapToPaperWithDecisionsResponseAsync(
                 paper,
                 studySelectionProcessId,
                 status,
+                cancellationToken,
+                extractionSuggestion);
+        }
+
+        private string? NormalizeDoi(string? doi)
+        {
+            if (string.IsNullOrWhiteSpace(doi)) return null;
+            return doi.Trim()
+                .Replace("https://doi.org/", "", StringComparison.OrdinalIgnoreCase)
+                .Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default)
+        {
+            var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
+                paper.Id,
                 cancellationToken);
+
+            if (sourceMeta == null) return null;
+
+            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+
+            return new ExtractionSuggestionResponse
+            {
+                SourceMetadataId = sourceMeta.Id,
+                PaperId = paper.Id,
+                Title = sourceMeta.Title,
+                Authors = sourceMeta.Authors,
+                Abstract = sourceMeta.Abstract,
+                DOI = sourceMeta.DOI,
+                Language = sourceMeta.Language,
+                Journal = sourceMeta.Journal,
+                Volume = sourceMeta.Volume,
+                Issue = sourceMeta.Issue,
+                Pages = sourceMeta.Pages,
+                Keywords = sourceMeta.Keywords,
+                Publisher = sourceMeta.Publisher,
+                Year = sourceMeta.Year,
+                Md5 = sourceMeta.Md5,
+                ISSN = sourceMeta.ISSN,
+                EISSN = sourceMeta.EISSN,
+                UpdatedFields = updatedFields
+            };
+        }
+
+        public List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta)
+        {
+            var updatedFields = new List<string>();
+
+            if (CompareFields(paper.Title, sourceMeta.Title)) updatedFields.Add("Title");
+            if (CompareFields(paper.Authors, sourceMeta.Authors)) updatedFields.Add("Authors");
+            if (CompareFields(paper.Abstract, sourceMeta.Abstract)) updatedFields.Add("Abstract");
+            if (CompareFields(NormalizeDoi(paper.DOI), NormalizeDoi(sourceMeta.DOI))) updatedFields.Add("DOI");
+            if (CompareFields(paper.Journal, sourceMeta.Journal)) updatedFields.Add("Journal");
+            if (CompareFields(paper.Volume, sourceMeta.Volume)) updatedFields.Add("Volume");
+            if (CompareFields(paper.Issue, sourceMeta.Issue)) updatedFields.Add("Issue");
+            if (CompareFields(paper.Pages, sourceMeta.Pages)) updatedFields.Add("Pages");
+            if (CompareFields(paper.Keywords, sourceMeta.Keywords)) updatedFields.Add("Keywords");
+            if (CompareFields(paper.Language, sourceMeta.Language)) updatedFields.Add("Language");
+            if (CompareFields(paper.Md5, sourceMeta.Md5)) updatedFields.Add("Md5");
+            if (CompareFields(paper.Publisher, sourceMeta.Publisher)) updatedFields.Add("Publisher");
+
+            // Compare dates (Paper: DateTimeOffset?, SourceMeta: string "yyyy-MM-dd")
+            // Clean comparison: only if suggested date is not empty
+            if (!string.IsNullOrWhiteSpace(sourceMeta.PublishedDate))
+            {
+                var paperDateStr = paper.PublicationDate?.ToString("yyyy-MM-dd");
+                if (!string.Equals(paperDateStr, sourceMeta.PublishedDate, StringComparison.OrdinalIgnoreCase))
+                    updatedFields.Add("PublishedDate");
+            }
+
+            // Compare years
+            // Clean comparison: only if suggested year is not null
+            if (sourceMeta.Year != null)
+            {
+                var paperYear = paper.PublicationYearInt ?? (int.TryParse(paper.PublicationYear, out var y) ? y : (int?)null);
+                if (paperYear != sourceMeta.Year)
+                    updatedFields.Add("Year");
+            }
+
+            if (CompareFields(paper.JournalIssn, sourceMeta.ISSN)) updatedFields.Add("ISSN");
+            if (CompareFields(paper.JournalEIssn, sourceMeta.EISSN)) updatedFields.Add("EISSN");
+
+            return updatedFields;
+        }
+
+        private bool CompareFields(string? dbValue, string? extractedValue)
+        {
+            var normalizedDb = dbValue?.Trim() ?? string.Empty;
+            var normalizedExtracted = extractedValue?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrEmpty(normalizedExtracted)) return false;
+
+            return !string.Equals(normalizedDb, normalizedExtracted, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public async Task<List<ReviewerDecisionDetailResponse>> GetReviewerDecisionsAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch Process
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            // 2. Fetch Paper Title (for mapping)
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, isTracking: false, cancellationToken: cancellationToken);
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            // 3. Fetch Assignments for this paper and phase
+            var assignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId
+                      && pa.PaperId == paperId
+                      && pa.Phase == phase,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var assignmentList = assignments.ToList();
+
+            // 4. Fetch Decisions for this paper and phase
+            var decisions = await _unitOfWork.ScreeningDecisions.GetByPaperAsync(studySelectionProcessId, paperId, phase, cancellationToken);
+            var decisionMap = decisions.ToDictionary(d => d.ReviewerId);
+
+            // 5. Build user ID list for name resolution
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(reviewProcess!.ProjectId);
+            var memberToUserMap = projectMembers.ToDictionary(m => m.Id, m => m.UserId);
+
+            var assignedUserIds = assignmentList
+                .Select(a => memberToUserMap.TryGetValue(a.ProjectMemberId, out var uid) ? uid : (Guid?)null)
+                .Where(uid => uid.HasValue)
+                .Select(uid => uid!.Value)
+                .ToList();
+
+            var deciderUserIds = decisions.Select(d => d.ReviewerId).ToList();
+            var allUserIds = assignedUserIds.Concat(deciderUserIds).Distinct().ToList();
+
+            var userNames = await GetUserNamesAsync(allUserIds, cancellationToken);
+
+            // 6. Map to DTOs
+            var results = new List<ReviewerDecisionDetailResponse>();
+            var assignedSet = assignedUserIds.ToHashSet();
+
+            // Include assigned reviewers (with or without decisions)
+            foreach (var userId in assignedUserIds)
+            {
+                var response = new ReviewerDecisionDetailResponse
+                {
+                    ReviewerId = userId,
+                    ReviewerName = userNames.GetValueOrDefault(userId, "Unknown")
+                };
+
+                if (decisionMap.TryGetValue(userId, out var decision))
+                {
+                    response.Decision = await MapToDecisionResponse(decision, paper.Title, userNames, cancellationToken: cancellationToken);
+                }
+
+                results.Add(response);
+            }
+
+            // Include decisions from people NOT currently assigned (historical or non-assigned decisions)
+            foreach (var decision in decisions)
+            {
+                if (!assignedSet.Contains(decision.ReviewerId))
+                {
+                    results.Add(new ReviewerDecisionDetailResponse
+                    {
+                        ReviewerId = decision.ReviewerId,
+                        ReviewerName = userNames.GetValueOrDefault(decision.ReviewerId, "Unknown"),
+                        Decision = await MapToDecisionResponse(decision, paper.Title, userNames, cancellationToken: cancellationToken)
+                    });
+                }
+            }
+
+            return results;
+        }
+        public async Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.ScreeningResolutions.GetQueryable(
+                r => r.StudySelectionProcessId == studySelectionProcessId &&
+                     r.Phase == ScreeningPhase.FullText &&
+                     r.FinalDecision == ScreeningDecisionType.Include &&
+                     !r.StudySelectionProcess.StudySelectionProcessPapers.Any(ip => ip.PaperId == r.PaperId && ip.IsAddedToDataset),
+                isTracking: false);
+
+            var paperQuery = query.Select(r => new
+            {
+                r.PaperId,
+                r.Paper.Title,
+                r.Paper.Authors,
+                r.Paper.PublicationYear,
+                r.Paper.DOI,
+                r.Paper.Abstract,
+                Domain = r.StudySelectionProcess.ReviewProcess.Project.Domain
+            });
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLower();
+                paperQuery = paperQuery.Where(p =>
+                    p.Title.ToLower().Contains(search) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(search)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(search)));
+            }
+
+            var totalCount = await paperQuery.CountAsync(cancellationToken);
+
+            var pageNumber = request.PageNumber < 1 ? 1 : request.PageNumber;
+            var pageSize = request.PageSize < 1 ? 20 : request.PageSize;
+
+            var items = await paperQuery
+                .OrderBy(p => p.Title)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(p => new DatasetPaperResponse
+                {
+                    PaperId = p.PaperId,
+                    Title = p.Title,
+                    Authors = p.Authors,
+                    PublicationYear = p.PublicationYear,
+                    Domain = p.Domain,
+                    Abstract = p.Abstract
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<DatasetPaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

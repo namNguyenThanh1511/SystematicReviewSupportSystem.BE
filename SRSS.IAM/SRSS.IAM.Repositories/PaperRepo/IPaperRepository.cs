@@ -70,7 +70,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
-            string? assignmentStatus,
+            int? year,
+            Guid? searchSourceId,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
             int pageNumber,
             int pageSize,
@@ -78,6 +81,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
           List<Guid> paperIds,
+                    Guid? searchSourceId,
           int pageNumber,
           int pageSize,
           CancellationToken cancellationToken = default);
@@ -111,6 +115,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<List<Paper>> GetPapersWithQaDetailsByIdsAsync(
             IEnumerable<Guid> paperIds,
             Guid qaProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<Paper?> GetForAiEvaluationAsync(
+            Guid id,
             CancellationToken cancellationToken = default);
     }
 }

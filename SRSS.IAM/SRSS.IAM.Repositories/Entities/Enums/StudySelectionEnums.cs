@@ -1,21 +1,5 @@
 namespace SRSS.IAM.Repositories.Entities.Enums
 {
-    /// <summary>
-    /// Standardized exclusion reason codes per TA.md §5 (PRISMA-compliant taxonomy)
-    /// Used for structured PRISMA reporting and exclusion reason breakdown
-    /// </summary>
-    public enum ExclusionReasonCode
-    {
-        NotRelevantToTopic = 0,
-        NotRelevantPopulation = 1,
-        NotRelevantIntervention = 2,
-        NotEmpiricalStudy = 3,
-        NotResearchPaper = 4,
-        OutsideTimeRange = 5,
-        UnsupportedLanguage = 6,
-        DuplicateStudy = 7,
-        Other = 99
-    }
 
     /// <summary>
     /// Discriminator for screening phase (Title/Abstract vs Full-Text)
@@ -34,5 +18,64 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         NotStarted = 0,
         InProgress = 1,
         Completed = 2
+    }
+
+    /// <summary>
+    /// Recommendation provided by AI for a paper screening
+    /// </summary>
+    public enum StuSeAIRecommendation
+    {
+        Include = 0,
+        Exclude = 1,
+        Uncertain = 2
+    }
+
+    /// <summary>
+    /// Filter for paper assignment status in screening phases
+    /// </summary>
+    public enum AssignmentFilterStatus
+    {
+        All = 0,
+        Assigned = 1,
+        Unassigned = 2
+    }
+
+    /// <summary>
+    /// Filter for paper decision/resolution status in screening phases
+    /// </summary>
+    public enum ResolutionFilterStatus
+    {
+        All = 0,
+        NotDecided = 1,
+        Include = 2,
+        Exclude = 3
+    }
+
+    /// <summary>
+    /// Full-text retrieval state used for PRISMA-aligned tracking
+    /// </summary>
+    public enum FullTextRetrievalStatus
+    {
+        Unknown = 0,
+        Retrieved = 1,
+        NotRetrieved = 2
+    }
+    /// <summary>
+    /// Source of an exclusion reason (Library vs Custom)
+    /// </summary>
+    public enum ExclusionReasonSource
+    {
+        Library = 0,
+        Custom = 1
+    }
+
+    /// <summary>
+    /// Filter for exclusion reason source
+    /// </summary>
+    public enum ExclusionReasonSourceFilter
+    {
+        All = 0,
+        Library = 1,
+        Custom = 2
     }
 }

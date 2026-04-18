@@ -4,6 +4,7 @@ using Shared.Models;
 using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.ReviewProcessService;
+using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -189,6 +190,23 @@ namespace SRSS.IAM.API.Controllers
             }
 
             return Ok<ProtocolDetailResponse?>(result, "Protocol retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Reopen a specific review phase for a given review process
+        /// </summary>
+        /// <param name="id">Review Process ID</param>
+        /// <param name="phase">Phase type (Identification, StudySelection, QualityAssessment, DataExtraction)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Updated review process state</returns>
+        [HttpPost("review-processes/{id}/reopen-phase/{phase}")]
+        public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> ReopenPhase(
+            [FromRoute] Guid id,
+            [FromRoute] ProcessPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reviewProcessService.ReopenPhaseAsync(id, phase, cancellationToken);
+            return Ok(result, $"{phase.ToString()} phase reopened successfully.");
         }
     }
 }

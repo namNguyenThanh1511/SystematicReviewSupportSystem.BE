@@ -1,6 +1,8 @@
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.GrobidClient;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -60,6 +62,16 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             Guid paperId,
             ResolveScreeningConflictRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ScreeningResolutionResponse>> BulkResolveConflictsAsync(
+            Guid studySelectionProcessId,
+            BulkResolveConflictsRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<ScreeningResolutionPaperResponse>> GetResolutionsAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
             CancellationToken cancellationToken = default);
 
         Task<ConflictPaperDetailResponse> GetConflictPaperDetailAsync(
@@ -125,10 +137,32 @@ namespace SRSS.IAM.Services.StudySelectionService
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default);
 
+        Task MarkPaperAsNotRetrievedAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            CancellationToken cancellationToken = default);
+
         Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
             Guid studySelectionProcessId,
             Guid paperId,
             RetryExtractionRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ReviewerDecisionDetailResponse>> GetReviewerDecisionsAsync(
+            Guid studySelectionProcessId,
+            Guid paperId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default);
+
+        // Background tasks
+        Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct);
+
+        Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default);
+        List<string> GetUpdatedMetadataFields(Paper paper, PaperSourceMetadata sourceMeta);
+
+        Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
+            Guid studySelectionProcessId,
+            GetResolutionsRequest request,
             CancellationToken cancellationToken = default);
     }
 }

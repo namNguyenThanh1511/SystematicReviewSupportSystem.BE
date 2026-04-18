@@ -5,6 +5,7 @@ using Shared.Cache;
 using Shared.DependencyInjection;
 using Shared.Middlewares;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.AuthService;
 using SRSS.IAM.Services.Configurations;
@@ -17,6 +18,7 @@ using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
 using SRSS.IAM.Services.SearchStrategyService;
 using SRSS.IAM.Services.SelectionCriteriaService;
+using SRSS.IAM.Services.StudyCharacteristicsService;
 using SRSS.IAM.Services.SynthesisService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
@@ -27,6 +29,7 @@ using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
 using SRSS.IAM.Services.CitationService;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
+using SRSS.IAM.Services.AuditLogService;
 using SRSS.IAM.Services.CandidatePaperService;
 using System.Text;
 using SRSS.IAM.API.Data;
@@ -46,8 +49,20 @@ using System.Net;
 using SRSS.IAM.Services.StudySelectionProcessPaperService;
 using SRSS.IAM.Services.PaperEnrichmentService;
 using SRSS.IAM.Services.GeminiService;
-using SRSS.IAM.Services.PaperEnrichmentService;
+using SRSS.IAM.Services.StudySelectionAIService;
 using SRSS.IAM.Services.ReferenceProcessingService;
+using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.ExclusionReasonLibraryService;
+using SRSS.IAM.Services.StuSeExclusionCodeService;
+using SRSS.IAM.Services.AdminMasterSourceService;
+using SRSS.IAM.Services.Crossref;
+
+
+using SRSS.IAM.Services.RagService;
+using SmartComponents.LocalEmbeddings;
+using SRSS.IAM.Services.SynthesisExecutionService;
+using SRSS.IAM.Services.ChecklistService;
+using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -58,11 +73,12 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpContextAccessor();
             services.AddHttpClient();
             services.AddSignalR();
-			services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
-			services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
-			services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+            services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+            services.Configure<GoogleAuthSettings>(configuration.GetSection(GoogleAuthSettings.SectionName));
+            services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddSingleton<IUserConnectionRepository, UserConnectionRepository>();
 
 
             services.AddScoped<IRefreshTokenService, RefreshTokenService>();
@@ -74,6 +90,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
+            services.AddScoped<IStudyCharacteristicsService, StudyCharacteristicsService>();
             services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
@@ -92,20 +109,25 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddSingleton<IGeminiService, GeminiService>();
             services.AddScoped<ISelectionStatusService, SelectionStatusService>();
             services.AddScoped<IStudySelectionService, StudySelectionService>();
+            services.AddScoped<IStuSeAIService, StuSeAIService>();
+            services.AddScoped<IStudySelectionAIResultService, StudySelectionAIResultService>();
             services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
+            services.AddScoped<IExclusionReasonLibraryService, ExclusionReasonLibraryService>();
+            services.AddScoped<IStuSeExclusionCodeService, StuSeExclusionCodeService>();
+            services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
             
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
             services.Configure<GrobidOptions>(configuration.GetSection("Grobid"));
             services.AddHttpClient<IGrobidClient, GrobidClient>();
-			services.AddScoped<IGrobidService, GrobidService>();
-			services.AddScoped<IMetadataMergeService, MetadataMergeService>();
-			services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
+            services.AddScoped<IGrobidService, GrobidService>();
+            services.AddScoped<IMetadataMergeService, MetadataMergeService>();
+            services.AddScoped<IReferenceMatchingService, ReferenceMatchingService>();
             services.AddScoped<IReferenceClassificationService, ReferenceClassificationService>();
             services.AddScoped<IReferenceProcessingService, ReferenceProcessingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
@@ -115,6 +137,19 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddHttpClient<IOpenAlexService, OpenAlexService>(client =>
             {
                 client.BaseAddress = new Uri("https://api.openalex.org/");
+            })
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == HttpStatusCode.TooManyRequests)
+                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            // Crossref integration
+            services.Configure<CrossrefSettings>(configuration.GetSection(CrossrefSettings.SectionName));
+            services.AddHttpClient<ICrossrefService, CrossrefService>(client =>
+            {
+                var settings = configuration.GetSection(CrossrefSettings.SectionName).Get<CrossrefSettings>() ?? new CrossrefSettings();
+                client.BaseAddress = new Uri(settings.BaseUrl);
+                client.DefaultRequestHeaders.Add("User-Agent", settings.UserAgent);
             })
             .AddPolicyHandler(HttpPolicyExtensions
                 .HandleTransientHttpError()
@@ -132,34 +167,62 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Reference processing background worker
             services.AddSingleton(System.Threading.Channels.Channel.CreateUnbounded<ReferenceProcessingJob>());
             services.AddHostedService<ReferenceProcessingBackgroundService>();
-		}
+
+            // Paper full-text extraction background worker
+            services.AddSingleton<IPaperFullTextQueue, PaperFullTextQueue>();
+            services.AddScoped<IPaperFullTextService, PaperFullTextService>();
+            services.AddHostedService<PaperFullTextBackgroundService>();
+
+            // GROBID background worker
+            services.AddSingleton<IGrobidProcessingQueue, GrobidProcessingQueue>();
+            services.AddHostedService<GrobidBackgroundService>();
+
+            // RAG pipeline — Local CPU embedding (Singleton: ONNX model loads once)
+            services.AddSingleton<LocalEmbedder>();
+            services.AddSingleton<ILocalEmbeddingService, LocalEmbeddingService>();
+            services.AddSingleton<IRagIngestionQueue, RagIngestionQueue>();
+            services.AddHostedService<RagIngestionBackgroundService>();
+            services.AddScoped<IRagRetrievalService, RagRetrievalService>();
+
+            // Synthesis Execution
+            services.AddScoped<ISynthesisExecutionService, SynthesisExecutionService>();
+
+            // Checklist
+            services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
+            services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+
+            services.AddScoped<IAuditLogService, AuditLogService>();
+            services.AddScoped<AuditInterceptor>();
+        }
 
         public static void AddCorsPolicy(this IServiceCollection services, string policyName, IConfiguration configuration)
         {
-            var allowedOrigins = configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>()
-                ?? [];
+            // Lấy danh sách từ config
+            var allowedOrigins = configuration.GetSection("CorsSettings:AllowedOrigins").Get<string[]>() ?? [];
 
             services.AddCors(options =>
             {
-                options.AddPolicy(name: policyName,
-                                  builder =>
-                                  {
-                                      if (allowedOrigins.Length == 0)
-                                      {
-                                          builder.AllowAnyOrigin()
-                                                 .AllowAnyMethod()
-                                                 .AllowAnyHeader();
-                                      }
-                                      else
-                                      {
-                                          builder.WithOrigins(allowedOrigins)
-                                                 .AllowAnyMethod()
-                                                 .AllowAnyHeader()
-                                                 .AllowCredentials();
-                                      }
-                                  });
+                options.AddPolicy(name: policyName, builder =>
+                {
+                    // Kiểm tra nếu là môi trường dev (không có origin nào được định nghĩa)
+                    if (allowedOrigins.Length == 0 || allowedOrigins.Contains("*"))
+                    {
+                        builder.SetIsOriginAllowed(origin => true) // Cho phép mọi Origin
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials(); // Quan trọng để không lỗi Preflight
+                    }
+                    else
+                    {
+                        builder.WithOrigins(allowedOrigins)
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
+                    }
+                });
             });
         }
+
 
         public static IServiceCollection ConfigureSwaggerForAuthentication(this IServiceCollection services)
         {
@@ -169,13 +232,13 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
         public static void ConfigureJWT(this IServiceCollection services, IConfiguration configuration)
         {
-			var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
-				?? throw new InvalidOperationException("JwtSettings section is missing in configuration");
-			var secretKey = jwtSettings.SecretKey ?? throw new InvalidOperationException("JwtSettings:SecretKey is required");
-			var validIssuer = jwtSettings.ValidIssuer;
-			var validAudience = jwtSettings.ValidAudience;
+            var jwtSettings = configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
+                ?? throw new InvalidOperationException("JwtSettings section is missing in configuration");
+            var secretKey = jwtSettings.SecretKey ?? throw new InvalidOperationException("JwtSettings:SecretKey is required");
+            var validIssuer = jwtSettings.ValidIssuer;
+            var validAudience = jwtSettings.ValidAudience;
 
-			services.AddAuthentication(opt =>
+            services.AddAuthentication(opt =>
             {
                 opt.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
                 opt.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -191,6 +254,23 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                     ValidIssuer = validIssuer,
                     ValidAudience = validAudience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+                };
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            path.StartsWithSegments("/hubs/notification"))
+                        {
+                            context.Token = accessToken;
+                        }
+
+                        return Task.CompletedTask;
+                    }
                 };
             });
         }

@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.SearchStrategy;
 
@@ -14,6 +14,7 @@ namespace SRSS.IAM.Services.Mappers
 			{
 				SourceId = entity.Id,
 				ProtocolId = entity.ProtocolId,
+				MasterSourceId = entity.MasterSourceId,
 				Name = entity.Name
 			};
 		}
@@ -24,6 +25,7 @@ namespace SRSS.IAM.Services.Mappers
 			{
 				Id = dto.SourceId ?? Guid.Empty,
 				ProtocolId = dto.ProtocolId,
+				MasterSourceId = dto.MasterSourceId,
 				Name = dto.Name
 			};
 		}
@@ -31,6 +33,7 @@ namespace SRSS.IAM.Services.Mappers
 		public static void UpdateEntity(this SearchSourceDto dto, SearchSource entity)
 		{
 			entity.ProtocolId = dto.ProtocolId;
+			entity.MasterSourceId = dto.MasterSourceId;
 			entity.Name = dto.Name;
 		}
 

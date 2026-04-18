@@ -23,6 +23,8 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
         public ICollection<StudySelectionProcessPaper> StudySelectionProcessPapers { get; set; } = new List<StudySelectionProcessPaper>();
         public ICollection<PaperAssignment> PaperAssignments { get; set; } = new List<PaperAssignment>();
+        public ICollection<StudySelectionAIResult> StudySelectionAIResults { get; set; } = new List<StudySelectionAIResult>();
+        public ICollection<StudySelectionExclusionReason> ExclusionReasons { get; set; } = new List<StudySelectionExclusionReason>();
 
         // Domain Methods
         public void Start()
@@ -37,10 +39,10 @@ namespace SRSS.IAM.Repositories.Entities
                 throw new InvalidOperationException("Cannot start study selection before identification process exists.");
             }
 
-            if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
-            {
-                throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
-            }
+            // if (ReviewProcess.IdentificationProcess.Status != IdentificationStatus.Completed)
+            // {
+            //     throw new InvalidOperationException("Cannot start study selection before identification process is completed.");
+            // }
 
             Status = SelectionProcessStatus.InProgress;
             StartedAt = DateTimeOffset.UtcNow;
@@ -49,7 +51,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public void Complete()
         {
-            if (Status != SelectionProcessStatus.InProgress)
+            if (Status != SelectionProcessStatus.InProgress && Status != SelectionProcessStatus.Reopened)
             {
                 throw new InvalidOperationException($"Cannot complete selection process from {Status} status.");
             }
@@ -58,12 +60,25 @@ namespace SRSS.IAM.Repositories.Entities
             CompletedAt = DateTimeOffset.UtcNow;
             ModifiedAt = DateTimeOffset.UtcNow;
         }
+
+        public void Reopen()
+        {
+            if (Status != SelectionProcessStatus.Completed)
+            {
+                throw new InvalidOperationException($"Cannot reopen selection process from {Status} status.");
+            }
+
+            Status = SelectionProcessStatus.Reopened;
+            CompletedAt = null;
+            ModifiedAt = DateTimeOffset.UtcNow;
+        }
     }
 
     public enum SelectionProcessStatus
     {
         NotStarted = 0,
         InProgress = 1,
-        Completed = 2
+        Completed = 2,
+        Reopened = 3
     }
 }

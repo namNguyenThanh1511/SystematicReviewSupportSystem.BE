@@ -242,7 +242,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     p.ImportBatch != null &&
                     p.ImportBatch.SearchExecution != null &&
                     p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId &&
-                    // Exclude papers confirmed as duplicates (CANCEL decision) in this process
+                    // Exclude papers confirmed as duplicates (CANCEL decision) and pending resolve in this process
                     !_context.DeduplicationResults.Any(dr =>
                         dr.PaperId == p.Id &&
                         dr.IdentificationProcessId == identificationProcessId && (
@@ -345,7 +345,10 @@ namespace SRSS.IAM.Repositories.PaperRepo
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
             string? search,
-            string? assignmentStatus,
+            int? year,
+            Guid? searchSourceId,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
             ScreeningPhase? phase,
             int pageNumber,
             int pageSize,
@@ -358,6 +361,9 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     : p.PaperAssignments)
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
+                .Include(p => phase.HasValue
+                    ? p.ScreeningResolutions.Where(sr => sr.Phase == phase.Value)
+                    : p.ScreeningResolutions)
                 .Where(p => paperIds.Contains(p.Id));
 
             // Apply search filter
@@ -370,18 +376,59 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
             }
 
-            // Apply assignment status filter
-            if (!string.IsNullOrWhiteSpace(assignmentStatus))
+            if (year.HasValue)
             {
-                if (assignmentStatus.Equals("assigned", StringComparison.OrdinalIgnoreCase))
+                query = query.Where(p => p.PublicationYearInt == year.Value);
+            }
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
+            }
+
+            // Apply assignment status filter
+            if (assignmentStatus != AssignmentFilterStatus.All)
+            {
+                if (assignmentStatus == AssignmentFilterStatus.Assigned)
                 {
                     query = query.Where(p => phase.HasValue 
                         ? p.PaperAssignments.Any(pa => pa.Phase == phase.Value)
                         : p.PaperAssignments.Any());
                 }
-                else if (assignmentStatus.Equals("unassigned", StringComparison.OrdinalIgnoreCase))
+                else if (assignmentStatus == AssignmentFilterStatus.Unassigned)
                 {
-                    query = query.Where(p => phase.HasValue ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) : !p.PaperAssignments.Any());
+                    query = query.Where(p => phase.HasValue 
+                        ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) 
+                        : !p.PaperAssignments.Any());
+                }
+            }
+
+            // Apply resolution status filter
+            if (resolutionStatus != ResolutionFilterStatus.All)
+            {
+                if (resolutionStatus == ResolutionFilterStatus.NotDecided)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? !p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value)
+                        : !p.ScreeningResolutions.Any());
+                }
+                else if (resolutionStatus == ResolutionFilterStatus.Include)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value && sr.FinalDecision == ScreeningDecisionType.Include)
+                        : p.ScreeningResolutions.Any(sr => sr.FinalDecision == ScreeningDecisionType.Include));
+                }
+                else if (resolutionStatus == ResolutionFilterStatus.Exclude)
+                {
+                    query = query.Where(p => phase.HasValue
+                        ? p.ScreeningResolutions.Any(sr => sr.Phase == phase.Value && sr.FinalDecision == ScreeningDecisionType.Exclude)
+                        : p.ScreeningResolutions.Any(sr => sr.FinalDecision == ScreeningDecisionType.Exclude));
                 }
             }
 
@@ -398,6 +445,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
         public async Task<(List<Paper> Papers, int TotalCount)> GetPapersByIdsAsync(
             List<Guid> paperIds,
+            Guid? searchSourceId,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default)
@@ -408,6 +456,17 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
                 .Where(p => paperIds.Contains(p.Id));
+
+            if (searchSourceId.HasValue)
+            {
+                var sourceId = searchSourceId.Value;
+                query = query.Where(p =>
+                    p.SearchSourceId == sourceId ||
+                    (p.SearchSourceId == null &&
+                     p.ImportBatch != null &&
+                     p.ImportBatch.SearchExecution != null &&
+                     p.ImportBatch.SearchExecution.SearchSourceId == sourceId));
+            }
 
             var totalCount = await query.CountAsync(cancellationToken);
 
@@ -515,6 +574,16 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(d => d.DecisionItems)
                 .Where(p => paperIds.Contains(p.Id))
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Paper?> GetForAiEvaluationAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .AsNoTracking()
+                .Include(p => p.StudySelectionProcessPapers)
+                .Include(p => p.PaperAssignments)
+                    .ThenInclude(pa => pa.ProjectMember)
+                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         }
     }
 }

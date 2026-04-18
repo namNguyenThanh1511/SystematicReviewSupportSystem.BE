@@ -2,110 +2,85 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Synthesis;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.SynthesisService
 {
-	public class SynthesisService : ISynthesisService
-	{
-		private readonly IUnitOfWork _unitOfWork;
+    public class SynthesisService : ISynthesisService
+    {
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-		public SynthesisService(IUnitOfWork unitOfWork)
-		{
-			_unitOfWork = unitOfWork;
-		}
+        public SynthesisService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        {
+            _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
+        }
 
-		// ==================== Data Synthesis Strategies ====================
-		public async Task<DataSynthesisStrategyDto> UpsertSynthesisStrategyAsync(DataSynthesisStrategyDto dto)
-		{
-			DataSynthesisStrategy entity;
+        private async Task EnsureLeaderAsync(Guid protocolId)
+        {
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
 
-			if (dto.SynthesisStrategyId.HasValue && dto.SynthesisStrategyId.Value != Guid.Empty)
-			{
-				entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == dto.SynthesisStrategyId.Value)
-					?? throw new KeyNotFoundException($"Strategy {dto.SynthesisStrategyId.Value} không tồn tại");
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
-				dto.UpdateEntity(entity);  
-				await _unitOfWork.SynthesisStrategies.UpdateAsync(entity);
-			}
-			else
-			{
-				entity = dto.ToEntity();  
-				await _unitOfWork.SynthesisStrategies.AddAsync(entity);
-			}
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            if (!isLeader)
+            {
+                throw new ForbiddenException("Only project leader can perform this action.");
+            }
+        }
 
-			await _unitOfWork.SaveChangesAsync();
-			return entity.ToDto();  
-		}
+        // ==================== Data Synthesis Strategies ====================
+        public async Task<DataSynthesisStrategyDto> UpsertSynthesisStrategyAsync(DataSynthesisStrategyDto dto)
+        {
+            await EnsureLeaderAsync(dto.ProtocolId);
 
-		public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProtocolIdAsync(Guid protocolId)
-		{
-			var entities = await _unitOfWork.SynthesisStrategies.GetByProtocolIdAsync(protocolId);
-			return entities.ToDtoList();  
-		}
+            DataSynthesisStrategy entity;
 
-		public async Task DeleteSynthesisStrategyAsync(Guid strategyId)
-		{
-			var entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == strategyId);
-			if (entity != null)
-			{
-				await _unitOfWork.SynthesisStrategies.RemoveAsync(entity);
-				await _unitOfWork.SaveChangesAsync();
-			}
-		}
+            if (dto.SynthesisStrategyId.HasValue && dto.SynthesisStrategyId.Value != Guid.Empty)
+            {
+                entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == dto.SynthesisStrategyId.Value)
+                    ?? throw new KeyNotFoundException($"Strategy {dto.SynthesisStrategyId.Value} không tồn tại");
+
+                dto.UpdateEntity(entity);
+                await _unitOfWork.SynthesisStrategies.UpdateAsync(entity);
+            }
+            else
+            {
+                entity = dto.ToEntity();
+                await _unitOfWork.SynthesisStrategies.AddAsync(entity);
+            }
+
+            await _unitOfWork.SaveChangesAsync();
+            return entity.ToDto();
+        }
+
+        public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProtocolIdAsync(Guid protocolId)
+        {
+            var entities = await _unitOfWork.SynthesisStrategies.GetByProtocolIdAsync(protocolId);
+            return entities.ToDtoList();
+        }
+
+        public async Task DeleteSynthesisStrategyAsync(Guid strategyId)
+        {
+            var entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == strategyId);
+            if (entity != null)
+            {
+                await EnsureLeaderAsync(entity.ProtocolId);
+                await _unitOfWork.SynthesisStrategies.RemoveAsync(entity);
+                await _unitOfWork.SaveChangesAsync();
+            }
+        }
 
 
 
-		// ==================== Project Timetable ====================
-		public async Task<List<ProjectTimetableDto>> BulkUpsertTimetableAsync(List<ProjectTimetableDto> dtos)
-		{
-			var results = new List<ProjectTimetable>();
 
-			foreach (var dto in dtos)
-			{
-				ProjectTimetable entity;
-
-				if (dto.TimetableId.HasValue && dto.TimetableId.Value != Guid.Empty)
-				{
-					entity = await _unitOfWork.Timetables.FindSingleAsync(t => t.Id == dto.TimetableId.Value);
-
-					if (entity != null)
-					{
-						dto.UpdateEntity(entity);  
-						await _unitOfWork.Timetables.UpdateAsync(entity);
-					}
-					else
-					{
-						entity = dto.ToEntity();  
-						await _unitOfWork.Timetables.AddAsync(entity);
-					}
-				}
-				else
-				{
-					entity = dto.ToEntity();  
-					await _unitOfWork.Timetables.AddAsync(entity);
-				}
-
-				results.Add(entity);
-			}
-
-			await _unitOfWork.SaveChangesAsync();
-			return results.ToDtoList();  
-		}
-
-		public async Task<List<ProjectTimetableDto>> GetTimetableByProjectIdAsync(Guid projectId)
-		{
-			var entities = await _unitOfWork.Timetables.GetByProjectIdAsync(projectId);
-			return entities.ToDtoList();  
-		}
-
-		public async Task DeleteTimetableEntryAsync(Guid timetableId)
-		{
-			var entity = await _unitOfWork.Timetables.FindSingleAsync(t => t.Id == timetableId);
-			if (entity != null)
-			{
-				await _unitOfWork.Timetables.RemoveAsync(entity);
-				await _unitOfWork.SaveChangesAsync();
-			}
-		}
-	}
+    }
 }

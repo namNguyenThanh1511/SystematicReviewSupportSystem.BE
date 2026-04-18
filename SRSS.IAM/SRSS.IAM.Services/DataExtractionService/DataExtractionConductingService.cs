@@ -1252,8 +1252,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             memoryStream.Position = 0; // Đặt con trỏ về đầu file
 
             // 3. Extract text from Grobid (Dùng memoryStream)
-            var paperText = await _grobidService.ProcessFulltextDocumentAsync(memoryStream);
-
+            var paperText = await _unitOfWork.PaperFullTexts
+                .GetRawXmlByPaperIdAsync(paperId, CancellationToken.None);
             if (string.IsNullOrWhiteSpace(paperText))
             {
                 throw new InvalidOperationException("Failed to extract full text from the PDF using Grobid. Check Backend Console Logs for details.");

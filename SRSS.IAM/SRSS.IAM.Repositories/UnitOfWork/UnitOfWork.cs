@@ -144,7 +144,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private ISynthesisThemeRepository? _synthesisThemes;
         private IThemeEvidenceRepository? _themeEvidences;
         private IResearchQuestionFindingRepository? _researchQuestionFindings;
-        private IProjectTimetableRepository? _timetables;
 
         public UnitOfWork(AppDbContext dbContext)
         {
@@ -297,9 +296,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             
         public IResearchQuestionFindingRepository ResearchQuestionFindings => 
             _researchQuestionFindings ??= new ResearchQuestionFindingRepository(_dbContext);
-
-        public IProjectTimetableRepository Timetables =>
-            _timetables ??= new ProjectTimetableRepository(_dbContext);
 
         public ISystematicReviewProjectRepository SystematicReviewProjects
             => _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);

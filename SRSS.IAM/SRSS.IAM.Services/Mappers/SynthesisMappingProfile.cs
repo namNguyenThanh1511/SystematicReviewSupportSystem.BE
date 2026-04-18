@@ -46,35 +46,7 @@ namespace SRSS.IAM.Services.Mappers
 
 
 
-		// ==================== ProjectTimetable ====================
-		public static ProjectTimetableDto ToDto(this ProjectTimetable entity)
-		{
-			return new ProjectTimetableDto
-			{
-				TimetableId = entity.Id,
-				ProjectId = entity.ProjectId,
-				Milestone = entity.Milestone,
-				PlannedDate = entity.PlannedDate
-			};
-		}
 
-		public static ProjectTimetable ToEntity(this ProjectTimetableDto dto)
-		{
-			return new ProjectTimetable
-			{
-				Id = dto.TimetableId ?? Guid.Empty,
-				ProjectId = dto.ProjectId,
-				Milestone = dto.Milestone,
-				PlannedDate = dto.PlannedDate
-			};
-		}
-
-		public static void UpdateEntity(this ProjectTimetableDto dto, ProjectTimetable entity)
-		{
-			entity.ProjectId = dto.ProjectId;
-			entity.Milestone = dto.Milestone;
-			entity.PlannedDate = dto.PlannedDate;
-		}
 
 		// ==================== LIST MAPPING METHODS ====================
 
@@ -86,10 +58,6 @@ namespace SRSS.IAM.Services.Mappers
 
 
 
-	
-		public static List<ProjectTimetableDto> ToDtoList(this IEnumerable<ProjectTimetable> entities)
-		{
-			return entities.Select(e => e.ToDto()).ToList();
-		}
+
 	}
 }

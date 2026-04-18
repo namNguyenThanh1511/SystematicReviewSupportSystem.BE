@@ -3,22 +3,44 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.ProtocolService
 {
 	public class ProtocolService : IProtocolService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ICurrentUserService _currentUserService;
 
-		public ProtocolService(IUnitOfWork unitOfWork)
+		public ProtocolService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
+			_currentUserService = currentUserService;
+		}
+
+		private async Task EnsureLeaderAsync(Guid projectId)
+		{
+			var userIdString = _currentUserService.GetUserId();
+			if (string.IsNullOrEmpty(userIdString))
+			{
+				throw new UnauthorizedException("User is not authenticated.");
+			}
+
+			var userId = Guid.Parse(userIdString);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
+			if (!isLeader)
+			{
+				throw new ForbiddenException("Only project leader can perform this action.");
+			}
 		}
 
 		public async Task ApproveProtocolAsync(Guid protocolId, Guid currentUserId)
 		{
 			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+			await EnsureLeaderAsync(protocol.ProjectId);
 
 			protocol.Approve(currentUserId);
 			await _unitOfWork.Protocols.UpdateAsync(protocol);
@@ -30,6 +52,8 @@ namespace SRSS.IAM.Services.ProtocolService
 			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
+			await EnsureLeaderAsync(protocol.ProjectId);
+
 			await _unitOfWork.Protocols.UpdateAsync(protocol);
 
 			protocol.Reject(currentUserId, reason);
@@ -40,6 +64,8 @@ namespace SRSS.IAM.Services.ProtocolService
 			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
+			await EnsureLeaderAsync(protocol.ProjectId);
+
 			protocol.SubmitForReview();
 			await _unitOfWork.Protocols.UpdateAsync(protocol);
 			await _unitOfWork.SaveChangesAsync();
@@ -47,6 +73,8 @@ namespace SRSS.IAM.Services.ProtocolService
 
 		public async Task<ProtocolDetailResponse> CreateProtocolAsync(CreateProtocolRequest request)
 		{
+			await EnsureLeaderAsync(request.ProjectId);
+
 			var projectExists = await _unitOfWork.SystematicReviewProjects.AnyAsync(p => p.Id == request.ProjectId);
 			if (!projectExists)
 			{
@@ -70,6 +98,8 @@ namespace SRSS.IAM.Services.ProtocolService
 			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
 		?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
 
+			await EnsureLeaderAsync(protocol.ProjectId);
+
 			protocol.SoftDelete();
 			await _unitOfWork.Protocols.UpdateAsync(protocol);
 			await _unitOfWork.SaveChangesAsync();
@@ -79,6 +109,8 @@ namespace SRSS.IAM.Services.ProtocolService
 			// Use IgnoreQueryFilters to get deleted protocol
 			var protocol = await _unitOfWork.Protocols.GetByIdIncludeDeletedAsync(protocolId)
 				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+			await EnsureLeaderAsync(protocol.ProjectId);
 
 			protocol.Restore();
 			await _unitOfWork.Protocols.UpdateAsync(protocol);
@@ -111,6 +143,8 @@ namespace SRSS.IAM.Services.ProtocolService
 		{
 			var protocol = await _unitOfWork.Protocols.GetByIdWithVersionsAsync(request.ProtocolId)
 				?? throw new KeyNotFoundException($"Protocol {request.ProtocolId} không tồn tại");
+
+			await EnsureLeaderAsync(protocol.ProjectId);
 
 			// If protocol is approved, create version history before updating
 			if (protocol.Status == ProtocolStatus.Approved)

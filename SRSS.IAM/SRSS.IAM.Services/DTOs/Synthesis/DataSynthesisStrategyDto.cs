@@ -25,17 +25,5 @@ namespace SRSS.IAM.Services.DTOs.Synthesis
 
 
 
-	public class ProjectTimetableDto
-	{
-		public Guid? TimetableId { get; set; }
 
-		[Required(ErrorMessage = "ProjectId là bắt buộc")]
-		public Guid ProjectId { get; set; }
-
-		[Required(ErrorMessage = "Milestone là bắt buộc")]
-		[StringLength(500, ErrorMessage = "Milestone không được vượt quá 500 ký tự")]
-		public string Milestone { get; set; } = string.Empty;
-
-		public DateTimeOffset? PlannedDate { get; set; }
-	}
 }

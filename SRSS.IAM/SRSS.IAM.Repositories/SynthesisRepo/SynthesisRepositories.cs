@@ -10,10 +10,7 @@ namespace SRSS.IAM.Repositories.SynthesisRepo
 
 
 
-	public interface IProjectTimetableRepository : IGenericRepository<ProjectTimetable, Guid, AppDbContext>
-	{
-		Task<IEnumerable<ProjectTimetable>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
-	}
+
 
 	public class DataSynthesisStrategyRepository : GenericRepository<DataSynthesisStrategy, Guid, AppDbContext>, IDataSynthesisStrategyRepository
 	{
@@ -27,13 +24,5 @@ namespace SRSS.IAM.Repositories.SynthesisRepo
 
 
 
-	public class ProjectTimetableRepository : GenericRepository<ProjectTimetable, Guid, AppDbContext>, IProjectTimetableRepository
-	{
-		public ProjectTimetableRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<ProjectTimetable>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
-		{
-			return await FindAllAsync(t => t.ProjectId == projectId, isTracking: false, cancellationToken);
-		}
-	}
 }

@@ -28,7 +28,6 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
-        public ICollection<ProjectTimetable> Timetables { get; set; } = new List<ProjectTimetable>();
 
         // Domain Methods
         public void Activate()

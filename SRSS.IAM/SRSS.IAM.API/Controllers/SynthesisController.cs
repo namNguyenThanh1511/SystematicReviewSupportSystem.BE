@@ -53,38 +53,6 @@ namespace SRSS.IAM.API.Controllers
 
 
 
-		// ==================== Project Timetable ====================
 
-		/// <summary>
-		/// Bulk Upsert Project Timetable
-		/// </summary>
-		[HttpPost("timetable/bulk")]
-		public async Task<ActionResult<ApiResponse<List<ProjectTimetableDto>>>> BulkUpsertTimetable(
-			[FromBody] List<ProjectTimetableDto> dtos)
-		{
-			var result = await _service.BulkUpsertTimetableAsync(dtos);
-			return Ok(result, $"Lưu {result.Count} timetable entries thành công");
-		}
-
-		/// <summary>
-		/// Lấy Timetable theo Project ID
-		/// </summary>
-		[HttpGet("project/{projectId}/timetable")]
-		public async Task<ActionResult<ApiResponse<List<ProjectTimetableDto>>>> GetTimetableByProjectId(
-			Guid projectId)
-		{
-			var result = await _service.GetTimetableByProjectIdAsync(projectId);
-			return Ok(result, "Lấy timetable thành công");
-		}
-
-		/// <summary>
-		/// Xóa một Timetable entry
-		/// </summary>
-		[HttpDelete("timetable/{timetableId}")]
-		public async Task<ActionResult<ApiResponse>> DeleteTimetableEntry(Guid timetableId)
-		{
-			await _service.DeleteTimetableEntryAsync(timetableId);
-			return Ok("Xóa timetable entry thành công");
-		}
 	}
 }

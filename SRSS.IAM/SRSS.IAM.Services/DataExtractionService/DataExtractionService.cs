@@ -2,22 +2,47 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
     public class DataExtractionService : IDataExtractionService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public DataExtractionService(IUnitOfWork unitOfWork)
+        public DataExtractionService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
+        }
+
+        private async Task EnsureLeaderAsync(Guid protocolId)
+        {
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            if (!isLeader)
+            {
+                throw new ForbiddenException("Only project leader can perform this action.");
+            }
         }
 
         // ==================== EXTRACTION TEMPLATES ====================
 
         public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
         {
+            await EnsureLeaderAsync(dto.ProtocolId);
+
             // Validate first
             var validationResult = await ValidateTemplateAsync(dto);
             if (!validationResult.IsValid)
@@ -119,6 +144,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             var template = await _unitOfWork.ExtractionTemplates
                 .FindSingleAsync(t => t.Id == templateId)
                 ?? throw new KeyNotFoundException($"Template {templateId} not found.");
+
+            await EnsureLeaderAsync(template.ProtocolId);
 
             // Delete sections first (cascade will handle fields and options)
             await DeleteSectionsAsync(templateId);

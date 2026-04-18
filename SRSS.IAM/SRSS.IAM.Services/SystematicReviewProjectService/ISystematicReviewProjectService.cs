@@ -24,6 +24,10 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             UpdateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<SystematicReviewProjectResponse> UpdateProjectDatesAsync(
+            UpdateProjectDatesRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<SystematicReviewProjectResponse> ActivateProjectAsync(
             Guid id,
             CancellationToken cancellationToken = default);

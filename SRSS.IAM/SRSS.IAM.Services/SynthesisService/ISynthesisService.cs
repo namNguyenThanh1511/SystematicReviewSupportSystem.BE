@@ -11,9 +11,6 @@ namespace SRSS.IAM.Services.SynthesisService
 
 
 
-		// Project Timetable
-		Task<List<ProjectTimetableDto>> BulkUpsertTimetableAsync(List<ProjectTimetableDto> dtos);
-		Task<List<ProjectTimetableDto>> GetTimetableByProjectIdAsync(Guid projectId);
-		Task DeleteTimetableEntryAsync(Guid timetableId);
+
 	}
 }

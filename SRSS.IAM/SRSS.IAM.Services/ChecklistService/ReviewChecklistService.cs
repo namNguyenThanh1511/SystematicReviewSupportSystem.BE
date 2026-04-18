@@ -158,9 +158,9 @@ namespace SRSS.IAM.Services.ChecklistService
         {
             var checklist = await _unitOfWork.ReviewChecklists.GetByIdWithDetailsAsync(checkListId, cancellationToken)
                 ?? throw new InvalidOperationException("Review checklist not found.");
-
+            var type = checklist.Template.Type;
             var view = ChecklistViewMapper.MapReviewChecklist(checklist);
-            var templatePath = ResolvePrismaTemplatePath();
+            var templatePath = ResolvePrismaTemplatePath(type);
             var templateBytes = File.ReadAllBytes(templatePath);
             var sections = view.Sections
                 .Select(section => new ChecklistSectionDto
@@ -214,10 +214,13 @@ namespace SRSS.IAM.Services.ChecklistService
                     PopulateSectionRow(sectionRow, section.Section);
                     checklistTable.AppendChild(sectionRow);
 
-                    foreach (var item in section.Items)
+                    var sectionItems = FlattenItemsForReport(section.Items)
+                        .Where(item => !request.IncludeOnlyCompletedItems || IsItemCompleted(item));
+
+                    foreach (var item in sectionItems)
                     {
                         var itemRow = (TableRow)itemPrototypeRow.CloneNode(true);
-                        PopulateItemRow(itemRow, item);
+                        PopulateItemRow(itemRow, item, type);
                         checklistTable.AppendChild(itemRow);
                     }
                 }
@@ -295,7 +298,7 @@ namespace SRSS.IAM.Services.ChecklistService
             run.AppendChild(new Text(value) { Space = SpaceProcessingModeValues.Preserve });
         }
 
-        private static void PopulateItemRow(TableRow row, ChecklistItemResponseDto item)
+        private static void PopulateItemRow(TableRow row, ChecklistItemResponseDto item, ChecklistType templateType)
         {
             var cells = row.Elements<TableCell>().ToList();
             if (cells.Count < 4)
@@ -307,14 +310,39 @@ namespace SRSS.IAM.Services.ChecklistService
             SetCellText(cells[1], item.ItemNumber ?? string.Empty);
             SetCellText(cells[2], item.Description ?? string.Empty);
 
-            var value = item.Location ?? string.Empty;
+            var value = templateType == ChecklistType.Abstract
+                ? (item.IsReported ? "Yes" : "No")
+                : item.Location ?? string.Empty;
 
             SetCellText(cells[3], value);
         }
 
-        private static string ResolvePrismaTemplatePath()
+        private static IEnumerable<ChecklistItemResponseDto> FlattenItemsForReport(IEnumerable<ChecklistItemResponseDto> items)
         {
-            const string templateFileName = "PRISMA_2020_checklist.docx";
+            foreach (var item in items)
+            {
+                if (!item.IsSectionHeaderOnly)
+                {
+                    yield return item;
+                }
+
+                if (item.Children.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (var child in FlattenItemsForReport(item.Children))
+                {
+                    yield return child;
+                }
+            }
+        }
+
+        private static string ResolvePrismaTemplatePath(ChecklistType checklistType)
+        {
+            var templateFileName = checklistType == ChecklistType.Abstract
+                ? "PRISMA_2020_abstract_checklist.docx"
+                : "PRISMA_2020_checklist.docx";
             var roots = new[]
             {
                 Directory.GetCurrentDirectory(),
@@ -342,7 +370,7 @@ namespace SRSS.IAM.Services.ChecklistService
                 }
             }
 
-            throw new InvalidOperationException("Cannot locate template file 'PRISMA Checklist.docx'. Expected under SRSS.IAM.API/docs/specs.");
+            throw new InvalidOperationException($"Cannot locate template file '{templateFileName}'. Expected under SRSS.IAM.API/docs/specs.");
         }
 
         private static bool IsItemCompleted(ChecklistItemTemplate item, ChecklistItemResponse response)

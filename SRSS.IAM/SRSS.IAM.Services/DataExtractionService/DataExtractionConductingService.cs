@@ -682,7 +682,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 OptionId = record.OptionId,
                 StringValue = record.StringValue,
-                NumericValue = record.NumericValue,
+                NumericValue = record.NumericValue.HasValue ? decimal.Parse(record.NumericValue.Value.ToString("G29", System.Globalization.CultureInfo.InvariantCulture), System.Globalization.CultureInfo.InvariantCulture) : null,
                 BooleanValue = record.BooleanValue,
                 EvidenceCoordinates = record.EvidenceCoordinates
             };
@@ -2014,7 +2014,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                                 string token = field.FieldType switch
                                 {
                                     FieldType.Text => record.StringValue ?? "",
-                                    FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString() ?? "",
+                                    FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString("G29") ?? "",
                                     FieldType.Boolean => record.BooleanValue.HasValue
                                         ? (record.BooleanValue.Value ? "Yes" : "No")
                                         : "",
@@ -2035,7 +2035,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                             valueStr = field.FieldType switch
                             {
                                 FieldType.Text => record.StringValue ?? "",
-                                FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString() ?? "",
+                                FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString("G29") ?? "",
                                 FieldType.Boolean => record.BooleanValue.HasValue
                                     ? (record.BooleanValue.Value ? "Yes" : "No")
                                     : "",
@@ -2166,7 +2166,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                         string token = fieldEntity.FieldType switch
                         {
                             FieldType.Text => record.StringValue ?? "",
-                            FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString() ?? "",
+                            FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString("G29") ?? "",
                             FieldType.Boolean => record.BooleanValue.HasValue
                                 ? (record.BooleanValue.Value ? "Yes" : "No")
                                 : "",
@@ -2186,7 +2186,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                     oldValue = fieldEntity.FieldType switch
                     {
                         FieldType.Text => record.StringValue ?? "",
-                        FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString() ?? "",
+                        FieldType.Integer or FieldType.Decimal => record.NumericValue?.ToString("G29") ?? "",
                         FieldType.Boolean => record.BooleanValue.HasValue
                             ? (record.BooleanValue.Value ? "Yes" : "No")
                             : "",

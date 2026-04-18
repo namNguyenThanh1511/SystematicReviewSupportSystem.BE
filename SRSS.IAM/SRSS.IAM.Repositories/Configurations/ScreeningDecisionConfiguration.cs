@@ -49,6 +49,9 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(sd => sd.DecidedAt)
                 .HasColumnName("decided_at")
                 .IsRequired();
+            
+            builder.Property(sd => sd.ChecklistSubmissionId)
+                .HasColumnName("checklist_submission_id");
 
             builder.Property(sd => sd.CreatedAt)
                 .HasColumnName("created_at")
@@ -59,6 +62,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .IsRequired();
 
             // Relationships
+            builder.HasOne(sd => sd.ChecklistSubmission)
+                .WithOne()
+                .HasForeignKey<ScreeningDecision>(sd => sd.ChecklistSubmissionId)
+                .OnDelete(DeleteBehavior.SetNull);
             builder.HasOne(sd => sd.StudySelectionProcess)
                 .WithMany(ssp => ssp.ScreeningDecisions)
                 .HasForeignKey(sd => sd.StudySelectionProcessId)
@@ -78,6 +85,7 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasIndex(sd => sd.StudySelectionProcessId);
             builder.HasIndex(sd => sd.PaperId);
             builder.HasIndex(sd => sd.ReviewerId);
+            builder.HasIndex(sd => sd.ChecklistSubmissionId).IsUnique();
 
             // Unique constraint: One decision per reviewer per paper per process
             builder.HasIndex(sd => new

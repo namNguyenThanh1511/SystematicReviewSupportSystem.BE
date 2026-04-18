@@ -18,7 +18,6 @@ using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
 using SRSS.IAM.Services.SearchStrategyService;
 using SRSS.IAM.Services.SelectionCriteriaService;
-using SRSS.IAM.Services.StudyCharacteristicsService;
 using SRSS.IAM.Services.SynthesisService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
@@ -62,6 +61,7 @@ using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
+using SRSS.IAM.Services.StudySelectionChecklists;
 using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -90,7 +90,6 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
-            services.AddScoped<IStudyCharacteristicsService, StudyCharacteristicsService>();
             services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
@@ -119,7 +118,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IExclusionReasonLibraryService, ExclusionReasonLibraryService>();
             services.AddScoped<IStuSeExclusionCodeService, StuSeExclusionCodeService>();
             services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
-            
+
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
@@ -190,6 +189,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+
+            // Study Selection Checklist
+            services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
+            services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
 
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<AuditInterceptor>();

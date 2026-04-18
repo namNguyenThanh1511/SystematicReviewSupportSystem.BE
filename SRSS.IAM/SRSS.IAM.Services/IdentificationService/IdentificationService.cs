@@ -12,6 +12,7 @@ using SRSS.IAM.Services.DTOs.Paper;
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.PrismaReport;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
@@ -21,17 +22,20 @@ namespace SRSS.IAM.Services.IdentificationService
         private readonly IReferenceMatchingService _matchingService;
         private readonly ILocalEmbeddingService _embeddingService;
         private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
+        private readonly ICurrentUserService _currentUserService;
 
         public IdentificationService(
             IUnitOfWork unitOfWork,
             IReferenceMatchingService matchingService,
             ILocalEmbeddingService embeddingService,
-            IPaperEnrichmentOrchestrator enrichmentOrchestrator)
+            IPaperEnrichmentOrchestrator enrichmentOrchestrator,
+            ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
             _matchingService = matchingService;
             _embeddingService = embeddingService;
             _enrichmentOrchestrator = enrichmentOrchestrator;
+            _currentUserService = currentUserService;
         }
 
         public async Task<IdentificationProcessResponse> CreateIdentificationProcessAsync(
@@ -134,6 +138,8 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 throw new InvalidOperationException($"IdentificationProcess with ID {id} not found.");
             }
+
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             // Guard: Prevent completion if there are unresolved (Pending) deduplication results
             var hasPendingDedup = await _unitOfWork.DeduplicationResults.AnyAsync(
@@ -549,7 +555,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {request.IdentificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             var searchSource = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == request.SearchSourceId, cancellationToken: cancellationToken);
             if (searchSource == null)
@@ -631,7 +637,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             if (request.SearchSourceId.HasValue)
             {
@@ -688,7 +694,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {searchExecution.IdentificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             var hasImportBatches = await _unitOfWork.ImportBatches.AnyAsync(
                 ib => ib.SearchExecutionId == id,
@@ -886,7 +892,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             try
             {
@@ -1273,7 +1279,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             var paper = await _unitOfWork.Papers.FindSingleAsync(
                 p => p.Id == paperId,
@@ -1312,11 +1318,36 @@ namespace SRSS.IAM.Services.IdentificationService
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
-        private static void EnsureIdentificationProcessCanBeEdited(IdentificationProcess identificationProcess)
+        private async Task EnsureIdentificationProcessCanBeEditedAsync(
+            IdentificationProcess identificationProcess,
+            CancellationToken cancellationToken)
         {
             if (identificationProcess.Status == IdentificationStatus.Completed)
             {
                 throw new InvalidOperationException("Cannot modify identification data because the identification process is completed. Reopen the process to continue editing.");
+            }
+
+            var userIdValue = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdValue, out var currentUserId))
+            {
+                throw new UnauthorizedException("User not authenticated.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+
+            var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(currentUserId)
+                .FirstOrDefaultAsync(m => m.ProjectId == reviewProcess.ProjectId, cancellationToken);
+
+            if (membership == null || membership.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedException("Only project leaders can perform this action.");
             }
         }
 
@@ -1333,7 +1364,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
         }
 
         public async Task<(List<PaperResponse> Papers, int TotalCount)> GetReadyPapersForSnapshotAsync(
@@ -1426,7 +1457,7 @@ namespace SRSS.IAM.Services.IdentificationService
                 throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
             }
 
-            EnsureIdentificationProcessCanBeEdited(identificationProcess);
+            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
 
             // Get existing paper IDs in snapshot to avoid duplicates
             var existingPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(

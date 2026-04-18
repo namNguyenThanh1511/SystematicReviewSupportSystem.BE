@@ -42,7 +42,6 @@ using SRSS.IAM.Repositories.ExclusionReasonLibraryRepo;
 using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
-using SRSS.IAM.Repositories.StudyCharacteristicsRepo;
 using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -68,7 +67,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IReviewProtocolRepository Protocols { get; }
         IProtocolVersionRepository ProtocolVersions { get; }
         IProtocolEvaluationRepository ProtocolEvaluations { get; }
-        IStudyCharacteristicsRepository StudyCharacteristics { get; }
 
         // Research Question
         IResearchQuestionRepository ResearchQuestions { get; }

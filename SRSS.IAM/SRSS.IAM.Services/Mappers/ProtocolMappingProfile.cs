@@ -16,8 +16,7 @@ namespace SRSS.IAM.Services.Mappers
                 IsDeleted = entity.IsDeleted,
                 CreatedAt = entity.CreatedAt,
                 ApprovedAt = entity.ApprovedAt,
-                Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>(),
-                StudyCharacteristics = entity.StudyCharacteristics?.ToDto()
+                Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>()
             };
         }
 

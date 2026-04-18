@@ -72,7 +72,6 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                             .ThenInclude(rq => rq.PicocElements)
                 .Include(ssp => ssp.ReviewProcess)
                     .ThenInclude(rp => rp.Protocol)
-                        .ThenInclude(p => p.StudyCharacteristics)
                 .Include(ssp => ssp.ReviewProcess)
                     .ThenInclude(rp => rp.Protocol)
                         .ThenInclude(p => p.SelectionCriterias)

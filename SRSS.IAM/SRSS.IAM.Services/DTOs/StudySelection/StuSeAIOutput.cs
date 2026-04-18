@@ -4,7 +4,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
 {
     public class StuSeAIOutput
     {
-        public CriteriaMatchingResult CriteriaMatching { get; set; } = new();
         public List<ResearchQuestionResult> ResearchQuestionResults { get; set; } = new();
         public List<CriteriaGroupResult> CriteriaGroupResults { get; set; } = new();
         public int InclusionMatches { get; set; }
@@ -35,12 +34,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string Match { get; set; } = "Unknown";
     }
 
-    public class CriteriaMatchingResult
-    {
-        public MatchingValue Language { get; set; } = new();
-        public MatchingValue Domain { get; set; } = new();
-        public MatchingValue StudyType { get; set; } = new();
-    }
 
     public class PicocMatchingResult
     {

@@ -116,14 +116,13 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("### DATA INTEGRITY RULES");
             sb.AppendLine("10. RQ MATCHING RULE: The \"Match\" field for a Research Question evaluates ONLY whether the paper topic aligns with the research question text.");
             sb.AppendLine("    - Example: Paper title about \"IoT Security\", Research Question about \"Human Activity Recognition\" -> \"Match\": \"NotMatch\".");
-            sb.AppendLine("11. DATA COPYING RULE: For CriteriaMatching (Domain, Language, StudyType) and PICOC elements, the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
+            sb.AppendLine("11. DATA COPYING RULE: For PICOC elements, the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
             sb.AppendLine("12. NO REASONING INSIDE STRUCTURED FIELDS: Question, Value, Rule, Highlight MUST contain ONLY structured values. Explanations MUST appear ONLY in the \"Reasoning\" section.");
             sb.AppendLine("13. MATCH VALUES: Must be EXACTLY one of: \"Match\", \"NotMatch\", \"Unknown\". No variations.");
             sb.AppendLine();
 
             sb.AppendLine("14. REASONING COMPLETENESS RULE:");
             sb.AppendLine("The Reasoning section MUST include ALL of the following sections in EXACT order:");
-            sb.AppendLine("## Criteria Matching Score");
             sb.AppendLine("## PICOC Matching Score");
             sb.AppendLine("## Criteria Groups Score");
             sb.AppendLine("## Final Score Calculation");
@@ -136,11 +135,6 @@ namespace SRSS.IAM.Services.StudySelectionAIService
 
             sb.AppendLine("### REQUIRED JSON FORMAT");
             sb.AppendLine("{");
-            sb.AppendLine("  \"CriteriaMatching\": {");
-            sb.AppendLine("    \"Language\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Domain\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"StudyType\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
-            sb.AppendLine("  },");
             sb.AppendLine("  \"ResearchQuestionResults\": [");
             sb.AppendLine("    {");
             sb.AppendLine("      \"Question\": \"...\",");
@@ -180,10 +174,6 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("### REVIEW PROTOCOL");
-            sb.AppendLine($"#### Domain: {input.Criteria?.Domain ?? "Not provided"}");
-            sb.AppendLine($"#### Language: {input.Criteria?.Language ?? "Not provided"}");
-            sb.AppendLine($"#### Study Type: {input.Criteria?.StudyType ?? "Not provided"}");
-            sb.AppendLine();
 
             if (input.ResearchQuestions != null && input.ResearchQuestions.Any())
             {
@@ -231,12 +221,11 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("### SCORING MODEL (Deterministic & Hierarchical)");
-            sb.AppendLine("Composite Score = (0.20 × CriteriaMatchingScore) + (0.40 × PICOCMatchingScore) + (0.40 × CriteriaGroupsScore)");
+            sb.AppendLine("Composite Score = (0.50 × PICOCMatchingScore) + (0.50 × CriteriaGroupsScore)");
             sb.AppendLine();
-            sb.AppendLine("1. Criteria Matching Score (0.20): Average of general rules (Domain, Language, StudyType) (Match=1, else=0). If a field is \"Not provided\" in protocol, skip it from the average.");
-            sb.AppendLine("2. PICOC Matching Score (0.40): Average of per-RQ scores. RQScore = Average of PICOC Match (Match=1, else=0).");
+            sb.AppendLine("1. PICOC Matching Score (0.50): Average of per-RQ scores. RQScore = Average of PICOC Match (Match=1, else=0).");
             sb.AppendLine("   - If a Research Question has NO PICOC elements defined, RQScore MUST equal the Match result of the Research Question itself.");
-            sb.AppendLine("3. Criteria Groups Score (0.40): Average of per-Group scores. GroupScore = 0 if any Exclusion violated; else % of Inclusion rules matched.");
+            sb.AppendLine("2. Criteria Groups Score (0.50): Average of per-Group scores. GroupScore = 0 if any Exclusion violated; else % of Inclusion rules matched.");
             sb.AppendLine();
 
             sb.AppendLine("### FINAL RECOMMENDATION");
@@ -254,8 +243,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("IMPORTANT: RETURN ONLY VALID JSON. NO MARKDOWN WRAPPER. NO TEXT BEFORE/AFTER.");
 
             sb.AppendLine("CRITICAL REMINDER:");
-            sb.AppendLine("Do NOT stop after Criteria Matching Score.");
-            sb.AppendLine("You MUST complete ALL 5 reasoning sections.");
+            sb.AppendLine("You MUST complete ALL 4 reasoning sections.");
 
             return sb.ToString();
         }

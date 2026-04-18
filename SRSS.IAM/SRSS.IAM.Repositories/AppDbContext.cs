@@ -59,7 +59,6 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;
 		public DbSet<StudySelectionProcedure> StudySelectionProcedures { get; set; } = default!;
-		public DbSet<StudyCharacteristics> StudyCharacteristics { get; set; } = default!;
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;

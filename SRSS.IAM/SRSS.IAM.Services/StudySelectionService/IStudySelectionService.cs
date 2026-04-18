@@ -115,6 +115,11 @@ namespace SRSS.IAM.Services.StudySelectionService
             PapersWithDecisionsRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<List<ReviewerAssignmentTableItemResponse>> GetReviewerAssignmentTableAsync(
+            Guid studySelectionProcessId,
+            Guid reviewerId,
+            CancellationToken cancellationToken = default);
+
         // Title-Abstract Screening Lifecycle
         Task<TitleAbstractScreeningResponse> CreateTitleAbstractScreeningAsync(
             Guid studySelectionProcessId,

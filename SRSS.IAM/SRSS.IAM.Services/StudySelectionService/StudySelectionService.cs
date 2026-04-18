@@ -2934,6 +2934,139 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             return results;
         }
+
+        public async Task<List<ReviewerAssignmentTableItemResponse>> GetReviewerAssignmentTableAsync(
+            Guid studySelectionProcessId,
+            Guid reviewerId,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch Process
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            // 2. Fetch ReviewProcess and Project Members to map UserId to ProjectMemberId
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(reviewProcess!.ProjectId);
+            var member = projectMembers.FirstOrDefault(m => m.UserId == reviewerId);
+
+            if (member == null)
+            {
+                // If the user is not a project member, they have no assignments
+                return new List<ReviewerAssignmentTableItemResponse>();
+            }
+
+            var projectMemberId = member.Id;
+
+            // 3. Fetch all assignments for this ProjectMember in this Process
+            var assignments = await _unitOfWork.PaperAssignments.GetQueryable(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.ProjectMemberId == projectMemberId,
+                isTracking: false)
+                .Include(pa => pa.Paper)
+                .ToListAsync(cancellationToken);
+
+            var assignmentList = assignments.ToList();
+            if (!assignmentList.Any())
+            {
+                return new List<ReviewerAssignmentTableItemResponse>();
+            }
+
+            // 4. Fetch all decisions by this reviewer for this process
+            var decisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                d => d.StudySelectionProcessId == studySelectionProcessId && d.ReviewerId == reviewerId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var decisionMap = decisions.GroupBy(d => d.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+
+            // 5. Fetch all checklist submissions by this reviewer for this process
+            var submissions = await _unitOfWork.StudySelectionChecklistSubmissions.FindAllAsync(
+                s => s.StudySelectionProcessId == studySelectionProcessId && s.ReviewerId == reviewerId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var submissionMap = submissions.GroupBy(s => s.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+
+            // 6. Group assignments by Paper
+            var paperGroups = assignmentList.GroupBy(a => a.PaperId);
+            var results = new List<ReviewerAssignmentTableItemResponse>();
+
+            foreach (var group in paperGroups)
+            {
+                var paperId = group.Key;
+                var paper = group.First().Paper;
+                var paperTitle = paper?.Title ?? "Unknown Title";
+
+                var taAssignment = group.FirstOrDefault(a => a.Phase == ScreeningPhase.TitleAbstract);
+                var ftAssignment = group.FirstOrDefault(a => a.Phase == ScreeningPhase.FullText);
+
+                var paperDecisions = decisionMap.GetValueOrDefault(paperId, new List<ScreeningDecision>());
+                var paperSubmissions = submissionMap.GetValueOrDefault(paperId, new List<StudySelectionChecklistSubmission>());
+
+                var titleAbstractDisplay = BuildPhaseDisplay(taAssignment != null, paperDecisions.FirstOrDefault(d => d.Phase == ScreeningPhase.TitleAbstract), paperSubmissions.Any(s => s.Phase == ScreeningPhase.TitleAbstract));
+                var fullTextDisplay = BuildPhaseDisplay(ftAssignment != null, paperDecisions.FirstOrDefault(d => d.Phase == ScreeningPhase.FullText), paperSubmissions.Any(s => s.Phase == ScreeningPhase.FullText));
+
+                // Overall status rules:
+                // Completed: All assigned phases already have decisions.
+                // In Progress: At least one assigned phase has started/completed, but not all assigned phases are completed.
+                // Not Started: All assigned phases have NO decision and NO checklist.
+                
+                var assignedPhases = new List<ScreeningPhase>();
+                if (taAssignment != null) assignedPhases.Add(ScreeningPhase.TitleAbstract);
+                if (ftAssignment != null) assignedPhases.Add(ScreeningPhase.FullText);
+
+                string overallStatus = "Not Started";
+                if (assignedPhases.Any())
+                {
+                    bool allCompleted = assignedPhases.All(p => paperDecisions.Any(d => d.Phase == p));
+                    bool anyStarted = assignedPhases.Any(p => paperDecisions.Any(d => d.Phase == p) || paperSubmissions.Any(s => s.Phase == p));
+
+                    if (allCompleted)
+                    {
+                        overallStatus = "Completed";
+                    }
+                    else if (anyStarted)
+                    {
+                        overallStatus = "In Progress";
+                    }
+                }
+
+                results.Add(new ReviewerAssignmentTableItemResponse
+                {
+                    PaperId = paperId,
+                    PaperTitle = paperTitle,
+                    TitleAbstractDisplay = titleAbstractDisplay,
+                    FullTextDisplay = fullTextDisplay,
+                    OverallStatus = overallStatus
+                });
+            }
+
+            return results.OrderBy(r => r.PaperTitle).ToList();
+        }
+
+        private string BuildPhaseDisplay(bool isAssigned, ScreeningDecision? decision, bool hasChecklist)
+        {
+            if (!isAssigned) return "Not Assigned";
+
+            string decisionPart = "Pending";
+            if (decision != null)
+            {
+                decisionPart = decision.Decision.ToString(); // Include or Exclude
+            }
+
+            string checklistPart = hasChecklist ? "Checklist Submitted" : "No Checklist";
+
+            return $"{decisionPart} · {checklistPart}";
+        }
+
         public async Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
             Guid studySelectionProcessId,
             GetResolutionsRequest request,

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 
@@ -15,8 +15,8 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("timetable_id")
 				.IsRequired();
 
-			builder.Property(x => x.ProtocolId)
-				.HasColumnName("protocol_id")
+			builder.Property(x => x.ProjectId)
+				.HasColumnName("project_id")
 				.IsRequired();
 
 			builder.Property(x => x.Milestone)
@@ -26,9 +26,9 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.Property(x => x.PlannedDate)
 				.HasColumnName("planned_date");
 
-			builder.HasOne(x => x.Protocol)
+			builder.HasOne(x => x.Project)
 				.WithMany(x => x.Timetables)
-				.HasForeignKey(x => x.ProtocolId)
+				.HasForeignKey(x => x.ProjectId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

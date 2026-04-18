@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.Synthesis;
@@ -51,39 +51,7 @@ namespace SRSS.IAM.API.Controllers
 			return Ok("Xóa synthesis strategy thành công");
 		}
 
-		// ==================== Dissemination Strategies ====================
 
-		/// <summary>
-		/// Upsert một Dissemination Strategy
-		/// </summary>
-		[HttpPost("dissemination/upsert")]
-		public async Task<ActionResult<ApiResponse<DisseminationStrategyDto>>> UpsertDisseminationStrategy(
-			[FromBody] DisseminationStrategyDto dto)
-		{
-			var result = await _service.UpsertDisseminationStrategyAsync(dto);
-			return Ok(result, "Lưu dissemination strategy thành công");
-		}
-
-		/// <summary>
-		/// Lấy tất cả Dissemination Strategies theo Protocol ID
-		/// </summary>
-		[HttpGet("protocol/{protocolId}/dissemination-strategies")]
-		public async Task<ActionResult<ApiResponse<List<DisseminationStrategyDto>>>> GetDisseminationStrategiesByProtocolId(
-			Guid protocolId)
-		{
-			var result = await _service.GetDisseminationStrategiesByProtocolIdAsync(protocolId);
-			return Ok(result, "Lấy danh sách dissemination strategies thành công");
-		}
-
-		/// <summary>
-		/// Xóa một Dissemination Strategy
-		/// </summary>
-		[HttpDelete("dissemination-strategies/{strategyId}")]
-		public async Task<ActionResult<ApiResponse>> DeleteDisseminationStrategy(Guid strategyId)
-		{
-			await _service.DeleteDisseminationStrategyAsync(strategyId);
-			return Ok("Xóa dissemination strategy thành công");
-		}
 
 		// ==================== Project Timetable ====================
 
@@ -99,13 +67,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy Timetable theo Protocol ID
+		/// Lấy Timetable theo Project ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/timetable")]
-		public async Task<ActionResult<ApiResponse<List<ProjectTimetableDto>>>> GetTimetableByProtocolId(
-			Guid protocolId)
+		[HttpGet("project/{projectId}/timetable")]
+		public async Task<ActionResult<ApiResponse<List<ProjectTimetableDto>>>> GetTimetableByProjectId(
+			Guid projectId)
 		{
-			var result = await _service.GetTimetableByProtocolIdAsync(protocolId);
+			var result = await _service.GetTimetableByProjectIdAsync(projectId);
 			return Ok(result, "Lấy timetable thành công");
 		}
 

@@ -113,7 +113,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IThemeEvidenceRepository ThemeEvidences { get; }
         IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
-        IDisseminationStrategyRepository DisseminationStrategies { get; }
         IProjectTimetableRepository Timetables { get; }
         ISystematicReviewProjectRepository SystematicReviewProjects { get; }
         IReviewProcessRepository ReviewProcesses { get; }

@@ -28,10 +28,8 @@ namespace SRSS.IAM.Services.DTOs.Protocol
 		public List<StudySelectionCriteriaDto> SelectionCriterias { get; set; } = new();
 		public List<StudySelectionProcedureDto> SelectionProcedures { get; set; } = new();
 		public List<QualityAssessmentStrategyDto> QualityStrategies { get; set; } = new();
-		public List<DataExtractionStrategyDto> ExtractionStrategies { get; set; } = new();
 		public List<ExtractionTemplateDto> ExtractionTemplates { get; set; } = new();
 		public List<DataSynthesisStrategyDto> SynthesisStrategies { get; set; } = new();
-		public List<DisseminationStrategyDto> DisseminationStrategies { get; set; } = new();
 	}
 
 	public class VersionHistoryDto

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
@@ -6,6 +7,7 @@ using SRSS.IAM.Services.QualityAssessmentService;
 
 namespace SRSS.IAM.API.Controllers
 {
+	[Authorize]
 	[ApiController]
 	[Route("api/quality-assessment")]
 	public class QualityAssessmentController : BaseController

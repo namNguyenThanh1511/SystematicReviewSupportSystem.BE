@@ -50,9 +50,78 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _auditLogService = auditLogService;
         }
 
+        private async Task<(Guid userId, ProjectRole role)> ValidateUserProjectRoleAsync(Guid projectId, ProjectRole minRoleRequired = ProjectRole.Member)
+        {
+            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
+            if (!Guid.TryParse(currentUserIdStr, out var currentUserId))
+            {
+                throw new UnauthorizedAccessException("Current user ID is invalid.");
+            }
+
+            var currentUserProjectMember = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+                .Where(p => p.Id == projectId)
+                .SelectMany(p => p.ProjectMembers)
+                .FirstOrDefaultAsync(pm => pm.UserId == currentUserId);
+
+            if (currentUserProjectMember == null)
+            {
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a member of project {projectId}.");
+            }
+
+            if (minRoleRequired == ProjectRole.Leader && currentUserProjectMember.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
+            }
+
+            return (currentUserId, currentUserProjectMember.Role);
+        }
+
+        // Helper to find ProjectId from ProtocolId
+        private async Task<Guid> GetProjectIdFromProtocolIdAsync(Guid protocolId)
+        {
+            var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.ProtocolId == protocolId);
+            if (rp == null) throw new KeyNotFoundException("Review process not found for this protocol.");
+            return rp.ProjectId;
+        }
+
+        // Helper to find ProjectId from ReviewProcessId
+        private async Task<Guid> GetProjectIdFromReviewProcessIdAsync(Guid reviewProcessId)
+        {
+            var rp = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == reviewProcessId);
+            if (rp == null) throw new KeyNotFoundException("Review process not found.");
+            return rp.ProjectId;
+        }
+
+        // Helper to find ProjectId from StrategyId
+        private async Task<Guid> GetProjectIdFromStrategyIdAsync(Guid strategyId)
+        {
+            var strategy = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId);
+            if (strategy == null) throw new KeyNotFoundException("Strategy not found.");
+            return await GetProjectIdFromProtocolIdAsync(strategy.ProtocolId);
+        }
+
+        // Helper to find ProjectId from ProcessId
+        private async Task<Guid> GetProjectIdFromProcessIdAsync(Guid processId)
+        {
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
+            if (process == null) throw new KeyNotFoundException("Process not found.");
+            return await GetProjectIdFromReviewProcessIdAsync(process.ReviewProcessId);
+        }
+
+        // Helper to find ProjectId from ChecklistId
+        private async Task<Guid> GetProjectIdFromChecklistIdAsync(Guid checklistId)
+        {
+            var checklist = await _unitOfWork.QualityChecklists.FindSingleAsync(c => c.Id == checklistId);
+            if (checklist == null) throw new KeyNotFoundException("Checklist not found.");
+            return await GetProjectIdFromStrategyIdAsync(checklist.QaStrategyId);
+        }
+
         // ==================== Quality Assessment Strategies ====================
         public async Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto)
         {
+            var projectId = await GetProjectIdFromProtocolIdAsync(dto.ProtocolId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             QualityAssessmentStrategy entity;
 
             if (dto.QaStrategyId.HasValue && dto.QaStrategyId.Value != Guid.Empty)
@@ -75,6 +144,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
         {
+            var projectId = await GetProjectIdFromProtocolIdAsync(protocolId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var entities = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId);
             return entities.ToDtoList();
         }
@@ -85,6 +157,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         /// </summary>
         public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(processId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
             if (process == null) return new List<QualityAssessmentStrategyDto>();
 
@@ -98,6 +173,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task DeleteStrategyAsync(Guid strategyId)
         {
+            var projectId = await GetProjectIdFromStrategyIdAsync(strategyId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var entity = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId);
             if (entity != null)
             {
@@ -109,6 +187,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Checklists ====================
         public async Task<List<QualityAssessmentChecklistDto>> BulkUpsertChecklistsAsync(List<QualityAssessmentChecklistDto> dtos)
         {
+            if (dtos.Any())
+            {
+                var projectId = await GetProjectIdFromStrategyIdAsync(dtos.First().QaStrategyId);
+                await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+            }
+
             var results = new List<QualityChecklist>();
 
             foreach (var dto in dtos)
@@ -145,6 +229,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentChecklistDto>> GetChecklistsByStrategyIdAsync(Guid strategyId)
         {
+            var projectId = await GetProjectIdFromStrategyIdAsync(strategyId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var entities = await _unitOfWork.QualityChecklists.GetByStrategyIdAsync(strategyId);
             return entities.ToDtoList();
         }
@@ -152,6 +239,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Criteria ====================
         public async Task<List<QualityAssessmentCriterionDto>> BulkUpsertCriteriaAsync(List<QualityAssessmentCriterionDto> dtos)
         {
+            if (dtos.Any())
+            {
+                var projectId = await GetProjectIdFromChecklistIdAsync(dtos.First().ChecklistId);
+                await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+            }
+
             var results = new List<QualityCriterion>();
 
             foreach (var dto in dtos)
@@ -188,6 +281,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentCriterionDto>> GetCriteriaByChecklistIdAsync(Guid checklistId)
         {
+            var projectId = await GetProjectIdFromChecklistIdAsync(checklistId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var entities = await _unitOfWork.QualityCriteria.GetByChecklistIdAsync(checklistId);
             return entities.ToDtoList();
         }
@@ -195,16 +291,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Assessment Process ====================
         public async Task<QualityAssessmentProcessResponse> GetProcessByReviewProcessIdAsync(Guid reviewProcessId)
         {
+            var projectId = await GetProjectIdFromReviewProcessIdAsync(reviewProcessId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(
                 p => p.ReviewProcessId == reviewProcessId);
 
-            if (process == null) return null;
+            if (process == null) return null!;
 
             return process.ToResponse();
         }
 
         public async Task<QualityAssessmentProcessResponse> CreateProcessAsync(CreateQualityAssessmentProcessDto dto)
         {
+            var projectId = await GetProjectIdFromReviewProcessIdAsync(dto.ReviewProcessId);
+           await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             // Check existence
             var existing = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.ReviewProcessId == dto.ReviewProcessId);
             if (existing != null)
@@ -220,6 +322,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentProcessResponse> StartProcessAsync(Guid id)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(id);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
 
@@ -267,6 +372,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid id)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(id);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException("Quality Assessment Process not found");
 
@@ -280,6 +388,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid id)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(id);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var result = new QALeaderDashboardResponse();
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
@@ -414,6 +525,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentStatisticsResponse> GetQualityStatisticsAsync(Guid processId)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(processId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
             if (process == null) return new QualityAssessmentStatisticsResponse();
 
@@ -473,6 +587,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Assignments ====================
         public async Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(dto.QualityAssessmentProcessId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Quality Assessment Process not found");
 
@@ -561,8 +678,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid id)
         {
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var userId = Guid.Parse(currentUserIdStr);
+            var projectId = await GetProjectIdFromProcessIdAsync(id);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
             if (process == null) return new QAMemberDashboardResponse();
@@ -629,8 +746,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Decisions ====================
         public async Task CreateDecisionAsync(CreateQualityAssessmentDecisionRequest dto)
         {
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var userId = Guid.Parse(currentUserIdStr);
+            var projectId = await GetProjectIdFromProcessIdAsync(dto.QualityAssessmentProcessId);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
 
             // Validate and find assignment
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
@@ -678,21 +795,19 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto)
         {
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var userId = Guid.Parse(currentUserIdStr);
-
             var decision = await _unitOfWork.QualityAssessmentDecisions.GetByIdWithDetailsAsync(decisionId);
-
-            if (decision == null)
-                throw new KeyNotFoundException("Decision not found.");
-
-            if (decision.ReviewerId != userId)
-                throw new UnauthorizedAccessException("You can only update your own decisions.");
+            if (decision == null) throw new KeyNotFoundException("Decision not found.");
 
             var qaPaperId = decision.QualityAssessmentPaperId;
 
             var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
             if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
+
+            var projectId = await GetProjectIdFromProcessIdAsync(qaPaper.QualityAssessmentProcessId);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+                        
+            if (decision.ReviewerId != userId)
+                throw new UnauthorizedAccessException("You can only update your own decisions.");
 
             // Get assignment (to get process ID for resolution check)
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndQaPaperAsync(userId, qaPaper.Id);
@@ -750,6 +865,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByQaPaperIdAsync(Guid qaPaperId)
         {
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
+            if (qaPaper != null)
+            {
+                var projectId = await GetProjectIdFromProcessIdAsync(qaPaper.QualityAssessmentProcessId);
+                await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+            }
+
             var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(qaPaperId);
 
             return decisions.Select(d => d.ToDto()).ToList();
@@ -758,8 +880,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Resolutions ====================
         public async Task<QualityAssessmentResolutionResponse> CreateResolutionAsync(CreateQualityAssessmentResolutionRequest dto)
         {
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var userId = Guid.Parse(currentUserIdStr);
+            var projectId = await GetProjectIdFromProcessIdAsync(dto.QualityAssessmentProcessId);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
 
             var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == dto.QualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
             if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
@@ -781,11 +903,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto)
         {
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var userId = Guid.Parse(currentUserIdStr);
-
             var entity = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.Id == id)
                 ?? throw new KeyNotFoundException("Resolution not found");
+
+            var projectId = await GetProjectIdFromProcessIdAsync(entity.QualityAssessmentProcessId);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
 
             dto.UpdateEntity(entity);
             // Optionally update ResolvedBy or ResolvedAt here if desired:
@@ -803,6 +925,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
             if (qaPaper == null) return null!;
 
+            var projectId = await GetProjectIdFromProcessIdAsync(qaPaper.QualityAssessmentProcessId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.QualityAssessmentPaperId == qaPaper.Id);
             if (res == null) return null!;
 
@@ -811,6 +936,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QAPaperResponse>> GetHighQualityPaperIdsAsync(Guid processId)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(processId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
             var resolutions = await _unitOfWork.QualityAssessmentResolutions
                 .FindAllAsync(r => r.QualityAssessmentProcessId == processId && r.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);
 
@@ -824,11 +952,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task AutoResolveProcessAsync(AutoResolveQualityAssessmentRequest request)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(request.QualityAssessmentProcessId);
+            var (currentUserId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
             if (!request.Score.HasValue && !request.Percentage.HasValue)
                 throw new ArgumentException("Either Score or Percentage must be provided");
-
-            var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
-            var currentUserId = Guid.Parse(currentUserIdStr);
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId);
             if (process == null) throw new KeyNotFoundException("Process not found");
@@ -918,8 +1046,22 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Assessment Automate ====================
         public async Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request)
         {
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.GetByIdWithDetailsAsync(request.QualityAssessmentPaperId)
-                ?? throw new KeyNotFoundException("QA Paper not found");
+            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == request.QualityAssessmentPaperId);
+            if (qaPaper == null) throw new KeyNotFoundException("Quality Assessment Paper Not Found");
+
+            var projectId = await GetProjectIdFromProcessIdAsync(qaPaper.QualityAssessmentProcessId);
+            var (userId, _) = await ValidateUserProjectRoleAsync(projectId, ProjectRole.Member);
+
+            // Validate and find assignment
+            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
+            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+            // Check if resolution exists
+            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaper.Id);
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == qaPaper.PaperId);
+            if (paper == null) throw new KeyNotFoundException("Paper Not Found");
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == qaPaper.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Process not found");
@@ -995,6 +1137,12 @@ Here are the paper details:
         // ==================== Export Excel ====================
         public async Task<byte[]> ExportProcessToExcelAsync(Guid processId)
         {
+            var projectId = await GetProjectIdFromProcessIdAsync(processId);
+            await ValidateUserProjectRoleAsync(projectId, ProjectRole.Leader);
+
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
+            if (process == null) throw new KeyNotFoundException("Quality Assessment Process not found");
+
             // Reuse existing method to get paper summaries
             var papersResult = await GetLeaderDashboardAsync(processId);
             var papers = papersResult.Papers;

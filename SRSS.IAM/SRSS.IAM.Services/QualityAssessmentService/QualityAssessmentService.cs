@@ -78,7 +78,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
         {
-            var entities = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId);
+            var entities = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId);
             return entities.ToDtoList();
         }
 
@@ -699,6 +699,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto)
         {
+            dto.Id = decisionId;
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
@@ -802,6 +803,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto)
         {
+            dto.Id = id;
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 

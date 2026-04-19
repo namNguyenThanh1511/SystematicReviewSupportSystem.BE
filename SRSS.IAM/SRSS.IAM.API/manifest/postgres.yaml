@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
         - name: postgres # container name within the pod.
-          image: postgres:18
+          image: pgvector/pgvector:pg18-trixie
           resources:
             limits:
               memory: "2Gi"

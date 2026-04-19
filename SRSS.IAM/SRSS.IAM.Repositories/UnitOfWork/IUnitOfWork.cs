@@ -43,6 +43,10 @@ using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
 using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
+using SRSS.IAM.Repositories.PaperFullTextParsedSectionRepo;
+using SRSS.IAM.Repositories.PaperFullTextParsedParagraphRepo;
+using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
+using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -139,6 +143,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionProcessPaperRepository StudySelectionProcessPapers { get; }
         IStudySelectionAIResultRepository StudySelectionAIResults { get; }
         IPaperFullTextRepository PaperFullTexts { get; }
+        IPaperFullTextParsedSectionRepository PaperFullTextParsedSections { get; }
+        IPaperFullTextParsedParagraphRepository PaperFullTextParsedParagraphs { get; }
+        IPaperFullTextChunkRepository PaperFullTextChunks { get; }
+        IPaperFullTextChunkEmbeddingRepository PaperFullTextChunkEmbeddings { get; }
         IMasterSearchSourceRepository MasterSearchSources { get; }
 
         // Quality Assessment
@@ -159,5 +167,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionChecklistSubmissionSectionAnswerRepository StudySelectionChecklistSubmissionSectionAnswers { get; }
         IStudySelectionChecklistSubmissionItemAnswerRepository StudySelectionChecklistSubmissionItemAnswers { get; }
         IAuditLogRepository AuditLogs { get; }
+        void ClearTracker();
     }
 }

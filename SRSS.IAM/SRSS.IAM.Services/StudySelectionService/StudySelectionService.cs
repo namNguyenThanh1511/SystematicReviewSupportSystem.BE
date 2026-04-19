@@ -3018,7 +3018,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 // Completed: All assigned phases already have decisions.
                 // In Progress: At least one assigned phase has started/completed, but not all assigned phases are completed.
                 // Not Started: All assigned phases have NO decision and NO checklist.
-                
+
                 var assignedPhases = new List<ScreeningPhase>();
                 if (taAssignment != null) assignedPhases.Add(ScreeningPhase.TitleAbstract);
                 if (ftAssignment != null) assignedPhases.Add(ScreeningPhase.FullText);

@@ -112,6 +112,10 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+		public DbSet<PaperFullTextParsedSection> PaperFullTextParsedSections { get; set; } = default!;
+		public DbSet<PaperFullTextParsedParagraph> PaperFullTextParsedParagraphs { get; set; } = default!;
+		public DbSet<PaperFullTextChunk> PaperFullTextChunks { get; set; } = default!;
+		public DbSet<PaperFullTextChunkEmbedding> PaperFullTextChunkEmbeddings { get; set; } = default!;
 		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
 		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
 

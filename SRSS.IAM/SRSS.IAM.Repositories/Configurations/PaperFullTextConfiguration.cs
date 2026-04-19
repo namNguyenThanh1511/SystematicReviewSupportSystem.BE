@@ -12,6 +12,9 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasKey(x => x.Id);
 
             builder.Property(x => x.RawXml).IsRequired();
+            builder.Property(x => x.ParsedAt).IsRequired(false);
+            builder.Property(x => x.ChunkedAt).IsRequired(false);
+            builder.Property(x => x.EmbeddedAt).IsRequired(false);
 
             // 1-to-1 relationship with PaperPdf
             builder.HasOne(x => x.PaperPdf)

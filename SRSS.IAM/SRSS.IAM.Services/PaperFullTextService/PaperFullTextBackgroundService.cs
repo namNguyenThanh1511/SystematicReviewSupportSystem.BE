@@ -39,6 +39,10 @@ namespace SRSS.IAM.Services.PaperFullTextService
                     var fullTextService = scope.ServiceProvider.GetRequiredService<IPaperFullTextService>();
 
                     await fullTextService.ExtractAndStoreFullTextAsync(paperPdfId, stoppingToken);
+
+                    // 2. Prepare for AI (Parsing -> Chunking -> Embedding)
+                    var preparationService = scope.ServiceProvider.GetRequiredService<IPaperFullTextPreparationService>();
+                    await preparationService.PrepareForAiAsync(paperPdfId, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {

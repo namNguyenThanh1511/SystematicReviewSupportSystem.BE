@@ -256,10 +256,7 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid EtMatCol1ProposedId = Guid.Parse("ee000000-0012-0000-0000-000000000001");
         private static readonly Guid EtMatCol2BaselineId = Guid.Parse("ee000000-0012-0000-0000-000000000002");
 
-        // ── Synthesis & Dissemination IDs ────────────────────────────────
         private static readonly Guid SynthesisStrategy1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid DisseminationStrategy1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid Timetable1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
         // ── HarProtocol2 Elements IDs ────────────────────────────────────
         private static readonly Guid HarProtocol2Version1Id = Guid.Parse("22222222-1111-1111-1111-222222222222");
@@ -274,8 +271,6 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid Har2QualityCriterion1Id = Guid.Parse("e3333333-2222-3333-4444-555555555555");
         private static readonly Guid Har2QualityCriterion2Id = Guid.Parse("e4444444-2222-3333-4444-555555555555");
         private static readonly Guid Har2SynthesisStrategy1Id = Guid.Parse("f1111111-2222-3333-4444-555555555555");
-        private static readonly Guid Har2DisseminationStrategy1Id = Guid.Parse("f2222222-2222-3333-4444-555555555555");
-        private static readonly Guid Har2Timetable1Id = Guid.Parse("f3333333-2222-3333-4444-555555555555");
 
         // ── Checklist Template IDs ─────────────────────────────────────
         private static readonly Guid PrismaMainChecklistTemplateId = Guid.Parse("90000000-0000-0000-0000-000000000001");
@@ -301,8 +296,6 @@ namespace SRSS.IAM.API.Data
             //await SeedDataExtractionAsync(context);
             await SeedDataExtractionTemplateAsync(context);
             await SeedDataSynthesisAsync(context);
-            await SeedDisseminationStrategyAsync(context);
-            await SeedProjectTimetableAsync(context);
 
             await SeedReviewProcessesAsync(context);
             await SeedIdentificationProcessesAsync(context);
@@ -1425,58 +1418,7 @@ namespace SRSS.IAM.API.Data
             await context.SaveChangesAsync();
         }
 
-        private static async Task SeedDisseminationStrategyAsync(AppDbContext context)
-        {
-            if (!await context.DisseminationStrategies.AnyAsync(x => x.Id == Har2DisseminationStrategy1Id))
-            {
-                await context.DisseminationStrategies.AddAsync(new DisseminationStrategy { Id = Har2DisseminationStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Audience for Protocol 2", Channel = "Conference presentation (CVPR)", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
-                await context.SaveChangesAsync();
-            }
 
-            if (await context.DisseminationStrategies.AnyAsync(x => x.Id == DisseminationStrategy1Id))
-            {
-                return;
-            }
-
-            var disseminationStrategy = new DisseminationStrategy
-            {
-                Id = DisseminationStrategy1Id,
-                ProtocolId = HarProtocol1Id,
-                Description = "Researchers in human activity recognition, wearable computing, and machine learning; Healthcare practitioners",
-                Channel = "Journal publication (IEEE TPAMI or Pattern Recognition), conference presentation (ICCV, CVPR, ICML), project website with interactive visualizations",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-30),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-30)
-            };
-
-            await context.DisseminationStrategies.AddAsync(disseminationStrategy);
-            await context.SaveChangesAsync();
-        }
-
-        private static async Task SeedProjectTimetableAsync(AppDbContext context)
-        {
-            if (!await context.ProjectTimetables.AnyAsync(x => x.Id == Har2Timetable1Id))
-            {
-                await context.ProjectTimetables.AddAsync(new ProjectTimetable { Id = Har2Timetable1Id, ProtocolId = HarProtocol2Id, Milestone = "Protocol 2 timeline", PlannedDate = DateTimeOffset.UtcNow, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
-                await context.SaveChangesAsync();
-            }
-
-            if (await context.ProjectTimetables.AnyAsync(x => x.Id == Timetable1Id))
-            {
-                return;
-            }
-            var timetable = new ProjectTimetable
-            {
-                Id = Timetable1Id,
-                ProtocolId = HarProtocol1Id,
-                Milestone = "Complete database searches (Month 1), Complete title/abstract screening (Month 2), Complete full-text screening (Month 3)",
-                PlannedDate = DateTimeOffset.UtcNow.AddMonths(-2),
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-60),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-30)
-            };
-
-            await context.ProjectTimetables.AddAsync(timetable);
-            await context.SaveChangesAsync();
-        }
 
         private static async Task SeedDataExtractionTemplateAsync(AppDbContext context)
         {

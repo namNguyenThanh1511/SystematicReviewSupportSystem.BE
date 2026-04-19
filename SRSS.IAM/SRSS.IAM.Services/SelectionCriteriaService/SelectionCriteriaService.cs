@@ -1,22 +1,55 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.SelectionCriteriaService
 {
 	public class SelectionCriteriaService : ISelectionCriteriaService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ICurrentUserService _currentUserService;
 
-		public SelectionCriteriaService(IUnitOfWork unitOfWork)
+		public SelectionCriteriaService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
+			_currentUserService = currentUserService;
+		}
+
+		private async Task EnsureLeaderAsync(Guid protocolId)
+		{
+			var userIdString = _currentUserService.GetUserId();
+			if (string.IsNullOrEmpty(userIdString))
+			{
+				throw new UnauthorizedException("User is not authenticated.");
+			}
+
+			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+			var userId = Guid.Parse(userIdString);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+			if (!isLeader)
+			{
+				throw new ForbiddenException("Only project leader can perform this action.");
+			}
+		}
+
+		private async Task EnsureLeaderByCriteriaIdAsync(Guid criteriaId)
+		{
+			var criteria = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId)
+				?? throw new KeyNotFoundException($"Criteria {criteriaId} không tồn tại");
+
+			await EnsureLeaderAsync(criteria.ProtocolId);
 		}
 
 		// ==================== Study Selection Criteria ====================
 		public async Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto)
 		{
+			await EnsureLeaderAsync(dto.ProtocolId);
+
 			StudySelectionCriteria entity;
 
 			if (dto.CriteriaId.HasValue && dto.CriteriaId.Value != Guid.Empty)
@@ -48,6 +81,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			var entity = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId);
 			if (entity != null)
 			{
+				await EnsureLeaderAsync(entity.ProtocolId);
 				await _unitOfWork.SelectionCriterias.RemoveAsync(entity);
 				await _unitOfWork.SaveChangesAsync();
 			}
@@ -56,6 +90,11 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		// ==================== Inclusion Criteria ====================
 		public async Task<List<InclusionCriterionDto>> BulkUpsertInclusionCriteriaAsync(List<InclusionCriterionDto> dtos)
 		{
+			if (dtos.Any())
+			{
+				await EnsureLeaderByCriteriaIdAsync(dtos.First().CriteriaId);
+			}
+
 			var results = new List<InclusionCriterion>();
 
 			foreach (var dto in dtos)
@@ -99,6 +138,11 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		// ==================== Exclusion Criteria ====================
 		public async Task<List<ExclusionCriterionDto>> BulkUpsertExclusionCriteriaAsync(List<ExclusionCriterionDto> dtos)
 		{
+			if (dtos.Any())
+			{
+				await EnsureLeaderByCriteriaIdAsync(dtos.First().CriteriaId);
+			}
+
 			var results = new List<ExclusionCriterion>();
 
 			foreach (var dto in dtos)
@@ -142,6 +186,8 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		// ==================== Selection Procedures ====================
 		public async Task<StudySelectionProcedureDto> UpsertProcedureAsync(StudySelectionProcedureDto dto)
 		{
+			await EnsureLeaderAsync(dto.ProtocolId);
+
 			StudySelectionProcedure entity;
 
 			if (dto.ProcedureId.HasValue && dto.ProcedureId.Value != Guid.Empty)
@@ -173,6 +219,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			var entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == procedureId);
 			if (entity != null)
 			{
+				await EnsureLeaderAsync(entity.ProtocolId);
 				await _unitOfWork.SelectionProcedures.RemoveAsync(entity);
 				await _unitOfWork.SaveChangesAsync();
 			}

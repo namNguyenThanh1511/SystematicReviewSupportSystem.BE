@@ -38,14 +38,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             CreateReviewProcessRequest request,
             CancellationToken cancellationToken = default)
         {
-
-            // Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can create a new review process.");
-            }
+            await EnsureLeaderPermissionAsync(projectId);
 
             if (string.IsNullOrWhiteSpace(request.Name))
             {
@@ -241,13 +234,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new InvalidOperationException($"ReviewProcess with ID {request.Id} not found.");
             }
 
-            //Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can update a review process.");
-            }
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
             if (request.Notes != null)
             {
@@ -274,13 +261,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
             }
 
-            //Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can start a review process.");
-            }
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
@@ -315,13 +296,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
             }
 
-            //Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can complete a review process.");
-            }
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
             // Load StudySelectionProcess for validation
             var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
@@ -364,6 +339,8 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new InvalidOperationException($"ReviewProcess with ID {id} not found.");
             }
 
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
+
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
@@ -396,13 +373,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 throw new NotFoundException("ReviewProcess not found.");
             }
 
-            //Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can delete a review process.");
-            }
+            await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
             await _unitOfWork.ReviewProcesses.RemoveAsync(reviewProcess, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

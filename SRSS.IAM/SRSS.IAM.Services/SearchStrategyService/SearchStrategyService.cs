@@ -2,22 +2,50 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SearchStrategy;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.SearchStrategyService
 {
 	public class SearchStrategyService : ISearchStrategyService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ICurrentUserService _currentUserService;
 
-		public SearchStrategyService(IUnitOfWork unitOfWork)
+		public SearchStrategyService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
+			_currentUserService = currentUserService;
+		}
+
+		private async Task EnsureLeaderAsync(Guid protocolId)
+		{
+			var userIdString = _currentUserService.GetUserId();
+			if (string.IsNullOrEmpty(userIdString))
+			{
+				throw new UnauthorizedException("User is not authenticated.");
+			}
+
+			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+			var userId = Guid.Parse(userIdString);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+			if (!isLeader)
+			{
+				throw new ForbiddenException("Only project leader can perform this action.");
+			}
 		}
 
 
 		// ==================== Search Source ====================
 		public async Task<List<SearchSourceDto>> BulkUpsertSearchSourcesAsync(List<SearchSourceDto> dtos)
 		{
+			if (dtos.Any())
+			{
+				await EnsureLeaderAsync(dtos.First().ProtocolId);
+			}
+
 			var results = new List<SearchSource>();
 
 			foreach (var dto in dtos)

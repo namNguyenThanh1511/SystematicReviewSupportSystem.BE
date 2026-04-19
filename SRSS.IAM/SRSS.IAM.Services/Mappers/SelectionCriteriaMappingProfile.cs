@@ -113,37 +113,5 @@ namespace SRSS.IAM.Services.Mappers
 			entity.Steps = dto.Steps;
 		}
 
-		// ==================== StudyCharacteristics ====================
-		public static StudyCharacteristicsDto ToDto(this StudyCharacteristics entity)
-		{
-			return new StudyCharacteristicsDto
-			{
-				Language = entity.Language,
-				Domain = entity.Domain,
-				StudyType = entity.StudyType
-			};
-		}
-
-		public static StudyCharacteristics ToEntity(this StudyCharacteristicsDto dto, Guid protocolId)
-		{
-			return new StudyCharacteristics
-			{
-				Id = Guid.NewGuid(),
-				ProtocolId = protocolId,
-				Language = dto.Language,
-				Domain = dto.Domain,
-				StudyType = dto.StudyType,
-				CreatedAt = DateTimeOffset.UtcNow,
-				ModifiedAt = DateTimeOffset.UtcNow
-			};
-		}
-
-		public static void UpdateEntity(this StudyCharacteristicsDto dto, StudyCharacteristics entity)
-		{
-			entity.Language = dto.Language;
-			entity.Domain = dto.Domain;
-			entity.StudyType = dto.StudyType;
-			entity.ModifiedAt = DateTimeOffset.UtcNow;
-		}
 	}
 }

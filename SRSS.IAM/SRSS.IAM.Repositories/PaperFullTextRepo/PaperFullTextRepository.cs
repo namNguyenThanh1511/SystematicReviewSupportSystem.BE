@@ -9,5 +9,14 @@ namespace SRSS.IAM.Repositories.PaperFullTextRepo
         public PaperFullTextRepository(AppDbContext dbContext) : base(dbContext)
         {
         }
+
+        public async Task<string?> GetRawXmlByPaperIdAsync(Guid paperId, CancellationToken cancellationToken)
+        {
+            return await _context.PaperFullTexts
+                .Include(x => x.PaperPdf)
+                .Where(x => x.PaperPdf.PaperId == paperId)
+                .Select(x => x.RawXml)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
     }
 }

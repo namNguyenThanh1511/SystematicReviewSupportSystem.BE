@@ -18,8 +18,7 @@ namespace SRSS.IAM.Services.Mappers
                 Paper = new StuSePaperInput
                 {
                     Title = paper.Title?.Trim() ?? string.Empty
-                },
-                Criteria = new StuSeCriteriaInput()
+                }
             };
 
             // 1. PAPER
@@ -29,11 +28,6 @@ namespace SRSS.IAM.Services.Mappers
             if (paper.PublicationYearInt.HasValue)
                 result.Paper.PublicationYear = paper.PublicationYearInt.Value;
 
-            // 2. CRITERIA
-            var characteristics = protocol.StudyCharacteristics;
-            AssignIfNotEmpty(v => result.Criteria.Domain = v, characteristics?.Domain);
-            AssignIfNotEmpty(v => result.Criteria.Language = v, characteristics?.Language);
-            AssignIfNotEmpty(v => result.Criteria.StudyType = v, characteristics?.StudyType);
 
             // 3. (PICOC removed - now per RQ)
 
@@ -56,8 +50,6 @@ namespace SRSS.IAM.Services.Mappers
                 })
                 .ToList() ?? new List<StuSeCriteriaGroupInput>();
 
-            // Validation: Nullify empty objects
-            if (IsCriteriaEmpty(result.Criteria)) result.Criteria = null!;
 
             return result;
         }
@@ -88,12 +80,6 @@ namespace SRSS.IAM.Services.Mappers
             return hasValue ? picoc : null;
         }
 
-        private static bool IsCriteriaEmpty(StuSeCriteriaInput criteria)
-        {
-            return string.IsNullOrWhiteSpace(criteria.Domain) &&
-                   string.IsNullOrWhiteSpace(criteria.Language) &&
-                   string.IsNullOrWhiteSpace(criteria.StudyType);
-        }
 
         private static List<string> MapCriteria(IEnumerable<string?>? rules)
         {

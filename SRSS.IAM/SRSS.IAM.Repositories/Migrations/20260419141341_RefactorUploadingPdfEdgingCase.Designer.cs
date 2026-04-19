@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419141341_RefactorUploadingPdfEdgingCase")]
+    partial class RefactorUploadingPdfEdgingCase
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2228,11 +2231,10 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<Guid>("PaperId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("ProcessingStatus")
-                        .IsRequired()
+                    b.Property<int>("ProcessingStatus")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Uploaded");
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
@@ -2243,11 +2245,10 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ValidationStatus")
-                        .IsRequired()
+                    b.Property<int>("ValidationStatus")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Pending");
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 

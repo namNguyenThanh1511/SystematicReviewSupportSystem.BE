@@ -12,5 +12,10 @@ namespace SRSS.IAM.Services.PaperFullTextService
         /// <param name="paperPdfId">The ID of the PaperPdf record.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         Task ExtractAndStoreFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Extracts full-text using a versioned work item so stale jobs can be rejected.
+        /// </summary>
+        Task ExtractAndStoreFullTextAsync(PaperFullTextWorkItem workItem, CancellationToken cancellationToken = default);
     }
 }

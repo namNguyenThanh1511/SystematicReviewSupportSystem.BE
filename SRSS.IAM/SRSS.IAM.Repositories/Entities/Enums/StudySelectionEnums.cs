@@ -60,6 +60,30 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         Retrieved = 1,
         NotRetrieved = 2
     }
+
+    /// <summary>
+    /// Validation outcome for an uploaded PDF version.
+    /// </summary>
+    public enum PdfValidationStatus
+    {
+        Pending = 0,
+        Valid = 1,
+        DoiMismatch = 2
+    }
+
+    /// <summary>
+    /// Workflow state for a PDF processing version.
+    /// </summary>
+    public enum PdfProcessingStatus
+    {
+        Uploaded = 0,
+        MetadataProcessing = 1,
+        MetadataValidated = 2,
+        MetadataInvalid = 3,
+        FullTextProcessing = 4,
+        Completed = 5,
+        Failed = 6
+    }
     /// <summary>
     /// Source of an exclusion reason (Library vs Custom)
     /// </summary>

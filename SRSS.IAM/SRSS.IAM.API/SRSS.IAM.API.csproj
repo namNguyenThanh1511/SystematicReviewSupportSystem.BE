@@ -30,4 +30,11 @@
     <ProjectReference Include="..\SRSS.IAM.Services\SRSS.IAM.Services.csproj" />
   </ItemGroup>
 
+	<ItemGroup>
+		<Content Include="docs\specs\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</Content>
+	</ItemGroup>
+
 </Project>

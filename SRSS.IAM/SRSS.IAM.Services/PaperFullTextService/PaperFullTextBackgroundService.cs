@@ -31,14 +31,18 @@ namespace SRSS.IAM.Services.PaperFullTextService
             {
                 try
                 {
-                    var paperPdfId = await _queue.Reader.ReadAsync(stoppingToken);
+                    var workItem = await _queue.Reader.ReadAsync(stoppingToken);
 
-                    _logger.LogInformation("Processing full-text extraction for PaperPdf {PaperPdfId}", paperPdfId);
+                    _logger.LogInformation("Processing full-text extraction for PaperPdf {PaperPdfId}", workItem.PaperPdfId);
 
                     using var scope = _scopeFactory.CreateScope();
                     var fullTextService = scope.ServiceProvider.GetRequiredService<IPaperFullTextService>();
 
-                    await fullTextService.ExtractAndStoreFullTextAsync(paperPdfId, stoppingToken);
+                    await fullTextService.ExtractAndStoreFullTextAsync(workItem, stoppingToken);
+
+                    // 2. Prepare for AI (Parsing -> Chunking -> Embedding)
+                    var preparationService = scope.ServiceProvider.GetRequiredService<IPaperFullTextPreparationService>();
+                    await preparationService.PrepareForAiAsync(workItem.PaperPdfId, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {

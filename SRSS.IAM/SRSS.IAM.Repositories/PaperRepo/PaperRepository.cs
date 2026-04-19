@@ -583,6 +583,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Include(p => p.StudySelectionProcessPapers)
                 .Include(p => p.PaperAssignments)
                     .ThenInclude(pa => pa.ProjectMember)
+                .Include(p => p.PaperPdfs)
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         }
     }

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419112927_fulltext paper chunking")]
+    partial class fulltextpaperchunking
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2341,13 +2344,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("ExtractedDoi")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
                     b.Property<string>("FileHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FileName")
                         .IsRequired()
@@ -2360,29 +2358,14 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<bool>("FullTextProcessed")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTimeOffset?>("FullTextProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<bool>("GrobidProcessed")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("MetadataProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("MetadataValidatedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("PaperId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("ProcessingStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Uploaded");
 
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uuid");
@@ -2392,12 +2375,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<DateTimeOffset>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ValidationStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Pending");
 
                     b.HasKey("Id");
 

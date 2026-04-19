@@ -43,6 +43,10 @@ using SRSS.IAM.Repositories.StudySelectionExclusionReasonRepo;
 using SRSS.IAM.Repositories.StuSeExclusionCodeRepo;
 using SRSS.IAM.Repositories.ChecklistRepo;
 using SRSS.IAM.Repositories.StudySelectionChecklistRepo;
+using SRSS.IAM.Repositories.PaperFullTextParsedSectionRepo;
+using SRSS.IAM.Repositories.PaperFullTextParsedParagraphRepo;
+using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
+using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 using SRSS.IAM.Repositories.AuditLogRepo;
 
 
@@ -88,6 +92,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionProcessPaperRepository? _studySelectionProcessPapers;
         private IStudySelectionAIResultRepository? _studySelectionAIResults;
         private IPaperFullTextRepository? _paperFullTexts;
+        private IPaperFullTextParsedSectionRepository? _paperFullTextParsedSections;
+        private IPaperFullTextParsedParagraphRepository? _paperFullTextParsedParagraphs;
+        private IPaperFullTextChunkRepository? _paperFullTextChunks;
+        private IPaperFullTextChunkEmbeddingRepository? _paperFullTextChunkEmbeddings;
         private IMasterSearchSourceRepository? _masterSearchSources;
         // Protocol
         private IReviewProtocolRepository? _protocols;
@@ -376,6 +384,14 @@ namespace SRSS.IAM.Repositories.UnitOfWork
             => _studySelectionAIResults ??= new StudySelectionAIResultRepository(_dbContext);
         public IPaperFullTextRepository PaperFullTexts
             => _paperFullTexts ??= new PaperFullTextRepository(_dbContext);
+        public IPaperFullTextParsedSectionRepository PaperFullTextParsedSections
+            => _paperFullTextParsedSections ??= new PaperFullTextParsedSectionRepository(_dbContext);
+        public IPaperFullTextParsedParagraphRepository PaperFullTextParsedParagraphs
+            => _paperFullTextParsedParagraphs ??= new PaperFullTextParsedParagraphRepository(_dbContext);
+        public IPaperFullTextChunkRepository PaperFullTextChunks
+            => _paperFullTextChunks ??= new PaperFullTextChunkRepository(_dbContext);
+        public IPaperFullTextChunkEmbeddingRepository PaperFullTextChunkEmbeddings
+            => _paperFullTextChunkEmbeddings ??= new PaperFullTextChunkEmbeddingRepository(_dbContext);
         public IMasterSearchSourceRepository MasterSearchSources
             => _masterSearchSources ??= new MasterSearchSourceRepository(_dbContext);
 
@@ -396,6 +412,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IStudySelectionChecklistSubmissionRepository StudySelectionChecklistSubmissions => _studySelectionChecklistSubmissions ??= new StudySelectionChecklistSubmissionRepository(_dbContext);
         public IStudySelectionChecklistSubmissionSectionAnswerRepository StudySelectionChecklistSubmissionSectionAnswers => _studySelectionChecklistSubmissionSectionAnswers ??= new StudySelectionChecklistSubmissionSectionAnswerRepository(_dbContext);
         public IStudySelectionChecklistSubmissionItemAnswerRepository StudySelectionChecklistSubmissionItemAnswers => _studySelectionChecklistSubmissionItemAnswers ??= new StudySelectionChecklistSubmissionItemAnswerRepository(_dbContext);
+
+        public void ClearTracker() => _dbContext.ChangeTracker.Clear();
 
         public void Dispose() => _dbContext.Dispose();
     }

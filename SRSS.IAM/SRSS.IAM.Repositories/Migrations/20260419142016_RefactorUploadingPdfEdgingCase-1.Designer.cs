@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260419142016_RefactorUploadingPdfEdgingCase-1")]
+    partial class RefactorUploadingPdfEdgingCase1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2161,13 +2164,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset?>("ChunkedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("EmbeddedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("ModifiedAt")
@@ -2175,9 +2172,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<Guid>("PaperPdfId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ParsedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("RawXml")
                         .IsRequired()
@@ -2189,147 +2183,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .IsUnique();
 
                     b.ToTable("paper_full_texts", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextChunk", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("PaperFullTextId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SectionTitle")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SectionType")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("WordCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperFullTextId", "Order")
-                        .IsUnique()
-                        .HasDatabaseName("idx_paper_full_text_chunks_paper_id_order");
-
-                    b.ToTable("paper_full_text_chunks", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextChunkEmbedding", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ChunkId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("EmbeddedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ModelName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Vector>("Vector")
-                        .IsRequired()
-                        .HasColumnType("vector");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChunkId")
-                        .IsUnique();
-
-                    b.ToTable("paper_full_text_chunk_embeddings", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextParsedParagraph", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("SectionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SectionId", "Order")
-                        .IsUnique()
-                        .HasDatabaseName("idx_paper_full_text_parsed_paragraphs_section_id_order");
-
-                    b.ToTable("paper_full_text_parsed_paragraphs", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextParsedSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("PaperFullTextId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SectionTitle")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("SectionType")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PaperFullTextId", "Order")
-                        .IsUnique()
-                        .HasDatabaseName("idx_paper_full_text_parsed_sections_paper_id_order");
-
-                    b.ToTable("paper_full_text_parsed_sections", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
@@ -5281,50 +5134,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("PaperPdf");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextChunk", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperFullText", "PaperFullText")
-                        .WithMany("Chunks")
-                        .HasForeignKey("PaperFullTextId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PaperFullText");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextChunkEmbedding", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperFullTextChunk", "Chunk")
-                        .WithOne("Embedding")
-                        .HasForeignKey("SRSS.IAM.Repositories.Entities.PaperFullTextChunkEmbedding", "ChunkId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Chunk");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextParsedParagraph", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperFullTextParsedSection", "Section")
-                        .WithMany("Paragraphs")
-                        .HasForeignKey("SectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Section");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextParsedSection", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.PaperFullText", "PaperFullText")
-                        .WithMany("ParsedSections")
-                        .HasForeignKey("PaperFullTextId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PaperFullText");
-                });
-
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "Paper")
@@ -6210,23 +6019,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("StudySelectionProcessPapers");
 
                     b.Navigation("TitleEmbedding");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullText", b =>
-                {
-                    b.Navigation("Chunks");
-
-                    b.Navigation("ParsedSections");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextChunk", b =>
-                {
-                    b.Navigation("Embedding");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperFullTextParsedSection", b =>
-                {
-                    b.Navigation("Paragraphs");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.PaperPdf", b =>

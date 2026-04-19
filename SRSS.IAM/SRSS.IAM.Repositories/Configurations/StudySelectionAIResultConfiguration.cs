@@ -71,12 +71,12 @@ namespace SRSS.IAM.Repositories.Configurations
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Unique constraint
-            builder.HasIndex(x => new 
-            { 
-                x.StudySelectionProcessId, 
-                x.PaperId, 
-                x.ReviewerId, 
-                x.Phase 
+            builder.HasIndex(x => new
+            {
+                x.StudySelectionProcessId,
+                x.PaperId,
+                x.ReviewerId,
+                x.Phase
             })
             .IsUnique()
             .HasDatabaseName("uq_ss_ai_results_process_paper_reviewer_phase");

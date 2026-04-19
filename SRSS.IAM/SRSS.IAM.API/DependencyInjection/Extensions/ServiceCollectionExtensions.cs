@@ -55,6 +55,11 @@ using SRSS.IAM.Services.ExclusionReasonLibraryService;
 using SRSS.IAM.Services.StuSeExclusionCodeService;
 using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
+using SRSS.IAM.Services.PaperFullTextService.Parser;
+using SRSS.IAM.Services.PaperFullTextService.Chunking;
+using SRSS.IAM.Services.PaperFullTextService.Embedding;
+using SRSS.IAM.Services.PaperFullTextService.Search;
+using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
 
 
 using SRSS.IAM.Services.RagService;
@@ -169,8 +174,18 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Paper full-text extraction background worker
             services.AddSingleton<IPaperFullTextQueue, PaperFullTextQueue>();
+            services.AddScoped<ITeiXmlParser, TeiXmlParser>();
             services.AddScoped<IPaperFullTextService, PaperFullTextService>();
+            services.AddScoped<IPaperFullTextChunkingService, PaperFullTextChunkingService>();
+            services.AddScoped<IPaperFullTextChunkEmbeddingService, PaperFullTextChunkEmbeddingService>();
+            services.AddScoped<IPaperFullTextPreparationService, PaperFullTextPreparationService>();
+            services.AddScoped<IPaperChunkSemanticSearchService, PaperChunkSemanticSearchService>();
+            services.AddScoped<IStuSeProtocolRetrievalQueryBuilder, StuSeProtocolRetrievalQueryBuilder>();
+            services.AddScoped<IStuSeProtocolChunkRetrievalService, StuSeProtocolChunkRetrievalService>();
+            services.AddScoped<IStuSeFullTextAiEvaluationService, StuSeFullTextAiEvaluationService>();
+            services.AddSingleton<IStuSeFullTextAiEvaluationQueue, StuSeFullTextAiEvaluationQueue>();
             services.AddHostedService<PaperFullTextBackgroundService>();
+            services.AddHostedService<StuSeFullTextAiEvaluationBackgroundService>();
 
             // GROBID background worker
             services.AddSingleton<IGrobidProcessingQueue, GrobidProcessingQueue>();

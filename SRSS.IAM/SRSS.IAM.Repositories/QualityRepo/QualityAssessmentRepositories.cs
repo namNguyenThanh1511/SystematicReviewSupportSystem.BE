@@ -6,7 +6,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
 {
 	public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
 	{
-		Task<IEnumerable<QualityAssessmentStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
         Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
 	}
 
@@ -52,11 +51,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
 	public class QualityAssessmentStrategyRepository : GenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>, IQualityAssessmentStrategyRepository
 	{
 		public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
-
-		public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
-		{
-			return await FindAllAsync(s => s.ProtocolId == protocolId, isTracking: false, cancellationToken);
-		}
 
         public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
         {

@@ -38,6 +38,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this QualityAssessmentStrategyDto dto, QualityAssessmentStrategy entity)
         {
+            entity.Id = dto.QaStrategyId ?? entity.Id; // Preserve existing ID if not provided
             entity.ProtocolId = dto.ProtocolId;
             entity.Description = dto.Description;
         }
@@ -65,6 +66,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this QualityAssessmentChecklistDto dto, QualityChecklist entity)
         {
+            entity.Id = dto.ChecklistId ?? entity.Id; // Preserve existing ID if not provided
             entity.QaStrategyId = dto.QaStrategyId;
             entity.Name = dto.Name;
         }
@@ -94,6 +96,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this QualityAssessmentCriterionDto dto, QualityCriterion entity)
         {
+            entity.Id = dto.CriterionId ?? entity.Id; // Preserve existing ID if not provided
             entity.ChecklistId = dto.ChecklistId;
             entity.Question = dto.Question;
             entity.Weight = dto.Weight;
@@ -247,6 +250,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentDecisionItemRequest dto, QualityAssessmentDecisionItem entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.Value = dto.Value;
             entity.Comment = dto.Comment;
             entity.PdfHighlightCoordinates = dto.PdfHighlightCoordinates;
@@ -265,6 +269,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentDecisionRequest dto, QualityAssessmentDecision entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.Score = dto.Score;
             // entity.Notes = dto.Notes;
         }
@@ -317,6 +322,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentResolutionRequest dto, QualityAssessmentResolution entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.FinalDecision = dto.FinalDecision;
             entity.FinalScore = dto.FinalScore;
             entity.ResolutionNotes = dto.ResolutionNotes;

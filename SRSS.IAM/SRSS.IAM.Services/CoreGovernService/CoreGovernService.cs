@@ -3,22 +3,42 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.CoreGovern;
 using SRSS.IAM.Services.DTOs.ResearchQuestion;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Microsoft.EntityFrameworkCore;
 
 namespace SRSS.IAM.Services.CoreGovernService
 {
 	public class CoreGovernService : ICoreGovernService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ICurrentUserService _currentUserService;
 
-		public CoreGovernService(IUnitOfWork unitOfWork)
+		public CoreGovernService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
+			_currentUserService = currentUserService;
+		}
+
+		private async Task CheckLeaderRoleAsync(Guid projectId)
+		{
+			var (userIdStr, _) = _currentUserService.GetCurrentUser();
+			if (!Guid.TryParse(userIdStr, out var userId))
+				throw new UnauthorizedAccessException("Người dùng chưa xác thực.");
+
+			var member = await _unitOfWork.SystematicReviewProjects.GetQueryable()
+				.Where(p => p.Id == projectId)
+				.SelectMany(p => p.ProjectMembers)
+				.FirstOrDefaultAsync(pm => pm.UserId == userId);
+
+			if (member == null || member.Role != ProjectRole.Leader)
+				throw new UnauthorizedAccessException("Chỉ Leader của dự án mới được thực hiện thay đổi.");
 		}
 
 		// ─────────────────────────── ReviewNeed ────────────────────────────
 
 		public async Task<ReviewNeedResponse> CreateReviewNeedAsync(CreateReviewNeedRequest request)
 		{
+			await CheckLeaderRoleAsync(request.ProjectId);
 			var entity = request.ToEntity();
 
 			await _unitOfWork.ReviewNeeds.AddAsync(entity);
@@ -32,6 +52,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var entity = await _unitOfWork.ReviewNeeds.FindSingleAsync(r => r.Id == request.Id)
 				?? throw new InvalidOperationException($"ReviewNeed với ID {request.Id} không tồn tại.");
 
+			await CheckLeaderRoleAsync(entity.ProjectId);
+
 			request.ApplyTo(entity);
 
 			await _unitOfWork.ReviewNeeds.UpdateAsync(entity);
@@ -44,6 +66,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var entity = await _unitOfWork.ReviewNeeds.FindSingleAsync(r => r.Id == id)
 				?? throw new InvalidOperationException($"ReviewNeed với ID {id} không tồn tại.");
+
+			await CheckLeaderRoleAsync(entity.ProjectId);
 
 			await _unitOfWork.ReviewNeeds.RemoveAsync(entity);
 			await _unitOfWork.SaveChangesAsync();
@@ -67,6 +91,7 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<CommissioningDocumentResponse> CreateCommissioningDocumentAsync(CreateCommissioningDocumentRequest request)
 		{
+			await CheckLeaderRoleAsync(request.ProjectId);
 			var entity = request.ToEntity();
 
 			await _unitOfWork.CommissioningDocuments.AddAsync(entity);
@@ -80,6 +105,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var entity = await _unitOfWork.CommissioningDocuments.FindSingleAsync(c => c.Id == request.Id)
 				?? throw new InvalidOperationException($"CommissioningDocument với ID {request.Id} không tồn tại.");
 
+			await CheckLeaderRoleAsync(entity.ProjectId);
+
 			request.ApplyTo(entity);
 
 			await _unitOfWork.CommissioningDocuments.UpdateAsync(entity);
@@ -92,6 +119,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var entity = await _unitOfWork.CommissioningDocuments.FindSingleAsync(c => c.Id == id)
 				?? throw new InvalidOperationException($"CommissioningDocument với ID {id} không tồn tại.");
+
+			await CheckLeaderRoleAsync(entity.ProjectId);
 
 			await _unitOfWork.CommissioningDocuments.RemoveAsync(entity);
 			await _unitOfWork.SaveChangesAsync();
@@ -115,6 +144,7 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<ReviewObjectiveResponse> CreateReviewObjectiveAsync(CreateReviewObjectiveRequest request)
 		{
+			await CheckLeaderRoleAsync(request.ProjectId);
 			var entity = request.ToEntity();
 
 			await _unitOfWork.ReviewObjectives.AddAsync(entity);
@@ -128,6 +158,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var entity = await _unitOfWork.ReviewObjectives.FindSingleAsync(r => r.Id == request.Id)
 				?? throw new InvalidOperationException($"ReviewObjective với ID {request.Id} không tồn tại.");
 
+			await CheckLeaderRoleAsync(entity.ProjectId);
+
 			request.ApplyTo(entity);
 
 			await _unitOfWork.ReviewObjectives.UpdateAsync(entity);
@@ -140,6 +172,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var entity = await _unitOfWork.ReviewObjectives.FindSingleAsync(r => r.Id == id)
 				?? throw new InvalidOperationException($"ReviewObjective với ID {id} không tồn tại.");
+
+			await CheckLeaderRoleAsync(entity.ProjectId);
 
 			await _unitOfWork.ReviewObjectives.RemoveAsync(entity);
 			await _unitOfWork.SaveChangesAsync();
@@ -213,6 +247,7 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request)
 		{
+			await CheckLeaderRoleAsync(request.ProjectId);
 			await _unitOfWork.BeginTransactionAsync();
 
 			try
@@ -281,6 +316,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var entity = await _unitOfWork.ResearchQuestions.GetByIdWithDetailsAsync(request.Id)
 				?? throw new InvalidOperationException($"ResearchQuestion với ID {request.Id} không tồn tại.");
 
+			await CheckLeaderRoleAsync(entity.ProjectId);
+
 			var questionTypeExists = await _unitOfWork.QuestionTypes.AnyAsync(q => q.Id == request.QuestionTypeId);
 			if (!questionTypeExists)
 				throw new InvalidOperationException($"QuestionType với ID {request.QuestionTypeId} không tồn tại.");
@@ -299,6 +336,8 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var entity = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == id)
 				?? throw new InvalidOperationException($"ResearchQuestion với ID {id} không tồn tại.");
+
+			await CheckLeaderRoleAsync(entity.ProjectId);
 
 			await _unitOfWork.ResearchQuestions.RemoveAsync(entity);
 			await _unitOfWork.SaveChangesAsync();
@@ -327,9 +366,11 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		public async Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request)
 		{
-			var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == request.ResearchQuestionId);
-			if (!questionExists)
+			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == request.ResearchQuestionId);
+			if (question == null)
 				throw new InvalidOperationException($"ResearchQuestion với ID {request.ResearchQuestionId} không tồn tại.");
+
+			await CheckLeaderRoleAsync(question.ProjectId);
 
 			var picoc = new PicocElement
 			{
@@ -360,6 +401,12 @@ namespace SRSS.IAM.Services.CoreGovernService
 			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == request.Id)
 				?? throw new InvalidOperationException($"PicocElement với ID {request.Id} không tồn tại.");
 
+			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
+			if (question != null)
+			{
+				await CheckLeaderRoleAsync(question.ProjectId);
+			}
+
 			picoc.Description = request.Description;
 			await _unitOfWork.PicocElements.UpdateAsync(picoc);
 
@@ -381,6 +428,12 @@ namespace SRSS.IAM.Services.CoreGovernService
 		{
 			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == picocElementId)
 				?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
+
+			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
+			if (question != null)
+			{
+				await CheckLeaderRoleAsync(question.ProjectId);
+			}
 
 			await _unitOfWork.PicocElements.RemoveAsync(picoc);
 			await _unitOfWork.SaveChangesAsync();

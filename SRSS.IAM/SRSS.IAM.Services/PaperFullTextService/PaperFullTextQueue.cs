@@ -3,15 +3,21 @@ using System.Threading.Channels;
 
 namespace SRSS.IAM.Services.PaperFullTextService
 {
+    public class PaperFullTextWorkItem
+    {
+        public Guid PaperPdfId { get; set; }
+        public string FileHash { get; set; } = string.Empty;
+    }
+
     public interface IPaperFullTextQueue
     {
-        bool TryWrite(Guid paperPdfId);
-        ChannelReader<Guid> Reader { get; }
+        bool TryWrite(PaperFullTextWorkItem workItem);
+        ChannelReader<PaperFullTextWorkItem> Reader { get; }
     }
 
     public class PaperFullTextQueue : IPaperFullTextQueue
     {
-        private readonly Channel<Guid> _channel;
+        private readonly Channel<PaperFullTextWorkItem> _channel;
 
         public PaperFullTextQueue(int capacity = 100)
         {
@@ -19,11 +25,11 @@ namespace SRSS.IAM.Services.PaperFullTextService
             {
                 FullMode = BoundedChannelFullMode.Wait
             };
-            _channel = Channel.CreateBounded<Guid>(options);
+            _channel = Channel.CreateBounded<PaperFullTextWorkItem>(options);
         }
 
-        public bool TryWrite(Guid paperPdfId) => _channel.Writer.TryWrite(paperPdfId);
+        public bool TryWrite(PaperFullTextWorkItem workItem) => _channel.Writer.TryWrite(workItem);
 
-        public ChannelReader<Guid> Reader => _channel.Reader;
+        public ChannelReader<PaperFullTextWorkItem> Reader => _channel.Reader;
     }
 }

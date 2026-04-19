@@ -1,5 +1,10 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.Protocol;
+using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.DTOs.SearchStrategy;
+using SRSS.IAM.Services.DTOs.SelectionCriteria;
+using SRSS.IAM.Services.DTOs.Synthesis;
 
 namespace SRSS.IAM.Services.Mappers
 {
@@ -17,7 +22,13 @@ namespace SRSS.IAM.Services.Mappers
                 CreatedAt = entity.CreatedAt,
                 ApprovedAt = entity.ApprovedAt,
                 Versions = entity.Versions?.Select(v => v.ToDto()).ToList() ?? new List<VersionHistoryDto>(),
-                StudyCharacteristics = entity.StudyCharacteristics?.ToDto()
+                SearchSources = entity.SearchSources?.Select(ss => ss.ToDto()).ToList() ?? new List<SearchSourceDto>(),
+                SelectionCriterias = entity.SelectionCriterias?.Select(sc => sc.ToDto()).ToList() ?? new List<StudySelectionCriteriaDto>(),
+                SelectionProcedures = entity.SelectionProcedures?.Select(sp => sp.ToDto()).ToList() ?? new List<StudySelectionProcedureDto>(),
+                QualityStrategies = entity.QualityStrategies?.Select(qs => qs.ToDto()).ToList() ?? new List<QualityAssessmentStrategyDto>(),
+                // ExtractionStrategies = entity.ExtractionStrategies?.Select(es => es.ToDto()).ToList() ?? new List<DataExtractionStra`tegyDto>(),
+                ExtractionTemplates = entity.ExtractionTemplates?.Select(et => et.ToDto()).ToList() ?? new List<ExtractionTemplateDto>(),
+                SynthesisStrategies = entity.SynthesisStrategies?.Select(ss => ss.ToDto()).ToList() ?? new List<DataSynthesisStrategyDto>(),
             };
         }
 

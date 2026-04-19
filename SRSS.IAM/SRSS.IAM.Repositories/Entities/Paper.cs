@@ -95,6 +95,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
+        public ICollection<StudySelectionChecklistSubmission> ChecklistSubmissions { get; set; } = new List<StudySelectionChecklistSubmission>();
 
         // Deduplication results where this paper IS the duplicate
         public ICollection<DeduplicationResult> DuplicateResults { get; set; } = new List<DeduplicationResult>();

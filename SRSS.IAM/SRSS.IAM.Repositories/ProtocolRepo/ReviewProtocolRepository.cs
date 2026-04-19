@@ -37,7 +37,6 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		{
 			return await _context.ReviewProtocols
 				.Include(p => p.Versions)
-				.Include(p => p.StudyCharacteristics)
 				.Include(p => p.SearchSources)
 				.Include(p => p.SelectionCriterias)
 				.ThenInclude(sc => sc.InclusionCriteria)
@@ -47,13 +46,9 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 				.Include(p => p.QualityStrategies)
 				.ThenInclude(ps => ps.Checklists)
 				.ThenInclude(pc => pc.Criteria)
-				.Include(p => p.ExtractionStrategies)
-				.ThenInclude(es => es.Forms)
-				.ThenInclude(ef => ef.DataItems)
 				.Include(p => p.ExtractionTemplates)
 				.ThenInclude(et => et.Sections)
 				.Include(p => p.SynthesisStrategies)
-				.Include(p => p.DisseminationStrategies)
 				.AsNoTracking()
 				.FirstOrDefaultAsync(p => p.Id == protocolId, cancellationToken);
 		}
@@ -61,15 +56,12 @@ namespace SRSS.IAM.Repositories.ProtocolRepo
 		public async Task<ReviewProtocol?> GetProtocolDetailByIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
 		{
 			return await _context.ReviewProtocols
-				.Include(p => p.StudyCharacteristics)
 				.Include(p => p.SearchSources)
 				.Include(p => p.SelectionCriterias)
 				.Include(p => p.SelectionProcedures)
 				.Include(p => p.QualityStrategies)
-				.Include(p => p.ExtractionStrategies)
 				.Include(p => p.ExtractionTemplates)
 				.Include(p => p.SynthesisStrategies)
-				.Include(p => p.DisseminationStrategies)
 				.Include(p => p.Versions)
 				.AsNoTracking()
 				.FirstOrDefaultAsync(p => p.Id == protocolId, cancellationToken);

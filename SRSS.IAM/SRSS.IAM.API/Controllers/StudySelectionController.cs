@@ -402,6 +402,20 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, message);
         }
 
+        /// <summary>
+        /// Get the reviewer assignment table data for a specific reviewer in a specific study selection process.
+        /// Grouped by paper with status for both Title/Abstract and Full-Text phases.
+        /// </summary>
+        [HttpGet("study-selection/{processId}/reviewers/{reviewerId}/assignment-table")]
+        public async Task<ActionResult<ApiResponse<List<ReviewerAssignmentTableItemResponse>>>> GetReviewerAssignmentTable(
+            [FromRoute] Guid processId,
+            [FromRoute] Guid reviewerId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetReviewerAssignmentTableAsync(processId, reviewerId, cancellationToken);
+            return Ok(result, "Reviewer assignment table retrieved successfully.");
+        }
+
 
         /// <summary>
         /// Update full-text link (PDF URL / web URL) for a paper (Issue 2)

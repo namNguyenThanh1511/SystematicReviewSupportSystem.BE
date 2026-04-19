@@ -5,6 +5,7 @@ using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.PrismaReport;
 using SRSS.IAM.Services.IdentificationService;
+using SRSS.IAM.Services.UserService;
 using System.Linq;
 using System.Text.Json;
 
@@ -14,11 +15,16 @@ namespace SRSS.IAM.Services.PrismaReportService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IIdentificationService _identificationService;
+        private readonly ICurrentUserService _currentUserService;
 
-        public PrismaReportService(IUnitOfWork unitOfWork, IIdentificationService identificationService)
+        public PrismaReportService(
+            IUnitOfWork unitOfWork,
+            IIdentificationService identificationService,
+            ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
             _identificationService = identificationService;
+            _currentUserService = currentUserService;
         }
 
         public async Task<PrismaReportResponse> GenerateReportAsync(
@@ -35,6 +41,8 @@ namespace SRSS.IAM.Services.PrismaReportService
             {
                 throw new InvalidOperationException($"ReviewProcess with ID {reviewProcessId} not found.");
             }
+
+            await EnsureCurrentUserIsProjectLeaderAsync(reviewProcess.ProjectId, cancellationToken);
 
             // Begin transaction to ensure atomicity
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -117,6 +125,23 @@ namespace SRSS.IAM.Services.PrismaReportService
             }
 
             return MapToResponse(report);
+        }
+
+        private async Task EnsureCurrentUserIsProjectLeaderAsync(Guid projectId, CancellationToken cancellationToken)
+        {
+            var userIdValue = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdValue, out var currentUserId))
+            {
+                throw new UnauthorizedException("User not authenticated.");
+            }
+
+            var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(currentUserId)
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId, cancellationToken);
+
+            if (membership == null || membership.Role != ProjectRole.Leader)
+            {
+                throw new UnauthorizedException("Only project leaders can generate PRISMA reports.");
+            }
         }
 
         private async Task<PrismaReportDetails> CalculatePrismaDetailsAsync(

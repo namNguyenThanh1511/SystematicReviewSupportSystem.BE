@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories;
+using SRSS.IAM.Repositories;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
@@ -16,6 +16,7 @@ using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.RagService; // Added
 using System.Net.Http;
 using SRSS.IAM.Services.AuditLogService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -50,9 +51,59 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _auditLogService = auditLogService;
         }
 
+        private async Task EnsureLeaderAsync(Guid protocolId)
+        {
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            if (!isLeader)
+            {
+                throw new ForbiddenException("Only project leader can perform this action.");
+            }
+        }
+
+        private async Task EnsureLeaderByStrategyIdAsync(Guid strategyId)
+        {
+            var strategy = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId)
+                ?? throw new KeyNotFoundException($"Strategy {strategyId} không tồn tại");
+
+            await EnsureLeaderAsync(strategy.ProtocolId);
+        }
+
+        private async Task EnsureLeaderByChecklistIdAsync(Guid checklistId)
+        {
+            var checklist = await _unitOfWork.QualityChecklists.FindSingleAsync(c => c.Id == checklistId)
+                ?? throw new KeyNotFoundException($"Checklist {checklistId} không tồn tại");
+
+            await EnsureLeaderByStrategyIdAsync(checklist.QaStrategyId);
+        }
+
+        private async Task EnsureLeaderByReviewProcessIdAsync(Guid reviewProcessId)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == reviewProcessId)
+                ?? throw new KeyNotFoundException($"Review Process {reviewProcessId} không tồn tại");
+
+            if (reviewProcess.ProtocolId == null)
+            {
+                throw new InvalidOperationException("Review Process không có Protocol đi kèm.");
+            }
+
+            await EnsureLeaderAsync(reviewProcess.ProtocolId.Value);
+        }
+
         // ==================== Quality Assessment Strategies ====================
         public async Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto)
         {
+            await EnsureLeaderAsync(dto.ProtocolId);
+
             QualityAssessmentStrategy entity;
 
             if (dto.QaStrategyId.HasValue && dto.QaStrategyId.Value != Guid.Empty)
@@ -101,6 +152,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var entity = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId);
             if (entity != null)
             {
+                await EnsureLeaderAsync(entity.ProtocolId);
                 await _unitOfWork.QualityStrategies.RemoveAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
             }
@@ -109,6 +161,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Checklists ====================
         public async Task<List<QualityAssessmentChecklistDto>> BulkUpsertChecklistsAsync(List<QualityAssessmentChecklistDto> dtos)
         {
+            if (dtos.Any())
+            {
+                await EnsureLeaderByStrategyIdAsync(dtos.First().QaStrategyId);
+            }
+
             var results = new List<QualityChecklist>();
 
             foreach (var dto in dtos)
@@ -152,6 +209,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         // ==================== Quality Criteria ====================
         public async Task<List<QualityAssessmentCriterionDto>> BulkUpsertCriteriaAsync(List<QualityAssessmentCriterionDto> dtos)
         {
+            if (dtos.Any())
+            {
+                await EnsureLeaderByChecklistIdAsync(dtos.First().ChecklistId);
+            }
+
             var results = new List<QualityCriterion>();
 
             foreach (var dto in dtos)
@@ -205,6 +267,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentProcessResponse> CreateProcessAsync(CreateQualityAssessmentProcessDto dto)
         {
+            await EnsureLeaderByReviewProcessIdAsync(dto.ReviewProcessId);
+
             // Check existence
             var existing = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.ReviewProcessId == dto.ReviewProcessId);
             if (existing != null)
@@ -222,6 +286,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         {
             var entity = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException($"Không tìm thấy QA Process {id}");
+
+            await EnsureLeaderByReviewProcessIdAsync(entity.ReviewProcessId);
 
             var studySelectionProcess = await _unitOfWork.StudySelectionProcesses
                 .FindSingleAsync(ssp => ssp.ReviewProcessId == entity.ReviewProcessId);
@@ -269,6 +335,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         {
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id)
                 ?? throw new KeyNotFoundException("Quality Assessment Process not found");
+
+            await EnsureLeaderByReviewProcessIdAsync(process.ReviewProcessId);
 
             process.Status = QualityAssessmentProcessStatus.Completed;
             process.CompletedAt = DateTimeOffset.UtcNow;
@@ -470,11 +538,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             };
         }
 
-        // ==================== Assignments ====================
         public async Task AssignPapersToReviewersAsync(CreateQualityAssessmentAssignmentRequest dto)
         {
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Quality Assessment Process not found");
+
+            await EnsureLeaderByReviewProcessIdAsync(process.ReviewProcessId);
 
             var processAssignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
 

@@ -116,18 +116,26 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine("### DATA INTEGRITY RULES");
             sb.AppendLine("10. RQ MATCHING RULE: The \"Match\" field for a Research Question evaluates ONLY whether the paper topic aligns with the research question text.");
             sb.AppendLine("    - Example: Paper title about \"IoT Security\", Research Question about \"Human Activity Recognition\" -> \"Match\": \"NotMatch\".");
-            sb.AppendLine("11. DATA COPYING RULE: For CriteriaMatching (Domain, Language, StudyType) and PICOC elements, the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
+            sb.AppendLine("11. DATA COPYING RULE: For PICOC elements, the \"Value\" MUST be copied EXACTLY from the protocol. NEVER modify or paraphrase.");
             sb.AppendLine("12. NO REASONING INSIDE STRUCTURED FIELDS: Question, Value, Rule, Highlight MUST contain ONLY structured values. Explanations MUST appear ONLY in the \"Reasoning\" section.");
             sb.AppendLine("13. MATCH VALUES: Must be EXACTLY one of: \"Match\", \"NotMatch\", \"Unknown\". No variations.");
             sb.AppendLine();
 
+            sb.AppendLine("14. REASONING COMPLETENESS RULE:");
+            sb.AppendLine("The Reasoning section MUST include ALL of the following sections in EXACT order:");
+            sb.AppendLine("## PICOC Matching Score");
+            sb.AppendLine("## Criteria Groups Score");
+            sb.AppendLine("## Final Score Calculation");
+            sb.AppendLine("## Final Recommendation");
+            sb.AppendLine("If ANY section is missing, the output is INVALID.");
+            sb.AppendLine("The model MUST NOT stop early after the first section.");
+            sb.AppendLine();
+
+            sb.AppendLine("15. REASONING IS MANDATORY: Reasoning quality is as important as JSON correctness. Incomplete reasoning is INVALID.");
+            sb.AppendLine();
+
             sb.AppendLine("### REQUIRED JSON FORMAT");
             sb.AppendLine("{");
-            sb.AppendLine("  \"CriteriaMatching\": {");
-            sb.AppendLine("    \"Language\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"Domain\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("    \"StudyType\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
-            sb.AppendLine("  },");
             sb.AppendLine("  \"ResearchQuestionResults\": [");
             sb.AppendLine("    {");
             sb.AppendLine("      \"Question\": \"...\",");
@@ -167,10 +175,6 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("### REVIEW PROTOCOL");
-            sb.AppendLine($"#### Domain: {input.Criteria?.Domain ?? "Not provided"}");
-            sb.AppendLine($"#### Language: {input.Criteria?.Language ?? "Not provided"}");
-            sb.AppendLine($"#### Study Type: {input.Criteria?.StudyType ?? "Not provided"}");
-            sb.AppendLine();
 
             if (input.ResearchQuestions != null && input.ResearchQuestions.Any())
             {
@@ -218,27 +222,53 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             sb.AppendLine();
 
             sb.AppendLine("### SCORING MODEL (Deterministic & Hierarchical)");
-            sb.AppendLine("Composite Score = (0.20 × CriteriaMatchingScore) + (0.40 × PICOCMatchingScore) + (0.40 × CriteriaGroupsScore)");
+            sb.AppendLine("Composite Score = (0.50 × PICOCMatchingScore) + (0.50 × CriteriaGroupsScore)");
             sb.AppendLine();
-            sb.AppendLine("1. Criteria Matching Score (0.20): Average of general rules (Domain, Language, StudyType) (Match=1, else=0). If a field is \"Not provided\" in protocol, skip it from the average.");
-            sb.AppendLine("2. PICOC Matching Score (0.40): Average of per-RQ scores. RQScore = Average of PICOC Match (Match=1, else=0).");
+            sb.AppendLine("1. PICOC Matching Score (0.50): Average of per-RQ scores. RQScore = Average of PICOC Match (Match=1, else=0).");
             sb.AppendLine("   - If a Research Question has NO PICOC elements defined, RQScore MUST equal the Match result of the Research Question itself.");
-            sb.AppendLine("3. Criteria Groups Score (0.40): Average of per-Group scores. GroupScore = 0 if any Exclusion violated; else % of Inclusion rules matched.");
+            sb.AppendLine();
+            sb.AppendLine("2. Criteria Groups Score (0.50): Average of per-Group scores using deterministic semantic deduplication within each group.");
+            sb.AppendLine("   - Step 1: Evaluate EVERY inclusion rule and EVERY exclusion rule individually and return them all in InclusionResults and ExclusionResults. Do NOT remove, merge, skip, or rewrite any rule in the JSON output.");
+            sb.AppendLine("   - Step 2: For scoring ONLY, detect rules within the SAME group that are semantically equivalent, near-duplicate, or express the same logical condition using different wording.");
+            sb.AppendLine("   - Step 3: Build semantic clusters separately for Inclusion rules and Exclusion rules inside each group.");
+            sb.AppendLine("   - Step 4: Deterministic clustering rule: Two rules belong to the same cluster ONLY if a careful reviewer would judge that satisfying one rule would normally satisfy the other, or violating one rule would normally violate the other, without requiring an additional independent condition.");
+            sb.AppendLine("   - Step 5: Do NOT cluster rules that are merely related, broader/narrower, partially overlapping, or sequentially dependent. Only clearly equivalent or near-duplicate rules may share one cluster.");
+            sb.AppendLine("   - Step 6: Exclusion cluster scoring: if ANY rule in an exclusion cluster is Match, the whole exclusion cluster is treated as violated.");
+            sb.AppendLine("   - Step 7: Inclusion cluster scoring: an inclusion cluster is counted as matched if ANY rule in that inclusion cluster is Match.");
+            sb.AppendLine("   - Step 8: Unknown does NOT count as Match. Unknown only means insufficient evidence.");
+            sb.AppendLine("   - Step 9: GroupScore = 0 if any unique exclusion cluster is violated; otherwise GroupScore = matched inclusion clusters / total inclusion clusters.");
+            sb.AppendLine("   - Step 10: If a group has inclusion rules but no exclusion violation, use only the number of UNIQUE inclusion clusters as the denominator, never the raw number of inclusion rules.");
+            sb.AppendLine("   - Step 11: If a group has no inclusion rules and no exclusion violation, GroupScore = 1.");
+            sb.AppendLine("   - Step 12: If a group has only exclusion rules and none is violated, GroupScore = 1.");
+            sb.AppendLine("   - Step 13: If a group has both duplicate and non-duplicate rules, count each unique logical condition exactly once.");
+            sb.AppendLine("   - Step 14: InclusionMatches and ExclusionMatches in the top-level JSON MUST remain raw counts of rule-level Match results as returned in the structured output, not deduplicated cluster counts.");
+            sb.AppendLine("   - Step 15: In the Reasoning section under '## Criteria Groups Score', you MUST explicitly explain any semantic deduplication used for scoring, including which rules were treated as one logical condition and why.");
+            sb.AppendLine("   - Step 16: For EVERY cluster that merges multiple rules, you MUST explicitly justify the merge using logical implication, i.e. explain why satisfying one rule would normally satisfy the other, or why violating one rule would normally violate the other.");
+            sb.AppendLine("   - Step 17: For rules that are similar but kept in separate clusters, you MUST explicitly justify non-merging by stating why they are independent, narrower/broader, partially overlapping, or require additional evidence beyond one another.");
+            sb.AppendLine("   - Step 18: You MUST explicitly state that scoring uses UNIQUE semantic clusters rather than the raw number of rules.");
+            sb.AppendLine("   - Step 19: You MUST NOT state only that rules are 'similar' or 'semantically equivalent' without giving the deterministic justification required in Steps 16 and 17.");
+            sb.AppendLine("   - Step 20: For final decision logic, raw ExclusionMatches MUST NOT be used as a substitute for unique exclusion cluster violations.");
             sb.AppendLine();
 
             sb.AppendLine("### FINAL RECOMMENDATION");
-            sb.AppendLine("- Include: RelevanceScore ≥ 0.7 AND ExclusionMatches = 0.");
-            sb.AppendLine("- Exclude: RelevanceScore < 0.4 OR ExclusionMatches > 0.");
+            sb.AppendLine("- Include: RelevanceScore ≥ 0.7 AND there is NO unique exclusion cluster violated.");
+            sb.AppendLine("- Exclude: RelevanceScore < 0.4 OR there exists AT LEAST ONE unique exclusion cluster violated.");
             sb.AppendLine("- Uncertain: otherwise.");
+            sb.AppendLine("- IMPORTANT: Do NOT use raw ExclusionMatches alone for the final recommendation, because duplicate exclusion rules may refer to the same logical violation.");
             sb.AppendLine();
 
             sb.AppendLine("### REASONING FORMAT (Markdown)");
             sb.AppendLine("- Use headings (##, ###), bullets (-), and indentation.");
             sb.AppendLine("- Use blank lines between sections.");
             sb.AppendLine("- Explain each scoring component and final recommendation.");
+            sb.AppendLine("- In '## Criteria Groups Score', for each group, include: rule-level evaluation, semantic clusters, merge justification, non-merge justification for similar rules, unique cluster counts, and final GroupScore.");
+            sb.AppendLine("- In '## Final Recommendation', explicitly state whether any unique exclusion cluster was violated.");
             sb.AppendLine();
 
             sb.AppendLine("IMPORTANT: RETURN ONLY VALID JSON. NO MARKDOWN WRAPPER. NO TEXT BEFORE/AFTER.");
+            sb.AppendLine();
+            sb.AppendLine("CRITICAL REMINDER:");
+            sb.AppendLine("You MUST complete ALL 4 reasoning sections.");
 
             return sb.ToString();
         }

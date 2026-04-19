@@ -1,6 +1,7 @@
 using System;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.PaperPdfRepo
 {
@@ -21,7 +22,7 @@ namespace SRSS.IAM.Repositories.PaperPdfRepo
         public async Task<bool> AnyFullTextProcessedByHashAsync(string fileHash, CancellationToken cancellationToken = default)
         {
             return await _context.PaperPdfs
-                .AnyAsync(p => p.FileHash == fileHash && p.FullTextProcessed, cancellationToken);
+                .AnyAsync(p => p.FileHash == fileHash && (p.FullTextProcessed || p.ProcessingStatus == PdfProcessingStatus.Completed), cancellationToken);
         }
     }
 }

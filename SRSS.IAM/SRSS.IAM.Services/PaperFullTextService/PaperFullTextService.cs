@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.SupabaseService;
@@ -38,33 +39,72 @@ namespace SRSS.IAM.Services.PaperFullTextService
 
         public async Task ExtractAndStoreFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Starting full-text extraction for PaperPdf {PaperPdfId}", paperPdfId);
+            await ExtractAndStoreFullTextAsync(new PaperFullTextWorkItem { PaperPdfId = paperPdfId }, cancellationToken);
+        }
+
+        public async Task ExtractAndStoreFullTextAsync(PaperFullTextWorkItem workItem, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting full-text extraction for PaperPdf {PaperPdfId}", workItem.PaperPdfId);
 
             var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(
-                p => p.Id == paperPdfId,
+                p => p.Id == workItem.PaperPdfId,
                 isTracking: true,
                 cancellationToken: cancellationToken);
 
             if (paperPdf == null)
             {
-                _logger.LogWarning("PaperPdf {PaperPdfId} not found. Skipping extraction.", paperPdfId);
+                _logger.LogWarning("PaperPdf {PaperPdfId} not found. Skipping extraction.", workItem.PaperPdfId);
                 return;
             }
 
-            if (paperPdf.FullTextProcessed)
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperPdf.PaperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
             {
-                _logger.LogInformation("Full-text already processed for PaperPdf {PaperPdfId}. Skipping.", paperPdfId);
+                _logger.LogWarning("Paper {PaperId} not found for PaperPdf {PaperPdfId}. Skipping extraction.", paperPdf.PaperId, workItem.PaperPdfId);
+                return;
+            }
+
+            // Reject stale jobs early so an older upload cannot write against a newer PDF version.
+            if (!string.Equals(paperPdf.FileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(paper.CurrentFileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Skipping full-text extraction for PaperPdf {PaperPdfId} because the queued hash is stale.",
+                    workItem.PaperPdfId);
+                return;
+            }
+
+            if (paperPdf.ValidationStatus != PdfValidationStatus.Valid || paperPdf.ProcessingStatus != PdfProcessingStatus.MetadataValidated)
+            {
+                _logger.LogInformation(
+                    "Skipping full-text extraction for PaperPdf {PaperPdfId} because metadata validation is not complete.",
+                    workItem.PaperPdfId);
+                return;
+            }
+
+            if (paperPdf.FullTextProcessed || paperPdf.ProcessingStatus == PdfProcessingStatus.Completed)
+            {
+                _logger.LogInformation("Full-text already processed for PaperPdf {PaperPdfId}. Skipping.", workItem.PaperPdfId);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(paperPdf.FilePath))
             {
-                _logger.LogWarning("PaperPdf {PaperPdfId} has no file path. Skipping extraction.", paperPdfId);
+                _logger.LogWarning("PaperPdf {PaperPdfId} has no file path. Skipping extraction.", workItem.PaperPdfId);
                 return;
             }
 
             try
             {
+                // Mark the job as actively processing before the long-running download/extraction step.
+                paperPdf.ProcessingStatus = PdfProcessingStatus.FullTextProcessing;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
                 // 1. Download PDF from Supabase
                 byte[] pdfBytes = await _storageService.DownloadFileAsync(paperPdf.FilePath);
                 using var pdfStream = new MemoryStream(pdfBytes);
@@ -74,7 +114,29 @@ namespace SRSS.IAM.Services.PaperFullTextService
 
                 if (string.IsNullOrWhiteSpace(teiXml))
                 {
-                    _logger.LogWarning("GROBID returned empty full-text for PaperPdf {PaperPdfId}.", paperPdfId);
+                    _logger.LogWarning("GROBID returned empty full-text for PaperPdf {PaperPdfId}.", workItem.PaperPdfId);
+                    return;
+                }
+
+                // Re-check the latest state before persisting so a newer upload cannot be overwritten by this late job.
+                var latestPaperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(
+                    p => p.Id == workItem.PaperPdfId,
+                    isTracking: false,
+                    cancellationToken: cancellationToken);
+
+                var latestPaper = await _unitOfWork.Papers.FindSingleAsync(
+                    p => p.Id == paperPdf.PaperId,
+                    isTracking: false,
+                    cancellationToken: cancellationToken);
+
+                if (latestPaperPdf == null || latestPaper == null ||
+                    !string.Equals(latestPaperPdf.FileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(latestPaper.CurrentFileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase) ||
+                    latestPaperPdf.ValidationStatus != PdfValidationStatus.Valid)
+                {
+                    _logger.LogInformation(
+                        "Skipping full-text persistence for PaperPdf {PaperPdfId} because the file version changed during processing.",
+                        workItem.PaperPdfId);
                     return;
                 }
 
@@ -82,7 +144,7 @@ namespace SRSS.IAM.Services.PaperFullTextService
                 var paperFullText = new PaperFullText
                 {
                     Id = Guid.NewGuid(),
-                    PaperPdfId = paperPdfId,
+                    PaperPdfId = workItem.PaperPdfId,
                     RawXml = teiXml,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
@@ -92,16 +154,21 @@ namespace SRSS.IAM.Services.PaperFullTextService
 
                 // 4. Update status
                 paperPdf.FullTextProcessed = true;
+                paperPdf.ProcessingStatus = PdfProcessingStatus.Completed;
+                paperPdf.FullTextProcessedAt = DateTimeOffset.UtcNow;
                 paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                _logger.LogInformation("Successfully extracted and stored full-text for PaperPdf {PaperPdfId}. Proceeding to parsing and preparation.", paperPdfId);
+                _logger.LogInformation("Successfully extracted and stored full-text for PaperPdf {PaperPdfId}. Proceeding to parsing and preparation.", workItem.PaperPdfId);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogError(ex, "Error extracting full-text for PaperPdf {PaperPdfId}.", paperPdfId);
-                // We don't mark as failed here to allow retry later if needed
+                paperPdf.ProcessingStatus = PdfProcessingStatus.Failed;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                _logger.LogError(ex, "Error extracting full-text for PaperPdf {PaperPdfId}.", workItem.PaperPdfId);
                 throw;
             }
         }

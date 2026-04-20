@@ -22,9 +22,9 @@ namespace SRSS.IAM.Services.AuditLogService
 
         private static readonly string[] AdminLogEntities = new[] 
         { 
-            "SystematicReviewProject", 
-            "User", 
-            "ProjectMember" 
+            "systematic_review_projects", 
+            "users", 
+            "project_members" 
         };
 
         public AuditLogService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)

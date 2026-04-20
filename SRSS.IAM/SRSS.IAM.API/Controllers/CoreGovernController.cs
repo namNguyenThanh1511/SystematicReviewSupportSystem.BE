@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.CoreGovernService;
@@ -7,6 +8,7 @@ using SRSS.IAM.Services.DTOs.ResearchQuestion;
 
 namespace SRSS.IAM.API.Controllers
 {
+	[Authorize]
 	[ApiController]
 	[Route("api/core-govern")]
 	public class CoreGovernController : BaseController

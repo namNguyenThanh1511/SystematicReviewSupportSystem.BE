@@ -51,54 +51,6 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _auditLogService = auditLogService;
         }
 
-        private async Task EnsureLeaderAsync(Guid protocolId)
-        {
-            var userIdString = _currentUserService.GetUserId();
-            if (string.IsNullOrEmpty(userIdString))
-            {
-                throw new UnauthorizedException("User is not authenticated.");
-            }
-
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
-            var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
-            if (!isLeader)
-            {
-                throw new ForbiddenException("Only project leader can perform this action.");
-            }
-        }
-
-        private async Task EnsureLeaderByStrategyIdAsync(Guid strategyId)
-        {
-            var strategy = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId)
-                ?? throw new KeyNotFoundException($"Strategy {strategyId} không tồn tại");
-
-            await EnsureLeaderAsync(strategy.ProtocolId);
-        }
-
-        private async Task EnsureLeaderByChecklistIdAsync(Guid checklistId)
-        {
-            var checklist = await _unitOfWork.QualityChecklists.FindSingleAsync(c => c.Id == checklistId)
-                ?? throw new KeyNotFoundException($"Checklist {checklistId} không tồn tại");
-
-            await EnsureLeaderByStrategyIdAsync(checklist.QaStrategyId);
-        }
-
-        private async Task EnsureLeaderByReviewProcessIdAsync(Guid reviewProcessId)
-        {
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == reviewProcessId)
-                ?? throw new KeyNotFoundException($"Review Process {reviewProcessId} không tồn tại");
-
-            if (reviewProcess.ProtocolId == null)
-            {
-                throw new InvalidOperationException("Review Process không có Protocol đi kèm.");
-            }
-
-            await EnsureLeaderAsync(reviewProcess.ProtocolId.Value);
-        }
-
         // ==================== Quality Assessment Strategies ====================
         public async Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto)
         {
@@ -126,7 +78,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
         {
-            var entities = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId);
+            var entities = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId);
             return entities.ToDtoList();
         }
 
@@ -747,6 +699,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task UpdateDecisionAsync(Guid decisionId, UpdateQualityAssessmentDecisionRequest dto)
         {
+            dto.Id = decisionId;
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
@@ -850,6 +803,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentResolutionResponse> UpdateResolutionAsync(Guid id, UpdateQualityAssessmentResolutionRequest dto)
         {
+            dto.Id = id;
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
@@ -1176,6 +1130,54 @@ Here are the paper details:
             using var ms = new MemoryStream();
             wb.SaveAs(ms);
             return ms.ToArray();
+        }
+
+        private async Task EnsureLeaderAsync(Guid protocolId)
+        {
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+
+            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
+                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
+
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            if (!isLeader)
+            {
+                throw new ForbiddenException("Only project leader can perform this action.");
+            }
+        }
+
+        private async Task EnsureLeaderByStrategyIdAsync(Guid strategyId)
+        {
+            var strategy = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId)
+                ?? throw new KeyNotFoundException($"Strategy {strategyId} không tồn tại");
+
+            await EnsureLeaderAsync(strategy.ProtocolId);
+        }
+
+        private async Task EnsureLeaderByChecklistIdAsync(Guid checklistId)
+        {
+            var checklist = await _unitOfWork.QualityChecklists.FindSingleAsync(c => c.Id == checklistId)
+                ?? throw new KeyNotFoundException($"Checklist {checklistId} không tồn tại");
+
+            await EnsureLeaderByStrategyIdAsync(checklist.QaStrategyId);
+        }
+
+        private async Task EnsureLeaderByReviewProcessIdAsync(Guid reviewProcessId)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == reviewProcessId)
+                ?? throw new KeyNotFoundException($"Review Process {reviewProcessId} không tồn tại");
+
+            if (reviewProcess.ProtocolId == null)
+            {
+                throw new InvalidOperationException("Review Process không có Protocol đi kèm.");
+            }
+
+            await EnsureLeaderAsync(reviewProcess.ProtocolId.Value);
         }
     }
 }

@@ -4,21 +4,21 @@ using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories.QualityRepo
 {
-	public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
-	{
-		Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+    public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
+    {
+        Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
-	}
+    }
 
-	public interface IQualityChecklistRepository : IGenericRepository<QualityChecklist, Guid, AppDbContext>
-	{
-		Task<IEnumerable<QualityChecklist>> GetByStrategyIdAsync(Guid strategyId, CancellationToken cancellationToken = default);
-	}
+    public interface IQualityChecklistRepository : IGenericRepository<QualityChecklist, Guid, AppDbContext>
+    {
+        Task<IEnumerable<QualityChecklist>> GetByStrategyIdAsync(Guid strategyId, CancellationToken cancellationToken = default);
+    }
 
-	public interface IQualityCriterionRepository : IGenericRepository<QualityCriterion, Guid, AppDbContext>
-	{
-		Task<IEnumerable<QualityCriterion>> GetByChecklistIdAsync(Guid checklistId, CancellationToken cancellationToken = default);
-	}
+    public interface IQualityCriterionRepository : IGenericRepository<QualityCriterion, Guid, AppDbContext>
+    {
+        Task<IEnumerable<QualityCriterion>> GetByChecklistIdAsync(Guid checklistId, CancellationToken cancellationToken = default);
+    }
 
     public interface IQualityAssessmentProcessRepository : IGenericRepository<QualityAssessmentProcess, Guid, AppDbContext>
     {
@@ -49,14 +49,14 @@ namespace SRSS.IAM.Repositories.QualityRepo
     {
     }
 
-	public class QualityAssessmentStrategyRepository : GenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>, IQualityAssessmentStrategyRepository
-	{
-		public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
+    public class QualityAssessmentStrategyRepository : GenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>, IQualityAssessmentStrategyRepository
+    {
+        public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
-		{
-			return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
-		}
+        public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
+        }
 
         public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
@@ -67,27 +67,27 @@ namespace SRSS.IAM.Repositories.QualityRepo
                 .Where(s => s.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }
-	}
+    }
 
-	public class QualityChecklistRepository : GenericRepository<QualityChecklist, Guid, AppDbContext>, IQualityChecklistRepository
-	{
-		public QualityChecklistRepository(AppDbContext context) : base(context) { }
+    public class QualityChecklistRepository : GenericRepository<QualityChecklist, Guid, AppDbContext>, IQualityChecklistRepository
+    {
+        public QualityChecklistRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<QualityChecklist>> GetByStrategyIdAsync(Guid strategyId, CancellationToken cancellationToken = default)
-		{
-			return await FindAllAsync(c => c.QaStrategyId == strategyId, isTracking: false, cancellationToken);
-		}
-	}
+        public async Task<IEnumerable<QualityChecklist>> GetByStrategyIdAsync(Guid strategyId, CancellationToken cancellationToken = default)
+        {
+            return await FindAllAsync(c => c.QaStrategyId == strategyId, isTracking: false, cancellationToken);
+        }
+    }
 
-	public class QualityCriterionRepository : GenericRepository<QualityCriterion, Guid, AppDbContext>, IQualityCriterionRepository
-	{
-		public QualityCriterionRepository(AppDbContext context) : base(context) { }
+    public class QualityCriterionRepository : GenericRepository<QualityCriterion, Guid, AppDbContext>, IQualityCriterionRepository
+    {
+        public QualityCriterionRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<QualityCriterion>> GetByChecklistIdAsync(Guid checklistId, CancellationToken cancellationToken = default)
-		{
-			return await FindAllAsync(c => c.ChecklistId == checklistId, isTracking: false, cancellationToken);
-		}
-	}
+        public async Task<IEnumerable<QualityCriterion>> GetByChecklistIdAsync(Guid checklistId, CancellationToken cancellationToken = default)
+        {
+            return await FindAllAsync(c => c.ChecklistId == checklistId, isTracking: false, cancellationToken);
+        }
+    }
 
     public class QualityAssessmentProcessRepository : GenericRepository<QualityAssessmentProcess, Guid, AppDbContext>, IQualityAssessmentProcessRepository
     {

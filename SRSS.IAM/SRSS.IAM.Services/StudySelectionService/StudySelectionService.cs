@@ -2251,6 +2251,9 @@ namespace SRSS.IAM.Services.StudySelectionService
                 // 2. Perform Extraction
                 var extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, pdfStream, paperPdf.FileName ?? "upload.pdf", ct);
 
+                // Persist metadata-validation state before reloading latest entities for enqueue checks.
+                await _unitOfWork.SaveChangesAsync(ct);
+
                 if (paperPdf.ValidationStatus == PdfValidationStatus.DoiMismatch)
                 {
                     _logger.LogInformation("PaperPdf {PaperPdfId} failed DOI validation. Full-text will not be queued.", workItem.PaperPdfId);
@@ -2270,8 +2273,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                         workItem.PaperPdfId);
                     return;
                 }
-
-                await _unitOfWork.SaveChangesAsync(ct);
 
                 // 4. Send Notification
                 if (workItem.UserId != Guid.Empty && extractionSuggestion != null)
@@ -2297,11 +2298,34 @@ namespace SRSS.IAM.Services.StudySelectionService
                     latestPaperPdf.ValidationStatus == PdfValidationStatus.Valid &&
                     latestPaperPdf.ProcessingStatus == PdfProcessingStatus.MetadataValidated)
                 {
-                    _fullTextQueue.TryWrite(new PaperFullTextWorkItem
+                    var enqueued = _fullTextQueue.TryWrite(new PaperFullTextWorkItem
                     {
                         PaperPdfId = latestPaperPdf.Id,
                         FileHash = workItem.FileHash
                     });
+
+                    if (enqueued)
+                    {
+                        _logger.LogInformation(
+                            "Enqueued full-text extraction for PaperPdf {PaperPdfId} (Hash: {FileHash}).",
+                            latestPaperPdf.Id,
+                            workItem.FileHash);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Failed to enqueue full-text extraction for PaperPdf {PaperPdfId}. Queue may be full.",
+                            latestPaperPdf.Id);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Skipping full-text enqueue for PaperPdf {PaperPdfId}. extractionSuggestionNull={ExtractionSuggestionNull}, validationStatus={ValidationStatus}, processingStatus={ProcessingStatus}",
+                        latestPaperPdf.Id,
+                        extractionSuggestion == null,
+                        latestPaperPdf.ValidationStatus,
+                        latestPaperPdf.ProcessingStatus);
                 }
 
                 _logger.LogInformation("Successfully completed background GROBID extraction for Paper {PaperId}", workItem.PaperId);

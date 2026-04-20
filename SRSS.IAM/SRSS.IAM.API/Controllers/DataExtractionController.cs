@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.DataExtraction;
@@ -20,13 +20,13 @@ namespace SRSS.IAM.API.Controllers
         // ==================== Extraction Templates ====================
 
         /// <summary>
-        /// Lấy tất cả Templates theo Protocol ID (với cấu trúc cây)
+        /// Lấy tất cả Templates theo Project ID (với cấu trúc cây)
         /// </summary>
-        [HttpGet("protocol/{protocolId}/templates")]
-        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProtocolId(
-            Guid protocolId)
+        [HttpGet("project/{projectId}/templates")]
+        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProjectId(
+            Guid projectId)
         {
-            var result = await _service.GetTemplatesByProtocolIdAsync(protocolId);
+            var result = await _service.GetTemplatesByProjectIdAsync(projectId);
             return Ok(result, "Lấy danh sách templates thành công");
         }
 

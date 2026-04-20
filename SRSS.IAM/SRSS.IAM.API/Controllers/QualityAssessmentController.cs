@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
@@ -31,13 +31,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Quality Strategies theo Protocol ID
+		/// Lấy tất cả Quality Strategies theo Project ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/strategies")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByProtocolId(
-			Guid protocolId)
+		[HttpGet("project/{projectId}/strategies")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByProjectId(
+			Guid projectId)
 		{
-			var result = await _service.GetStrategiesByProtocolIdAsync(protocolId);
+			var result = await _service.GetStrategiesByProjectIdAsync(projectId);
 			return Ok(result, "Lấy danh sách strategies thành công");
 		}
 

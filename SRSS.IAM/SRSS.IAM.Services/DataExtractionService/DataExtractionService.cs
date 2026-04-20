@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             _currentUserService = currentUserService;
         }
 
-        private async Task EnsureLeaderAsync(Guid protocolId)
+        private async Task EnsureLeaderAsync(Guid projectId)
         {
             var userIdString = _currentUserService.GetUserId();
             if (string.IsNullOrEmpty(userIdString))
@@ -26,11 +26,8 @@ namespace SRSS.IAM.Services.DataExtractionService
                 throw new UnauthorizedException("User is not authenticated.");
             }
 
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
             var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
             if (!isLeader)
             {
                 throw new ForbiddenException("Only project leader can perform this action.");
@@ -41,7 +38,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
         {
-            await EnsureLeaderAsync(dto.ProtocolId);
+            await EnsureLeaderAsync(dto.ProjectId);
 
             // Validate first
             var validationResult = await ValidateTemplateAsync(dto);
@@ -74,7 +71,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                 template = new ExtractionTemplate
                 {
                     Id = Guid.NewGuid(),
-                    ProtocolId = dto.ProtocolId,
+                    ProjectId = dto.ProjectId,
                     Name = dto.Name,
                     Description = dto.Description,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -121,10 +118,10 @@ namespace SRSS.IAM.Services.DataExtractionService
             return result;
         }
 
-        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId)
+        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProjectIdAsync(Guid projectId)
         {
             var templates = await _unitOfWork.ExtractionTemplates
-                .GetByProtocolIdAsync(protocolId);
+                .GetByProjectIdAsync(projectId);
 
             return templates.Select(t => t.ToDto()).ToList();
         }
@@ -140,12 +137,11 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task DeleteTemplateAsync(Guid templateId)
         {
-            // Fix #7: throw KeyNotFoundException instead of silently doing nothing
             var template = await _unitOfWork.ExtractionTemplates
                 .FindSingleAsync(t => t.Id == templateId)
                 ?? throw new KeyNotFoundException($"Template {templateId} not found.");
 
-            await EnsureLeaderAsync(template.ProtocolId);
+            await EnsureLeaderAsync(template.ProjectId);
 
             // Delete sections first (cascade will handle fields and options)
             await DeleteSectionsAsync(templateId);

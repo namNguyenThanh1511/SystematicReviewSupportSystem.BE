@@ -5,24 +5,16 @@ namespace SRSS.IAM.Repositories.SynthesisRepo
 {
 	public interface IDataSynthesisStrategyRepository : IGenericRepository<DataSynthesisStrategy, Guid, AppDbContext>
 	{
-		Task<IEnumerable<DataSynthesisStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
+		Task<IEnumerable<DataSynthesisStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
 	}
-
-
-
-
 
 	public class DataSynthesisStrategyRepository : GenericRepository<DataSynthesisStrategy, Guid, AppDbContext>, IDataSynthesisStrategyRepository
 	{
 		public DataSynthesisStrategyRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<DataSynthesisStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<DataSynthesisStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(s => s.ProtocolId == protocolId, isTracking: false, cancellationToken);
+			return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
 		}
 	}
-
-
-
-
 }

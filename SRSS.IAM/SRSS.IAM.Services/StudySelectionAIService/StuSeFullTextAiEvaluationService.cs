@@ -80,14 +80,8 @@ namespace SRSS.IAM.Services.StudySelectionAIService
                 throw new InvalidOperationException("Paper is not assigned to the current reviewer for Full-Text screening.");
             }
 
-            var protocol = studySelectionProcess.ReviewProcess.Protocol;
-            if (protocol == null)
-            {
-                throw new InvalidOperationException("Approved review protocol not found for this process.");
-            }
-
             // 3. Build AI Input
-            var aiInput = protocol.BuildStuSeAIInput(paper);
+            var aiInput = studySelectionProcess.ReviewProcess.Project.BuildStuSeAIInput(paper);
 
             // 4. Retrieve Relevant Chunks
             var pdf = paper.PaperPdfs.FirstOrDefault(p => p.FullTextProcessed);

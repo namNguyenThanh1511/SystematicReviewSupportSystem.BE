@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			_currentUserService = currentUserService;
 		}
 
-		private async Task EnsureLeaderAsync(Guid protocolId)
+		private async Task EnsureLeaderAsync(Guid projectId)
 		{
 			var userIdString = _currentUserService.GetUserId();
 			if (string.IsNullOrEmpty(userIdString))
@@ -26,11 +26,8 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 				throw new UnauthorizedException("User is not authenticated.");
 			}
 
-			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
 			var userId = Guid.Parse(userIdString);
-			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
 			if (!isLeader)
 			{
 				throw new ForbiddenException("Only project leader can perform this action.");
@@ -42,13 +39,13 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			var criteria = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId)
 				?? throw new KeyNotFoundException($"Criteria {criteriaId} không tồn tại");
 
-			await EnsureLeaderAsync(criteria.ProtocolId);
+			await EnsureLeaderAsync(criteria.ProjectId);
 		}
 
 		// ==================== Study Selection Criteria ====================
 		public async Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto)
 		{
-			await EnsureLeaderAsync(dto.ProtocolId);
+			await EnsureLeaderAsync(dto.ProjectId);
 
 			StudySelectionCriteria entity;
 
@@ -70,9 +67,9 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			return entity.ToDto();  
 		}
 
-		public async Task<List<StudySelectionCriteriaDto>> GetAllByProtocolIdAsync(Guid protocolId)
+		public async Task<List<StudySelectionCriteriaDto>> GetAllByProjectIdAsync(Guid projectId)
 		{
-			var entities = await _unitOfWork.SelectionCriterias.GetByProtocolIdAsync(protocolId);
+			var entities = await _unitOfWork.SelectionCriterias.GetByProjectIdAsync(projectId);
 			return entities.ToDtoList();  
 		}
 
@@ -81,7 +78,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			var entity = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId);
 			if (entity != null)
 			{
-				await EnsureLeaderAsync(entity.ProtocolId);
+				await EnsureLeaderAsync(entity.ProjectId);
 				await _unitOfWork.SelectionCriterias.RemoveAsync(entity);
 				await _unitOfWork.SaveChangesAsync();
 			}
@@ -183,46 +180,5 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			return entities.ToDtoList();  
 		}
 
-		// ==================== Selection Procedures ====================
-		public async Task<StudySelectionProcedureDto> UpsertProcedureAsync(StudySelectionProcedureDto dto)
-		{
-			await EnsureLeaderAsync(dto.ProtocolId);
-
-			StudySelectionProcedure entity;
-
-			if (dto.ProcedureId.HasValue && dto.ProcedureId.Value != Guid.Empty)
-			{
-				entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == dto.ProcedureId.Value)
-					?? throw new KeyNotFoundException($"Procedure {dto.ProcedureId.Value} không tồn tại");
-
-				dto.UpdateEntity(entity);  
-				await _unitOfWork.SelectionProcedures.UpdateAsync(entity);
-			}
-			else
-			{
-				entity = dto.ToEntity();  
-				await _unitOfWork.SelectionProcedures.AddAsync(entity);
-			}
-
-			await _unitOfWork.SaveChangesAsync();
-			return entity.ToDto();  
-		}
-
-		public async Task<List<StudySelectionProcedureDto>> GetProceduresByProtocolIdAsync(Guid protocolId)
-		{
-			var entities = await _unitOfWork.SelectionProcedures.GetByProtocolIdAsync(protocolId);
-			return entities.ToDtoList();  
-		}
-
-		public async Task DeleteProcedureAsync(Guid procedureId)
-		{
-			var entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == procedureId);
-			if (entity != null)
-			{
-				await EnsureLeaderAsync(entity.ProtocolId);
-				await _unitOfWork.SelectionProcedures.RemoveAsync(entity);
-				await _unitOfWork.SaveChangesAsync();
-			}
-		}
 	}
 }

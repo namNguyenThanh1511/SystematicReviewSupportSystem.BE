@@ -6,7 +6,7 @@ namespace SRSS.IAM.Services.SynthesisService
 	{
 		// Data Synthesis Strategies
 		Task<DataSynthesisStrategyDto> UpsertSynthesisStrategyAsync(DataSynthesisStrategyDto dto);
-		Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProtocolIdAsync(Guid protocolId);
+		Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProjectIdAsync(Guid projectId);
 		Task DeleteSynthesisStrategyAsync(Guid strategyId);
 
 

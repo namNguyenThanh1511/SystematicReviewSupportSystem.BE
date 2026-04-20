@@ -11,7 +11,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new DataSynthesisStrategyDto
 			{
 				SynthesisStrategyId = entity.Id,
-				ProtocolId = entity.ProtocolId,
+				ProjectId = entity.ProjectId,
 				SynthesisType = entity.SynthesisType,
 				Description = entity.Description,
 				TargetResearchQuestionIds = entity.TargetResearchQuestionIds ?? new List<Guid>(),
@@ -25,7 +25,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new DataSynthesisStrategy
 			{
 				Id = dto.SynthesisStrategyId ?? Guid.Empty,
-				ProtocolId = dto.ProtocolId,
+				ProjectId = dto.ProjectId,
 				SynthesisType = dto.SynthesisType,
 				Description = dto.Description,
 				TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>(),
@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static void UpdateEntity(this DataSynthesisStrategyDto dto, DataSynthesisStrategy entity)
 		{
-			entity.ProtocolId = dto.ProtocolId;
+			entity.ProjectId = dto.ProjectId;
 			entity.SynthesisType = dto.SynthesisType;
 			entity.Description = dto.Description;
 			entity.TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>();
@@ -44,20 +44,10 @@ namespace SRSS.IAM.Services.Mappers
 			entity.SensitivityAnalysisPlan = dto.SensitivityAnalysisPlan;
 		}
 
-
-
-
-
 		// ==================== LIST MAPPING METHODS ====================
-
-		
 		public static List<DataSynthesisStrategyDto> ToDtoList(this IEnumerable<DataSynthesisStrategy> entities)
 		{
 			return entities.Select(e => e.ToDto()).ToList();
 		}
-
-
-
-
 	}
 }

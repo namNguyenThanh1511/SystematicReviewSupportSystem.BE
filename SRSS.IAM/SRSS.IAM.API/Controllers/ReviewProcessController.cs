@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
-using SRSS.IAM.Services.DTOs.Protocol;
+
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Repositories.Entities;
@@ -154,43 +154,9 @@ namespace SRSS.IAM.API.Controllers
             return Ok("Review process deleted successfully.");
         }
 
-        /// <summary>
-        /// Assign a protocol to a review process
-        /// </summary>
-        /// <param name="id">Process ID</param>
-        /// <param name="protocolId">Protocol ID</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Updated process details</returns>
-        [HttpPost("review-processes/{id}/protocol/{protocolId}")]
-        public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> AssignProtocol(
-            [FromRoute] Guid id,
-            [FromRoute] Guid protocolId,
-            CancellationToken cancellationToken)
-        {
-            var result = await _reviewProcessService.AssignProtocolAsync(id, protocolId, cancellationToken);
-            return Ok(result, "Protocol assigned to review process successfully.");
-        }
 
-        /// <summary>
-        /// Get the protocol assigned to a review process
-        /// </summary>
-        /// <param name="id">Process ID</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Protocol details or 204 No Content if none assigned</returns>
-        [HttpGet("review-processes/{id}/protocol")]
-        public async Task<ActionResult<ApiResponse<ProtocolDetailResponse?>>> GetProtocolForProcess(
-            [FromRoute] Guid id,
-            CancellationToken cancellationToken)
-        {
-            var result = await _reviewProcessService.GetProtocolByProcessIdAsync(id, cancellationToken);
 
-            if (result == null)
-            {
-                return Ok<ProtocolDetailResponse?>(null, "No protocol assigned to this review process.");
-            }
 
-            return Ok<ProtocolDetailResponse?>(result, "Protocol retrieved successfully.");
-        }
 
         /// <summary>
         /// Reopen a specific review phase for a given review process

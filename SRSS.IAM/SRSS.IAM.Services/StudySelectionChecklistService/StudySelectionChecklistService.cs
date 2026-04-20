@@ -171,11 +171,11 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                         .ThenInclude(p => p.ResearchQuestions)
                             .ThenInclude(rq => rq.PicocElements)
                 .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Protocol)
+                    .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.SelectionCriterias)
                             .ThenInclude(sc => sc.InclusionCriteria)
                 .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Protocol)
+                    .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.SelectionCriterias)
                             .ThenInclude(sc => sc.ExclusionCriteria)
                 .FirstOrDefaultAsync(ssp => ssp.Id == studySelectionProcessId, cancellationToken);
@@ -186,17 +186,11 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
             }
 
             var project = process.ReviewProcess.Project;
-            var protocol = process.ReviewProcess.Protocol;
 
-            if (protocol == null)
-            {
-                throw new NotFoundException($"Study Selection Protocol not found for process {studySelectionProcessId}.");
-            }
-
-            return MapToLiveReviewChecklist(project, protocol);
+            return MapToLiveReviewChecklist(project);
         }
 
-        private LiveReviewChecklistDto MapToLiveReviewChecklist(SystematicReviewProject project, ReviewProtocol protocol)
+        private LiveReviewChecklistDto MapToLiveReviewChecklist(SystematicReviewProject project)
         {
             // 2. Map to LiveReviewChecklistDto
             var result = new LiveReviewChecklistDto
@@ -229,9 +223,9 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
             }
 
             // 4. Map Criteria Groups
-            if (protocol.SelectionCriterias != null)
+            if (project.SelectionCriterias != null)
             {
-                foreach (var cg in protocol.SelectionCriterias)
+                foreach (var cg in project.SelectionCriterias)
                 {
                     var section = new LiveReviewSectionDto
                     {

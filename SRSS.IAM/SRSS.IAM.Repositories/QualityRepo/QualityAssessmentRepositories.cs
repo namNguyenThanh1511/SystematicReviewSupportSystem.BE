@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
@@ -6,8 +6,8 @@ namespace SRSS.IAM.Repositories.QualityRepo
 {
 	public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
 	{
-		Task<IEnumerable<QualityAssessmentStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
-        Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
+		Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
 	}
 
 	public interface IQualityChecklistRepository : IGenericRepository<QualityChecklist, Guid, AppDbContext>
@@ -53,18 +53,18 @@ namespace SRSS.IAM.Repositories.QualityRepo
 	{
 		public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(s => s.ProtocolId == protocolId, isTracking: false, cancellationToken);
+			return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
 		}
 
-        public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentStrategy>()
                 .Include(s => s.Checklists)
                 .ThenInclude(c => c.Criteria)
                 .AsNoTracking()
-                .Where(s => s.ProtocolId == protocolId)
+                .Where(s => s.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }
 	}
@@ -102,12 +102,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
         {
             return await _context.Set<QualityAssessmentPaper>()
                 .Include(p => p.Paper)
-                // .Include(p => p.QualityAssessmentProcess)
-                // .Include(p => p.QualityAssessmentDecisions)
-                //     .ThenInclude(d => d.Reviewer)
-                // .Include(p => p.QualityAssessmentDecisions)
-                //     .ThenInclude(d => d.DecisionItems)
-                // .Include(p => p.QualityAssessmentResolution)
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         }
 
@@ -115,12 +109,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
         {
             return await _context.Set<QualityAssessmentPaper>()
                 .Include(p => p.Paper)
-                // .Include(p => p.QualityAssessmentProcess)
-                // .Include(p => p.QualityAssessmentDecisions)
-                //     .ThenInclude(d => d.Reviewer)
-                // .Include(p => p.QualityAssessmentDecisions)
-                //     .ThenInclude(d => d.DecisionItems)
-                // .Include(p => p.QualityAssessmentResolution)
                 .Where(p => p.QualityAssessmentProcessId == id)
                 .ToListAsync(cancellationToken);
         }

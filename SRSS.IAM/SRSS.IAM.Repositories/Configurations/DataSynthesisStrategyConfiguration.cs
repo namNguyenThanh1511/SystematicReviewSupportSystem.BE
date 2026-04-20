@@ -15,8 +15,8 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("synthesis_strategy_id")
 				.IsRequired();
 
-			builder.Property(x => x.ProtocolId)
-				.HasColumnName("protocol_id")
+			builder.Property(x => x.ProjectId)
+				.HasColumnName("project_id")
 				.IsRequired();
 
 			builder.Property(x => x.SynthesisType)
@@ -36,9 +36,9 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.Property(x => x.SensitivityAnalysisPlan)
 				.HasColumnName("sensitivity_analysis_plan");
 
-			builder.HasOne(x => x.Protocol)
+			builder.HasOne(x => x.Project)
 				.WithMany(x => x.SynthesisStrategies)
-				.HasForeignKey(x => x.ProtocolId)
+				.HasForeignKey(x => x.ProjectId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

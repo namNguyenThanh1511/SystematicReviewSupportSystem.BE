@@ -11,7 +11,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new StudySelectionCriteriaDto
 			{
 				CriteriaId = entity.Id,
-				ProtocolId = entity.ProtocolId,
+				ProjectId = entity.ProjectId,
 				Description = entity.Description
 			};
 		}
@@ -21,15 +21,20 @@ namespace SRSS.IAM.Services.Mappers
 			return new StudySelectionCriteria
 			{
 				Id = dto.CriteriaId ?? Guid.Empty,
-				ProtocolId = dto.ProtocolId,
-				Description = dto.Description
+				ProjectId = dto.ProjectId,
+				Description = dto.Description ?? string.Empty
 			};
 		}
 
 		public static void UpdateEntity(this StudySelectionCriteriaDto dto, StudySelectionCriteria entity)
 		{
-			entity.ProtocolId = dto.ProtocolId;
-			entity.Description = dto.Description;
+			entity.ProjectId = dto.ProjectId;
+			entity.Description = dto.Description ?? string.Empty;
+		}
+
+		public static List<StudySelectionCriteriaDto> ToDtoList(this IEnumerable<StudySelectionCriteria> entities)
+		{
+			return entities.Select(e => e.ToDto()).ToList();
 		}
 
 		// ==================== InclusionCriterion ====================
@@ -59,6 +64,11 @@ namespace SRSS.IAM.Services.Mappers
 			entity.Rule = dto.Rule;
 		}
 
+		public static List<InclusionCriterionDto> ToDtoList(this IEnumerable<InclusionCriterion> entities)
+		{
+			return entities.Select(e => e.ToDto()).ToList();
+		}
+
 		// ==================== ExclusionCriterion ====================
 		public static ExclusionCriterionDto ToDto(this ExclusionCriterion entity)
 		{
@@ -86,31 +96,9 @@ namespace SRSS.IAM.Services.Mappers
 			entity.Rule = dto.Rule;
 		}
 
-		// ==================== StudySelectionProcedure ====================
-		public static StudySelectionProcedureDto ToDto(this StudySelectionProcedure entity)
+		public static List<ExclusionCriterionDto> ToDtoList(this IEnumerable<ExclusionCriterion> entities)
 		{
-			return new StudySelectionProcedureDto
-			{
-				ProcedureId = entity.Id,
-				ProtocolId = entity.ProtocolId,
-				Steps = entity.Steps
-			};
-		}
-
-		public static StudySelectionProcedure ToEntity(this StudySelectionProcedureDto dto)
-		{
-			return new StudySelectionProcedure
-			{
-				Id = dto.ProcedureId ?? Guid.Empty,
-				ProtocolId = dto.ProtocolId,
-				Steps = dto.Steps
-			};
-		}
-
-		public static void UpdateEntity(this StudySelectionProcedureDto dto, StudySelectionProcedure entity)
-		{
-			entity.ProtocolId = dto.ProtocolId;
-			entity.Steps = dto.Steps;
+			return entities.Select(e => e.ToDto()).ToList();
 		}
 
 	}

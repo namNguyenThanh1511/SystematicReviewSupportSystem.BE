@@ -31,13 +31,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Synthesis Strategies theo Protocol ID
+		/// Lấy tất cả Synthesis Strategies theo Project ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/synthesis-strategies")]
-		public async Task<ActionResult<ApiResponse<List<DataSynthesisStrategyDto>>>> GetSynthesisStrategiesByProtocolId(
-			Guid protocolId)
+		[HttpGet("project/{projectId}/synthesis-strategies")]
+		public async Task<ActionResult<ApiResponse<List<DataSynthesisStrategyDto>>>> GetSynthesisStrategiesByProjectId(
+			Guid projectId)
 		{
-			var result = await _service.GetSynthesisStrategiesByProtocolIdAsync(protocolId);
+			var result = await _service.GetSynthesisStrategiesByProjectIdAsync(projectId);
 			return Ok(result, "Lấy danh sách synthesis strategies thành công");
 		}
 

@@ -8,7 +8,6 @@ using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
-using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
@@ -97,10 +96,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperFullTextChunkRepository? _paperFullTextChunks;
         private IPaperFullTextChunkEmbeddingRepository? _paperFullTextChunkEmbeddings;
         private IMasterSearchSourceRepository? _masterSearchSources;
-        // Protocol
-        private IReviewProtocolRepository? _protocols;
-        private IProtocolVersionRepository? _protocolVersions;
-        private IProtocolEvaluationRepository? _protocolEvaluations;
+
 
         // Research Question
         private IResearchQuestionRepository? _researchQuestions;
@@ -116,7 +112,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionCriteriaRepository? _selectionCriterias;
         private IInclusionCriterionRepository? _inclusionCriteria;
         private IExclusionCriterionRepository? _exclusionCriteria;
-        private IStudySelectionProcedureRepository? _selectionProcedures;
         private IQualityAssessmentStrategyRepository? _qualityStrategies;
         private IQualityChecklistRepository? _qualityChecklists;
         private IQualityCriterionRepository? _qualityCriteria;
@@ -226,10 +221,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IReviewObjectiveRepository ReviewObjectives => _reviewObjectives ??= new ReviewObjectiveRepository(_dbContext);
         public IQuestionTypeRepository QuestionTypes => _questionTypes ??= new QuestionTypeRepository(_dbContext);
 
-        // Protocol
-        public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);
-        public IProtocolVersionRepository ProtocolVersions => _protocolVersions ??= new ProtocolVersionRepository(_dbContext);
-        public IProtocolEvaluationRepository ProtocolEvaluations => _protocolEvaluations ??= new ProtocolEvaluationRepository(_dbContext);
+
 
         // Research Question
         public IResearchQuestionRepository ResearchQuestions => _researchQuestions ??= new ResearchQuestionRepository(_dbContext);
@@ -252,8 +244,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IExclusionCriterionRepository ExclusionCriteria =>
             _exclusionCriteria ??= new ExclusionCriterionRepository(_dbContext);
 
-        public IStudySelectionProcedureRepository SelectionProcedures =>
-            _selectionProcedures ??= new StudySelectionProcedureRepository(_dbContext);
+
 
         public IQualityAssessmentStrategyRepository QualityStrategies =>
             _qualityStrategies ??= new QualityAssessmentStrategyRepository(_dbContext);

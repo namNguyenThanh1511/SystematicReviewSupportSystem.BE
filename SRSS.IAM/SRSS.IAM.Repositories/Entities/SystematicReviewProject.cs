@@ -19,7 +19,11 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid OwnerId { get; set; }
 
         // Navigation Properties
-        public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
+        public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
+        public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
+        public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
+        public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
+        public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
         public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
         public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
@@ -76,7 +80,7 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public ReviewProcess AddReviewProcess(string name, string? notes = null, ReviewProtocol? protocol = null)
+        public ReviewProcess AddReviewProcess(string name, string? notes = null)
         {
             if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
             {
@@ -94,17 +98,11 @@ namespace SRSS.IAM.Repositories.Entities
                 Id = Guid.NewGuid(),
                 Name = name,
                 ProjectId = Id,
-                ProtocolId = protocol?.Id, // Initialize directly
                 Status = ProcessStatus.NotStarted,
                 Notes = notes,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
-
-            if (protocol != null)
-            {
-                reviewProcess.SetProtocol(protocol);
-            }
 
             ReviewProcesses.Add(reviewProcess);
             ModifiedAt = DateTimeOffset.UtcNow;

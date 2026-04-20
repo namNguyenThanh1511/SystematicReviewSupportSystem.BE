@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
-using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.Mappers;
@@ -55,29 +54,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            Console.WriteLine($"Check name: {request.Name}");
-
             try
             {
-                // Validate protocol if provided
-                ReviewProtocol? protocol = null;
-                Console.WriteLine($"Protocol ID: {request.ProtocolId}");
-                if (request.ProtocolId.HasValue)
-                {
-                    protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == request.ProtocolId.Value, cancellationToken: cancellationToken);
-                    if (protocol == null)
-                    {
-                        throw new InvalidOperationException($"Protocol with ID {request.ProtocolId.Value} not found.");
-                    }
-                    if (protocol.ProjectId != projectId)
-                    {
-                        throw new InvalidOperationException("The protocol must belong to the same project as the review process.");
-                    }
-                }
-
                 // Create ReviewProcess
-                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes, protocol);
-                Console.WriteLine($"Review process created: {reviewProcess}");
+                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes);
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
 
@@ -91,7 +71,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
-                //Auto create IdentificationProcessPaper snap
+
                 //Auto-create Study Selection Process for the new ReviewProcess
                 var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
                 {
@@ -174,7 +154,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             if (reviewProcess.StudySelectionProcess != null)
             {
-                // Optionally, you could add additional statistics for the StudySelectionProcess here
                 response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id, cancellationToken);
             }
 
@@ -182,11 +161,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
             {
                 response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
             }
-
-            // if (reviewProcess.DataExtractionProcess != null)
-            // {
-            //     response.DataExtractionProcess!.DataExtractionStatistics = await _dataExtractionService.GetDataExtractionStatisticsAsync(reviewProcess.DataExtractionProcess.Id, cancellationToken);
-            // }
 
             return response;
         }
@@ -239,6 +213,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (request.Notes != null)
             {
                 reviewProcess.Notes = request.Notes;
+            }
+
+            if (request.Name != null)
+            {
+                reviewProcess.Name = request.Name;
             }
 
             reviewProcess.ModifiedAt = DateTimeOffset.UtcNow;
@@ -298,21 +277,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
-            // Load StudySelectionProcess for validation
-            var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
-                ssp => ssp.ReviewProcessId == id,
-                isTracking: false,
-                cancellationToken);
-
-            reviewProcess.StudySelectionProcess = studySelectionProcess;
-
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                //reviewProcess.Complete();
-                reviewProcess.CompletedAt = DateTimeOffset.UtcNow;
-                reviewProcess.Status = Repositories.Entities.ProcessStatus.Completed;
+                reviewProcess.Complete();
                 await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -381,64 +350,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return true;
         }
 
-        public async Task<ReviewProcessResponse> AssignProtocolAsync(
-            Guid processId,
-            Guid protocolId,
-            CancellationToken cancellationToken = default)
-        {
-            var reviewProcess = await _unitOfWork.ReviewProcesses
-                .FindSingleAsync(rp => rp.Id == processId, isTracking: true, cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
-            }
-
-            // Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can assign a protocol to a review process.");
-            }
-
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId, cancellationToken: cancellationToken);
-            if (protocol == null)
-            {
-                throw new NotFoundException($"Protocol with ID {protocolId} not found.");
-            }
-
-            reviewProcess.SetProtocol(protocol);
-
-            await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return MapToResponse(reviewProcess);
-        }
-
-        public async Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
-            Guid processId,
-            CancellationToken cancellationToken = default)
-        {
-            var reviewProcess = await _unitOfWork.ReviewProcesses
-                .FindSingleAsync(rp => rp.Id == processId, cancellationToken: cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
-            }
-
-            if (reviewProcess.ProtocolId == null)
-            {
-                return null;
-            }
-
-            var protocol = await _unitOfWork.Protocols
-                .GetByIdWithVersionsAsync(reviewProcess.ProtocolId.Value, cancellationToken);
-
-            return protocol?.ToDetailResponse();
-        }
-
         public async Task<ReviewProcessResponse> ReopenPhaseAsync(
             Guid reviewProcessId,
             ProcessPhase phase,
@@ -480,11 +391,16 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
         private async Task EnsureLeaderPermissionAsync(Guid projectId)
         {
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
             if (!isLeader)
             {
-                throw new InvalidOperationException("Only the project leader can perform this operation.");
+                throw new ForbiddenException("Only the project leader can perform this operation.");
             }
         }
 
@@ -495,7 +411,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 Id = reviewProcess.Id,
                 Name = reviewProcess.Name,
                 ProjectId = reviewProcess.ProjectId,
-                ProtocolId = reviewProcess.ProtocolId,
                 Status = reviewProcess.Status,
                 StatusText = reviewProcess.Status.ToString(),
                 CurrentPhase = reviewProcess.CurrentPhase,

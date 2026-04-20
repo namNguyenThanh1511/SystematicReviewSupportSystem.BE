@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,11 +9,11 @@ namespace SRSS.IAM.Repositories.Entities
 {
 	public class SearchSource : BaseEntity<Guid>
 	{
-		public Guid ProtocolId { get; set; }
+		public Guid ProjectId { get; set; }
 		public Guid? MasterSourceId { get; set; } // Reference to Master data
     	public string Name { get; set; } = string.Empty; // Backup name or Custom name
 		// Navigation properties
-		public ReviewProtocol Protocol { get; set; } = null!;
+		public SystematicReviewProject Project { get; set; } = null!;
 		public MasterSearchSources? MasterSource { get; set; }
 	}
 }

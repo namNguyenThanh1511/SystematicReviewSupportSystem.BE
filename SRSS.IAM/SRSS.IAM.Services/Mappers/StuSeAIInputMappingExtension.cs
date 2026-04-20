@@ -8,11 +8,8 @@ namespace SRSS.IAM.Services.Mappers
 {
     public static class StuSeAIInputMappingExtension
     {
-        public static StuSeAIInput BuildStuSeAIInput(this ReviewProtocol protocol, Paper paper)
+        public static StuSeAIInput BuildStuSeAIInput(this SystematicReviewProject project, Paper paper)
         {
-            var project = protocol.Project ?? protocol.ReviewProcess?.Project;
-            var criteriaEntity = protocol.SelectionCriterias?.FirstOrDefault();
-
             var result = new StuSeAIInput
             {
                 Paper = new StuSePaperInput
@@ -29,10 +26,8 @@ namespace SRSS.IAM.Services.Mappers
                 result.Paper.PublicationYear = paper.PublicationYearInt.Value;
 
 
-            // 3. (PICOC removed - now per RQ)
-
             // 4. RESEARCH QUESTIONS (Hierarchical)
-            result.ResearchQuestions = project?.ResearchQuestions?
+            result.ResearchQuestions = project.ResearchQuestions?
                 .Select(rq => new StuSeRQInput
                 {
                     QuestionText = rq.QuestionText?.Trim() ?? string.Empty,
@@ -41,7 +36,7 @@ namespace SRSS.IAM.Services.Mappers
                 .ToList() ?? new List<StuSeRQInput>();
 
             // 5. CRITERIA GROUPS
-            result.CriteriaGroups = protocol.SelectionCriterias?
+            result.CriteriaGroups = project.SelectionCriterias?
                 .Select(cg => new StuSeCriteriaGroupInput
                 {
                     Description = cg.Description?.Trim(),

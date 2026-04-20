@@ -51,7 +51,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _auditLogService = auditLogService;
         }
 
-        private async Task EnsureLeaderAsync(Guid protocolId)
+        private async Task EnsureLeaderAsync(Guid projectId)
         {
             var userIdString = _currentUserService.GetUserId();
             if (string.IsNullOrEmpty(userIdString))
@@ -59,11 +59,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 throw new UnauthorizedException("User is not authenticated.");
             }
 
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
             var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
             if (!isLeader)
             {
                 throw new ForbiddenException("Only project leader can perform this action.");
@@ -75,7 +72,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var strategy = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId)
                 ?? throw new KeyNotFoundException($"Strategy {strategyId} không tồn tại");
 
-            await EnsureLeaderAsync(strategy.ProtocolId);
+            await EnsureLeaderAsync(strategy.ProjectId);
         }
 
         private async Task EnsureLeaderByChecklistIdAsync(Guid checklistId)
@@ -91,18 +88,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == reviewProcessId)
                 ?? throw new KeyNotFoundException($"Review Process {reviewProcessId} không tồn tại");
 
-            if (reviewProcess.ProtocolId == null)
-            {
-                throw new InvalidOperationException("Review Process không có Protocol đi kèm.");
-            }
-
-            await EnsureLeaderAsync(reviewProcess.ProtocolId.Value);
+            await EnsureLeaderAsync(reviewProcess.ProjectId);
         }
 
         // ==================== Quality Assessment Strategies ====================
         public async Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto)
         {
-            await EnsureLeaderAsync(dto.ProtocolId);
+            await EnsureLeaderAsync(dto.ProjectId);
 
             QualityAssessmentStrategy entity;
 
@@ -124,14 +116,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return entity.ToDto();
         }
 
-        public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId)
+        public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProjectIdAsync(Guid projectId)
         {
-            var entities = await _unitOfWork.QualityStrategies.GetByProtocolIdAsync(protocolId);
+            var entities = await _unitOfWork.QualityStrategies.GetByProjectIdAsync(projectId);
             return entities.ToDtoList();
         }
 
         /// <summary>
-        /// Given a QualityAssessmentProcess id, return the full QA strategies for the underlying protocol
+        /// Given a QualityAssessmentProcess id, return the full QA strategies for the underlying project
         /// including checklists and criteria.
         /// </summary>
         public async Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId)
@@ -140,9 +132,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (process == null) return new List<QualityAssessmentStrategyDto>();
 
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId);
-            if (reviewProcess == null || reviewProcess.ProtocolId == null) return new List<QualityAssessmentStrategyDto>();
+            if (reviewProcess == null) return new List<QualityAssessmentStrategyDto>();
 
-            var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(reviewProcess.ProtocolId.Value);
+            var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByProjectIdAsync(reviewProcess.ProjectId);
 
             return strategy.ToDtoList();
         }
@@ -152,7 +144,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var entity = await _unitOfWork.QualityStrategies.FindSingleAsync(s => s.Id == strategyId);
             if (entity != null)
             {
-                await EnsureLeaderAsync(entity.ProtocolId);
+                await EnsureLeaderAsync(entity.ProjectId);
                 await _unitOfWork.QualityStrategies.RemoveAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
             }
@@ -360,11 +352,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
 
             // Calculate criteria count to compute percentage
-            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId);
+            var projectId = reviewProcess?.ProjectId;
             var criteriaCount = 0;
-            if (protocolId != null)
+            if (projectId != null)
             {
-                var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId.Value);
+                var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProjectIdAsync(projectId.Value);
                 foreach (var strat in strategies)
                 {
                     foreach (var cl in strat.Checklists)
@@ -641,11 +634,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (assignment == null || assignment.QualityAssessmentPapers == null) return new QAMemberDashboardResponse();
 
             // Need to calculate completion percentage.
-            // 1. Get Protocol -> QA Strategy -> Checklists -> Criteria count
-            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
-            if (protocolId == null) return new QAMemberDashboardResponse(); // Should not happen if configured correctly
+            // 1. Get Project -> QA Strategy -> Checklists -> Criteria count
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId);
+            if (reviewProcess == null) return new QAMemberDashboardResponse();
 
-            var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId.Value);
+            var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProjectIdAsync(reviewProcess.ProjectId);
             var criteriaCount = 0;
             foreach (var strat in strategies)
             {
@@ -906,11 +899,11 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
 
-            var protocolId = (await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId))?.ProtocolId;
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId);
             var criteriaCount = 0;
-            if (protocolId != null)
+            if (reviewProcess != null)
             {
-                var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(protocolId.Value);
+                var strategies = await _unitOfWork.QualityStrategies.GetFullStrategyByProjectIdAsync(reviewProcess.ProjectId);
                 foreach (var strat in strategies)
                 {
                     foreach (var cl in strat.Checklists)
@@ -996,10 +989,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
                 ?? throw new KeyNotFoundException("Review process not found");
 
-            if (!reviewProcess.ProtocolId.HasValue)
-                throw new InvalidOperationException("Protocol not found for this review process");
+            if (reviewProcess == null)
+                throw new InvalidOperationException("Review process not found");
 
-            var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByProtocolIdAsync(reviewProcess.ProtocolId.Value);
+            var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByProjectIdAsync(reviewProcess.ProjectId);
 
             var criteriaQuestions = strategy.SelectMany(s => s.Checklists.SelectMany(c => c.Criteria)).Select(c => new { c.Id, c.Question }).ToList();
 

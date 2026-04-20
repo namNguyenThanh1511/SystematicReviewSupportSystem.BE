@@ -4,7 +4,6 @@ using Shared.Repositories;
 using SRSS.IAM.Repositories.AuditLogRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
-using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
@@ -67,10 +66,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IReviewObjectiveRepository ReviewObjectives { get; }
         IQuestionTypeRepository QuestionTypes { get; }
 
-        // Protocol
-        IReviewProtocolRepository Protocols { get; }
-        IProtocolVersionRepository ProtocolVersions { get; }
-        IProtocolEvaluationRepository ProtocolEvaluations { get; }
+
 
         // Research Question
         IResearchQuestionRepository ResearchQuestions { get; }
@@ -88,7 +84,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionCriteriaRepository SelectionCriterias { get; }
         IInclusionCriterionRepository InclusionCriteria { get; }
         IExclusionCriterionRepository ExclusionCriteria { get; }
-        IStudySelectionProcedureRepository SelectionProcedures { get; }
 
         // Quality Assessment
         IQualityAssessmentStrategyRepository QualityStrategies { get; }

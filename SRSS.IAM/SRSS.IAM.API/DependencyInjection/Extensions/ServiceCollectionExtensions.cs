@@ -12,7 +12,6 @@ using SRSS.IAM.Services.Configurations;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.JWTService;
 using SRSS.IAM.Services.Mappers;
-using SRSS.IAM.Services.ProtocolService;
 using SRSS.IAM.Services.QualityAssessmentService;
 using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
@@ -91,7 +90,6 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Planning Phase
             services.AddScoped<ICoreGovernService, CoreGovernService>();
-            services.AddScoped<IProtocolService, ProtocolService>();
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();

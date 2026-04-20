@@ -1913,26 +1913,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException("ReviewProcess not found.");
             }
 
-            // Load protocol for validation (G-04, G-12)
-            if (reviewProcess.ProtocolId.HasValue)
-            {
-                var protocol = await _unitOfWork.Protocols.FindSingleAsync(
-                    p => p.Id == reviewProcess.ProtocolId.Value,
-                    isTracking: true,
-                    cancellationToken);
-
-                reviewProcess.Protocol = protocol;
-            }
-
             process.ReviewProcess = reviewProcess;
-
-
-
-            // Lock protocol once screening starts (G-04)
-            if (reviewProcess.Protocol != null && reviewProcess.Protocol.Status == ProtocolStatus.Approved)
-            {
-                reviewProcess.Protocol.Lock();
-            }
 
             // Validate paper metadata (G-07)
             var eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);

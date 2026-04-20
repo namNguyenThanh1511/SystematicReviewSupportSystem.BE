@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.SearchStrategy;
@@ -31,13 +31,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Search Sources theo Protocol ID
+		/// Lấy tất cả Search Sources theo Project ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/sources")]
-		public async Task<ActionResult<ApiResponse<List<SearchSourceDto>>>> GetSearchSourcesByProtocolId(
-			Guid protocolId)
+		[HttpGet("project/{projectId}/sources")]
+		public async Task<ActionResult<ApiResponse<List<SearchSourceDto>>>> GetSearchSourcesByProjectId(
+			Guid projectId)
 		{
-			var result = await _service.GetSearchSourcesByProtocolIdAsync(protocolId);
+			var result = await _service.GetSearchSourcesByProjectIdAsync(projectId);
 			return Ok(result, "Lấy danh sách sources thành công");
 		}
 	}

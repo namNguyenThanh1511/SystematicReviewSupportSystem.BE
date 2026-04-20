@@ -66,20 +66,8 @@ namespace SRSS.IAM.Services.StudySelectionAIService
                 throw new InvalidOperationException("Paper is not assigned to the current reviewer for Title/Abstract screening.");
             }
 
-            // 4. Load Protocol
-            var protocol = studySelectionProcess.ReviewProcess.Protocol;
-            if (protocol == null)
-            {
-                throw new InvalidOperationException("Approved review protocol not found for this process.");
-            }
-
-            // if (protocol.Status != ProtocolStatus.Approved)
-            // {
-            //     throw new InvalidOperationException("Protocol must be approved before AI evaluation.");
-            // }
-
-            // 5. Build AI Input and Evaluate
-            var aiInput = protocol.BuildStuSeAIInput(paper);
+            // 4. Build AI Input and Evaluate
+            var aiInput = studySelectionProcess.ReviewProcess.Project.BuildStuSeAIInput(paper);
             var aiOutput = await GetAiEvaluationAsync(aiInput);
 
             // 6. Save AI Result

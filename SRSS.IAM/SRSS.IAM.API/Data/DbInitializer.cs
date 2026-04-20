@@ -93,14 +93,7 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid AdminUserId = Guid.Parse("aa111111-1111-1111-1111-111111111111");
         private static readonly Guid ClientUserId = Guid.Parse("aa222222-2222-2222-2222-222222222222");
 
-        // ── Protocol IDs ─────────────────────────────────────────────────
-        private static readonly Guid HarProtocol1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid HarProtocol2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
-        private static readonly Guid ScientificProtocol1Id = Guid.Parse("33333333-3333-3333-3333-333333333333");
 
-        // ── Protocol Version IDs ─────────────────────────────────────────
-        private static readonly Guid HarProtocol1Version1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
-        private static readonly Guid HarProtocol1Version2Id = Guid.Parse("11111112-1111-1111-1111-111111111111");
 
         // ── Search Source IDs ────────────────────────────────────────────
         private static readonly Guid SearchSource1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -114,8 +107,7 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid ExclusionCriterion1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
         private static readonly Guid ExclusionCriterion2Id = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-        // ── Study Selection Procedure IDs ────────────────────────────────
-        private static readonly Guid SelectionProcedure1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
+
 
         // ── Quality Assessment IDs ───────────────────────────────────────
         private static readonly Guid QualityStrategy1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
@@ -258,14 +250,13 @@ namespace SRSS.IAM.API.Data
 
         private static readonly Guid SynthesisStrategy1Id = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
-        // ── HarProtocol2 Elements IDs ────────────────────────────────────
-        private static readonly Guid HarProtocol2Version1Id = Guid.Parse("22222222-1111-1111-1111-222222222222");
+
         private static readonly Guid Har2SearchSource1Id = Guid.Parse("b1111111-2222-3333-4444-555555555555");
         private static readonly Guid Har2SearchSource2Id = Guid.Parse("b2222222-2222-3333-4444-555555555555");
         private static readonly Guid Har2SelectionCriteria1Id = Guid.Parse("c1111111-2222-3333-4444-555555555555");
         private static readonly Guid Har2InclusionCriterion1Id = Guid.Parse("c2222222-2222-3333-4444-555555555555");
         private static readonly Guid Har2ExclusionCriterion1Id = Guid.Parse("c3333333-2222-3333-4444-555555555555");
-        private static readonly Guid Har2SelectionProcedure1Id = Guid.Parse("d1111111-2222-3333-4444-555555555555");
+
         private static readonly Guid Har2QualityStrategy1Id = Guid.Parse("e1111111-2222-3333-4444-555555555555");
         private static readonly Guid Har2QualityChecklist1Id = Guid.Parse("e2222222-2222-3333-4444-555555555555");
         private static readonly Guid Har2QualityCriterion1Id = Guid.Parse("e3333333-2222-3333-4444-555555555555");
@@ -287,11 +278,8 @@ namespace SRSS.IAM.API.Data
             await SeedProjectsAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
-            await SeedProtocolsAsync(context);
-            await SeedProtocolVersionsAsync(context);
             await SeedSearchSourcesAsync(context);
             await SeedStudySelectionCriteriaAsync(context);
-            await SeedStudySelectionProceduresAsync(context);
             await SeedQualityAssessmentAsync(context);
             //await SeedDataExtractionAsync(context);
             await SeedDataExtractionTemplateAsync(context);
@@ -459,7 +447,6 @@ namespace SRSS.IAM.API.Data
                 Id = HarReviewProcessId,
                 Name = "HAR Systematic Review Process",
                 ProjectId = HarProjectId,
-                ProtocolId = HarProtocol2Id,
                 CurrentPhase = ProcessPhase.Identification,
                 Status = ProcessStatus.InProgress,
                 StartedAt = DateTimeOffset.UtcNow,
@@ -950,286 +937,35 @@ namespace SRSS.IAM.API.Data
             }
         }
 
-        // PROTOCOL PLANNING PHASE SEED DATA 
-        private static async Task SeedProtocolsAsync(AppDbContext context)
-        {
-            if (await context.ReviewProtocols.AnyAsync(x => x.Id == HarProtocol1Id || x.Id == HarProtocol2Id || x.Id == ScientificProtocol1Id))
-            {
-                return;
-            }
-
-            var protocols = new List<ReviewProtocol>
-            {
-                new ReviewProtocol
-                {
-                    Id = HarProtocol1Id,
-                    ProjectId = ScientificLiteracyProjectId,
-                    ProtocolVersion = "1.0.0",
-                    Status = ProtocolStatus.Approved,
-                    ApprovedAt = DateTimeOffset.UtcNow.AddDays(-30),
-                    IsDeleted = false,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-60),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-30)
-                },
-                new ReviewProtocol
-                {
-                    Id = HarProtocol2Id,
-                    ProjectId = HarProjectId,
-                    ProtocolVersion = "2.0.0",
-                    Status = ProtocolStatus.UnderReview,
-                    IsDeleted = false,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-10),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-2)
-                },
-                new ReviewProtocol
-                {
-                    Id = ScientificProtocol1Id,
-                    ProjectId = ScientificLiteracyProjectId,
-                    ProtocolVersion = "1.0.0",
-                    Status = ProtocolStatus.Draft,
-                    IsDeleted = false,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-5),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-1)
-                }
-            };
-
-            await context.ReviewProtocols.AddRangeAsync(protocols);
-            await context.SaveChangesAsync();
-        }
-
-        private static async Task SeedProtocolVersionsAsync(AppDbContext context)
-        {
-            if (!await context.ProtocolVersions.AnyAsync(x => x.Id == HarProtocol2Version1Id))
-            {
-                await context.ProtocolVersions.AddAsync(new ProtocolVersion
-                {
-                    Id = HarProtocol2Version1Id,
-                    ProtocolId = HarProtocol2Id,
-                    VersionNumber = "2.0.0",
-                    SnapshotData = JsonSerializer.Serialize(new
-                    {
-                        ProtocolVersion = "2.0.0",
-                        Status = "UnderReview",
-                        SearchSources = new[] { "Scopus", "Web of Science" },
-                        InclusionCriteria = new[] { "Wearable sensor data", "Deep learning" }
-                    }),
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-10),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-10)
-                });
-                await context.SaveChangesAsync();
-            }
-
-            if (await context.ProtocolVersions.AnyAsync(x => x.Id == HarProtocol1Version1Id || x.Id == HarProtocol1Version2Id))
-            {
-                return;
-            }
-
-            var snapshotData = JsonSerializer.Serialize(new
-            {
-                ProtocolVersion = "1.0.0",
-                Status = "Draft",
-                SearchSources = new[] { "Scopus", "IEEE Xplore", "ACM Digital Library" },
-                InclusionCriteria = new[]
-                {
-                    "Published 2015-2025",
-                    "Deep learning or machine learning for HAR",
-                    "Wearable sensor data"
-                }
-            });
-
-            var versions = new List<ProtocolVersion>
-                {
-                new ProtocolVersion
-                {
-                    Id = HarProtocol1Version1Id,
-                    ProtocolId = HarProtocol1Id,
-                    VersionNumber = "1.0.0",
-                    SnapshotData = snapshotData,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-60),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-60)
-                },
-                new ProtocolVersion
-                {
-                    Id = HarProtocol1Version2Id,
-                    ProtocolId = HarProtocol1Id,
-                    VersionNumber = "1.1.0",
-                    SnapshotData = JsonSerializer.Serialize(new
-                    {
-                        ProtocolVersion = "1.1.0",
-                        Status = "Approved",
-                        SearchSources = new[] { "Scopus", "IEEE Xplore", "ACM Digital Library", "Web of Science" },
-                        InclusionCriteria = new[]
-                        {
-                            "Published 2015-2025",
-                            "Deep learning or machine learning for HAR",
-                            "Wearable sensor data (IMU or camera)",
-                            "English language"
-                        }
-                    }),
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-30),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-30)
-                }
-            };
-
-            await context.ProtocolVersions.AddRangeAsync(versions);
-            await context.SaveChangesAsync();
-        }
-
         private static async Task SeedSearchSourcesAsync(AppDbContext context)
         {
             if (!await context.SearchSources.AnyAsync(x => x.Id == Har2SearchSource1Id))
             {
                 await context.SearchSources.AddRangeAsync(new List<SearchSource>
                 {
-                    new SearchSource { Id = Har2SearchSource1Id, ProtocolId = HarProtocol2Id, Name = "Scopus", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new SearchSource { Id = Har2SearchSource2Id, ProtocolId = HarProtocol2Id, Name = "Web of Science", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                    new SearchSource { Id = Har2SearchSource1Id, ProjectId = HarProjectId, Name = "Scopus", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                    new SearchSource { Id = Har2SearchSource2Id, ProjectId = HarProjectId, Name = "Web of Science", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
                 });
                 await context.SaveChangesAsync();
             }
-
-            if (await context.SearchSources.AnyAsync(x => x.Id == SearchSource1Id || x.Id == SearchSource2Id || x.Id == SearchSource3Id))
-            {
-                return;
-            }
-
-            var searchSources = new List<SearchSource>
-            {
-                new SearchSource
-                {
-                    Id = SearchSource1Id,
-                    ProtocolId = HarProtocol1Id,
-                    Name = "Scopus",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-55),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-55)
-                },
-                new SearchSource
-                {
-                    Id = SearchSource2Id,
-                    ProtocolId = HarProtocol1Id,
-                    Name = "IEEE Xplore Digital Library",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-55),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-55)
-                },
-                new SearchSource
-                {
-                    Id = SearchSource3Id,
-                    ProtocolId = HarProtocol1Id,
-                    Name = "ACM Digital Library",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-55),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-55)
-                }
-            };
-
-            await context.SearchSources.AddRangeAsync(searchSources);
-            await context.SaveChangesAsync();
         }
 
         private static async Task SeedStudySelectionCriteriaAsync(AppDbContext context)
         {
             if (!await context.StudySelectionCriterias.AnyAsync(x => x.Id == Har2SelectionCriteria1Id))
             {
-                await context.StudySelectionCriterias.AddAsync(new StudySelectionCriteria { Id = Har2SelectionCriteria1Id, ProtocolId = HarProtocol2Id, Description = "Criteria for HAR protocol v2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.StudySelectionCriterias.AddAsync(new StudySelectionCriteria { Id = Har2SelectionCriteria1Id, ProjectId = HarProjectId, Description = "Criteria for HAR protocol v2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.InclusionCriteria.AddAsync(new InclusionCriterion { Id = Har2InclusionCriterion1Id, CriteriaId = Har2SelectionCriteria1Id, Rule = "Deep Learning applied to IMU data", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.ExclusionCriteria.AddAsync(new ExclusionCriterion { Id = Har2ExclusionCriterion1Id, CriteriaId = Har2SelectionCriteria1Id, Rule = "Not published in English", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.SaveChangesAsync();
             }
-
-            if (await context.StudySelectionCriterias.AnyAsync(x => x.Id == SelectionCriteria1Id))
-            {
-                return;
-            }
-
-            var criteria = new StudySelectionCriteria
-            {
-                Id = SelectionCriteria1Id,
-                ProtocolId = HarProtocol1Id,
-                Description = "Criteria for selecting relevant HAR studies",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-50),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-50)
-            };
-
-            await context.StudySelectionCriterias.AddAsync(criteria);
-            await context.SaveChangesAsync();
-
-            // ── Inclusion Criteria ───────────────────────────────────────────
-            var inclusionCriteria = new List<InclusionCriterion>
-            {
-                new InclusionCriterion
-                {
-                    Id = InclusionCriterion1Id,
-                    CriteriaId = SelectionCriteria1Id,
-                    Rule = "Studies published between 2015 and 2025 in peer-reviewed venues",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-50),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-50)
-                },
-                new InclusionCriterion
-                {
-                    Id = InclusionCriterion2Id,
-                    CriteriaId = SelectionCriteria1Id,
-                    Rule = "Studies applying deep learning or machine learning to HAR using wearable sensor data",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-50),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-50)
-                }
-            };
-            await context.InclusionCriteria.AddRangeAsync(inclusionCriteria);
-            await context.SaveChangesAsync();
-
-            // ── Exclusion Criteria ───────────────────────────────────────────
-            var exclusionCriteria = new List<ExclusionCriterion>
-            {
-                new ExclusionCriterion
-                {
-                    Id = ExclusionCriterion1Id,
-                    CriteriaId = SelectionCriteria1Id,
-                    Rule = "Studies not written in English",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-50),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-50)
-                },
-                new ExclusionCriterion
-                {
-                    Id = ExclusionCriterion2Id,
-                    CriteriaId = SelectionCriteria1Id,
-                    Rule = "Studies using only camera-based HAR without wearable sensors",
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-50),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-50)
-                }
-            };
-
-            await context.ExclusionCriteria.AddRangeAsync(exclusionCriteria);
-            await context.SaveChangesAsync();
-        }
-
-        private static async Task SeedStudySelectionProceduresAsync(AppDbContext context)
-        {
-            if (!await context.StudySelectionProcedures.AnyAsync(x => x.Id == Har2SelectionProcedure1Id))
-            {
-                await context.StudySelectionProcedures.AddAsync(new StudySelectionProcedure { Id = Har2SelectionProcedure1Id, ProtocolId = HarProtocol2Id, Steps = "Two-stage screening process (Protocol 2)", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
-                await context.SaveChangesAsync();
-            }
-
-            if (await context.StudySelectionProcedures.AnyAsync(x => x.Id == SelectionProcedure1Id))
-            {
-                return;
-            }
-
-            var procedure = new StudySelectionProcedure
-            {
-                Id = SelectionProcedure1Id,
-                ProtocolId = HarProtocol1Id,
-                Steps = "Two-stage screening process: (1) Title and abstract screening by two independent reviewers, (2) Full-text screening with conflict resolution by third reviewer",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-48),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-48)
-            };
-
-            await context.StudySelectionProcedures.AddAsync(procedure);
-            await context.SaveChangesAsync();
         }
 
         private static async Task SeedQualityAssessmentAsync(AppDbContext context)
         {
             if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
             {
-                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProjectId = HarProjectId, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
                 {
@@ -1248,177 +984,16 @@ namespace SRSS.IAM.API.Data
                 });
                 await context.SaveChangesAsync();
             }
-            if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
-            {
-                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ProtocolId = HarProtocol2Id, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
-                await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
-                await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
-                {
-                    new QualityCriterion { Id = Har2QualityCriterion1Id, ChecklistId = Har2QualityChecklist1Id, Question = "Is the paper based on research (or is it a discussion paper based on expert opinion)?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Har2QualityCriterion2Id, ChecklistId = Har2QualityChecklist1Id, Question = "What research method was used: Experiment, Quasi-Experiment, Lessons learnt, Case study, Opinion Survey, Tertiary Study, Other (specify)? Note This is to be based on our reading of the paper not the method claimed by the author of the paper.", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of the aims of the study?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there an adequate description of the context in which the research or observation was carried out?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the research method appropriate to address the aims of the research? (i.e. Expert Opinion).", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Was the recruitment strategy (for human-based experiments and quasi-experiments) or experimental material or context (for lessons learnt) appropriate to the aims of the research?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was there a control group or baseline with which to evaluate SR procedures/techniques?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data collected in a way that addressed the research issue?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "For empirical studies (apart from Lessons Learnt), was the data analysis sufficiently rigorous?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Has the relationship between researcher and participants been considered to an adequate degree?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is there a clear statement of findings?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                    new QualityCriterion { Id = Guid.NewGuid(), ChecklistId = Har2QualityChecklist1Id, Question = "Is the study of value for research or practice?", Weight = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-                });
-                await context.SaveChangesAsync();
-            }
-
-            if (await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == QualityStrategy1Id))
-            {
-                return;
-            }
-
-            var qualityStrategy = new QualityAssessmentStrategy
-            {
-                Id = QualityStrategy1Id,
-                ProtocolId = HarProtocol1Id,
-                Description = "Quality assessment using custom checklist adapted from JBI Critical Appraisal Tools for experimental studies",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-45),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-45)
-            };
-
-            await context.QualityAssessmentStrategies.AddAsync(qualityStrategy);
-            await context.SaveChangesAsync();
-
-            // ── Quality Checklist ────────────────────────────────────────────
-            var checklist = new QualityChecklist
-            {
-                Id = QualityChecklist1Id,
-                QaStrategyId = QualityStrategy1Id,
-                Name = "HAR Study Quality Checklist",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-45),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-45)
-            };
-
-            await context.QualityChecklists.AddAsync(checklist);
-            await context.SaveChangesAsync();
-
-            // ── Quality Criteria ─────────────────────────────────────────────
-            var criteria = new List<QualityCriterion>
-            {
-                new QualityCriterion
-                {
-                    Id = QualityCriterion1Id,
-                    ChecklistId = QualityChecklist1Id,
-                    Question = "Is the dataset publicly available or sufficiently described for reproducibility?",
-                    Weight = 2,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-45),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-45)
-                },
-                new QualityCriterion
-                {
-                    Id = QualityCriterion2Id,
-                    ChecklistId = QualityChecklist1Id,
-                    Question = "Are evaluation metrics clearly defined and appropriate (e.g., F1-score, accuracy on balanced test sets)?",
-                    Weight = 2,
-                    CreatedAt = DateTimeOffset.UtcNow.AddDays(-45),
-                    ModifiedAt = DateTimeOffset.UtcNow.AddDays(-45)
-                }
-            };
-
-            await context.QualityCriteria.AddRangeAsync(criteria);
-            await context.SaveChangesAsync();
         }
-
-        //private static async Task SeedDataExtractionAsync(AppDbContext context)
-        //{
-        //	if (await context.DataExtractionStrategies.AnyAsync(x => x.Id == ExtractionStrategy1Id))
-        //	{
-        //		return;
-        //	}
-
-        //	var strategy = new DataExtractionStrategy
-        //	{
-        //		Id = ExtractionStrategy1Id,
-        //		ProtocolId = HarProtocol1Id,
-        //		Description = "Structured data extraction form capturing study characteristics, model architecture, dataset details, and performance metrics",
-        //		CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-        //		ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-        //	};
-
-        //	await context.DataExtractionStrategies.AddAsync(strategy);
-        //	await context.SaveChangesAsync();
-
-        //	// ── Extraction Form ──────────────────────────────────────────────
-        //	var form = new DataExtractionForm
-        //	{
-        //		Id = ExtractionForm1Id,
-        //		ExtractionStrategyId = ExtractionStrategy1Id,
-        //		Name = "HAR Study Data Extraction Form",
-        //		CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-        //		ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-        //	};
-
-        //	await context.DataExtractionForms.AddAsync(form);
-        //	await context.SaveChangesAsync();
-
-        //	// ── Data Items ───────────────────────────────────────────────────
-        //	var dataItems = new List<DataItemDefinition>
-        //	{
-        //		new DataItemDefinition
-        //		{
-        //			Id = DataItem1Id,
-        //			FormId = ExtractionForm1Id,
-        //			Name = "Model Architecture",
-        //			Description = "Type of deep learning architecture used (CNN, LSTM, Transformer, Hybrid)",
-        //			DataType = "Categorical",
-        //			CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-        //			ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-        //		},
-        //		new DataItemDefinition
-        //		{
-        //			Id = DataItem2Id,
-        //			FormId = ExtractionForm1Id,
-        //			Name = "F1-Score",
-        //			Description = "Reported F1-score (macro-average if available)",
-        //			DataType = "Numeric",
-        //			CreatedAt = DateTimeOffset.UtcNow.AddDays(-40),
-        //			ModifiedAt = DateTimeOffset.UtcNow.AddDays(-40)
-        //		}
-        //	};
-
-        //	await context.DataItemDefinitions.AddRangeAsync(dataItems);
-        //	await context.SaveChangesAsync();
-        //}
 
         private static async Task SeedDataSynthesisAsync(AppDbContext context)
         {
             if (!await context.DataSynthesisStrategies.AnyAsync(x => x.Id == Har2SynthesisStrategy1Id))
             {
-                await context.DataSynthesisStrategies.AddAsync(new DataSynthesisStrategy { Id = Har2SynthesisStrategy1Id, ProtocolId = HarProtocol2Id, SynthesisType = SynthesisType.NarrativeThematic, DataGroupingPlan = "Studies will be stratified structurally by SE methodology (e.g., Agile, DevOps) and further categorized by company size (SME vs Enterprise).", SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.", Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.DataSynthesisStrategies.AddAsync(new DataSynthesisStrategy { Id = Har2SynthesisStrategy1Id, ProjectId = HarProjectId, SynthesisType = SynthesisType.NarrativeThematic, DataGroupingPlan = "Studies will be stratified structurally by SE methodology (e.g., Agile, DevOps) and further categorized by company size (SME vs Enterprise).", SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.", Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.SaveChangesAsync();
             }
-
-            if (await context.DataSynthesisStrategies.AnyAsync(x => x.Id == SynthesisStrategy1Id))
-            {
-                return;
-            }
-
-            var synthesisStrategy = new DataSynthesisStrategy
-            {
-                Id = SynthesisStrategy1Id,
-                ProtocolId = HarProtocol1Id,
-                SynthesisType = SynthesisType.NarrativeThematic,
-                TargetResearchQuestionIds = new List<Guid> { ResearchQuestion1Id, ResearchQuestion2Id },
-                DataGroupingPlan = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",
-                SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.",
-                Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.",
-                CreatedAt = DateTimeOffset.UtcNow.AddDays(-35),
-                ModifiedAt = DateTimeOffset.UtcNow.AddDays(-35)
-            };
-
-            await context.DataSynthesisStrategies.AddAsync(synthesisStrategy);
-            await context.SaveChangesAsync();
         }
-
-
 
         private static async Task SeedDataExtractionTemplateAsync(AppDbContext context)
         {
@@ -1431,7 +1006,7 @@ namespace SRSS.IAM.API.Data
             var template = new ExtractionTemplate
             {
                 Id = HarExtractionTemplateId,
-                ProtocolId = HarProtocol2Id,
+                ProjectId = HarProjectId,
                 Name = "SE Study Data Extraction Form (PICOC)",
                 Description = "A comprehensive PICOC-based extraction template for Software Engineering systematic literature reviews, covering study identification, context, methodology, interventions, and outcomes.",
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -2371,25 +1946,7 @@ namespace SRSS.IAM.API.Data
                     Timestamp = DateTime.UtcNow.AddDays(-2),
                     ProjectId = HarProjectId
                 },
-                new AuditLog
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = ClientUserId.ToString(),
-                    ActionType = "Create",
-                    ResourceType = "ReviewProtocol",
-                    ResourceId = HarProtocol2Id.ToString(),
-                    OldValue = "",
-                    NewValue = JsonSerializer.Serialize(new
-                    {
-                        Id = HarProtocol2Id,
-                        ProjectId = HarProjectId,
-                        ProtocolVersion = "2.0.0",
-                        Status = "UnderReview",
-                    }),
-                    AffectedColumns = "[\"Id\", \"ProjectId\", \"ProtocolVersion\", \"Status\", \"IsDeleted\"]",
-                    Timestamp = DateTime.UtcNow.AddDays(-2),
-                    ProjectId = HarProjectId
-                },
+
                 // --- ScientificLiteracyProject Actions ---
                 // 1. Project Creation
                 new AuditLog

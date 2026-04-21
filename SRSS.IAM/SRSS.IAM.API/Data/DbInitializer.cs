@@ -127,9 +127,11 @@ namespace SRSS.IAM.API.Data
         // Sections
         private static readonly Guid EtSec1IdentificationId = Guid.Parse("ee000000-0001-0000-0000-000000000001");
         private static readonly Guid EtSec2ContextId = Guid.Parse("ee000000-0001-0000-0000-000000000002");
-        private static readonly Guid EtSec3MethodologyId = Guid.Parse("ee000000-0001-0000-0000-000000000003");
-        private static readonly Guid EtSec4InterventionsId = Guid.Parse("ee000000-0001-0000-0000-000000000004");
-        private static readonly Guid EtSec5MetricsId = Guid.Parse("ee000000-0001-0000-0000-000000000005");
+        private static readonly Guid EtSec3ContextId = Guid.Parse("ee000000-0001-0000-0000-000000000003");
+
+        private static readonly Guid EtSec4MethodologyId = Guid.Parse("ee000000-0001-0000-0000-000000000004");
+        private static readonly Guid EtSec5InterventionsId = Guid.Parse("ee000000-0001-0000-0000-000000000005");
+        private static readonly Guid EtSec6MetricsId = Guid.Parse("ee000000-0001-0000-0000-000000000006");
 
         // ── Section 1: Identification Fields ─────────────────────────────
         private static readonly Guid EtF1StudyIdId = Guid.Parse("ee000000-0002-0000-0000-000000000001");
@@ -278,25 +280,25 @@ namespace SRSS.IAM.API.Data
             await SeedProjectsAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
+            await SeedCoreGovernanceAsync(context); // Needs ProjectId, seeds Research Questions
+            await SeedReviewProcessesAsync(context); // Needs ProjectId
+            await SeedDataExtractionProcessesAsync(context); // Needs ReviewProcessId
+
             await SeedSearchSourcesAsync(context);
             await SeedStudySelectionCriteriaAsync(context);
             await SeedQualityAssessmentAsync(context);
-            //await SeedDataExtractionAsync(context);
-            await SeedDataExtractionTemplateAsync(context);
+            await SeedDataExtractionTemplateAsync(context); // Needs DataExtractionProcessId & ResearchQuestionId
             await SeedDataSynthesisAsync(context);
 
-            await SeedReviewProcessesAsync(context);
             await SeedIdentificationProcessesAsync(context);
             await SeedStudySelectionProcessesAsync(context);
             await SeedQualityAssessmentProcessesAsync(context);
-            await SeedDataExtractionProcessesAsync(context);
             await SeedSynthesisProcessesAsync(context);
 
             await SeedSearchExecutionsAsync(context);
             await SeedImportBatchesAsync(context);
             await SeedPapersAsync(context);
             await SeedScreeningResolutionsAsync(context);
-            await SeedCoreGovernanceAsync(context);
             await SeedChecklistTemplatesAsync(context);
 
             await SeedAuditLogsAsync(context);
@@ -1006,9 +1008,9 @@ namespace SRSS.IAM.API.Data
             var template = new ExtractionTemplate
             {
                 Id = HarExtractionTemplateId,
-                ProjectId = HarProjectId,
-                Name = "SE Study Data Extraction Form (PICOC)",
-                Description = "A comprehensive PICOC-based extraction template for Software Engineering systematic literature reviews, covering study identification, context, methodology, interventions, and outcomes.",
+                DataExtractionProcessId = HarDataExtractionProcessId,
+                Name = "AI-HAR Systematic Review Template",
+                Description = "A methodology-compliant template for extracting data from AI-based Human Activity Recognition studies, structured around PICOC and Research Questions.",
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
@@ -1019,58 +1021,43 @@ namespace SRSS.IAM.API.Data
             // ── Sections ─────────────────────────────────────────────────────
             var sections = new List<ExtractionSection>
             {
+                // Section 1: PICOC & Study Context
                 new ExtractionSection
                 {
                     Id = EtSec1IdentificationId,
                     TemplateId = HarExtractionTemplateId,
-                    Name = "Identification",
-                    Description = "Basic bibliographic and identification data for the primary study.",
+                    Name = "PICOC & Study Context",
+                    Description = "Standard PICOC metadata and study context information.",
                     SectionType = SectionType.FlatForm,
+                    IsPicoc = true,
                     OrderIndex = 0,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
+                // Section 2: RQ-Driven Data
                 new ExtractionSection
                 {
                     Id = EtSec2ContextId,
                     TemplateId = HarExtractionTemplateId,
-                    Name = "Context & Subjects",
-                    Description = "Characterises the environment, population, and context in which the study was conducted.",
+                    Name = "RQ1: What deep learning approaches are most effective for human activity recognition using wearable sensors in terms of accuracy and computational efficiency?",
+                    Description = "Data extracted specifically to answer Research Question 1 regarding AI approaches and efficiency.",
                     SectionType = SectionType.FlatForm,
+                    LinkedResearchQuestionId = ResearchQuestion1Id,
+                    IsPicoc = false,
                     OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionSection
                 {
-                    Id = EtSec3MethodologyId,
+                    Id = EtSec3ContextId,
                     TemplateId = HarExtractionTemplateId,
-                    Name = "Methodology",
-                    Description = "Documents the research design, data collection strategy, and methodological rigour of the study.",
+                    Name = "RQ2: How do different deep learning architectures compare in terms of accuracy, computational efficiency, and generalization performance across diverse datasets and scenarios?",
+                    Description = "Data extracted specifically to answer Research Question 2 regarding deep learning architectures.",
                     SectionType = SectionType.FlatForm,
+                    LinkedResearchQuestionId = ResearchQuestion2Id,
+                    IsPicoc = false,
                     OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionSection
-                {
-                    Id = EtSec4InterventionsId,
-                    TemplateId = HarExtractionTemplateId,
-                    Name = "Interventions & Comparisons",
-                    Description = "Captures details of the proposed method, tool, or technique (intervention) and the comparison baseline.",
-                    SectionType = SectionType.FlatForm,
-                    OrderIndex = 3,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionSection
-                {
-                    Id = EtSec5MetricsId,
-                    TemplateId = HarExtractionTemplateId,
-                    Name = "Metrics & Outcomes",
-                    Description = "A matrix comparing measured outcomes for the proposed approach versus the baseline across key performance metrics.",
-                    SectionType = SectionType.MatrixGrid,
-                    OrderIndex = 4,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 }
@@ -1079,45 +1066,17 @@ namespace SRSS.IAM.API.Data
             await context.ExtractionSections.AddRangeAsync(sections);
             await context.SaveChangesAsync();
 
-            // ── Matrix Columns for Section 5 ─────────────────────────────────
-            var matrixColumns = new List<ExtractionMatrixColumn>
-            {
-                new ExtractionMatrixColumn
-                {
-                    Id = EtMatCol1ProposedId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Proposed Approach",
-                    Description = "Values reported for the proposed method/tool/framework.",
-                    OrderIndex = 0,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionMatrixColumn
-                {
-                    Id = EtMatCol2BaselineId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Baseline / State-of-the-Art",
-                    Description = "Values reported for the comparison baseline or best-known existing method.",
-                    OrderIndex = 1,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                }
-            };
-
-            await context.ExtractionMatrixColumns.AddRangeAsync(matrixColumns);
-            await context.SaveChangesAsync();
-
-            // ── Section 1: Study Identification Fields ───────────────────────
+            // ── Section 1 Fields: PICOC ─────────────────────────────────────
             var sec1Fields = new List<ExtractionField>
             {
                 new ExtractionField
                 {
                     Id = EtF1StudyIdId,
                     SectionId = EtSec1IdentificationId,
-                    Name = "Study ID",
-                    Instruction = "Assign a unique short identifier (e.g. S01, S02) used to reference this study within the review.",
+                    Name = "Population",
+                    Instruction = "Describe the population studied.",
                     FieldType = FieldType.Text,
-                    IsRequired = true,
+                    IsRequired = false,
                     OrderIndex = 0,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
@@ -1126,114 +1085,80 @@ namespace SRSS.IAM.API.Data
                 {
                     Id = EtF1TitleId,
                     SectionId = EtSec1IdentificationId,
-                    Name = "Full Title",
-                    Instruction = "Copy the exact title of the paper as it appears in the publication.",
+                    Name = "Context",
+                    Instruction = "Describe the context of the study.",
                     FieldType = FieldType.Text,
-                    IsRequired = true,
+                    IsRequired = false,
                     OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF1AuthorsId,
+                    Id = EtF1TitleId,
                     SectionId = EtSec1IdentificationId,
-                    Name = "Authors",
-                    Instruction = "List all authors in the format: Last, F.M.; Last, F.M.",
-                    FieldType = FieldType.Text,
-                    IsRequired = true,
-                    OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF1YearId,
-                    SectionId = EtSec1IdentificationId,
-                    Name = "Publication Year",
-                    Instruction = "Enter the four-digit year of publication.",
-                    FieldType = FieldType.Integer,
-                    IsRequired = true,
-                    OrderIndex = 3,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF1PublicationTypeId,
-                    SectionId = EtSec1IdentificationId,
-                    Name = "Publication Type",
-                    Instruction = "Select the type of publication venue.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = true,
-                    OrderIndex = 4,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF1VenueId,
-                    SectionId = EtSec1IdentificationId,
-                    Name = "Venue / Journal Name",
-                    Instruction = "Enter the full name of the journal, conference proceedings, or other publication venue.",
+                    Name = "Intervention",
+                    Instruction = "Describe the intervention of the study.",
                     FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 5,
+                    OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF1DoiId,
+                    Id = EtF1TitleId,
                     SectionId = EtSec1IdentificationId,
-                    Name = "DOI / URL",
-                    Instruction = "Provide the Digital Object Identifier or a stable URL for the paper.",
+                    Name = "Comparison",
+                    Instruction = "Describe the comparison of the study.",
                     FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 6,
+                    OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF1CitationsId,
+                    Id = EtF1TitleId,
                     SectionId = EtSec1IdentificationId,
-                    Name = "Citation Count",
-                    Instruction = "Record the number of citations at time of extraction (use Google Scholar or Scopus).",
-                    FieldType = FieldType.Integer,
+                    Name = "Outcome",
+                    Instruction = "Describe the outcome of the study.",
+                    FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 7,
+                    OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 }
             };
 
             await context.ExtractionFields.AddRangeAsync(sec1Fields);
-            await context.SaveChangesAsync();
 
-            // Options for Publication Type (Section 1)
-            var pubTypeOptions = new List<FieldOption>
+            // ── Section 1 Options ───────────────────────────────────────────
+            var methodologyOptions = new List<FieldOption>
             {
-                new FieldOption { Id = EtOptPubJournalId,    FieldId = EtF1PublicationTypeId, Value = "Journal Article",    DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptPubConferenceId, FieldId = EtF1PublicationTypeId, Value = "Conference Paper",   DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptPubWorkshopId,   FieldId = EtF1PublicationTypeId, Value = "Workshop Paper",    DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptPubThesisId,     FieldId = EtF1PublicationTypeId, Value = "Thesis / Dissertation", DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptPubTechReportId, FieldId = EtF1PublicationTypeId, Value = "Technical Report",  DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptPubOtherId,      FieldId = EtF1PublicationTypeId, Value = "Other",             DisplayOrder = 5, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                new FieldOption { Id = EtOptPubJournalId,    FieldId = EtF1StudyIdId, Value = "Case Study", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                new FieldOption { Id = EtOptPubConferenceId, FieldId = EtF1StudyIdId, Value = "Controlled Experiment", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                new FieldOption { Id = EtOptPubWorkshopId,   FieldId = EtF1StudyIdId, Value = "Action Research", DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
             };
 
-            await context.FieldOptions.AddRangeAsync(pubTypeOptions);
-            await context.SaveChangesAsync();
+            var contextOptions = new List<FieldOption>
+            {
+                new FieldOption { Id = EtOptCtxIndustrialId, FieldId = EtF1TitleId, Value = "Industrial/Real-world", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                new FieldOption { Id = EtOptCtxAcademicId,   FieldId = EtF1TitleId, Value = "Academic/Laboratory", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+            };
 
-            // ── Section 2: Study Context Fields ─────────────────────────────
+            await context.FieldOptions.AddRangeAsync(methodologyOptions);
+            await context.FieldOptions.AddRangeAsync(contextOptions);
+
+            // ── Section 2 Fields: RQ Driven ─────────────────────────────────
             var sec2Fields = new List<ExtractionField>
             {
                 new ExtractionField
                 {
                     Id = EtF2PopulationId,
                     SectionId = EtSec2ContextId,
-                    Name = "Study Population / Subjects",
-                    Instruction = "Describe the population studied (e.g. professional developers, students, open-source projects).",
+                    Name = "AI Tool Name",
+                    Instruction = "Enter the name of the AI tool or framework used.",
                     FieldType = FieldType.Text,
                     IsRequired = true,
                     OrderIndex = 0,
@@ -1244,437 +1169,45 @@ namespace SRSS.IAM.API.Data
                 {
                     Id = EtF2DomainId,
                     SectionId = EtSec2ContextId,
-                    Name = "Application Domain",
-                    Instruction = "Specify the SE domain or application area (e.g. mobile, embedded, web, safety-critical).",
-                    FieldType = FieldType.Text,
+                    Name = "Performance Improvement %",
+                    Instruction = "The reported improvement percentage compared to the baseline.",
+                    FieldType = FieldType.Decimal,
                     IsRequired = false,
                     OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
-                },
+                }
+            };
+
+            var sec3Fields = new List<ExtractionField>
+            {
                 new ExtractionField
                 {
-                    Id = EtF2ContextTypeId,
+                    Id = EtF2PopulationId,
                     SectionId = EtSec2ContextId,
-                    Name = "Context Type",
-                    Instruction = "Select the type of environment in which the study was conducted.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = true,
-                    OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF2CountriesId,
-                    SectionId = EtSec2ContextId,
-                    Name = "Country / Region",
-                    Instruction = "List the country or region where the study was conducted. Use ISO country codes if multiple.",
+                    Name = "AI Tool Name",
+                    Instruction = "Enter the name of the AI tool or framework used.",
                     FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 3,
+                    IsRequired = true,
+                    OrderIndex = 0,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF2IndustrySizeId,
+                    Id = EtF2DomainId,
                     SectionId = EtSec2ContextId,
-                    Name = "Organisation Size",
-                    Instruction = "Select the size of the organisation(s) involved in the study.",
-                    FieldType = FieldType.SingleSelect,
+                    Name = "Performance Improvement %",
+                    Instruction = "The reported improvement percentage compared to the baseline.",
+                    FieldType = FieldType.Decimal,
                     IsRequired = false,
-                    OrderIndex = 4,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF2EthicsId,
-                    SectionId = EtSec2ContextId,
-                    Name = "Ethical Approval Reported",
-                    Instruction = "Indicate whether the paper explicitly mentions ethical approval or informed consent.",
-                    FieldType = FieldType.Boolean,
-                    IsRequired = false,
-                    OrderIndex = 5,
+                    OrderIndex = 1,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 }
             };
 
             await context.ExtractionFields.AddRangeAsync(sec2Fields);
-            await context.SaveChangesAsync();
-
-            // Options for Context Type
-            var contextTypeOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptCtxIndustrialId, FieldId = EtF2ContextTypeId, Value = "Industrial",          DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptCtxAcademicId,   FieldId = EtF2ContextTypeId, Value = "Academic / Student", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptCtxLabId,         FieldId = EtF2ContextTypeId, Value = "Laboratory",         DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptCtxOnlineId,      FieldId = EtF2ContextTypeId, Value = "Online / Remote",   DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptCtxMixedId,       FieldId = EtF2ContextTypeId, Value = "Mixed",             DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            var sizeOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptSizeSmeId,   FieldId = EtF2IndustrySizeId, Value = "SME (< 250 employees)",  DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSizeLargeId, FieldId = EtF2IndustrySizeId, Value = "Large Enterprise (>=250)", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSizeMixedId, FieldId = EtF2IndustrySizeId, Value = "Mixed / Both",           DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSizeNaId,    FieldId = EtF2IndustrySizeId, Value = "Not Applicable",         DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            await context.FieldOptions.AddRangeAsync(contextTypeOptions);
-            await context.FieldOptions.AddRangeAsync(sizeOptions);
-            await context.SaveChangesAsync();
-
-            // ── Section 3: Research Methodology Fields ───────────────────────
-            var sec3Fields = new List<ExtractionField>
-            {
-                new ExtractionField
-                {
-                    Id = EtF3ResearchTypeId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Research Type",
-                    Instruction = "Select the primary type of research conducted in this study.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = true,
-                    OrderIndex = 0,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3ResearchMethodId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Research Method",
-                    Instruction = "Describe the specific research method used (e.g. randomised controlled trial, quasi-experiment, action research, grounded theory).",
-                    FieldType = FieldType.Text,
-                    IsRequired = true,
-                    OrderIndex = 1,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3StudyDesignId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Study Design Details",
-                    Instruction = "Provide additional detail about the study protocol, tasks, artefacts and experimental controls.",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3SampleSizeId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Sample Size (N)",
-                    Instruction = "Enter the total number of participants, projects, or units analysed.",
-                    FieldType = FieldType.Integer,
-                    IsRequired = false,
-                    OrderIndex = 3,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3SamplingId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Sampling Strategy",
-                    Instruction = "Select how participants or units were selected for the study.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = false,
-                    OrderIndex = 4,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3DataCollectionId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Data Collection Method",
-                    Instruction = "Select all data collection methods used in the study.",
-                    FieldType = FieldType.MultiSelect,
-                    IsRequired = false,
-                    OrderIndex = 5,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3ThreatsValidityId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Threats to Validity Discussed",
-                    Instruction = "Indicate whether the paper explicitly discusses threats to validity (internal, external, construct, or conclusion validity).",
-                    FieldType = FieldType.Boolean,
-                    IsRequired = false,
-                    OrderIndex = 6,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF3ReplicationId,
-                    SectionId = EtSec3MethodologyId,
-                    Name = "Replication Package Available",
-                    Instruction = "Indicate whether the authors provide a replication package (data, scripts, artefacts).",
-                    FieldType = FieldType.Boolean,
-                    IsRequired = false,
-                    OrderIndex = 7,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                }
-            };
-
-            await context.ExtractionFields.AddRangeAsync(sec3Fields);
-            await context.SaveChangesAsync();
-
-            // Options for Research Type
-            var researchTypeOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptRtEmpiricalId,  FieldId = EtF3ResearchTypeId, Value = "Empirical Study",       DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtExperimentId, FieldId = EtF3ResearchTypeId, Value = "Controlled Experiment", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtCaseStudyId,  FieldId = EtF3ResearchTypeId, Value = "Case Study",           DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtSurveyId,     FieldId = EtF3ResearchTypeId, Value = "Survey / Questionnaire", DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtSimulationId, FieldId = EtF3ResearchTypeId, Value = "Simulation / Modelling", DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtReviewId,     FieldId = EtF3ResearchTypeId, Value = "Literature Review",    DisplayOrder = 5, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptRtOtherId,      FieldId = EtF3ResearchTypeId, Value = "Other",                DisplayOrder = 6, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            var samplingOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptSampRandomId,      FieldId = EtF3SamplingId, Value = "Random / Probabilistic", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSampConvenienceId, FieldId = EtF3SamplingId, Value = "Convenience",           DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSampPurposiveId,   FieldId = EtF3SamplingId, Value = "Purposive / Judgement", DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptSampNaId,          FieldId = EtF3SamplingId, Value = "Not Applicable",        DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            var dataCollectionOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptDcInterviewId,   FieldId = EtF3DataCollectionId, Value = "Interview",             DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcSurveyId,      FieldId = EtF3DataCollectionId, Value = "Survey / Questionnaire", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcObservationId, FieldId = EtF3DataCollectionId, Value = "Observation",            DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcRepoMiningId,  FieldId = EtF3DataCollectionId, Value = "Repository Mining",      DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcExperimentId,  FieldId = EtF3DataCollectionId, Value = "Controlled Experiment",  DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcDocumentId,    FieldId = EtF3DataCollectionId, Value = "Document Analysis",      DisplayOrder = 5, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptDcMixedId,       FieldId = EtF3DataCollectionId, Value = "Mixed Methods",          DisplayOrder = 6, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            await context.FieldOptions.AddRangeAsync(researchTypeOptions);
-            await context.FieldOptions.AddRangeAsync(samplingOptions);
-            await context.FieldOptions.AddRangeAsync(dataCollectionOptions);
-            await context.SaveChangesAsync();
-
-            // ── Section 4: Interventions & Approaches Fields ─────────────────
-            var sec4Fields = new List<ExtractionField>
-            {
-                new ExtractionField
-                {
-                    Id = EtF4InterventionNameId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Intervention / Approach Name",
-                    Instruction = "State the precise name of the proposed method, tool, framework, or technique.",
-                    FieldType = FieldType.Text,
-                    IsRequired = true,
-                    OrderIndex = 0,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4InterventionTypeId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Intervention Type",
-                    Instruction = "Classify the type of intervention presented in this paper.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = true,
-                    OrderIndex = 1,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4ComparisonId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Comparison / Baseline",
-                    Instruction = "Describe the technique or tool used as comparator (e.g. manual process, existing tool, previous version).",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4TechnologyId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Underlying Technology / Paradigm",
-                    Instruction = "Specify the core technology (e.g. machine learning, formal methods, model-driven engineering, NLP).",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 3,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4AutomationId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Automation Level",
-                    Instruction = "Select the degree to which the intervention is automated.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = false,
-                    OrderIndex = 4,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4ToolsId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Tools / Languages Used",
-                    Instruction = "List tools, programming languages, or environments used to implement or evaluate the intervention.",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 5,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF4ImplementationId,
-                    SectionId = EtSec4InterventionsId,
-                    Name = "Implementation / Availability",
-                    Instruction = "Note whether the implementation is publicly available; if so, provide the URL.",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 6,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                }
-            };
-
-            await context.ExtractionFields.AddRangeAsync(sec4Fields);
-            await context.SaveChangesAsync();
-
-            // Options for Intervention Type
-            var interventionTypeOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptItMethodId,    FieldId = EtF4InterventionTypeId, Value = "Method / Process",    DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptItToolId,      FieldId = EtF4InterventionTypeId, Value = "Tool / System",      DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptItFrameworkId, FieldId = EtF4InterventionTypeId, Value = "Framework",          DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptItProcessId,   FieldId = EtF4InterventionTypeId, Value = "Process Model",      DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptItModelId,     FieldId = EtF4InterventionTypeId, Value = "Model / Algorithm",  DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptItOtherId,     FieldId = EtF4InterventionTypeId, Value = "Other",              DisplayOrder = 5, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            var automationOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptAutoFullId,   FieldId = EtF4AutomationId, Value = "Fully Automated",    DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptAutoSemiId,   FieldId = EtF4AutomationId, Value = "Semi-Automated",    DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptAutoManualId, FieldId = EtF4AutomationId, Value = "Manual",            DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptAutoNaId,     FieldId = EtF4AutomationId, Value = "Not Applicable",    DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            await context.FieldOptions.AddRangeAsync(interventionTypeOptions);
-            await context.FieldOptions.AddRangeAsync(automationOptions);
-            await context.SaveChangesAsync();
-
-            // ── Section 5: Metrics & Outcomes Fields (Matrix Rows) ───────────
-            var sec5Fields = new List<ExtractionField>
-            {
-                new ExtractionField
-                {
-                    Id = EtF5MetricNameId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Metric Name",
-                    Instruction = "Name the specific outcome metric being reported (e.g. Precision, Recall, F1-Score, MTTR, Effort Reduction %).",
-                    FieldType = FieldType.Text,
-                    IsRequired = true,
-                    OrderIndex = 0,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF5MetricTypeId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Metric Category",
-                    Instruction = "Select the category this metric belongs to according to the GQM taxonomy.",
-                    FieldType = FieldType.SingleSelect,
-                    IsRequired = false,
-                    OrderIndex = 1,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF5ValueMeasureId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Reported Value (Mean / Median)",
-                    Instruction = "Enter the numerical value reported for this metric. Use the format: value ± std-dev (e.g. 0.87 ± 0.03).",
-                    FieldType = FieldType.Decimal,
-                    IsRequired = false,
-                    OrderIndex = 2,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF5ImprovementId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Improvement over Baseline (%)",
-                    Instruction = "Calculate and enter the percentage improvement of the proposed approach relative to the baseline.",
-                    FieldType = FieldType.Decimal,
-                    IsRequired = false,
-                    OrderIndex = 3,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF5StatSignId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Statistically Significant",
-                    Instruction = "Indicate whether the paper reports statistical significance for this metric (p < 0.05 or equivalent).",
-                    FieldType = FieldType.Boolean,
-                    IsRequired = false,
-                    OrderIndex = 4,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                },
-                new ExtractionField
-                {
-                    Id = EtF5NoteId,
-                    SectionId = EtSec5MetricsId,
-                    Name = "Notes / Caveats",
-                    Instruction = "Record any important caveats, dataset-specific conditions, or limitations that affect the interpretation of this metric.",
-                    FieldType = FieldType.Text,
-                    IsRequired = false,
-                    OrderIndex = 5,
-                    CreatedAt = DateTimeOffset.UtcNow,
-                    ModifiedAt = DateTimeOffset.UtcNow
-                }
-            };
-
-            await context.ExtractionFields.AddRangeAsync(sec5Fields);
-            await context.SaveChangesAsync();
-
-            // Options for Metric Category
-            var metricTypeOptions = new List<FieldOption>
-            {
-                new FieldOption { Id = EtOptMtEffectivenessId, FieldId = EtF5MetricTypeId, Value = "Effectiveness (accuracy, precision, recall)", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtEfficiencyId,    FieldId = EtF5MetricTypeId, Value = "Efficiency (time, throughput)",               DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtQualityId,       FieldId = EtF5MetricTypeId, Value = "Quality (defect density, reliability)",       DisplayOrder = 2, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtSatisfactionId,  FieldId = EtF5MetricTypeId, Value = "Satisfaction (usability, SUS score)",         DisplayOrder = 3, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtProductivityId,  FieldId = EtF5MetricTypeId, Value = "Productivity (effort, LOC, velocity)",        DisplayOrder = 4, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtCostId,          FieldId = EtF5MetricTypeId, Value = "Cost (monetary, resource)",                   DisplayOrder = 5, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptMtOtherId,         FieldId = EtF5MetricTypeId, Value = "Other",                                       DisplayOrder = 6, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
-            };
-
-            await context.FieldOptions.AddRangeAsync(metricTypeOptions);
             await context.SaveChangesAsync();
         }
 

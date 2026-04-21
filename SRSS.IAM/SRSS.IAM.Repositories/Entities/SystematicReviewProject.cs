@@ -22,7 +22,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
         public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
         public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
-        public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
+
         public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
         public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();

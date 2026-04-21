@@ -20,13 +20,13 @@ namespace SRSS.IAM.API.Controllers
         // ==================== Extraction Templates ====================
 
         /// <summary>
-        /// Lấy tất cả Templates theo Project ID (với cấu trúc cây)
+        /// Lấy tất cả Templates theo Data Extraction Process ID (với cấu trúc cây)
         /// </summary>
-        [HttpGet("project/{projectId}/templates")]
-        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProjectId(
-            Guid projectId)
+        [HttpGet("process/{processId}/templates")]
+        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProcessId(
+            Guid processId)
         {
-            var result = await _service.GetTemplatesByProjectIdAsync(projectId);
+            var result = await _service.GetTemplatesByProcessIdAsync(processId);
             return Ok(result, "Lấy danh sách templates thành công");
         }
 

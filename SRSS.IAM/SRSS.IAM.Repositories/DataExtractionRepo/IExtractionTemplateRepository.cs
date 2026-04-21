@@ -5,7 +5,7 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 {
     public interface IExtractionTemplateRepository : IGenericRepository<ExtractionTemplate, Guid, AppDbContext>
     {
-        Task<List<ExtractionTemplate>> GetByProjectIdAsync(Guid projectId);
+        Task<List<ExtractionTemplate>> GetByProcessIdAsync(Guid processId);
         Task<ExtractionTemplate?> GetByIdWithFieldsAsync(Guid templateId);
     }
 }

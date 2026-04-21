@@ -292,7 +292,6 @@ namespace SRSS.IAM.API.Data
             await SeedDataExtractionProcessesAsync(context);
             await SeedSynthesisProcessesAsync(context);
 
-            await SeedSearchExecutionsAsync(context);
             await SeedImportBatchesAsync(context);
             await SeedPapersAsync(context);
             await SeedScreeningResolutionsAsync(context);
@@ -554,30 +553,7 @@ namespace SRSS.IAM.API.Data
             await context.SaveChangesAsync();
         }
 
-        private static async Task SeedSearchExecutionsAsync(AppDbContext context)
-        {
-            if (await context.SearchExecutions.AnyAsync(x => x.Id == ScopusSearchExecutionId))
-            {
-                return;
-            }
-
-            var searchExecution = new SearchExecution
-            {
-                Id = ScopusSearchExecutionId,
-                IdentificationProcessId = HarIdentificationProcessId,
-                SearchSourceId = Har2SearchSource1Id,
-                SearchQuery = "TITLE-ABS-KEY(\"human activity recognition\" AND \"deep learning\")",
-                ExecutedAt = DateTimeOffset.UtcNow,
-                ResultCount = 3,
-                Type = SearchExecutionType.DatabaseSearch,
-                Notes = "Initial Scopus database search for HAR papers",
-                CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
-            };
-
-            await context.SearchExecutions.AddAsync(searchExecution);
-            await context.SaveChangesAsync();
-        }
+       
 
         private static async Task SeedImportBatchesAsync(AppDbContext context)
         {
@@ -589,13 +565,13 @@ namespace SRSS.IAM.API.Data
             var importBatch = new ImportBatch
             {
                 Id = ScopusImportBatchId,
+                ProjectId = HarProjectId,
                 FileName = "scopus_har_results.ris",
                 FileType = "RIS",
                 Source = "Scopus",
                 ImportedBy = "demo_user",
                 ImportedAt = DateTimeOffset.UtcNow,
                 TotalRecords = 3,
-                SearchExecutionId = ScopusSearchExecutionId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };

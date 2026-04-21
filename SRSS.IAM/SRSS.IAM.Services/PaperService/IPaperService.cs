@@ -12,6 +12,53 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedResponse<PaperResponse>> GetPaperPoolAsync(
+            Guid projectId,
+            PaperPoolQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperPoolFilterMetadataResponse> GetFilterMetadataAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<FilterSettingResponse>> GetFilterSettingsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> GetFilterSettingByIdAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> CreateFilterSettingAsync(
+            Guid projectId,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> UpdateFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task DeleteFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get papers for a project with advanced search and filtering capabilities
+        /// Supports filtering by search query, search strategy, search source, and publication year
+        /// </summary>
+        /// <param name="projectId">The project ID</param>
+        /// <param name="query">Search query object containing search text, strategy ID, source ID, and year filters</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paginated list of papers matching the search criteria</returns>
+        Task<PaginatedResponse<PaperResponse>> SearchPapersByProjectAsync(
+            Guid projectId,
+            PaperSearchQuery query,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Get duplicate papers for a specific identification process
         /// Returns papers identified as duplicates in that process with deduplication metadata

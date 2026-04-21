@@ -14,9 +14,15 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
+            var projectId = await ResolveProjectIdAsync(identificationProcessId, cancellationToken);
+            if (projectId == Guid.Empty)
+            {
+                return new List<DeduplicationResult>();
+            }
+
             return await _context.DeduplicationResults
                 .AsNoTracking()
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId)
+                .Where(dr => dr.ProjectId == projectId)
                 .OrderBy(dr => dr.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
@@ -26,10 +32,16 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
+            var projectId = await ResolveProjectIdAsync(identificationProcessId, cancellationToken);
+            if (projectId == Guid.Empty)
+            {
+                return null;
+            }
+
             return await _context.DeduplicationResults
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    dr => dr.PaperId == paperId && dr.IdentificationProcessId == identificationProcessId,
+                    dr => dr.PaperId == paperId && dr.ProjectId == projectId,
                     cancellationToken);
         }
 
@@ -37,10 +49,17 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             Guid identificationProcessId,
             CancellationToken cancellationToken = default)
         {
-            // Only count active duplicates (exclude Rejected/keep-both which are not real duplicates)
+            var projectId = await ResolveProjectIdAsync(identificationProcessId, cancellationToken);
+            if (projectId == Guid.Empty)
+            {
+                return 0;
+            }
+
+            // Only count active duplicates (pending or confirmed CANCEL).
             return await _context.DeduplicationResults
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId
-                    && dr.ReviewStatus != DeduplicationReviewStatus.Rejected)
+                .Where(dr => dr.ProjectId == projectId
+                    && (dr.ReviewStatus == DeduplicationReviewStatus.Pending
+                        || dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL))
                 .CountAsync(cancellationToken);
         }
 
@@ -55,11 +74,17 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             int pageSize,
             CancellationToken cancellationToken = default)
         {
+            var projectId = await ResolveProjectIdAsync(identificationProcessId, cancellationToken);
+            if (projectId == Guid.Empty)
+            {
+                return (new List<DeduplicationResult>(), 0);
+            }
+
             var query = _context.DeduplicationResults
                 .AsNoTracking()
                 .Include(dr => dr.Paper)
                 .Include(dr => dr.DuplicateOfPaper)
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId);
+                .Where(dr => dr.ProjectId == projectId && !dr.Paper.IsDeleted && !dr.DuplicateOfPaper.IsDeleted);
 
             // Filter by review status
             if (status.HasValue)
@@ -70,7 +95,7 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             // Filter by minimum confidence
             if (minConfidence.HasValue)
             {
-                query = query.Where(dr => dr.ConfidenceScore != null && dr.ConfidenceScore >= minConfidence.Value);
+                query = query.Where(dr => dr.ConfidenceScore >= minConfidence.Value);
             }
 
             // Filter by detection method
@@ -108,6 +133,15 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
                 .ToListAsync(cancellationToken);
 
             return (results, totalCount);
+        }
+
+        private async Task<Guid> ResolveProjectIdAsync(Guid identificationProcessId, CancellationToken cancellationToken)
+        {
+            return await _context.IdentificationProcesses
+                .AsNoTracking()
+                .Where(ip => ip.Id == identificationProcessId)
+                .Select(ip => ip.ReviewProcess.ProjectId)
+                .SingleOrDefaultAsync(cancellationToken);
         }
     }
 }

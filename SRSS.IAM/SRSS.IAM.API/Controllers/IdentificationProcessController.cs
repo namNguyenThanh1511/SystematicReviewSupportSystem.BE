@@ -167,15 +167,15 @@ namespace SRSS.IAM.API.Controllers
         /// Bulk add papers to the identification snapshot.
         /// Snapshot is append-only.
         /// </summary>
-        [HttpPost("identification-processes/{id}/snapshot")]
-        public async Task<ActionResult<ApiResponse>> AddPapersToSnapshot(
-            [FromRoute] Guid id,
-            [FromBody] AddPapersToSnapshotRequest request,
-            CancellationToken cancellationToken)
-        {
-            await _identificationService.AddPapersToIdentificationSnapshotAsync(id, request.PaperIds, cancellationToken);
-            return Ok("Papers added to snapshot successfully.");
-        }
+        // [HttpPost("identification-processes/{id}/snapshot")]
+        // public async Task<ActionResult<ApiResponse>> AddPapersToSnapshot(
+        //     [FromRoute] Guid id,
+        //     [FromBody] AddPapersToSnapshotRequest request,
+        //     CancellationToken cancellationToken)
+        // {
+        //     await _identificationService.AddPapersToIdentificationSnapshotAsync(id, request.PaperIds, cancellationToken);
+        //     return Ok("Papers added to snapshot successfully.");
+        // }
 
         /// <summary>
         /// Get the frozen identification snapshot papers.

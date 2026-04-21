@@ -42,5 +42,19 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid reviewProcessId,
             ProcessPhase phase,
             CancellationToken cancellationToken = default);
+
+        Task<List<ReviewProcessSnapshotResponse>> GetReviewProcessSnapshotsByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<AddPapersToReviewProcessResponse> AddSelectedPapersAsync(
+            Guid reviewProcessId,
+            AddSelectedPapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<AddPapersFromFilterResponse> AddPapersFromFilterSettingAsync(
+            Guid reviewProcessId,
+            AddFromFilterSettingRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

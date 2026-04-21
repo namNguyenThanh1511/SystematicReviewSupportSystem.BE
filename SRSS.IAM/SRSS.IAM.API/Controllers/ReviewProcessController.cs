@@ -63,12 +63,39 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of processes</returns>
         [HttpGet("projects/{projectId}/review-processes")]
-        public async Task<ActionResult<ApiResponse<List<ReviewProcessResponse>>>> GetReviewProcessesByProject(
+        public async Task<ActionResult<ApiResponse<List<ReviewProcessSnapshotResponse>>>> GetReviewProcessesByProject(
             [FromRoute] Guid projectId,
             CancellationToken cancellationToken)
         {
-            var result = await _reviewProcessService.GetReviewProcessesByProjectIdAsync(projectId, cancellationToken);
+            var result = await _reviewProcessService.GetReviewProcessSnapshotsByProjectIdAsync(projectId, cancellationToken);
             return Ok(result, "Review processes retrieved successfully.");
+        }
+
+        [HttpPost("review-processes/{reviewProcessId}/papers")]
+        public async Task<ActionResult<ApiResponse<AddPapersToReviewProcessResponse>>> AddSelectedPapers(
+            [FromRoute] Guid reviewProcessId,
+            [FromBody] AddSelectedPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reviewProcessService.AddSelectedPapersAsync(reviewProcessId, request, cancellationToken);
+            return Ok(result, "Papers added to review process successfully.");
+        }
+
+        [HttpPost("review-processes/{processId}/papers/add-from-filter-setting")]
+        public async Task<ActionResult<ApiResponse<AddPapersFromFilterResponse>>> AddPapersFromFilterSetting(
+            [FromRoute] Guid processId,
+            [FromBody] AddFromFilterSettingRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _reviewProcessService.AddPapersFromFilterSettingAsync(processId, request, cancellationToken);
+                return Ok(result, "Papers from filter setting added to review process successfully.");
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "No papers matched")
+            {
+                return BadRequest<AddPapersFromFilterResponse>("No papers matched");
+            }
         }
 
         /// <summary>

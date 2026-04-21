@@ -12,6 +12,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.IdentificationService;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -387,6 +388,247 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return await GetReviewProcessByIdAsync(reviewProcessId, cancellationToken);
+        }
+
+        public async Task<List<ReviewProcessSnapshotResponse>> GetReviewProcessSnapshotsByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcesses = await _unitOfWork.ReviewProcesses.GetByProjectIdAsync(projectId, cancellationToken);
+            var processIds = reviewProcesses.Select(x => x.Id).ToList();
+
+            var identificationProcessIds = reviewProcesses
+                .Where(x => x.IdentificationProcess != null)
+                .Select(x => x.IdentificationProcess!.Id)
+                .ToList();
+
+            var importedCountByProcess = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Where(x => identificationProcessIds.Contains(x.IdentificationProcessId) && x.IncludedAfterDedup)
+                .GroupBy(x => x.IdentificationProcessId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+
+            var studySelectionProcessIds = reviewProcesses
+                .Where(x => x.StudySelectionProcess != null)
+                .Select(x => x.StudySelectionProcess!.Id)
+                .ToList();
+
+            var includeCountByProcess = await _unitOfWork.ScreeningResolutions.GetQueryable()
+                .AsNoTracking()
+                .Where(x => studySelectionProcessIds.Contains(x.StudySelectionProcessId) && x.FinalDecision == ScreeningDecisionType.Include)
+                .GroupBy(x => x.StudySelectionProcessId)
+                .Select(g => new { g.Key, Count = g.Select(x => x.PaperId).Distinct().Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+
+            var excludeCountByProcess = await _unitOfWork.ScreeningResolutions.GetQueryable()
+                .AsNoTracking()
+                .Where(x => studySelectionProcessIds.Contains(x.StudySelectionProcessId) && x.FinalDecision == ScreeningDecisionType.Exclude)
+                .GroupBy(x => x.StudySelectionProcessId)
+                .Select(g => new { g.Key, Count = g.Select(x => x.PaperId).Distinct().Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+
+            return reviewProcesses
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(process => new ReviewProcessSnapshotResponse
+                {
+                    ProcessId = process.Id,
+                    ProcessName = process.Name,
+                    StatusText = process.Status.ToString(),
+                    StartAt = process.StartedAt,
+                    CompletedAt = process.CompletedAt,
+                    ProgressPercent = CalculateProgressPercent(process),
+                    TotalPapersImported = process.IdentificationProcess != null &&
+                                         importedCountByProcess.TryGetValue(process.IdentificationProcess.Id, out var importedCount)
+                        ? importedCount
+                        : 0,
+                    TotalIncludedPapers = process.StudySelectionProcess != null &&
+                                          includeCountByProcess.TryGetValue(process.StudySelectionProcess.Id, out var includeCount)
+                        ? includeCount
+                        : 0,
+                    TotalExcludedPapers = process.StudySelectionProcess != null &&
+                                          excludeCountByProcess.TryGetValue(process.StudySelectionProcess.Id, out var excludeCount)
+                        ? excludeCount
+                        : 0
+                })
+                .ToList();
+        }
+
+        public async Task<AddPapersToReviewProcessResponse> AddSelectedPapersAsync(
+            Guid reviewProcessId,
+            AddSelectedPapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.PaperIds == null || request.PaperIds.Count == 0)
+            {
+                throw new ArgumentException("paperIds is required.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            var identificationProcess = reviewProcess.IdentificationProcess
+                ?? throw new NotFoundException("Identification process not found for this review process.");
+
+            var distinctPaperIds = request.PaperIds.Distinct().ToList();
+
+            var existingPapers = await _unitOfWork.Papers.FindAllAsync(
+                x => distinctPaperIds.Contains(x.Id) && x.ProjectId == reviewProcess.ProjectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var foundPaperIds = existingPapers.Select(x => x.Id).ToHashSet();
+            var missingPaperIds = distinctPaperIds.Where(x => !foundPaperIds.Contains(x)).ToList();
+            if (missingPaperIds.Count > 0)
+            {
+                throw new NotFoundException($"Some papers were not found in this project: {string.Join(", ", missingPaperIds)}");
+            }
+
+            var existingSnapshotPaperIds = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Where(x => x.IdentificationProcessId == identificationProcess.Id && distinctPaperIds.Contains(x.PaperId))
+                .Select(x => x.PaperId)
+                .ToListAsync(cancellationToken);
+
+            var existingSet = existingSnapshotPaperIds.ToHashSet();
+            var newPaperIds = distinctPaperIds.Where(x => !existingSet.Contains(x)).ToList();
+            var now = DateTimeOffset.UtcNow;
+            var newRecords = newPaperIds.Select(paperId => new Repositories.Entities.IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcess.Id,
+                PaperId = paperId,
+                IncludedAfterDedup = true,
+                SourceType = PaperSourceType.DatabaseSearch,
+                CreatedAt = now,
+                ModifiedAt = now
+            }).ToList();
+
+            if (newRecords.Count > 0)
+            {
+                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(newRecords, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return new AddPapersToReviewProcessResponse
+            {
+                Inserted = newRecords.Count,
+                SkippedAsDuplicate = distinctPaperIds.Count - newRecords.Count,
+                ReviewProcessSnapshot = new ReviewProcessProgressSnapshotResponse
+                {
+                    ReviewProcessId = reviewProcess.Id,
+                    ReviewProcessName = reviewProcess.Name,
+                    StatusText = reviewProcess.Status.ToString(),
+                    ProgressPercent = CalculateProgressPercent(reviewProcess)
+                }
+            };
+        }
+
+        public async Task<AddPapersFromFilterResponse> AddPapersFromFilterSettingAsync(
+            Guid reviewProcessId,
+            AddFromFilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            var identificationProcess = reviewProcess.IdentificationProcess
+                ?? throw new NotFoundException("Identification process not found for this review process.");
+
+            var filterSetting = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.Id == request.FilterSettingId && x.ProjectId == reviewProcess.ProjectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (filterSetting == null)
+            {
+                throw new NotFoundException("Filter setting not found in this project.");
+            }
+
+            var (matchedPapers, matchedTotal) = await _unitOfWork.Papers.GetPaperPoolByProjectAsync(
+                reviewProcess.ProjectId,
+                filterSetting.SearchText,
+                filterSetting.Keyword,
+                filterSetting.YearFrom,
+                filterSetting.YearTo,
+                filterSetting.SearchSourceId,
+                filterSetting.ImportBatchId,
+                filterSetting.DoiState,
+                filterSetting.FullTextState,
+                filterSetting.OnlyUnused,
+                filterSetting.RecentlyImported,
+                pageNumber: 1,
+                pageSize: int.MaxValue,
+                cancellationToken: cancellationToken);
+
+            if (matchedTotal == 0)
+            {
+                throw new InvalidOperationException("No papers matched");
+            }
+
+            var matchedPaperIds = matchedPapers.Select(x => x.Id).Distinct().ToList();
+            var existingPaperIds = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Where(x => x.IdentificationProcessId == identificationProcess.Id && matchedPaperIds.Contains(x.PaperId))
+                .Select(x => x.PaperId)
+                .ToListAsync(cancellationToken);
+
+            var existingSet = existingPaperIds.ToHashSet();
+            var newPaperIds = matchedPaperIds.Where(x => !existingSet.Contains(x)).ToList();
+            var now = DateTimeOffset.UtcNow;
+
+            var newRecords = newPaperIds.Select(paperId => new Repositories.Entities.IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcess.Id,
+                PaperId = paperId,
+                IncludedAfterDedup = true,
+                SourceType = PaperSourceType.DatabaseSearch,
+                CreatedAt = now,
+                ModifiedAt = now
+            }).ToList();
+
+            if (newRecords.Count > 0)
+            {
+                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(newRecords, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return new AddPapersFromFilterResponse
+            {
+                Inserted = newRecords.Count,
+                SkippedAsDuplicate = matchedPaperIds.Count - newRecords.Count,
+                MatchedTotal = matchedPaperIds.Count,
+                ProcessSnapshot = new ProcessSnapshotWithExistingPapersResponse
+                {
+                    ProcessId = reviewProcess.Id,
+                    ProcessName = reviewProcess.Name,
+                    StatusText = reviewProcess.Status.ToString(),
+                    ProgressPercent = CalculateProgressPercent(reviewProcess),
+                    ExistingPaperIds = existingPaperIds
+                }
+            };
+        }
+
+        private static double CalculateProgressPercent(Repositories.Entities.ReviewProcess reviewProcess)
+        {
+            var completedFlags = new[]
+            {
+                reviewProcess.IdentificationProcess?.Status == IdentificationStatus.Completed,
+                reviewProcess.StudySelectionProcess?.Status == SelectionProcessStatus.Completed,
+                reviewProcess.QualityAssessmentProcess?.Status == QualityAssessmentProcessStatus.Completed,
+                reviewProcess.DataExtractionProcess?.Status == ExtractionProcessStatus.Completed,
+                reviewProcess.SynthesisProcess?.Status == SynthesisProcessStatus.Completed
+            };
+
+            var completedCount = completedFlags.Count(x => x);
+            return Math.Round((completedCount / 5d) * 100d, 2);
         }
 
         private async Task EnsureLeaderPermissionAsync(Guid projectId)

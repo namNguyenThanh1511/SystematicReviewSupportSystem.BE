@@ -160,7 +160,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             // 1, 2, 3. Identification: (Databases + Snowballing + Duplicates)
             // Use common logic from IdentificationService for consistency
             var idStats = await _identificationService.GetPrismaStatisticsAsync(
-                identificationProcess.Id,
+                reviewProcess.Id,
                 cancellationToken);
 
             details.IdentifiedBreakdown = idStats.IdentifiedBreakdown;

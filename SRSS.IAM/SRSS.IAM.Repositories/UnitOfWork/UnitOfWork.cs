@@ -5,7 +5,6 @@ using Shared.Entities.BaseEntity;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.PaperRepo;
-using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
 using SRSS.IAM.Repositories.QualityRepo;
@@ -48,6 +47,8 @@ using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 using SRSS.IAM.Repositories.AuditLogRepo;
 
+using SRSS.IAM.Repositories.FilterSettingRepo;
+
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -66,8 +67,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IReviewObjectiveRepository? _reviewObjectives;
         private IQuestionTypeRepository? _questionTypes;
         private IReviewProcessRepository? _reviewProcesses;
+        private IFilterSettingRepository? _filterSettings;
         private IIdentificationProcessRepository? _identificationProcesses;
-        private ISearchExecutionRepository? _searchExecutions;
         private IPaperRepository? _papers;
         private IImportBatchRepository? _importBatches;
         private IPrismaReportRepository? _prismaReports;
@@ -308,11 +309,12 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IReviewProcessRepository ReviewProcesses
             => _reviewProcesses ??= new ReviewProcessRepository(_dbContext);
 
+        public IFilterSettingRepository FilterSettings
+            => _filterSettings ??= new FilterSettingRepository(_dbContext);
+
         public IIdentificationProcessRepository IdentificationProcesses
             => _identificationProcesses ??= new IdentificationProcessRepository(_dbContext);
 
-        public ISearchExecutionRepository SearchExecutions
-            => _searchExecutions ??= new SearchExecutionRepository(_dbContext);
 
         public IPaperRepository Papers
             => _papers ??= new PaperRepository(_dbContext);

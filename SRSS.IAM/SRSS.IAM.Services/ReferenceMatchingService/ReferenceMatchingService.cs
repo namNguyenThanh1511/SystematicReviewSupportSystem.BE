@@ -230,18 +230,28 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 return new List<MatchResult>();
             }
 
+            var projectId = await _unitOfWork.IdentificationProcesses.GetQueryable()
+                .AsNoTracking()
+                .Where(ip => ip.Id == identificationProcessId)
+                .Select(ip => ip.ReviewProcess.ProjectId)
+                .SingleOrDefaultAsync(cancellationToken);
+
             var cancelledDuplicates = await _unitOfWork.DeduplicationResults.FindAllAsync(
-                dr => dr.IdentificationProcessId == identificationProcessId
+                dr => dr.ProjectId == projectId
                     && dr.ReviewStatus == DeduplicationReviewStatus.Confirmed
                     && dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL,
                 cancellationToken: cancellationToken);
 
             var cancelledDuplicateIds = cancelledDuplicates.Select(dr => dr.PaperId).ToHashSet();
 
-            var scopedPapers = await _unitOfWork.Papers.FindAllAsync(
-                p => p.ImportBatch != null
-                    && p.ImportBatch.SearchExecution != null
-                    && p.ImportBatch.SearchExecution.IdentificationProcessId == identificationProcessId,
+            var snapshotPaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
+                identificationProcessId,
+                cancellationToken);
+
+            var snapshotPaperIdSet = snapshotPaperIds.ToHashSet();
+
+            var scopedPapers = await _unitOfWork.Papers.FindAllWithEmbeddingAsync(
+                p => snapshotPaperIdSet.Contains(p.Id),
                 isTracking: false,
                 cancellationToken);
 
@@ -280,10 +290,72 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                     && !(fuzzyMatch.Strategy == MatchStrategy.TitleExact && fuzzyMatch.ConfidenceScore >= 1.0m)
                     && doiMatch == null)
                 {
-                    semanticMatch = await FindSemanticMatchInProcessAsync(
+                    semanticMatch = await FindSemanticMatchInCandidatesAsync(
                         reference.TitleEmbedding,
                         reference,
-                        identificationProcessId,
+                        existingPaperList,
+                        cancellationToken);
+                }
+
+                results.Add(SelectBestHybridMatch(doiMatch, fuzzyMatch, semanticMatch));
+            }
+
+            return results;
+        }
+
+        public async Task<IEnumerable<MatchResult>> MatchBatchInProjectAsync(
+            IEnumerable<ExtractedReference> references,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var referenceList = references?.ToList() ?? new List<ExtractedReference>();
+            if (!referenceList.Any())
+            {
+                return new List<MatchResult>();
+            }
+
+            var scopedPapers = await _unitOfWork.Papers.FindAllWithEmbeddingAsync(
+                p => p.ProjectId == projectId,
+                isTracking: false,
+                cancellationToken);
+
+            var existingPaperList = scopedPapers.ToList();
+
+            var doiLookup = existingPaperList
+                .Where(p => !string.IsNullOrWhiteSpace(p.DOI))
+                .GroupBy(p => DoiHelper.Normalize(p.DOI) ?? p.DOI!.Trim().ToLowerInvariant())
+                .ToDictionary(g => g.Key, g => g.OrderBy(x => x.CreatedAt).First());
+
+            var results = new List<MatchResult>(referenceList.Count);
+
+            foreach (var reference in referenceList)
+            {
+                MatchResult? doiMatch = null;
+                var normalizedRefDoi = DoiHelper.Normalize(reference.DOI);
+                if (!string.IsNullOrWhiteSpace(normalizedRefDoi)
+                    && doiLookup.TryGetValue(normalizedRefDoi, out var doiPaper))
+                {
+                    doiMatch = new MatchResult
+                    {
+                        MatchedPaper = doiPaper,
+                        MatchedPaperId = doiPaper.Id,
+                        ConfidenceScore = 1.0m,
+                        Strategy = MatchStrategy.DOI
+                    };
+                }
+
+                var filteredCandidates = FilterCandidates(reference, existingPaperList);
+                var fuzzyMatch = MatchAgainstAsync(reference, filteredCandidates);
+
+                MatchResult? semanticMatch = null;
+                if (reference.TitleEmbedding is { Length: > 0 }
+                    && !(fuzzyMatch.Strategy == MatchStrategy.TitleExact && fuzzyMatch.ConfidenceScore >= 1.0m)
+                    && doiMatch == null)
+                {
+                    semanticMatch = await FindSemanticMatchInCandidatesAsync(
+                        reference.TitleEmbedding,
+                        reference,
+                        existingPaperList,
                         cancellationToken);
                 }
 
@@ -456,6 +528,74 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             }
 
             return null;
+        }
+
+        private Task<MatchResult?> FindSemanticMatchInCandidatesAsync(
+            float[] embedding,
+            ExtractedReference reference,
+            IEnumerable<Paper> candidates,
+            CancellationToken cancellationToken)
+        {
+            int? refYear = int.TryParse(reference.PublishedYear, out var ry) ? ry : null;
+            var refAuthorTokens = ExtractAuthorTokens(reference.Authors);
+
+            Paper? bestPaper = null;
+            float bestSimilarity = 0f;
+
+            foreach (var candidate in candidates)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var candidateEmbedding = candidate.TitleEmbedding?.Embedding;
+                if (candidateEmbedding == null)
+                {
+                    continue;
+                }
+
+                var similarity = CosineSimilarity(embedding, candidateEmbedding.ToArray());
+                if (similarity < 0.85f)
+                {
+                    continue;
+                }
+
+                if (similarity < 0.95f)
+                {
+                    if (refYear.HasValue && candidate.PublicationYearInt.HasValue &&
+                        Math.Abs(refYear.Value - candidate.PublicationYearInt.Value) > 2)
+                    {
+                        continue;
+                    }
+
+                    var candidateAuthorTokens = ExtractAuthorTokens(candidate.Authors);
+                    if (refAuthorTokens.Any() && candidateAuthorTokens.Any())
+                    {
+                        var authorScore = ComputeAuthorScore(refAuthorTokens, candidateAuthorTokens);
+                        if (authorScore < 0.3m)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                if (similarity > bestSimilarity)
+                {
+                    bestSimilarity = similarity;
+                    bestPaper = candidate;
+                }
+            }
+
+            if (bestPaper == null)
+            {
+                return Task.FromResult<MatchResult?>(null);
+            }
+
+            return Task.FromResult<MatchResult?>(new MatchResult
+            {
+                MatchedPaper = bestPaper,
+                MatchedPaperId = bestPaper.Id,
+                ConfidenceScore = (decimal)bestSimilarity,
+                Strategy = MatchStrategy.Semantic
+            });
         }
 
         private static MatchResult SelectBestHybridMatch(params MatchResult?[] matches)

@@ -20,6 +20,7 @@ namespace SRSS.IAM.Repositories.Entities
         public QualityAssessmentProcess? QualityAssessmentProcess { get; set; }
         public DataExtractionProcess? DataExtractionProcess { get; set; }
         public SynthesisProcess? SynthesisProcess { get; set; }
+        public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
 
         // Domain Methods
@@ -30,10 +31,7 @@ namespace SRSS.IAM.Repositories.Entities
                 throw new InvalidOperationException($"Cannot start process from {Status} status.");
             }
 
-            if (Project.ReviewProcesses.Any(rp => rp.Id != Id && rp.Status == ProcessStatus.InProgress))
-            {
-                throw new InvalidOperationException("Cannot start this process while another process is in progress.");
-            }
+
 
             Status = ProcessStatus.InProgress;
             StartedAt = DateTimeOffset.UtcNow;

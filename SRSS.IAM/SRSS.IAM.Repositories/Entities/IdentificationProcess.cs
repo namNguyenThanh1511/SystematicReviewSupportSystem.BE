@@ -10,8 +10,6 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? CompletedAt { get; set; }
         public IdentificationStatus Status { get; set; }
 
-        public ICollection<SearchExecution> SearchExecutions { get; set; } = new List<SearchExecution>();
-        public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
         public ICollection<IdentificationProcessPaper> IdentificationPapers { get; set; } = new List<IdentificationProcessPaper>();
         public ReviewProcess ReviewProcess { get; set; } = null!;
 

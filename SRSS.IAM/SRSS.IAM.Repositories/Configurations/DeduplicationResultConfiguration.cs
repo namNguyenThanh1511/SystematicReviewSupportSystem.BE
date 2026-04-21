@@ -16,8 +16,8 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("id")
                 .IsRequired();
 
-            builder.Property(dr => dr.IdentificationProcessId)
-                .HasColumnName("identification_process_id")
+            builder.Property(dr => dr.ProjectId)
+                .HasColumnName("project_id")
                 .IsRequired();
 
             builder.Property(dr => dr.PaperId)
@@ -66,9 +66,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .IsRequired();
 
             // Relationships
-            builder.HasOne(dr => dr.IdentificationProcess)
-                .WithMany(ip => ip.DeduplicationResults)
-                .HasForeignKey(dr => dr.IdentificationProcessId)
+            builder.HasOne(dr => dr.Project)
+                .WithMany(p => p.DeduplicationResults)
+                .HasForeignKey(dr => dr.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(dr => dr.Paper)
@@ -81,10 +81,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(dr => dr.DuplicateOfPaperId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Unique constraint: One deduplication result per paper per process
-            builder.HasIndex(dr => new { dr.IdentificationProcessId, dr.PaperId })
+            // Unique constraint: One deduplication result per paper per project
+            builder.HasIndex(dr => new { dr.ProjectId, dr.PaperId })
                 .IsUnique()
-                .HasDatabaseName("uq_deduplication_process_paper");
+                .HasDatabaseName("uq_deduplication_project_paper");
 
             // Check constraint: Prevent self-duplicate
             builder.HasCheckConstraint(
@@ -92,7 +92,7 @@ namespace SRSS.IAM.Repositories.Configurations
                 "paper_id != duplicate_of_paper_id");
 
             // Additional indexes for performance
-            builder.HasIndex(dr => dr.IdentificationProcessId);
+            builder.HasIndex(dr => dr.ProjectId);
             builder.HasIndex(dr => dr.PaperId);
             builder.HasIndex(dr => dr.DuplicateOfPaperId);
             builder.HasIndex(dr => dr.Method);

@@ -22,40 +22,7 @@ namespace SRSS.IAM.API.Controllers
             _paperService = paperService;
         }
 
-        /// <summary>
-        /// Get all papers for a specific project with optional filtering and pagination
-        /// </summary>
-        [HttpGet("projects/{projectId}/papers")]
-        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetPapersByProject(
-            [FromRoute] Guid projectId,
-            [FromQuery] string? search,
-            [FromQuery] SelectionStatus? status,
-            [FromQuery] int? year,
-            [FromQuery] string? assignmentStatus,
-            [FromQuery] ScreeningStage? stage,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 20,
-            CancellationToken cancellationToken = default)
-        {
-            var request = new PaperListRequest
-            {
-                Search = search,
-                Status = status,
-                Year = year,
-                AssignmentStatus = assignmentStatus,
-                Stage = stage,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
-
-            var result = await _paperService.GetPapersByProjectAsync(projectId, request, cancellationToken);
-
-            var message = result.TotalCount == 0
-                ? "No papers found for this project."
-                : $"Retrieved {result.Items.Count} of {result.TotalCount} papers.";
-
-            return Ok(result, message);
-        }
+        
 
         /// <summary>
         /// Get all duplicate papers for a specific identification process

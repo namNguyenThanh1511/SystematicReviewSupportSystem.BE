@@ -10,7 +10,6 @@ namespace SRSS.IAM.Repositories.PaperRepo
     {
         IQueryable<Paper> GetPapersQueryable(List<Guid> ids);
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
-        Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
@@ -19,6 +18,36 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int? year,
             string? assignmentStatus,
             ScreeningStage? stage,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Search papers in a project with advanced filtering capabilities
+        /// Supports filtering by search text, search strategy ID, search source ID, and publication year
+        /// </summary>
+        Task<(List<Paper> Papers, int TotalCount)> SearchPapersByProjectAsync(
+            Guid projectId,
+            string? search,
+            Guid? searchStrategyId,
+            Guid? searchSourceId,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPaperPoolByProjectAsync(
+            Guid projectId,
+            string? searchText,
+            string? keyword,
+            int? yearFrom,
+            int? yearTo,
+            Guid? searchSourceId,
+            Guid? importBatchId,
+            string doiState,
+            string fullTextState,
+            bool onlyUnused,
+            bool recentlyImported,
             int pageNumber,
             int pageSize,
             CancellationToken cancellationToken = default);

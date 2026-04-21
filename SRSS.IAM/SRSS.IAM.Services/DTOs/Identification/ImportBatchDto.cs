@@ -2,7 +2,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
 {
     public class CreateImportBatchRequest
     {
-        public Guid SearchExecutionId { get; set; }
+        public Guid ProjectId { get; set; }
         public string? FileName { get; set; }
         public string? FileType { get; set; }
         public string? Source { get; set; }
@@ -22,8 +22,7 @@ namespace SRSS.IAM.Services.DTOs.Identification
 
     public class ImportBatchResponse
     {
-        public Guid Id { get; set; }
-        public Guid? SearchExecutionId { get; set; }
+        public Guid Id { get; set; } = Guid.NewGuid();
         public string? FileName { get; set; }
         public string? FileType { get; set; }
         public string? Source { get; set; }

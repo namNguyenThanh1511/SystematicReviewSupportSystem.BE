@@ -53,4 +53,59 @@ namespace SRSS.IAM.Services.DTOs.ReviewProcess
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
     }
+
+    public class ReviewProcessSnapshotResponse
+    {
+        public Guid ProcessId { get; set; }
+        public string ProcessName { get; set; } = string.Empty;
+        public string StatusText { get; set; } = string.Empty;
+        public DateTimeOffset? StartAt { get; set; }
+        public DateTimeOffset? CompletedAt { get; set; }
+        public double ProgressPercent { get; set; }
+        public int TotalPapersImported { get; set; }
+        public int TotalIncludedPapers { get; set; }
+        public int TotalExcludedPapers { get; set; }
+    }
+
+    public class AddSelectedPapersRequest
+    {
+        public List<Guid> PaperIds { get; set; } = new();
+    }
+
+    public class AddFromFilterSettingRequest
+    {
+        public Guid FilterSettingId { get; set; }
+    }
+
+    public class ReviewProcessProgressSnapshotResponse
+    {
+        public Guid ReviewProcessId { get; set; }
+        public string ReviewProcessName { get; set; } = string.Empty;
+        public string StatusText { get; set; } = string.Empty;
+        public double ProgressPercent { get; set; }
+    }
+
+    public class ProcessSnapshotWithExistingPapersResponse
+    {
+        public Guid ProcessId { get; set; }
+        public string ProcessName { get; set; } = string.Empty;
+        public string StatusText { get; set; } = string.Empty;
+        public double ProgressPercent { get; set; }
+        public List<Guid> ExistingPaperIds { get; set; } = new();
+    }
+
+    public class AddPapersToReviewProcessResponse
+    {
+        public int Inserted { get; set; }
+        public int SkippedAsDuplicate { get; set; }
+        public ReviewProcessProgressSnapshotResponse ReviewProcessSnapshot { get; set; } = new();
+    }
+
+    public class AddPapersFromFilterResponse
+    {
+        public int Inserted { get; set; }
+        public int SkippedAsDuplicate { get; set; }
+        public int MatchedTotal { get; set; }
+        public ProcessSnapshotWithExistingPapersResponse ProcessSnapshot { get; set; } = new();
+    }
 }

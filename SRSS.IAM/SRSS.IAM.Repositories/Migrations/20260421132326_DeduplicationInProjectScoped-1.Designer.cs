@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260421132326_DeduplicationInProjectScoped-1")]
+    partial class DeduplicationInProjectScoped1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1154,16 +1157,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<bool>("IsPicoc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_picoc");
-
-                    b.Property<Guid?>("LinkedResearchQuestionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("linked_research_question_id");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1187,8 +1180,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LinkedResearchQuestionId");
-
                     b.HasIndex("TemplateId");
 
                     b.ToTable("extraction_section", (string)null);
@@ -1203,9 +1194,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("DataExtractionProcessId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -1218,9 +1206,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DataExtractionProcessId");
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("extraction_template", (string)null);
                 });
@@ -4931,31 +4922,24 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionSection", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ResearchQuestion", "LinkedResearchQuestion")
-                        .WithMany()
-                        .HasForeignKey("LinkedResearchQuestionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionTemplate", "Template")
                         .WithMany("Sections")
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("LinkedResearchQuestion");
-
                     b.Navigation("Template");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionTemplate", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.DataExtractionProcess", "DataExtractionProcess")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
                         .WithMany("ExtractionTemplates")
-                        .HasForeignKey("DataExtractionProcessId")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DataExtractionProcess");
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.FieldOption", b =>
@@ -5975,8 +5959,6 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionProcess", b =>
                 {
                     b.Navigation("ExtractionPaperTasks");
-
-                    b.Navigation("ExtractionTemplates");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionField", b =>

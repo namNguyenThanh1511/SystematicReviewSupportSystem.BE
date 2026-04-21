@@ -14,12 +14,10 @@ namespace SRSS.IAM.Repositories.ImportBatchRepo
         {
         }
 
-        public async Task<IEnumerable<ImportBatch>> GetBySearchExecutionIdsWithSourceAsync(IEnumerable<Guid> executionIds, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<ImportBatch>> GetByProjectIdsAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.ImportBatches
-                .Include(ib => ib.SearchExecution)
-                    .ThenInclude(se => se.SearchSource)
-                .Where(ib => ib.SearchExecutionId != null && executionIds.Contains(ib.SearchExecutionId.Value))
+                .Where(ib => ib.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }
     }

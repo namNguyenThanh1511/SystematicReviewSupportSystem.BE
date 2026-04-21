@@ -42,11 +42,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("modified_at")
                 .IsRequired();
 
-            builder.HasMany(ip => ip.SearchExecutions)
-                .WithOne(se => se.IdentificationProcess)
-                .HasForeignKey(se => se.IdentificationProcessId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             builder.HasOne(ip => ip.ReviewProcess)
                 .WithOne(rp => rp.IdentificationProcess)
                 .HasForeignKey<IdentificationProcess>(ip => ip.ReviewProcessId)

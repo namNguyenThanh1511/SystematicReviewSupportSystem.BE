@@ -30,6 +30,8 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
         public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
         public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
+        public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
+        public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
         public ICollection<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = new List<StudySelectionChecklistTemplate>();
@@ -85,12 +87,6 @@ namespace SRSS.IAM.Repositories.Entities
             if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
             {
                 throw new InvalidOperationException($"Cannot add processes to project in {Status} status.");
-            }
-
-
-            if (ReviewProcesses.Any(rp => rp.Status == ProcessStatus.InProgress))
-            {
-                throw new InvalidOperationException("Cannot add a new process while another process is in progress.");
             }
 
             var reviewProcess = new ReviewProcess

@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260421121829_DeduplicationInProjectScoped")]
+    partial class DeduplicationInProjectScoped
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1154,16 +1157,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
-                    b.Property<bool>("IsPicoc")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_picoc");
-
-                    b.Property<Guid?>("LinkedResearchQuestionId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("linked_research_question_id");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1187,8 +1180,6 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LinkedResearchQuestionId");
-
                     b.HasIndex("TemplateId");
 
                     b.ToTable("extraction_section", (string)null);
@@ -1203,9 +1194,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("DataExtractionProcessId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
@@ -1218,9 +1206,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DataExtractionProcessId");
+                    b.HasIndex("ProjectId");
 
                     b.ToTable("extraction_template", (string)null);
                 });
@@ -1546,6 +1537,39 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("identification_process_papers", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcessSearchStrategy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("IdentificationProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("identification_process_id");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<Guid>("SearchStrategyId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("search_strategy_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SearchStrategyId");
+
+                    b.HasIndex("IdentificationProcessId", "SearchStrategyId")
+                        .IsUnique();
+
+                    b.ToTable("identification_process_search_strategies", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1580,9 +1604,9 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
 
-                    b.Property<Guid>("ProjectId")
+                    b.Property<Guid?>("SearchExecutionId")
                         .HasColumnType("uuid")
-                        .HasColumnName("project_id");
+                        .HasColumnName("search_execution_id");
 
                     b.Property<string>("Source")
                         .HasMaxLength(100)
@@ -1595,7 +1619,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProjectId");
+                    b.HasIndex("SearchExecutionId");
 
                     b.ToTable("import_batches", (string)null);
                 });
@@ -3679,6 +3703,65 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.ToTable("screening_resolutions", (string)null);
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset>("ExecutedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("executed_at");
+
+                    b.Property<Guid?>("IdentificationProcessId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("identification_process_id");
+
+                    b.Property<DateTimeOffset>("ModifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_at");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("project_id");
+
+                    b.Property<int>("ResultCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("result_count");
+
+                    b.Property<string>("SearchQuery")
+                        .HasColumnType("text")
+                        .HasColumnName("search_query");
+
+                    b.Property<Guid>("SearchSourceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("search_source_id");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdentificationProcessId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("SearchSourceId");
+
+                    b.ToTable("search_executions", (string)null);
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchSource", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4931,31 +5014,24 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionSection", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.ResearchQuestion", "LinkedResearchQuestion")
-                        .WithMany()
-                        .HasForeignKey("LinkedResearchQuestionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("SRSS.IAM.Repositories.Entities.ExtractionTemplate", "Template")
                         .WithMany("Sections")
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("LinkedResearchQuestion");
-
                     b.Navigation("Template");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionTemplate", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.DataExtractionProcess", "DataExtractionProcess")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
                         .WithMany("ExtractionTemplates")
-                        .HasForeignKey("DataExtractionProcessId")
+                        .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DataExtractionProcess");
+                    b.Navigation("Project");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.FieldOption", b =>
@@ -5032,15 +5108,33 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Paper");
                 });
 
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcessSearchStrategy", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.IdentificationProcess", "IdentificationProcess")
+                        .WithMany("IdentificationProcessSearchStrategies")
+                        .HasForeignKey("IdentificationProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Project");
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SearchExecution", "SearchStrategy")
+                        .WithMany("IdentificationProcessSearchStrategies")
+                        .HasForeignKey("SearchStrategyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("IdentificationProcess");
+
+                    b.Navigation("SearchStrategy");
+                });
+
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SearchExecution", "SearchExecution")
+                        .WithMany("ImportBatches")
+                        .HasForeignKey("SearchExecutionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("SearchExecution");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.InclusionCriterion", b =>
@@ -5659,6 +5753,32 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("StudySelectionProcess");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
+                {
+                    b.HasOne("SRSS.IAM.Repositories.Entities.IdentificationProcess", "IdentificationProcess")
+                        .WithMany("SearchExecutions")
+                        .HasForeignKey("IdentificationProcessId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SystematicReviewProject", "Project")
+                        .WithMany("SearchStrategies")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SRSS.IAM.Repositories.Entities.SearchSource", "SearchSource")
+                        .WithMany()
+                        .HasForeignKey("SearchSourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("IdentificationProcess");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("SearchSource");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchSource", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.MasterSearchSources", "MasterSource")
@@ -5975,8 +6095,6 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.DataExtractionProcess", b =>
                 {
                     b.Navigation("ExtractionPaperTasks");
-
-                    b.Navigation("ExtractionTemplates");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ExtractionField", b =>
@@ -6001,6 +6119,10 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.IdentificationProcess", b =>
                 {
                     b.Navigation("IdentificationPapers");
+
+                    b.Navigation("IdentificationProcessSearchStrategies");
+
+                    b.Navigation("SearchExecutions");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.ImportBatch", b =>
@@ -6155,6 +6277,13 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("SynthesisProcess");
                 });
 
+            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchExecution", b =>
+                {
+                    b.Navigation("IdentificationProcessSearchStrategies");
+
+                    b.Navigation("ImportBatches");
+                });
+
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmission", b =>
                 {
                     b.Navigation("ItemAnswers");
@@ -6255,6 +6384,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("ReviewProcesses");
 
                     b.Navigation("SearchSources");
+
+                    b.Navigation("SearchStrategies");
 
                     b.Navigation("SelectionCriterias");
 

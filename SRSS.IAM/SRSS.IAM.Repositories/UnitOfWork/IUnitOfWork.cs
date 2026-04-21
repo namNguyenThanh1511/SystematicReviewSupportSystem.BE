@@ -13,7 +13,6 @@ using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
-using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
@@ -46,6 +45,7 @@ using SRSS.IAM.Repositories.PaperFullTextParsedSectionRepo;
 using SRSS.IAM.Repositories.PaperFullTextParsedParagraphRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
+using SRSS.IAM.Repositories.FilterSettingRepo;
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -113,8 +113,8 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         ISystematicReviewProjectRepository SystematicReviewProjects { get; }
         IReviewProcessRepository ReviewProcesses { get; }
+        IFilterSettingRepository FilterSettings { get; }
         IIdentificationProcessRepository IdentificationProcesses { get; }
-        ISearchExecutionRepository SearchExecutions { get; }
         IPaperRepository Papers { get; }
         IImportBatchRepository ImportBatches { get; }
         IPrismaReportRepository PrismaReports { get; }

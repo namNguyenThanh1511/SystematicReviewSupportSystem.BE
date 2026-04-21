@@ -146,6 +146,9 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.ImportBatchId)
                 .HasColumnName("import_batch_id");
 
+            builder.Property(p => p.CreatedFromImportBatchId)
+                .HasColumnName("created_from_import_batch_id");
+
             builder.Property(p => p.SearchSourceId)
                 .HasColumnName("search_source_id");
 
@@ -181,6 +184,11 @@ namespace SRSS.IAM.Repositories.Configurations
             // ============================================
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
+
+            builder.Property(p => p.IsDeleted)
+                .HasColumnName("is_deleted")
+                .HasDefaultValue(false)
+                .IsRequired();
 
             // ============================================
             // EXTERNAL METADATA (OPENALEX)
@@ -226,6 +234,8 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.ModifiedAt)
                 .HasColumnName("modified_at")
                 .IsRequired();
+
+            builder.HasQueryFilter(p => !p.IsDeleted);
         }
     }
 }

@@ -80,7 +80,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
 		public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
 		public DbSet<DataExtractionProcess> DataExtractionProcesses { get; set; } = default!;
-		public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
+
+		public DbSet<FilterSetting> FilterSettings { get; set; } = default!;
 		public DbSet<Paper> Papers { get; set; } = default!;
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;

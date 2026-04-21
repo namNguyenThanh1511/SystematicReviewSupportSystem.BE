@@ -189,32 +189,37 @@ namespace SRSS.IAM.Services.IdentificationService
 
 
         public async Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(
-            Guid identificationProcessId,
+            Guid ReviewProcessId,
             CancellationToken cancellationToken = default)
         {
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
-                cancellationToken: cancellationToken);
-            var project = identificationProcess.ReviewProcess.Project;
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
-                rp => rp.Id == identificationProcess.ReviewProcessId,
+                rp => rp.Id == ReviewProcessId,
                 cancellationToken: cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess for Project ID {ReviewProcessId} not found.");
+            }
+            var projectId = reviewProcess.ProjectId;
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.ReviewProcessId == reviewProcess.Id,
+                cancellationToken: cancellationToken);
+            
             if (identificationProcess == null)
             {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+                throw new InvalidOperationException($"IdentificationProcess not found.");
             }
 
-            var importBatchList = await _unitOfWork.ImportBatches.GetByProjectIdsAsync(project.Id, cancellationToken);
+            var importBatchList = await _unitOfWork.ImportBatches.GetByProjectIdsAsync(projectId, cancellationToken);
             var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
 
             // Query actual unique paper count from the frozen snapshot
-            var uniquePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(identificationProcessId, cancellationToken);
+            var uniquePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(identificationProcess.Id, cancellationToken);
             var uniqueRecordsCount = uniquePaperIds.Count;
 
             // Get total deduplication result count for this process
-            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcessId, cancellationToken);
+            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcess.Id, cancellationToken);
 
-            var searchSourceIds = await _unitOfWork.SearchSources.GetByProjectIdAsync(project.Id, cancellationToken);
+            var searchSourceIds = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId, cancellationToken);
 
             var paperToSearchSource = await _unitOfWork.Papers.GetQueryable()
                 .Where(p => uniquePaperIds.Contains(p.Id))
@@ -253,7 +258,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
             var deduplicationQuery = _unitOfWork.DeduplicationResults.GetQueryable();
             var snapshotQuery = _unitOfWork.IdentificationProcessPapers.GetQueryable()
-                .Where(ipp => ipp.IdentificationProcessId == identificationProcessId);
+                .Where(ipp => ipp.IdentificationProcessId == identificationProcess.Id);
             var pendingSelectionCount = await _unitOfWork.Papers.GetQueryable()
                 .Where(p => p.ProjectId == reviewProcess.ProjectId)
                 // Not a duplicate (CANCEL) and not pending review
@@ -262,7 +267,7 @@ namespace SRSS.IAM.Services.IdentificationService
                                                         (d.ResolvedDecision == DuplicateResolutionDecision.CANCEL || 
                                                          d.ReviewStatus == DeduplicationReviewStatus.Pending)))
                 // Not already in the snapshot
-                .Where(p => !snapshotQuery.Any(i => i.IdentificationProcessId == identificationProcessId && 
+                .Where(p => !snapshotQuery.Any(i => i.IdentificationProcessId == identificationProcess.Id && 
                                                      i.PaperId == p.Id))
                 .CountAsync(cancellationToken);
 

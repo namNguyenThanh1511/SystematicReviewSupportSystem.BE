@@ -150,7 +150,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (reviewProcess.IdentificationProcess != null)
             {
                 response.IdentificationProcess!.PrismaStatistics =
-                    await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                    await GetPrismaStatisticsForIdentificationAsync(reviewProcess.Id, cancellationToken);
             }
 
             if (reviewProcess.StudySelectionProcess != null)
@@ -182,7 +182,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 if (reviewProcess.IdentificationProcess != null)
                 {
                     response.IdentificationProcess!.PrismaStatistics =
-                        await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                        await GetPrismaStatisticsForIdentificationAsync(reviewProcess.Id, cancellationToken);
                 }
 
                 if (reviewProcess.QualityAssessmentProcess != null)
@@ -727,10 +727,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
         }
 
         private async Task<PrismaStatisticsResponse> GetPrismaStatisticsForIdentificationAsync(
-            Guid identificationProcessId,
+            Guid reviewProcessId,
             CancellationToken cancellationToken)
         {
-            return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
+            return await _identificationService.GetPrismaStatisticsAsync(reviewProcessId, cancellationToken);
         }
     }
 }

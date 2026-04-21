@@ -12,7 +12,7 @@ namespace SRSS.IAM.Services.IdentificationService
         Task<IdentificationProcessResponse> StartIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
         Task<IdentificationProcessResponse> CompleteIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
         Task<IdentificationProcessResponse> ReopenIdentificationProcessAsync(Guid id, CancellationToken cancellationToken = default);
-        Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(Guid identificationProcessId, CancellationToken cancellationToken = default);
+        Task<PrismaStatisticsResponse> GetPrismaStatisticsAsync(Guid reviewProcessId, CancellationToken cancellationToken = default);
 
         Task<ImportBatchResponse> CreateImportBatchAsync(CreateImportBatchRequest request, CancellationToken cancellationToken = default);
         Task<ImportBatchResponse> GetImportBatchByIdAsync(Guid id, CancellationToken cancellationToken = default);

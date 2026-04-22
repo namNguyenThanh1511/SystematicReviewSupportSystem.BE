@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -12,16 +12,13 @@ namespace SRSS.IAM.Services.DTOs.ResearchQuestion
 		[Required(ErrorMessage = "ProjectId là bắt buộc")]
 		public Guid ProjectId { get; set; }
 
-		[Required(ErrorMessage = "QuestionTypeId là bắt buộc")]
-		public Guid QuestionTypeId { get; set; }
+		public Guid? QuestionTypeId { get; set; }
 
 		[Required(ErrorMessage = "Question text là bắt buộc")]
 		[StringLength(2000, ErrorMessage = "Question text không được vượt quá 2000 ký tự")]
 		public string QuestionText { get; set; } = string.Empty;
 
 		public string? Rationale { get; set; }
-
-		public List<CreatePicocElementRequest> PicocElements { get; set; } = new();
 	}
 
 	public class CreatePicocElementRequest

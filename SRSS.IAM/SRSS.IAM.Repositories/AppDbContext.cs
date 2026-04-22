@@ -40,6 +40,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = default!;
 		public DbSet<ResearchQuestion> ResearchQuestions { get; set; } = default!;
 		public DbSet<QuestionType> QuestionTypes { get; set; } = default!;
+		public DbSet<ProjectPicoc> ProjectPicocs { get; set; } = default!;
 		public DbSet<PicocElement> PicocElements { get; set; } = default!;
 		public DbSet<Population> Populations { get; set; } = default!;
 		public DbSet<Intervention> Interventions { get; set; } = default!;

@@ -48,6 +48,7 @@ using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 using SRSS.IAM.Repositories.AuditLogRepo;
 
 using SRSS.IAM.Repositories.FilterSettingRepo;
+using SRSS.IAM.Repositories.ProjectPicocRepo;
 
 
 namespace SRSS.IAM.Repositories.UnitOfWork
@@ -61,6 +62,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private INotificationRepository? _notifications;
         private IProjectMemberInvitationRepository? _projectMemberInvitations;
         private ISystematicReviewProjectRepository? _systematicReviewProjects;
+        private IProjectPicocRepository? _projectPicocs;
         // Core Governance
         private IReviewNeedRepository? _reviewNeeds;
         private ICommissioningDocumentRepository? _commissioningDocuments;
@@ -305,6 +307,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public ISystematicReviewProjectRepository SystematicReviewProjects
             => _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);
+
+        public IProjectPicocRepository ProjectPicocs
+            => _projectPicocs ??= new ProjectPicocRepository(_dbContext);
 
         public IReviewProcessRepository ReviewProcesses
             => _reviewProcesses ??= new ReviewProcessRepository(_dbContext);

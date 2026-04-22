@@ -112,26 +112,26 @@ namespace SRSS.IAM.Services.Mappers
 
 		// ══════════════════════════ PicocElement ════════════════════════════
 
-		public static PicocElementDto ToResponse(this PicocElement picoc)
-		{
-			object? specificDetail = picoc.ElementType switch
-			{
-				"Population" => picoc.Population != null ? new { picoc.Population.Description } : null,
-				"Intervention" => picoc.Intervention != null ? new { picoc.Intervention.Description } : null,
-				"Comparison" => picoc.Comparison != null ? new { picoc.Comparison.Description } : null,
-				"Outcome" => picoc.Outcome != null ? new { picoc.Outcome.Metric, picoc.Outcome.Description } : null,
-				"Context" => picoc.Context != null ? new { picoc.Context.Environment, picoc.Context.Description } : null,
-				_ => null
-			};
+		// public static PicocElementDto ToResponse(this PicocElement picoc)
+		// {
+		// 	object? specificDetail = picoc.ElementType switch
+		// 	{
+		// 		"Population" => picoc.Population != null ? new { picoc.Population.Description } : null,
+		// 		"Intervention" => picoc.Intervention != null ? new { picoc.Intervention.Description } : null,
+		// 		"Comparison" => picoc.Comparison != null ? new { picoc.Comparison.Description } : null,
+		// 		"Outcome" => picoc.Outcome != null ? new { picoc.Outcome.Metric, picoc.Outcome.Description } : null,
+		// 		"Context" => picoc.Context != null ? new { picoc.Context.Environment, picoc.Context.Description } : null,
+		// 		_ => null
+		// 	};
 
-			return new PicocElementDto
-			{
-				PicocId = picoc.Id,
-				ElementType = picoc.ElementType,
-				Description = picoc.Description,
-				SpecificDetail = specificDetail
-			};
-		}
+		// 	return new PicocElementDto
+		// 	{
+		// 		PicocId = picoc.Id,
+		// 		ElementType = picoc.ElementType,
+		// 		Description = picoc.Description,
+		// 		SpecificDetail = specificDetail
+		// 	};
+		// }
 
 		// ══════════════════════════ ResearchQuestion ════════════════════════
 
@@ -142,7 +142,7 @@ namespace SRSS.IAM.Services.Mappers
 			QuestionType = question.QuestionType.Name,
 			QuestionText = question.QuestionText,
 			Rationale = question.Rationale,
-			PicocElements = question.PicocElements.Select(p => p.ToResponse()).ToList(),
+			// PicocElements = question.PicocElements.Select(p => p.ToResponse()).ToList(),
 			CreatedAt = question.CreatedAt
 		};
 	}

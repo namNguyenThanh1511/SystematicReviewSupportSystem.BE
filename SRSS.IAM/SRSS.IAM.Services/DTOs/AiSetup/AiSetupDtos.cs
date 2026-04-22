@@ -6,6 +6,7 @@ namespace SRSS.IAM.Services.DTOs.AiSetup
     public class AnalyzeTopicRequest
     {
         public string Topic { get; set; } = string.Empty;
+        public string Language { get; set; } = "English";
     }
 
     public class AnalyzeTopicResponse
@@ -19,6 +20,7 @@ namespace SRSS.IAM.Services.DTOs.AiSetup
         public string Topic { get; set; } = string.Empty;
         public string Objectives { get; set; } = string.Empty;
         public string Domain { get; set; } = string.Empty;
+        public string Language { get; set; } = "English";
     }
 
     public class GeneratePicocResponse
@@ -36,6 +38,7 @@ namespace SRSS.IAM.Services.DTOs.AiSetup
         public string Objectives { get; set; } = string.Empty;
         public string Domain { get; set; } = string.Empty;
         public GeneratePicocResponse Picoc { get; set; } = new();
+        public string Language { get; set; } = "English";
     }
 
     public class GenerateRqsResponse

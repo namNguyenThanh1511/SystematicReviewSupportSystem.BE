@@ -59,6 +59,8 @@ using SRSS.IAM.Services.PaperFullTextService.Chunking;
 using SRSS.IAM.Services.PaperFullTextService.Embedding;
 using SRSS.IAM.Services.PaperFullTextService.Search;
 using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
+using SRSS.IAM.Services.AiSetupService;
+
 
 
 using SRSS.IAM.Services.RagService;
@@ -97,6 +99,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
             services.AddScoped<ISynthesisService, SynthesisService>();
+            services.AddScoped<IAiSetupService, AiSetupService>();
+
 
 
 

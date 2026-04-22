@@ -253,114 +253,114 @@ namespace SRSS.IAM.API.Controllers
 		/// <summary>
 		/// Tạo mới research question kèm PICOC elements trong một transaction
 		/// </summary>
-		[HttpPost("research-questions")]
-		public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> CreateResearchQuestion(
-			[FromBody] CreateResearchQuestionRequest request)
-		{
-			var result = await _coreGovernService.CreateResearchQuestionAsync(request);
-			return Created(result, "Tạo research question thành công.");
-		}
+		// [HttpPost("research-questions")]
+		// public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> CreateResearchQuestion(
+		// 	[FromBody] CreateResearchQuestionRequest request)
+		// {
+		// 	var result = await _coreGovernService.CreateResearchQuestionAsync(request);
+		// 	return Created(result, "Tạo research question thành công.");
+		// }
 
 		/// <summary>
 		/// Lấy research question theo ID kèm QuestionType và toàn bộ PICOC elements
 		/// </summary>
-		[HttpGet("research-questions/{id}")]
-		public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> GetResearchQuestionById(Guid id)
-		{
-			var result = await _coreGovernService.GetResearchQuestionByIdAsync(id);
-			return Ok(result, "Lấy research question thành công.");
-		}
+		// [HttpGet("research-questions/{id}")]
+		// public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> GetResearchQuestionById(Guid id)
+		// {
+		// 	var result = await _coreGovernService.GetResearchQuestionByIdAsync(id);
+		// 	return Ok(result, "Lấy research question thành công.");
+		// }
 
 		/// <summary>
 		/// Lấy toàn bộ research questions của một project kèm QuestionType và PICOC elements
 		/// </summary>
-		[HttpGet("research-questions/project/{projectId}")]
-		public async Task<ActionResult<ApiResponse<IEnumerable<ResearchQuestionDetailResponse>>>> GetResearchQuestionsByProject(Guid projectId)
-		{
-			var result = await _coreGovernService.GetResearchQuestionsByProjectIdAsync(projectId);
-			return Ok(result, "Lấy danh sách research questions thành công.");
-		}
+		// [HttpGet("research-questions/project/{projectId}")]
+		// public async Task<ActionResult<ApiResponse<IEnumerable<ResearchQuestionDetailResponse>>>> GetResearchQuestionsByProject(Guid projectId)
+		// {
+		// 	var result = await _coreGovernService.GetResearchQuestionsByProjectIdAsync(projectId);
+		// 	return Ok(result, "Lấy danh sách research questions thành công.");
+		// }
 
 		/// <summary>
 		/// Cập nhật nội dung research question (không bao gồm PICOC)
 		/// </summary>
-		[HttpPut("research-questions/{id}")]
-		public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> UpdateResearchQuestion(
-			Guid id, [FromBody] UpdateResearchQuestionRequest request)
-		{
-			if (id != request.Id)
-				throw new ArgumentException("Route ID không khớp với body ID.");
+		// [HttpPut("research-questions/{id}")]
+		// public async Task<ActionResult<ApiResponse<ResearchQuestionDetailResponse>>> UpdateResearchQuestion(
+		// 	Guid id, [FromBody] UpdateResearchQuestionRequest request)
+		// {
+		// 	if (id != request.Id)
+		// 		throw new ArgumentException("Route ID không khớp với body ID.");
 
-			var result = await _coreGovernService.UpdateResearchQuestionAsync(request);
-			return Ok(result, "Cập nhật research question thành công.");
-		}
+		// 	var result = await _coreGovernService.UpdateResearchQuestionAsync(request);
+		// 	return Ok(result, "Cập nhật research question thành công.");
+		// }
 
 		/// <summary>
 		/// Xóa research question kèm toàn bộ PICOC elements
 		/// </summary>
-		[HttpDelete("research-questions/{id}")]
-		public async Task<ActionResult<ApiResponse>> DeleteResearchQuestion(Guid id)
-		{
-			await _coreGovernService.DeleteResearchQuestionAsync(id);
-			return Ok("Xóa research question thành công.");
-		}
+		// [HttpDelete("research-questions/{id}")]
+		// public async Task<ActionResult<ApiResponse>> DeleteResearchQuestion(Guid id)
+		// {
+		// 	await _coreGovernService.DeleteResearchQuestionAsync(id);
+		// 	return Ok("Xóa research question thành công.");
+		// }
 
 		// ══════════════════════════ PICOC Elements ════════════════════════════
 
 		/// <summary>
 		/// Lấy PICOC element theo ID kèm child detail
 		/// </summary>
-		[HttpGet("picoc-elements/{id}")]
-		public async Task<ActionResult<ApiResponse<PicocElementDto>>> GetPicocElementById(Guid id)
-		{
-			var result = await _coreGovernService.GetPicocElementByIdAsync(id);
-			return Ok(result, "Lấy PICOC element thành công.");
-		}
+		// [HttpGet("picoc-elements/{id}")]
+		// public async Task<ActionResult<ApiResponse<PicocElementDto>>> GetPicocElementById(Guid id)
+		// {
+		// 	var result = await _coreGovernService.GetPicocElementByIdAsync(id);
+		// 	return Ok(result, "Lấy PICOC element thành công.");
+		// }
 
 		/// <summary>
 		/// Lấy toàn bộ PICOC elements của một research question
 		/// </summary>
-		[HttpGet("picoc-elements/research-question/{researchQuestionId}")]
-		public async Task<ActionResult<ApiResponse<IEnumerable<PicocElementDto>>>> GetPicocElementsByResearchQuestion(
-			Guid researchQuestionId)
-		{
-			var result = await _coreGovernService.GetPicocElementsByResearchQuestionIdAsync(researchQuestionId);
-			return Ok(result, "Lấy danh sách PICOC elements thành công.");
-		}
+		// [HttpGet("picoc-elements/research-question/{researchQuestionId}")]
+		// public async Task<ActionResult<ApiResponse<IEnumerable<PicocElementDto>>>> GetPicocElementsByResearchQuestion(
+		// 	Guid researchQuestionId)
+		// {
+		// 	var result = await _coreGovernService.GetPicocElementsByResearchQuestionIdAsync(researchQuestionId);
+		// 	return Ok(result, "Lấy danh sách PICOC elements thành công.");
+		// }
 
 		/// <summary>
 		/// Thêm PICOC element vào research question
 		/// </summary>
-		[HttpPost("picoc-elements")]
-		public async Task<ActionResult<ApiResponse<PicocElementDto>>> AddPicocElement(
-			[FromBody] AddPicocElementRequest request)
-		{
-			var result = await _coreGovernService.AddPicocElementAsync(request);
-			return Created(result, "Thêm PICOC element thành công.");
-		}
+		// [HttpPost("picoc-elements")]
+		// public async Task<ActionResult<ApiResponse<PicocElementDto>>> AddPicocElement(
+		// 	[FromBody] AddPicocElementRequest request)
+		// {
+		// 	var result = await _coreGovernService.AddPicocElementAsync(request);
+		// 	return Created(result, "Thêm PICOC element thành công.");
+		// }
 
 		/// <summary>
 		/// Cập nhật PICOC element và child detail của nó
 		/// </summary>
-		[HttpPut("picoc-elements/{id}")]
-		public async Task<ActionResult<ApiResponse<PicocElementDto>>> UpdatePicocElement(
-			Guid id, [FromBody] UpdatePicocElementRequest request)
-		{
-			if (id != request.Id)
-				throw new ArgumentException("Route ID không khớp với body ID.");
+		// [HttpPut("picoc-elements/{id}")]
+		// public async Task<ActionResult<ApiResponse<PicocElementDto>>> UpdatePicocElement(
+		// 	Guid id, [FromBody] UpdatePicocElementRequest request)
+		// {
+		// 	if (id != request.Id)
+		// 		throw new ArgumentException("Route ID không khớp với body ID.");
 
-			var result = await _coreGovernService.UpdatePicocElementAsync(request);
-			return Ok(result, "Cập nhật PICOC element thành công.");
-		}
+		// 	var result = await _coreGovernService.UpdatePicocElementAsync(request);
+		// 	return Ok(result, "Cập nhật PICOC element thành công.");
+		// }
 
 		/// <summary>
 		/// Xóa PICOC element và child detail của nó
 		/// </summary>
-		[HttpDelete("picoc-elements/{id}")]
-		public async Task<ActionResult<ApiResponse>> DeletePicocElement(Guid id)
-		{
-			await _coreGovernService.DeletePicocElementAsync(id);
-			return Ok("Xóa PICOC element thành công.");
-		}
+		// [HttpDelete("picoc-elements/{id}")]
+		// public async Task<ActionResult<ApiResponse>> DeletePicocElement(Guid id)
+		// {
+		// 	await _coreGovernService.DeletePicocElementAsync(id);
+		// 	return Ok("Xóa PICOC element thành công.");
+		// }
 	}
 }

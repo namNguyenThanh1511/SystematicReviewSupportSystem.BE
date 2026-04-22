@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260422091023_AddProjectPicoc")]
+    partial class AddProjectPicoc
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3351,6 +3354,7 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("question_text");
 
                     b.Property<Guid?>("QuestionTypeId")
+                        .IsRequired()
                         .HasColumnType("uuid")
                         .HasColumnName("question_type_id");
 
@@ -5585,7 +5589,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasOne("SRSS.IAM.Repositories.Entities.QuestionType", "QuestionType")
                         .WithMany("ResearchQuestions")
                         .HasForeignKey("QuestionTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Project");
 

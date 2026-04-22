@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 
@@ -29,6 +29,14 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("description")
                 .HasMaxLength(2000);
 
+            builder.Property(p => p.ResearchTopic)
+                .HasColumnName("research_topic")
+                .HasMaxLength(2000);
+
+            builder.Property(p => p.ResearchObjective)
+                .HasColumnName("research_objective")
+                .HasMaxLength(2000);
+
             builder.Property(p => p.Status)
                 .HasColumnName("status")
                 .HasConversion<string>()
@@ -57,6 +65,11 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.HasMany(p => p.Papers)
                 .WithOne(pr => pr.Project)
                 .HasForeignKey(pr => pr.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasMany(p => p.ProjectPicocs)
+                .WithOne(pp => pp.Project)
+                .HasForeignKey(pp => pp.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Indexes

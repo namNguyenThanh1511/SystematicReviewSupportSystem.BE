@@ -46,6 +46,8 @@ using SRSS.IAM.Repositories.PaperFullTextParsedParagraphRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 using SRSS.IAM.Repositories.FilterSettingRepo;
+using SRSS.IAM.Repositories.ProjectPicocRepo;
+
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -112,7 +114,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         ISystematicReviewProjectRepository SystematicReviewProjects { get; }
+        IProjectPicocRepository ProjectPicocs { get; }
         IReviewProcessRepository ReviewProcesses { get; }
+
         IFilterSettingRepository FilterSettings { get; }
         IIdentificationProcessRepository IdentificationProcesses { get; }
         IPaperRepository Papers { get; }

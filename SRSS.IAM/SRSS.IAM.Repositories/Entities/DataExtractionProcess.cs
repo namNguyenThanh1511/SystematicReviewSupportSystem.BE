@@ -12,6 +12,7 @@ namespace SRSS.IAM.Repositories.Entities
 
 		public ReviewProcess ReviewProcess { get; set; } = null!;
 		public ICollection<ExtractionPaperTask> ExtractionPaperTasks { get; set; } = new List<ExtractionPaperTask>();
+		public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
 
 		// Domain Methods
 		public void Start()

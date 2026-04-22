@@ -9,6 +9,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
     {
         IQueryable<Paper> GetPapersQueryable(List<Guid> ids);
+        Task<Paper?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
@@ -53,11 +54,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Get duplicate papers for a specific identification process
-        /// Uses DeduplicationResult table for process-scoped results
+        /// Get duplicate papers for a specific project
+        /// Uses DeduplicationResult table for project-scoped results
         /// </summary>
-        Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
             string? search,
             int? year,
             string? sortBy,

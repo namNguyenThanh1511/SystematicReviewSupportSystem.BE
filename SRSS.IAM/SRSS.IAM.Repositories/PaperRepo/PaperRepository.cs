@@ -24,6 +24,12 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Where(p => !p.IsDeleted && ids.Contains(p.Id));
         }
 
+        public async Task<Paper?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Papers
+                .FirstOrDefaultAsync(p => !p.IsDeleted && p.Id == id, cancellationToken);
+        }
+
         public async Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default)
         {
             return await _context.Papers
@@ -287,11 +293,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
         }
 
         /// <summary>
-        /// Get duplicate papers for a specific identification process
-        /// Queries DeduplicationResult table for process-scoped duplicates
+        /// Get duplicate papers for a specific project
+        /// Queries DeduplicationResult table for project-scoped duplicates
         /// </summary>
-        public async Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        public async Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
             string? search,
             int? year,
             string? sortBy,
@@ -301,17 +307,6 @@ namespace SRSS.IAM.Repositories.PaperRepo
             int pageSize,
             CancellationToken cancellationToken = default)
         {
-            var projectId = await _context.IdentificationProcesses
-                .AsNoTracking()
-                .Where(ip => ip.Id == identificationProcessId)
-                .Select(ip => ip.ReviewProcess.ProjectId)
-                .SingleOrDefaultAsync(cancellationToken);
-
-            if (projectId == Guid.Empty)
-            {
-                return (new List<Paper>(), new List<DeduplicationResult>(), 0);
-            }
-
             // Query deduplication results for this project
             var query = _context.DeduplicationResults
                 .AsNoTracking()
@@ -522,7 +517,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
             var query = _context.Papers
                 .AsNoTracking()
-                .Include(p => phase.HasValue 
+                .Include(p => phase.HasValue
                     ? p.PaperAssignments.Where(pa => pa.Phase == phase.Value)
                     : p.PaperAssignments)
                     .ThenInclude(pa => pa.ProjectMember)
@@ -561,14 +556,14 @@ namespace SRSS.IAM.Repositories.PaperRepo
             {
                 if (assignmentStatus == AssignmentFilterStatus.Assigned)
                 {
-                    query = query.Where(p => phase.HasValue 
+                    query = query.Where(p => phase.HasValue
                         ? p.PaperAssignments.Any(pa => pa.Phase == phase.Value)
                         : p.PaperAssignments.Any());
                 }
                 else if (assignmentStatus == AssignmentFilterStatus.Unassigned)
                 {
-                    query = query.Where(p => phase.HasValue 
-                        ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value) 
+                    query = query.Where(p => phase.HasValue
+                        ? !p.PaperAssignments.Any(pa => pa.Phase == phase.Value)
                         : !p.PaperAssignments.Any());
                 }
             }
@@ -694,7 +689,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 .Where(p =>
                     !p.IsDeleted &&
                     // Same unique papers logic (from GetUniquePapersByIdentificationProcessAsync)
-                    
+
                     !_context.DeduplicationResults.Any(dr =>
                         dr.PaperId == p.Id &&
                         dr.ProjectId == p.ProjectId && (

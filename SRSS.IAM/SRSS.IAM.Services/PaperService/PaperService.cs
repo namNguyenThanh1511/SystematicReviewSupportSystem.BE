@@ -9,6 +9,7 @@ using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.StudySelectionService;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using SRSS.IAM.Services.DTOs.Identification;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -233,7 +234,7 @@ namespace SRSS.IAM.Services.PaperService
                 cancellationToken: cancellationToken);
 
             var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
-                x =>  x.Project.Id == projectId,
+                x => x.Project.Id == projectId,
                 isTracking: false,
                 cancellationToken: cancellationToken);
 
@@ -391,22 +392,22 @@ namespace SRSS.IAM.Services.PaperService
         }
 
         /// <summary>
-        /// Get duplicate papers for a specific identification process
-        /// Queries DeduplicationResult table for process-scoped results
+        /// Get duplicate papers for a specific project
+        /// Queries DeduplicationResult table for project-scoped results
         /// </summary>
-        public async Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        public async Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default)
         {
-            // Validate identification process exists
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
+            // Validate project exists
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
                 cancellationToken: cancellationToken);
 
-            if (identificationProcess == null)
+            if (project == null)
             {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
 
             // Validate pagination parameters
@@ -426,8 +427,8 @@ namespace SRSS.IAM.Services.PaperService
             }
 
             // Get duplicate papers with deduplication metadata
-            var (papers, deduplicationResults, totalCount) = await _unitOfWork.Papers.GetDuplicatePapersByIdentificationProcessAsync(
-                identificationProcessId,
+            var (papers, deduplicationResults, totalCount) = await _unitOfWork.Papers.GetDuplicatePapersByProjectAsync(
+                projectId,
                 request.Search,
                 request.Year,
                 request.SortBy,
@@ -587,7 +588,7 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
-        public async Task<PaperResponse> GetPaperByIdAsync(
+        public async Task<PaperDetailsResponse> GetPaperByIdAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
@@ -600,7 +601,7 @@ namespace SRSS.IAM.Services.PaperService
                 throw new InvalidOperationException($"Paper with ID {id} not found.");
             }
 
-            return await MapToPaperResponseAsync(paper, null, null, cancellationToken);
+            return await MapToPaperResponseDetailsAsync(paper, cancellationToken);
         }
 
         public async Task<PaginatedResponse<PaperResponse>> GetUniquePapersByIdentificationProcessAsync(
@@ -717,38 +718,29 @@ namespace SRSS.IAM.Services.PaperService
         }
 
         public async Task<DuplicatePaperResponse> ResolveDuplicateAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             Guid deduplicationResultId,
             ResolveDuplicateRequest request,
             CancellationToken cancellationToken = default)
         {
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
                 cancellationToken: cancellationToken);
 
-            if (identificationProcess == null)
+            if (project == null)
             {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
-            }
-
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
-                rp => rp.Id == identificationProcess.ReviewProcessId,
-                cancellationToken: cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
 
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.Id == deduplicationResultId && dr.ProjectId == reviewProcess.ProjectId,
+                dr => dr.Id == deduplicationResultId && dr.ProjectId == projectId,
                 isTracking: true,
                 cancellationToken);
 
             if (deduplicationResult == null)
             {
                 throw new InvalidOperationException(
-                    $"DeduplicationResult with ID {deduplicationResultId} not found for IdentificationProcess {identificationProcessId}.");
+                    $"DeduplicationResult with ID {deduplicationResultId} not found for Project {projectId}.");
             }
 
             deduplicationResult.ResolvedDecision = request.Decision;
@@ -855,17 +847,17 @@ namespace SRSS.IAM.Services.PaperService
         }
 
         public async Task<PaginatedResponse<DuplicatePairResponse>> GetDuplicatePairsAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             DuplicatePairsRequest request,
             CancellationToken cancellationToken = default)
         {
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
                 cancellationToken: cancellationToken);
 
-            if (identificationProcess == null)
+            if (project == null)
             {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
 
             if (request.PageNumber < 1) request.PageNumber = 1;
@@ -873,7 +865,7 @@ namespace SRSS.IAM.Services.PaperService
             if (request.PageSize > 100) request.PageSize = 100;
 
             var (results, totalCount) = await _unitOfWork.DeduplicationResults.GetDuplicatePairsAsync(
-                identificationProcessId,
+                projectId,
                 request.Search,
                 request.Status,
                 request.MinConfidence,
@@ -910,38 +902,29 @@ namespace SRSS.IAM.Services.PaperService
         }
 
         public async Task<ResolveDuplicatePairResponse> ResolveDuplicatePairAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             Guid pairId,
             ResolveDuplicatePairRequest request,
             CancellationToken cancellationToken = default)
         {
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
                 cancellationToken: cancellationToken);
 
-            if (identificationProcess == null)
+            if (project == null)
             {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
-            }
-
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
-                rp => rp.Id == identificationProcess.ReviewProcessId,
-                cancellationToken: cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
 
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.Id == pairId && dr.ProjectId == reviewProcess.ProjectId,
+                dr => dr.Id == pairId && dr.ProjectId == projectId,
                 isTracking: true,
                 cancellationToken);
 
             if (deduplicationResult == null)
             {
                 throw new InvalidOperationException(
-                    $"DeduplicationResult with ID {pairId} not found for IdentificationProcess {identificationProcessId}.");
+                    $"DeduplicationResult with ID {pairId} not found for Project {projectId}.");
             }
 
             if (deduplicationResult.ReviewStatus != DeduplicationReviewStatus.Pending)
@@ -997,6 +980,65 @@ namespace SRSS.IAM.Services.PaperService
                 ReviewedAt = deduplicationResult.ReviewedAt,
                 ReviewedBy = deduplicationResult.ReviewedBy
             };
+        }
+
+        public async Task MarkAsDuplicateAsync(
+            Guid projectId,
+            Guid paperId,
+            MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId && p.ProjectId == projectId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found in Project {projectId}.");
+            }
+
+            var duplicateOfPaper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == request.DuplicateOfPaperId && p.ProjectId == projectId,
+                cancellationToken: cancellationToken);
+
+            if (duplicateOfPaper == null)
+            {
+                throw new InvalidOperationException($"Original paper with ID {request.DuplicateOfPaperId} not found in Project {projectId}.");
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var deduplicationResult = new DeduplicationResult
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                PaperId = paperId,
+                DuplicateOfPaperId = request.DuplicateOfPaperId,
+                Method = DeduplicationMethod.MANUAL,
+                ReviewStatus = DeduplicationReviewStatus.Confirmed,
+                ResolvedDecision = DuplicateResolutionDecision.CANCEL,
+                ConfidenceScore = 1.0m,
+                Notes = request.Reason,
+                CreatedAt = now,
+                ModifiedAt = now
+            };
+
+            // Soft-delete the duplicate paper
+            paper.IsDeleted = true;
+            paper.ModifiedAt = now;
+
+            await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         private static DuplicatePairPaperDto MapToPairPaperDto(Paper paper)
@@ -1093,6 +1135,53 @@ namespace SRSS.IAM.Services.PaperService
                 ModifiedAt = paper.ModifiedAt,
 
                 DecidedStatus = resolution != null ? resolution.FinalDecision.ToString() : "None"
+            };
+
+            // Get Extraction Suggestion (G-11, G-12)
+            response.ExtractionSuggestion = await _studySelectionService.GetExtractionSuggestionAsync(paper, cancellationToken);
+
+            return response;
+        }
+
+        private async Task<PaperDetailsResponse> MapToPaperResponseDetailsAsync(Paper paper, CancellationToken cancellationToken = default)
+        {
+
+            var response = new PaperDetailsResponse
+            {
+                Id = paper.Id,
+                Title = paper.Title,
+                Authors = paper.Authors,
+                Abstract = paper.Abstract,
+                DOI = paper.DOI,
+                PublicationType = paper.PublicationType,
+                PublicationYear = paper.PublicationYear,
+                PublicationYearInt = paper.PublicationYearInt,
+                PublicationDate = paper.PublicationDate,
+                Volume = paper.Volume,
+                Issue = paper.Issue,
+                Pages = paper.Pages,
+                Publisher = paper.Publisher,
+                Language = paper.Language,
+                Keywords = paper.Keywords,
+                Url = paper.Url,
+                ConferenceName = paper.ConferenceName,
+                ConferenceLocation = paper.ConferenceLocation,
+                ConferenceCountry = paper.ConferenceCountry,
+                ConferenceYear = paper.ConferenceYear,
+                Journal = paper.Journal,
+                JournalIssn = paper.JournalIssn,
+                JournalEIssn = paper.JournalEIssn,
+                Md5 = paper.Md5,
+                Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
+                ImportedAt = paper.ImportedAt,
+                ImportedBy = paper.ImportedBy,
+                PdfUrl = paper.PdfUrl,
+                FullTextAvailable = paper.FullTextAvailable,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
+                CreatedAt = paper.CreatedAt,
+                ModifiedAt = paper.ModifiedAt
             };
 
             // Get Extraction Suggestion (G-11, G-12)

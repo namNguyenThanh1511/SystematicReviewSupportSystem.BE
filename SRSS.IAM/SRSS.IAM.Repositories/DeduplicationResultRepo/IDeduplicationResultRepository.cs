@@ -5,24 +5,24 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
 {
     public interface IDeduplicationResultRepository : IGenericRepository<DeduplicationResult, Guid, AppDbContext>
     {
-        Task<List<DeduplicationResult>> GetByIdentificationProcessAsync(
-            Guid identificationProcessId, 
+        Task<List<DeduplicationResult>> GetByProjectAsync(
+            Guid projectId, 
             CancellationToken cancellationToken = default);
 
-        Task<DeduplicationResult?> GetByPaperAndProcessAsync(
+        Task<DeduplicationResult?> GetByPaperAndProjectAsync(
             Guid paperId, 
-            Guid identificationProcessId,
+            Guid projectId,
             CancellationToken cancellationToken = default);
 
-        Task<int> CountDuplicatesByProcessAsync(
-            Guid identificationProcessId,
+        Task<int> CountDuplicatesByProjectAsync(
+            Guid projectId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get paginated duplicate pairs with both papers included for side-by-side comparison.
         /// </summary>
         Task<(List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePairsAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             string? search,
             DeduplicationReviewStatus? status,
             decimal? minConfidence,

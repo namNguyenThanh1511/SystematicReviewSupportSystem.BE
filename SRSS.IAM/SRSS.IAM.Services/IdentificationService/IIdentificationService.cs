@@ -26,11 +26,7 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid projectId,
             CancellationToken cancellationToken = default);
 
-        Task MarkAsDuplicateAsync(
-            Guid identificationProcessId,
-            Guid paperId,
-            MarkAsDuplicateRequest request,
-            CancellationToken cancellationToken = default);
+
 
         Task<(List<PaperResponse> Papers, int TotalCount)> GetReadyPapersForSnapshotAsync(
             Guid identificationProcessId,

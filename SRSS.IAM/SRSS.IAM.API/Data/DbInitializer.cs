@@ -142,6 +142,10 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid EtF1VenueId = Guid.Parse("ee000000-0002-0000-0000-000000000006");
         private static readonly Guid EtF1DoiId = Guid.Parse("ee000000-0002-0000-0000-000000000007");
         private static readonly Guid EtF1CitationsId = Guid.Parse("ee000000-0002-0000-0000-000000000008");
+        private static readonly Guid EtF1ContextId = Guid.Parse("ee000000-0002-0000-0000-000000000009");
+        private static readonly Guid EtF1InterventionId = Guid.Parse("ee000000-0002-0000-0000-000000000010");
+        private static readonly Guid EtF1ComparisonId = Guid.Parse("ee000000-0002-0000-0000-000000000011");
+        private static readonly Guid EtF1OutcomeId = Guid.Parse("ee000000-0002-0000-0000-000000000012");
 
         // Options for Publication Type
         private static readonly Guid EtOptPubJournalId = Guid.Parse("ee000000-0003-0000-0000-000000000001");
@@ -158,6 +162,10 @@ namespace SRSS.IAM.API.Data
         private static readonly Guid EtF2CountriesId = Guid.Parse("ee000000-0002-0001-0000-000000000004");
         private static readonly Guid EtF2IndustrySizeId = Guid.Parse("ee000000-0002-0001-0000-000000000005");
         private static readonly Guid EtF2EthicsId = Guid.Parse("ee000000-0002-0001-0000-000000000006");
+
+        // Section 3 RQ Driven
+        private static readonly Guid EtF3PopulationId_RQ2 = Guid.Parse("ee000000-0002-0001-0000-000000000011");
+        private static readonly Guid EtF3DomainId_RQ2 = Guid.Parse("ee000000-0002-0001-0000-000000000012");
 
         // Options for Context Type
         private static readonly Guid EtOptCtxIndustrialId = Guid.Parse("ee000000-0004-0000-0000-000000000001");
@@ -1059,7 +1067,7 @@ namespace SRSS.IAM.API.Data
                 },
                 new ExtractionField
                 {
-                    Id = EtF1TitleId,
+                    Id = EtF1ContextId,
                     SectionId = EtSec1IdentificationId,
                     Name = "Context",
                     Instruction = "Describe the context of the study.",
@@ -1071,37 +1079,37 @@ namespace SRSS.IAM.API.Data
                 },
                 new ExtractionField
                 {
-                    Id = EtF1TitleId,
+                    Id = EtF1InterventionId,
                     SectionId = EtSec1IdentificationId,
                     Name = "Intervention",
                     Instruction = "Describe the intervention of the study.",
                     FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 1,
+                    OrderIndex = 2,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF1TitleId,
+                    Id = EtF1ComparisonId,
                     SectionId = EtSec1IdentificationId,
                     Name = "Comparison",
                     Instruction = "Describe the comparison of the study.",
                     FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 1,
+                    OrderIndex = 3,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 },
                 new ExtractionField
                 {
-                    Id = EtF1TitleId,
+                    Id = EtF1OutcomeId,
                     SectionId = EtSec1IdentificationId,
                     Name = "Outcome",
                     Instruction = "Describe the outcome of the study.",
                     FieldType = FieldType.Text,
                     IsRequired = false,
-                    OrderIndex = 1,
+                    OrderIndex = 4,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 }
@@ -1119,8 +1127,8 @@ namespace SRSS.IAM.API.Data
 
             var contextOptions = new List<FieldOption>
             {
-                new FieldOption { Id = EtOptCtxIndustrialId, FieldId = EtF1TitleId, Value = "Industrial/Real-world", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
-                new FieldOption { Id = EtOptCtxAcademicId,   FieldId = EtF1TitleId, Value = "Academic/Laboratory", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
+                new FieldOption { Id = EtOptCtxIndustrialId, FieldId = EtF1ContextId, Value = "Industrial/Real-world", DisplayOrder = 0, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow },
+                new FieldOption { Id = EtOptCtxAcademicId,   FieldId = EtF1ContextId, Value = "Academic/Laboratory", DisplayOrder = 1, CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow }
             };
 
             await context.FieldOptions.AddRangeAsync(methodologyOptions);
@@ -1159,8 +1167,8 @@ namespace SRSS.IAM.API.Data
             {
                 new ExtractionField
                 {
-                    Id = EtF2PopulationId,
-                    SectionId = EtSec2ContextId,
+                    Id = EtF3PopulationId_RQ2,
+                    SectionId = EtSec3ContextId,
                     Name = "AI Tool Name",
                     Instruction = "Enter the name of the AI tool or framework used.",
                     FieldType = FieldType.Text,
@@ -1171,8 +1179,8 @@ namespace SRSS.IAM.API.Data
                 },
                 new ExtractionField
                 {
-                    Id = EtF2DomainId,
-                    SectionId = EtSec2ContextId,
+                    Id = EtF3DomainId_RQ2,
+                    SectionId = EtSec3ContextId,
                     Name = "Performance Improvement %",
                     Instruction = "The reported improvement percentage compared to the baseline.",
                     FieldType = FieldType.Decimal,
@@ -1184,6 +1192,7 @@ namespace SRSS.IAM.API.Data
             };
 
             await context.ExtractionFields.AddRangeAsync(sec2Fields);
+            await context.ExtractionFields.AddRangeAsync(sec3Fields);
             await context.SaveChangesAsync();
         }
 

@@ -12,13 +12,11 @@ using SRSS.IAM.Services.Configurations;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.JWTService;
 using SRSS.IAM.Services.Mappers;
-using SRSS.IAM.Services.ProtocolService;
 using SRSS.IAM.Services.QualityAssessmentService;
 using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
 using SRSS.IAM.Services.SearchStrategyService;
 using SRSS.IAM.Services.SelectionCriteriaService;
-using SRSS.IAM.Services.StudyCharacteristicsService;
 using SRSS.IAM.Services.SynthesisService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
@@ -56,12 +54,18 @@ using SRSS.IAM.Services.ExclusionReasonLibraryService;
 using SRSS.IAM.Services.StuSeExclusionCodeService;
 using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
+using SRSS.IAM.Services.PaperFullTextService.Parser;
+using SRSS.IAM.Services.PaperFullTextService.Chunking;
+using SRSS.IAM.Services.PaperFullTextService.Embedding;
+using SRSS.IAM.Services.PaperFullTextService.Search;
+using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
 
 
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
+using SRSS.IAM.Services.StudySelectionChecklists;
 using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -86,11 +90,9 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Planning Phase
             services.AddScoped<ICoreGovernService, CoreGovernService>();
-            services.AddScoped<IProtocolService, ProtocolService>();
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
-            services.AddScoped<IStudyCharacteristicsService, StudyCharacteristicsService>();
             services.AddScoped<IQualityAssessmentService, QualityAssessmentService>();
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
@@ -119,7 +121,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IExclusionReasonLibraryService, ExclusionReasonLibraryService>();
             services.AddScoped<IStuSeExclusionCodeService, StuSeExclusionCodeService>();
             services.AddScoped<IMasterSearchSourceService, MasterSearchSourceService>();
-            
+
             services.AddScoped<ISupabaseStorageService, SupabaseStorageService>();
 
             // GROBID integration
@@ -170,8 +172,18 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Paper full-text extraction background worker
             services.AddSingleton<IPaperFullTextQueue, PaperFullTextQueue>();
+            services.AddScoped<ITeiXmlParser, TeiXmlParser>();
             services.AddScoped<IPaperFullTextService, PaperFullTextService>();
+            services.AddScoped<IPaperFullTextChunkingService, PaperFullTextChunkingService>();
+            services.AddScoped<IPaperFullTextChunkEmbeddingService, PaperFullTextChunkEmbeddingService>();
+            services.AddScoped<IPaperFullTextPreparationService, PaperFullTextPreparationService>();
+            services.AddScoped<IPaperChunkSemanticSearchService, PaperChunkSemanticSearchService>();
+            services.AddScoped<IStuSeProtocolRetrievalQueryBuilder, StuSeProtocolRetrievalQueryBuilder>();
+            services.AddScoped<IStuSeProtocolChunkRetrievalService, StuSeProtocolChunkRetrievalService>();
+            services.AddScoped<IStuSeFullTextAiEvaluationService, StuSeFullTextAiEvaluationService>();
+            services.AddSingleton<IStuSeFullTextAiEvaluationQueue, StuSeFullTextAiEvaluationQueue>();
             services.AddHostedService<PaperFullTextBackgroundService>();
+            services.AddHostedService<StuSeFullTextAiEvaluationBackgroundService>();
 
             // GROBID background worker
             services.AddSingleton<IGrobidProcessingQueue, GrobidProcessingQueue>();
@@ -190,6 +202,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+
+            // Study Selection Checklist
+            services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
+            services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
 
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<AuditInterceptor>();

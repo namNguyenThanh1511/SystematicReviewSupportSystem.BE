@@ -19,6 +19,13 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public string? Description { get; set; }
     }
 
+    public class UpdateProjectDatesRequest
+    {
+        public Guid Id { get; set; }
+        public DateTimeOffset? StartDate { get; set; }
+        public DateTimeOffset? EndDate { get; set; }
+    }
+
     public class SystematicReviewProjectResponse
     {
         public Guid Id { get; set; }
@@ -75,6 +82,8 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public ProjectRole Role { get; set; }
         public string RoleText { get; set; } = string.Empty;
         public bool IsLeader { get; set; }
+        public DateTimeOffset? StartDate { get; set; }
+        public DateTimeOffset? EndDate { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
     }

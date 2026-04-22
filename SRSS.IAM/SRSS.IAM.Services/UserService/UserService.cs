@@ -3,6 +3,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.User;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Services.UserService
 {
@@ -109,6 +110,148 @@ namespace SRSS.IAM.Services.UserService
             await _unitOfWork.SaveChangesAsync();
 
             return user.ToUserResponse();
+        }
+
+        public async Task<PaginatedResponse<UserProgressOverviewResponse>> GetUserProgressOverviewAsync(UserProgressRequest request)
+        {
+            // 1. Get queryable for project members (excluding Leader)
+            var query = _unitOfWork.SystematicReviewProjects.GetProjectMembersQueryable(request.ProjectId)
+                .Include(m => m.User)
+                .Where(m => m.Role != ProjectRole.Leader)
+                .AsNoTracking();
+
+            // 2. Search by FullName, Username, Email
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var search = request.Search.Trim().ToLower();
+                query = query.Where(m =>
+                    m.User.FullName.ToLower().Contains(search) ||
+                    m.User.Username.ToLower().Contains(search) ||
+                    m.User.Email.ToLower().Contains(search));
+            }
+
+            // 3. Paginate
+            var totalCount = await query.CountAsync();
+            var members = await query
+                .OrderBy(m => m.User.FullName)
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+
+            if (!members.Any())
+            {
+                return new PaginatedResponse<UserProgressOverviewResponse>
+                {
+                    Items = new List<UserProgressOverviewResponse>(),
+                    TotalCount = totalCount,
+                    PageNumber = request.PageNumber,
+                    PageSize = request.PageSize
+                };
+            }
+
+            var memberIds = members.Select(m => m.Id).ToList();
+            var userIds = members.Select(m => m.UserId).ToList();
+
+            // 4. Batch Fetch Assignments, Decisions, Submissions
+            // To be efficient, we fetch all relevant data for the current page of users
+
+            // Get all assignments for these members
+            var assignments = await _unitOfWork.PaperAssignments.FindAllAsync(
+                pa => memberIds.Contains(pa.ProjectMemberId),
+                isTracking: false);
+
+            // Get all decisions for these users
+            var decisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                sd => userIds.Contains(sd.ReviewerId),
+                isTracking: false);
+
+            // Get all checklist submissions for these users
+            var submissions = await _unitOfWork.StudySelectionChecklistSubmissions.FindAllAsync(
+                cs => userIds.Contains(cs.ReviewerId),
+                isTracking: false);
+
+            var resultItems = new List<UserProgressOverviewResponse>();
+
+            foreach (var member in members)
+            {
+                var memberAssignments = assignments.Where(a => a.ProjectMemberId == member.Id).ToList();
+                var workload = memberAssignments.Count();
+
+                var completedCount = 0;
+                var hasAnyWork = false;
+                var allCompleted = workload > 0; // if workload is 0, logically not completed
+
+                foreach (var assignment in memberAssignments)
+                {
+                    var hasDecision = decisions.Any(d =>
+                        d.ReviewerId == member.UserId &&
+                        d.PaperId == assignment.PaperId &&
+                        d.StudySelectionProcessId == assignment.StudySelectionProcessId &&
+                        d.Phase == assignment.Phase);
+
+                    var hasSubmission = submissions.Any(s =>
+                        s.ReviewerId == member.UserId &&
+                        s.PaperId == assignment.PaperId &&
+                        s.StudySelectionProcessId == assignment.StudySelectionProcessId &&
+                        s.Phase == assignment.Phase);
+
+                    if (hasDecision)
+                    {
+                        completedCount++;
+                    }
+
+                    if (hasDecision || hasSubmission)
+                    {
+                        hasAnyWork = true;
+                    }
+
+                    if (!hasDecision)
+                    {
+                        allCompleted = false;
+                    }
+                }
+
+                var progress = workload > 0 ? (double)completedCount / workload * 100 : 0;
+
+                ReviewerStatus status;
+                if (workload == 0)
+                {
+                    status = ReviewerStatus.NotStarted;
+                }
+                else if (allCompleted)
+                {
+                    status = ReviewerStatus.Completed;
+                }
+                else if (hasAnyWork)
+                {
+                    status = ReviewerStatus.InProgress;
+                }
+                else
+                {
+                    status = ReviewerStatus.NotStarted;
+                }
+
+                resultItems.Add(new UserProgressOverviewResponse
+                {
+                    UserId = member.UserId,
+                    FullName = member.User.FullName ?? string.Empty,
+                    Username = member.User.Username ?? string.Empty,
+                    Email = member.User.Email ?? string.Empty,
+                    Workload = workload,
+                    Completed = completedCount,
+                    Progress = Math.Round(progress, 2),
+                    Status = status,
+                    LastSynchronizedAt = DateTimeOffset.UtcNow
+                });
+            }
+
+            return new PaginatedResponse<UserProgressOverviewResponse>
+            {
+                Items = resultItems,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
         }
     }
 }

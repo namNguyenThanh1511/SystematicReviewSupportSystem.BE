@@ -12,7 +12,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplateDto
 			{
 				TemplateId = entity.Id,
-				ProtocolId = entity.ProtocolId,
+				ProjectId = entity.ProjectId,
 				Name = entity.Name,
 				Description = entity.Description,
 				Sections = entity.Sections != null
@@ -29,7 +29,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplate
 			{
 				Id = dto.TemplateId ?? Guid.NewGuid(),
-				ProtocolId = dto.ProtocolId,
+				ProjectId = dto.ProjectId,
 				Name = dto.Name,
 				Description = dto.Description,
 				CreatedAt = DateTimeOffset.UtcNow,
@@ -43,7 +43,6 @@ namespace SRSS.IAM.Services.Mappers
 			entity.Name = dto.Name;
 			entity.Description = dto.Description;
 			entity.ModifiedAt = DateTimeOffset.UtcNow;
-			// Sections/Fields will be handled separately in service logic
 		}
 
 		// ==================== ExtractionSection ====================
@@ -144,9 +143,6 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
-		/// <summary>
-		/// Converts DTO to entities recursively (flattens tree structure)
-		/// </summary>
 		public static List<ExtractionField> ToEntitiesRecursive(
 			this ExtractionFieldDto dto,
 			Guid sectionId,

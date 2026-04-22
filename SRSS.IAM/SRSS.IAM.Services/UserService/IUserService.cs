@@ -9,5 +9,6 @@ namespace SRSS.IAM.Services.UserService
         Task<PaginatedResponse<UserResponse>> GetUsersAsync(UserListRequest request);
         Task<UserResponse> UpdateUserProfileAsync(Guid userId, UpdateUserProfileRequest request);
         Task<UserResponse> ToggleUserStatusAsync(Guid userId);
+        Task<PaginatedResponse<UserProgressOverviewResponse>> GetUserProgressOverviewAsync(UserProgressRequest request);
     }
 }

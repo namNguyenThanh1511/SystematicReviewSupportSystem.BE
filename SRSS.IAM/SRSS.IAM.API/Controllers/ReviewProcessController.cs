@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
-using SRSS.IAM.Services.DTOs.Protocol;
+
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Repositories.Entities;
@@ -63,12 +63,39 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>List of processes</returns>
         [HttpGet("projects/{projectId}/review-processes")]
-        public async Task<ActionResult<ApiResponse<List<ReviewProcessResponse>>>> GetReviewProcessesByProject(
+        public async Task<ActionResult<ApiResponse<List<ReviewProcessSnapshotResponse>>>> GetReviewProcessesByProject(
             [FromRoute] Guid projectId,
             CancellationToken cancellationToken)
         {
-            var result = await _reviewProcessService.GetReviewProcessesByProjectIdAsync(projectId, cancellationToken);
+            var result = await _reviewProcessService.GetReviewProcessSnapshotsByProjectIdAsync(projectId, cancellationToken);
             return Ok(result, "Review processes retrieved successfully.");
+        }
+
+        [HttpPost("review-processes/{reviewProcessId}/papers")]
+        public async Task<ActionResult<ApiResponse<AddPapersToReviewProcessResponse>>> AddSelectedPapers(
+            [FromRoute] Guid reviewProcessId,
+            [FromBody] AddSelectedPapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _reviewProcessService.AddSelectedPapersAsync(reviewProcessId, request, cancellationToken);
+            return Ok(result, "Papers added to review process successfully.");
+        }
+
+        [HttpPost("review-processes/{processId}/papers/add-from-filter-setting")]
+        public async Task<ActionResult<ApiResponse<AddPapersFromFilterResponse>>> AddPapersFromFilterSetting(
+            [FromRoute] Guid processId,
+            [FromBody] AddFromFilterSettingRequest request,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _reviewProcessService.AddPapersFromFilterSettingAsync(processId, request, cancellationToken);
+                return Ok(result, "Papers from filter setting added to review process successfully.");
+            }
+            catch (InvalidOperationException ex) when (ex.Message == "No papers matched")
+            {
+                return BadRequest<AddPapersFromFilterResponse>("No papers matched");
+            }
         }
 
         /// <summary>
@@ -154,43 +181,9 @@ namespace SRSS.IAM.API.Controllers
             return Ok("Review process deleted successfully.");
         }
 
-        /// <summary>
-        /// Assign a protocol to a review process
-        /// </summary>
-        /// <param name="id">Process ID</param>
-        /// <param name="protocolId">Protocol ID</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Updated process details</returns>
-        [HttpPost("review-processes/{id}/protocol/{protocolId}")]
-        public async Task<ActionResult<ApiResponse<ReviewProcessResponse>>> AssignProtocol(
-            [FromRoute] Guid id,
-            [FromRoute] Guid protocolId,
-            CancellationToken cancellationToken)
-        {
-            var result = await _reviewProcessService.AssignProtocolAsync(id, protocolId, cancellationToken);
-            return Ok(result, "Protocol assigned to review process successfully.");
-        }
 
-        /// <summary>
-        /// Get the protocol assigned to a review process
-        /// </summary>
-        /// <param name="id">Process ID</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Protocol details or 204 No Content if none assigned</returns>
-        [HttpGet("review-processes/{id}/protocol")]
-        public async Task<ActionResult<ApiResponse<ProtocolDetailResponse?>>> GetProtocolForProcess(
-            [FromRoute] Guid id,
-            CancellationToken cancellationToken)
-        {
-            var result = await _reviewProcessService.GetProtocolByProcessIdAsync(id, cancellationToken);
 
-            if (result == null)
-            {
-                return Ok<ProtocolDetailResponse?>(null, "No protocol assigned to this review process.");
-            }
 
-            return Ok<ProtocolDetailResponse?>(result, "Protocol retrieved successfully.");
-        }
 
         /// <summary>
         /// Reopen a specific review phase for a given review process

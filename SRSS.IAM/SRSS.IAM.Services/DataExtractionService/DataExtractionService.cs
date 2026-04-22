@@ -2,22 +2,44 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
     public class DataExtractionService : IDataExtractionService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public DataExtractionService(IUnitOfWork unitOfWork)
+        public DataExtractionService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
+        }
+
+        private async Task EnsureLeaderAsync(Guid projectId)
+        {
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
+            if (!isLeader)
+            {
+                throw new ForbiddenException("Only project leader can perform this action.");
+            }
         }
 
         // ==================== EXTRACTION TEMPLATES ====================
 
         public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
         {
+            await EnsureLeaderAsync(dto.ProjectId);
+
             // Validate first
             var validationResult = await ValidateTemplateAsync(dto);
             if (!validationResult.IsValid)
@@ -49,7 +71,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                 template = new ExtractionTemplate
                 {
                     Id = Guid.NewGuid(),
-                    ProtocolId = dto.ProtocolId,
+                    ProjectId = dto.ProjectId,
                     Name = dto.Name,
                     Description = dto.Description,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -96,10 +118,10 @@ namespace SRSS.IAM.Services.DataExtractionService
             return result;
         }
 
-        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId)
+        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProjectIdAsync(Guid projectId)
         {
             var templates = await _unitOfWork.ExtractionTemplates
-                .GetByProtocolIdAsync(protocolId);
+                .GetByProjectIdAsync(projectId);
 
             return templates.Select(t => t.ToDto()).ToList();
         }
@@ -115,10 +137,11 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task DeleteTemplateAsync(Guid templateId)
         {
-            // Fix #7: throw KeyNotFoundException instead of silently doing nothing
             var template = await _unitOfWork.ExtractionTemplates
                 .FindSingleAsync(t => t.Id == templateId)
                 ?? throw new KeyNotFoundException($"Template {templateId} not found.");
+
+            await EnsureLeaderAsync(template.ProjectId);
 
             // Delete sections first (cascade will handle fields and options)
             await DeleteSectionsAsync(templateId);

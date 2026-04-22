@@ -1,4 +1,5 @@
 using Shared.Entities.BaseEntity;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Repositories.Entities
 {
@@ -9,11 +10,16 @@ namespace SRSS.IAM.Repositories.Entities
         public string FilePath { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public DateTimeOffset UploadedAt { get; set; }
+        public string? FileHash { get; set; }
+        public string? ExtractedDoi { get; set; }
+        public PdfValidationStatus ValidationStatus { get; set; } = PdfValidationStatus.Pending;
+        public PdfProcessingStatus ProcessingStatus { get; set; } = PdfProcessingStatus.Uploaded;
         public bool GrobidProcessed { get; set; }
-
-        public string? FileHash { get; set; } // Thêm cột này (SHA-256)
-        public bool FullTextProcessed { get; set; } // Đánh dấu đã trích xuất full-text thành công chưa
-        public bool RefsExtracted { get; set; } // Đánh dấu đã chạy Extract Refs thành công chưa
+        public bool FullTextProcessed { get; set; }
+        public bool RefsExtracted { get; set; }
+        public DateTimeOffset? MetadataProcessedAt { get; set; }
+        public DateTimeOffset? MetadataValidatedAt { get; set; }
+        public DateTimeOffset? FullTextProcessedAt { get; set; }
 
         public Paper? Paper { get; set; }
         public GrobidHeaderResult? GrobidHeaderResult { get; set; }

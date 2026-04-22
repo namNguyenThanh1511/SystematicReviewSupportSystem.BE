@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.QualityAssessment;
+using SRSS.IAM.Services.DTOs.QualityAssessment;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -6,7 +6,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 	{
 		// Quality Assessment Strategies
 		Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto);
-		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProtocolIdAsync(Guid protocolId);
+		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProjectIdAsync(Guid projectId);
 		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId);
 		Task DeleteStrategyAsync(Guid strategyId);
 

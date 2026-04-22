@@ -51,6 +51,17 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
             var queryVector = new Vector(embedding);
             var safeTake = Math.Max(1, take);
 
+            var projectId = await _context.IdentificationProcesses
+                .AsNoTracking()
+                .Where(ip => ip.Id == identificationProcessId)
+                .Select(ip => ip.ReviewProcess.ProjectId)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (projectId == Guid.Empty)
+            {
+                return new List<PaperEmbedding>();
+            }
+
             return await _context.PaperEmbeddings
                 .FromSqlInterpolated($@"
                     SELECT pe.*
@@ -59,11 +70,12 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
                     JOIN import_batches ib ON ib.id = p.import_batch_id
                     JOIN search_executions se ON se.id = ib.search_execution_id
                     WHERE se.identification_process_id = {identificationProcessId}
+                      AND p.is_deleted = false
                       AND NOT EXISTS (
                           SELECT 1
                           FROM deduplication_results dr
                           WHERE dr.paper_id = p.id
-                            AND dr.identification_process_id = {identificationProcessId}
+                            AND dr.project_id = {projectId}
                             AND dr.review_status = {DeduplicationReviewStatus.Confirmed.ToString()}
                             AND dr.resolved_decision = {DuplicateResolutionDecision.CANCEL.ToString()}
                       )

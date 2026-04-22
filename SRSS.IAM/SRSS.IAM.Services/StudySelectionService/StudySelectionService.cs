@@ -341,6 +341,24 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new ArgumentException("ExclusionReasonId is required when decision is Exclude.");
             }
 
+            // Find checklist submission for this context if not provided
+            var checklistSubmissionId = request.ChecklistSubmissionId;
+            if (checklistSubmissionId == null)
+            {
+                var submission = await _unitOfWork.StudySelectionChecklistSubmissions.GetByContextWithAnswersAsync(
+                    studySelectionProcessId,
+                    paperId,
+                    request.ReviewerId,
+                    request.Phase,
+                    cancellationToken);
+                checklistSubmissionId = submission?.Id;
+            }
+
+            if (checklistSubmissionId == null)
+            {
+                throw new InvalidOperationException("Cannot make a screening decision without a checklist submission. Please complete the checklist first.");
+            }
+
             // Create new decision
             var decision = new ScreeningDecision
             {
@@ -353,6 +371,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 ExclusionReasonId = request.ExclusionReasonId,
                 Reason = request.Reason,
                 DecidedAt = DateTimeOffset.UtcNow,
+                ChecklistSubmissionId = checklistSubmissionId,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
@@ -364,6 +383,17 @@ namespace SRSS.IAM.Services.StudySelectionService
             await TryAutoResolveAsync(studySelectionProcessId, paperId, request.Phase, cancellationToken);
 
             return await MapToDecisionResponse(decision, paper?.Title ?? string.Empty, cancellationToken: cancellationToken);
+        }
+
+
+
+        private async Task ValidateChecklistCompletionAsync(Guid submissionId, CancellationToken cancellationToken)
+        {
+            var submission = await _unitOfWork.StudySelectionChecklistSubmissions.FindSingleAsync(s => s.Id == submissionId, cancellationToken: cancellationToken);
+            if (submission == null) return;
+
+            // Since StudySelectionChecklistAnswer was removed, we no longer validate individual answers here.
+            // The existence of the submission itself indicates the checklist was viewed/submitted.
         }
 
         public async Task<List<ScreeningDecisionResponse>> GetDecisionsByPaperAsync(
@@ -1883,26 +1913,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException("ReviewProcess not found.");
             }
 
-            // Load protocol for validation (G-04, G-12)
-            if (reviewProcess.ProtocolId.HasValue)
-            {
-                var protocol = await _unitOfWork.Protocols.FindSingleAsync(
-                    p => p.Id == reviewProcess.ProtocolId.Value,
-                    isTracking: true,
-                    cancellationToken);
-
-                reviewProcess.Protocol = protocol;
-            }
-
             process.ReviewProcess = reviewProcess;
-
-
-
-            // Lock protocol once screening starts (G-04)
-            if (reviewProcess.Protocol != null && reviewProcess.Protocol.Status == ProtocolStatus.Approved)
-            {
-                reviewProcess.Protocol.Lock();
-            }
 
             // Validate paper metadata (G-07)
             var eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
@@ -2019,7 +2030,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Paper with ID {paperId} not found.");
             }
 
-            // Update full-text fields
+            // Update the core link fields first so the upload is visible even if background work is delayed.
             if (!string.IsNullOrWhiteSpace(request.PdfUrl)) paper.PdfUrl = request.PdfUrl;
             if (!string.IsNullOrWhiteSpace(request.PdfFileName)) paper.PdfFileName = request.PdfFileName;
             if (!string.IsNullOrWhiteSpace(request.Url)) paper.Url = request.Url;
@@ -2034,136 +2045,94 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             ExtractionSuggestionResponse? extractionSuggestion = null;
 
-            // Handle PDF and GROBID Integration
-            if (hasPdfEvidence && request.PdfStream != null)
+            if (request.PdfStream != null)
             {
-                // 1. Calculate File Hash
-                string fileHash = HashHelper.ComputeSha256Hash(request.PdfStream);
-                request.PdfStream.Position = 0; // Reset stream for GROBID or other use
+                var fileHash = HashHelper.ComputeSha256Hash(request.PdfStream);
+                request.PdfStream.Position = 0;
 
-                // 2. Optimization: Skip GROBID if hash hasn't changed
-                bool skipGrobid = request.ExtractWithGrobid && fileHash == paper.CurrentFileHash;
-
-                // 3. Idempotency for PaperPdf (Update existing instead of duplicates)
                 var paperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(
                     p => p.PaperId == paperId,
                     isTracking: true,
                     cancellationToken: cancellationToken);
 
-                if (paperPdf != null)
-                {
-                    paperPdf.FilePath = request.PdfUrl;
-                    paperPdf.FileName = request.PdfFileName ?? string.Empty;
-                    paperPdf.UploadedAt = DateTimeOffset.UtcNow;
-                    paperPdf.FileHash = fileHash;
-                    paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
-                    // If we skip GROBID, we don't change GrobidProcessed status but we do if we are extracted now
-                    if (request.ExtractWithGrobid && !skipGrobid) paperPdf.GrobidProcessed = true;
-                }
-                else
+                if (paperPdf == null)
                 {
                     paperPdf = new PaperPdf
                     {
                         Id = Guid.NewGuid(),
                         ProjectId = paper.ProjectId,
                         PaperId = paperId,
-                        FilePath = request.PdfUrl,
+                        FilePath = request.PdfUrl ?? string.Empty,
                         FileName = request.PdfFileName ?? string.Empty,
                         UploadedAt = DateTimeOffset.UtcNow,
-                        GrobidProcessed = request.ExtractWithGrobid && !skipGrobid,
                         FileHash = fileHash,
+                        ValidationStatus = PdfValidationStatus.Pending,
+                        ProcessingStatus = PdfProcessingStatus.Uploaded,
+                        GrobidProcessed = false,
+                        FullTextProcessed = false,
                         RefsExtracted = false,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     };
+
                     await _unitOfWork.PaperPdfs.AddAsync(paperPdf, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+                else
+                {
+                    var isCurrentHash = string.Equals(paper.CurrentFileHash, fileHash, StringComparison.OrdinalIgnoreCase);
+
+                    paperPdf.FilePath = request.PdfUrl ?? paperPdf.FilePath;
+                    paperPdf.FileName = request.PdfFileName ?? paperPdf.FileName;
+                    paperPdf.UploadedAt = DateTimeOffset.UtcNow;
+                    paperPdf.FileHash = fileHash;
+                    paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+
+                    if (!isCurrentHash || paperPdf.ValidationStatus != PdfValidationStatus.Valid)
+                    {
+                        // Reset workflow state when the file version changes so old jobs cannot keep stale success flags.
+                        paperPdf.ExtractedDoi = null;
+                        paperPdf.ValidationStatus = PdfValidationStatus.Pending;
+                        paperPdf.ProcessingStatus = PdfProcessingStatus.Uploaded;
+                        paperPdf.GrobidProcessed = false;
+                        paperPdf.FullTextProcessed = false;
+                        paperPdf.MetadataProcessedAt = null;
+                        paperPdf.MetadataValidatedAt = null;
+                        paperPdf.FullTextProcessedAt = null;
+                    }
                 }
 
                 paper.CurrentFileHash = fileHash;
 
-                // 4. GROBID Extraction (Background)
                 if (request.ExtractWithGrobid)
                 {
-                    if (skipGrobid)
+                    paperPdf.ProcessingStatus = PdfProcessingStatus.MetadataProcessing;
+                    paperPdf.MetadataProcessedAt = DateTimeOffset.UtcNow;
+                    paperPdf.GrobidProcessed = false;
+                }
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                if (request.ExtractWithGrobid)
+                {
+                    _logger.LogInformation("Enqueuing GROBID extraction for PaperPdf {PaperPdfId} with hash {FileHash}.", paperPdf.Id, fileHash);
+
+                    var userIdStr = _currentUserService.GetUserId();
+                    Guid.TryParse(userIdStr, out var userId);
+
+                    _grobidQueue.TryWrite(new GrobidWorkItem
                     {
-                        _logger.LogInformation("Skipping GROBID extraction for Paper {PaperId} because file hash matches current record.", paperId);
-
-                        // Retrieve existing PaperSourceMetadata and recalculate suggestions for the response
-                        var sourceMeta = await _unitOfWork.PaperSourceMetadatas.GetLatestWithGrobidHeaderByPaperIdAsync(
-                            paper.Id,
-                            cancellationToken);
-
-                        if (sourceMeta != null)
-                        {
-                            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
-                            extractionSuggestion = new ExtractionSuggestionResponse
-                            {
-                                SourceMetadataId = sourceMeta.Id,
-                                PaperId = paper.Id,
-                                Title = sourceMeta.Title,
-                                Authors = sourceMeta.Authors,
-                                Abstract = sourceMeta.Abstract,
-                                DOI = sourceMeta.DOI,
-                                Language = sourceMeta.Language,
-                                Journal = sourceMeta.Journal,
-                                Volume = sourceMeta.Volume,
-                                Issue = sourceMeta.Issue,
-                                Pages = sourceMeta.Pages,
-                                Keywords = sourceMeta.Keywords,
-                                Publisher = sourceMeta.Publisher,
-                                Year = sourceMeta.Year,
-                                Md5 = sourceMeta.Md5,
-                                ISSN = sourceMeta.ISSN,
-                                EISSN = sourceMeta.EISSN,
-                                UpdatedFields = updatedFields
-                            };
-
-                            // Even though we skip background processing, we notify the client that metadata is ready
-                            var userIdStr = _currentUserService.GetUserId();
-                            if (Guid.TryParse(userIdStr, out var userId))
-                            {
-                                await _notificationService.SendMetadataExtractedAsync(userId, extractionSuggestion);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Enqueuing GROBID extraction for Paper {PaperId} in background.", paperId);
-
-                        // We set GrobidProcessed to false to indicate it's pending/processing
-                        paperPdf.GrobidProcessed = false;
-
-                        var userIdStr = _currentUserService.GetUserId();
-                        Guid.TryParse(userIdStr, out var userId);
-
-                        _grobidQueue.TryWrite(new GrobidWorkItem
-                        {
-                            PaperPdfId = paperPdf.Id,
-                            PaperId = paperId,
-                            StudySelectionProcessId = studySelectionProcessId,
-                            UserId = userId
-                        });
-                    }
-
-                    // 5. Enqueue Full-text Extraction (Background) - Always do this if a new file is uploaded
-                    // Optimization: Skip if skipGrobid is true AND any other PDF with same hash was already processed
-                    bool runFullText = true;
-                    if (skipGrobid)
-                    {
-                        runFullText = !await _unitOfWork.PaperPdfs.AnyFullTextProcessedByHashAsync(fileHash, cancellationToken);
-                    }
-
-                    if (runFullText)
-                    {
-                        _logger.LogInformation("Enqueuing PaperPdf {PaperPdfId} for background full-text extraction.", paperPdf.Id);
-                        _fullTextQueue.TryWrite(paperPdf.Id);
-                    }
+                        PaperPdfId = paperPdf.Id,
+                        FileHash = fileHash,
+                        PaperId = paperId,
+                        StudySelectionProcessId = studySelectionProcessId,
+                        UserId = userId
+                    });
                 }
             }
-
-            // Ensure changes are persisted before mapping response
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            else
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
 
             var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
             return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
@@ -2248,11 +2217,32 @@ namespace SRSS.IAM.Services.StudySelectionService
                     return;
                 }
 
+                // Reject stale jobs before touching external services. The current hash is the source of truth.
+                if (!string.Equals(paperPdf.FileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(paper.CurrentFileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation(
+                        "Skipping GROBID extraction for PaperPdf {PaperPdfId} because the queued hash is stale.",
+                        workItem.PaperPdfId);
+                    return;
+                }
+
                 if (string.IsNullOrWhiteSpace(paperPdf.FilePath))
                 {
                     _logger.LogWarning("PaperPdf {PaperPdfId} has no file path. Skipping extraction.", workItem.PaperPdfId);
                     return;
                 }
+
+                if (paperPdf.ValidationStatus == PdfValidationStatus.DoiMismatch)
+                {
+                    _logger.LogInformation("PaperPdf {PaperPdfId} is already marked invalid. Skipping GROBID processing.", workItem.PaperPdfId);
+                    return;
+                }
+
+                paperPdf.ProcessingStatus = PdfProcessingStatus.MetadataProcessing;
+                paperPdf.MetadataProcessedAt = DateTimeOffset.UtcNow;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                await _unitOfWork.SaveChangesAsync(ct);
 
                 // 1. Download PDF from Supabase
                 byte[] pdfBytes = await _storageService.DownloadFileAsync(paperPdf.FilePath);
@@ -2261,14 +2251,31 @@ namespace SRSS.IAM.Services.StudySelectionService
                 // 2. Perform Extraction
                 var extractionSuggestion = await PerformGrobidExtractionAsync(paper, paperPdf, pdfStream, paperPdf.FileName ?? "upload.pdf", ct);
 
-                // 3. Mark as processed
-                paperPdf.GrobidProcessed = true;
-                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
-
+                // Persist metadata-validation state before reloading latest entities for enqueue checks.
                 await _unitOfWork.SaveChangesAsync(ct);
 
+                if (paperPdf.ValidationStatus == PdfValidationStatus.DoiMismatch)
+                {
+                    _logger.LogInformation("PaperPdf {PaperPdfId} failed DOI validation. Full-text will not be queued.", workItem.PaperPdfId);
+                    return;
+                }
+
+                // 3. Mark as processed only if the job still targets the latest PDF version.
+                var latestPaper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == workItem.PaperId, isTracking: false, cancellationToken: ct);
+                var latestPaperPdf = await _unitOfWork.PaperPdfs.FindSingleAsync(p => p.Id == workItem.PaperPdfId, isTracking: false, cancellationToken: ct);
+
+                if (latestPaper == null || latestPaperPdf == null ||
+                    !string.Equals(latestPaper.CurrentFileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(latestPaperPdf.FileHash, workItem.FileHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation(
+                        "Skipping GROBID persistence for PaperPdf {PaperPdfId} because a newer upload replaced the file during processing.",
+                        workItem.PaperPdfId);
+                    return;
+                }
+
                 // 4. Send Notification
-                if (workItem.UserId != Guid.Empty)
+                if (workItem.UserId != Guid.Empty && extractionSuggestion != null)
                 {
                     // Send system notification
                     await _notificationService.SendAsync(
@@ -2284,6 +2291,41 @@ namespace SRSS.IAM.Services.StudySelectionService
                     {
                         await _notificationService.SendMetadataExtractedAsync(workItem.UserId, extractionSuggestion);
                     }
+                }
+
+                // Only enqueue full-text after the metadata pass has validated the PDF and the file is still current.
+                if (extractionSuggestion != null &&
+                    latestPaperPdf.ValidationStatus == PdfValidationStatus.Valid &&
+                    latestPaperPdf.ProcessingStatus == PdfProcessingStatus.MetadataValidated)
+                {
+                    var enqueued = _fullTextQueue.TryWrite(new PaperFullTextWorkItem
+                    {
+                        PaperPdfId = latestPaperPdf.Id,
+                        FileHash = workItem.FileHash
+                    });
+
+                    if (enqueued)
+                    {
+                        _logger.LogInformation(
+                            "Enqueued full-text extraction for PaperPdf {PaperPdfId} (Hash: {FileHash}).",
+                            latestPaperPdf.Id,
+                            workItem.FileHash);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Failed to enqueue full-text extraction for PaperPdf {PaperPdfId}. Queue may be full.",
+                            latestPaperPdf.Id);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Skipping full-text enqueue for PaperPdf {PaperPdfId}. extractionSuggestionNull={ExtractionSuggestionNull}, validationStatus={ValidationStatus}, processingStatus={ProcessingStatus}",
+                        latestPaperPdf.Id,
+                        extractionSuggestion == null,
+                        latestPaperPdf.ValidationStatus,
+                        latestPaperPdf.ProcessingStatus);
                 }
 
                 _logger.LogInformation("Successfully completed background GROBID extraction for Paper {PaperId}", workItem.PaperId);
@@ -2305,15 +2347,45 @@ namespace SRSS.IAM.Services.StudySelectionService
             _logger.LogInformation("Starting GROBID metadata extraction for Paper {PaperId}", paper.Id);
             var grobidDto = await _grobidService.ExtractHeaderAsync(pdfStream, fileName, cancellationToken);
 
-            var grobidDoi = NormalizeDoi(grobidDto.DOI);
-            var paperDoi = NormalizeDoi(paper.DOI);
+            var grobidDoi = DoiHelper.Normalize(grobidDto.DOI);
+            var paperDoi = DoiHelper.Normalize(paper.DOI);
 
-            // DOI strict validation
+            // DOI strict validation keeps a late job from attaching metadata from the wrong PDF version.
             if (!string.IsNullOrWhiteSpace(grobidDoi) &&
                 !string.IsNullOrWhiteSpace(paperDoi) &&
                 !string.Equals(grobidDoi, paperDoi, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"The DOI in the PDF ({grobidDto.DOI}) does not match the paper's current DOI ({paper.DOI}).");
+                paperPdf.ExtractedDoi = grobidDto.DOI;
+                paperPdf.ValidationStatus = PdfValidationStatus.DoiMismatch;
+                paperPdf.ProcessingStatus = PdfProcessingStatus.MetadataInvalid;
+                paperPdf.GrobidProcessed = false;
+                paperPdf.FullTextProcessed = false;
+                paperPdf.MetadataValidatedAt = DateTimeOffset.UtcNow;
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+
+                paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
+                paper.ModifiedAt = DateTimeOffset.UtcNow;
+                paper.PdfFileName = null;
+                paper.PdfUrl = null;
+                
+
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                var userIdStr = _currentUserService.GetUserId();
+                if (Guid.TryParse(userIdStr, out var userId))
+                {
+                    await _notificationService.SendAsync(
+                        userId,
+                        "PDF validation failed",
+                        $"The uploaded PDF DOI ({grobidDto.DOI}) does not match the paper DOI ({paper.DOI}). Full-text extraction was skipped.",
+                        NotificationType.System,
+                        paper.Id,
+                        NotificationEntityType.Paper);
+                }
+
+
+                return null;
             }
 
             if (string.IsNullOrWhiteSpace(grobidDto.RawXml)) return null;
@@ -2423,6 +2495,13 @@ namespace SRSS.IAM.Services.StudySelectionService
             var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
             sourceMeta.SuggestedFields = updatedFields;
 
+            paperPdf.ExtractedDoi = grobidDto.DOI;
+            paperPdf.ValidationStatus = PdfValidationStatus.Valid;
+            paperPdf.ProcessingStatus = PdfProcessingStatus.MetadataValidated;
+            paperPdf.GrobidProcessed = true;
+            paperPdf.MetadataValidatedAt = DateTimeOffset.UtcNow;
+            paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+
             // 4. Map to Suggestion Response
             return new ExtractionSuggestionResponse
             {
@@ -2498,6 +2577,27 @@ namespace SRSS.IAM.Services.StudySelectionService
             var paperPdf = await _unitOfWork.PaperPdfs.GetLatestPaperPdfAsync(paperId, cancellationToken);
             if (paperPdf == null) return null;
             var headerResult = await _unitOfWork.GrobidHeaderResults.GetLatestGrobidHeaderResultAsync(paperPdf.Id, cancellationToken);
+
+            if (paperPdf.ValidationStatus == PdfValidationStatus.DoiMismatch)
+            {
+                return new ExtractionStatusResponse
+                {
+                    Requested = true,
+                    Provider = "GROBID",
+                    Status = "failed",
+                    Message = "PDF validation failed because the DOI does not match the paper record."
+                };
+            }
+
+            if (paperPdf.ProcessingStatus == PdfProcessingStatus.Completed || paperPdf.FullTextProcessed)
+            {
+                return new ExtractionStatusResponse
+                {
+                    Requested = true,
+                    Provider = "GROBID",
+                    Status = "succeeded"
+                };
+            }
 
             if (!paperPdf.GrobidProcessed)
             {
@@ -2724,10 +2824,7 @@ namespace SRSS.IAM.Services.StudySelectionService
 
         private string? NormalizeDoi(string? doi)
         {
-            if (string.IsNullOrWhiteSpace(doi)) return null;
-            return doi.Trim()
-                .Replace("https://doi.org/", "", StringComparison.OrdinalIgnoreCase)
-                .Replace("http://doi.org/", "", StringComparison.OrdinalIgnoreCase);
+            return DoiHelper.Normalize(doi);
         }
 
         public async Task<ExtractionSuggestionResponse?> GetExtractionSuggestionAsync(Paper paper, CancellationToken cancellationToken = default)
@@ -2904,6 +3001,139 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             return results;
         }
+
+        public async Task<List<ReviewerAssignmentTableItemResponse>> GetReviewerAssignmentTableAsync(
+            Guid studySelectionProcessId,
+            Guid reviewerId,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch Process
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
+                ssp => ssp.Id == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            // 2. Fetch ReviewProcess and Project Members to map UserId to ProjectMemberId
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == process.ReviewProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var projectMembers = await _unitOfWork.SystematicReviewProjects.GetMembersByProjectIdAsync(reviewProcess!.ProjectId);
+            var member = projectMembers.FirstOrDefault(m => m.UserId == reviewerId);
+
+            if (member == null)
+            {
+                // If the user is not a project member, they have no assignments
+                return new List<ReviewerAssignmentTableItemResponse>();
+            }
+
+            var projectMemberId = member.Id;
+
+            // 3. Fetch all assignments for this ProjectMember in this Process
+            var assignments = await _unitOfWork.PaperAssignments.GetQueryable(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.ProjectMemberId == projectMemberId,
+                isTracking: false)
+                .Include(pa => pa.Paper)
+                .ToListAsync(cancellationToken);
+
+            var assignmentList = assignments.ToList();
+            if (!assignmentList.Any())
+            {
+                return new List<ReviewerAssignmentTableItemResponse>();
+            }
+
+            // 4. Fetch all decisions by this reviewer for this process
+            var decisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                d => d.StudySelectionProcessId == studySelectionProcessId && d.ReviewerId == reviewerId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var decisionMap = decisions.GroupBy(d => d.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+
+            // 5. Fetch all checklist submissions by this reviewer for this process
+            var submissions = await _unitOfWork.StudySelectionChecklistSubmissions.FindAllAsync(
+                s => s.StudySelectionProcessId == studySelectionProcessId && s.ReviewerId == reviewerId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var submissionMap = submissions.GroupBy(s => s.PaperId).ToDictionary(g => g.Key, g => g.ToList());
+
+            // 6. Group assignments by Paper
+            var paperGroups = assignmentList.GroupBy(a => a.PaperId);
+            var results = new List<ReviewerAssignmentTableItemResponse>();
+
+            foreach (var group in paperGroups)
+            {
+                var paperId = group.Key;
+                var paper = group.First().Paper;
+                var paperTitle = paper?.Title ?? "Unknown Title";
+
+                var taAssignment = group.FirstOrDefault(a => a.Phase == ScreeningPhase.TitleAbstract);
+                var ftAssignment = group.FirstOrDefault(a => a.Phase == ScreeningPhase.FullText);
+
+                var paperDecisions = decisionMap.GetValueOrDefault(paperId, new List<ScreeningDecision>());
+                var paperSubmissions = submissionMap.GetValueOrDefault(paperId, new List<StudySelectionChecklistSubmission>());
+
+                var titleAbstractDisplay = BuildPhaseDisplay(taAssignment != null, paperDecisions.FirstOrDefault(d => d.Phase == ScreeningPhase.TitleAbstract), paperSubmissions.Any(s => s.Phase == ScreeningPhase.TitleAbstract));
+                var fullTextDisplay = BuildPhaseDisplay(ftAssignment != null, paperDecisions.FirstOrDefault(d => d.Phase == ScreeningPhase.FullText), paperSubmissions.Any(s => s.Phase == ScreeningPhase.FullText));
+
+                // Overall status rules:
+                // Completed: All assigned phases already have decisions.
+                // In Progress: At least one assigned phase has started/completed, but not all assigned phases are completed.
+                // Not Started: All assigned phases have NO decision and NO checklist.
+
+                var assignedPhases = new List<ScreeningPhase>();
+                if (taAssignment != null) assignedPhases.Add(ScreeningPhase.TitleAbstract);
+                if (ftAssignment != null) assignedPhases.Add(ScreeningPhase.FullText);
+
+                string overallStatus = "Not Started";
+                if (assignedPhases.Any())
+                {
+                    bool allCompleted = assignedPhases.All(p => paperDecisions.Any(d => d.Phase == p));
+                    bool anyStarted = assignedPhases.Any(p => paperDecisions.Any(d => d.Phase == p) || paperSubmissions.Any(s => s.Phase == p));
+
+                    if (allCompleted)
+                    {
+                        overallStatus = "Completed";
+                    }
+                    else if (anyStarted)
+                    {
+                        overallStatus = "In Progress";
+                    }
+                }
+
+                results.Add(new ReviewerAssignmentTableItemResponse
+                {
+                    PaperId = paperId,
+                    PaperTitle = paperTitle,
+                    TitleAbstractDisplay = titleAbstractDisplay,
+                    FullTextDisplay = fullTextDisplay,
+                    OverallStatus = overallStatus
+                });
+            }
+
+            return results.OrderBy(r => r.PaperTitle).ToList();
+        }
+
+        private string BuildPhaseDisplay(bool isAssigned, ScreeningDecision? decision, bool hasChecklist)
+        {
+            if (!isAssigned) return "Not Assigned";
+
+            string decisionPart = "Pending";
+            if (decision != null)
+            {
+                decisionPart = decision.Decision.ToString(); // Include or Exclude
+            }
+
+            string checklistPart = hasChecklist ? "Checklist Submitted" : "No Checklist";
+
+            return $"{decisionPart} · {checklistPart}";
+        }
+
         public async Task<PaginatedResponse<DatasetPaperResponse>> GetIncludedFullTextPapersAsync(
             Guid studySelectionProcessId,
             GetResolutionsRequest request,

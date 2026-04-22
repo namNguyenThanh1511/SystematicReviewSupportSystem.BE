@@ -107,6 +107,28 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Update project dates (StartDate, EndDate)
+        /// </summary>
+        /// <param name="id">Project ID</param>
+        /// <param name="request">Update project dates request</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Updated project details</returns>
+        [HttpPut("{id}/dates")]
+        public async Task<ActionResult<ApiResponse<SystematicReviewProjectResponse>>> UpdateProjectDates(
+            [FromRoute] Guid id,
+            [FromBody] UpdateProjectDatesRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (id != request.Id)
+            {
+                throw new ArgumentException("ID in route does not match ID in request body.");
+            }
+
+            var result = await _projectService.UpdateProjectDatesAsync(request, cancellationToken);
+            return Ok(result, "Project dates updated successfully.");
+        }
+
+        /// <summary>
         /// Activate a project (Draft → Active)
         /// </summary>
         /// <param name="id">Project ID</param>

@@ -32,6 +32,8 @@ namespace SRSS.IAM.API.Controllers
         private readonly IStudySelectionAIResultService _studySelectionAIResultService;
         private readonly IStuSeExclusionCodeService _exclusionCodeService;
         private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
+        private readonly IStuSeFullTextAiEvaluationService _fullTextAiEvaluationService;
+        private readonly IStuSeFullTextAiEvaluationQueue _fullTextAiEvaluationQueue;
 
         public StudySelectionController(
             IStudySelectionService studySelectionService,
@@ -40,7 +42,9 @@ namespace SRSS.IAM.API.Controllers
             IStuSeAIService stuSeAIService,
             IStudySelectionAIResultService studySelectionAIResultService,
             IStuSeExclusionCodeService exclusionCodeService,
-            IStudySelectionProcessPaperService studySelectionProcessPaperService)
+            IStudySelectionProcessPaperService studySelectionProcessPaperService,
+            IStuSeFullTextAiEvaluationService fullTextAiEvaluationService,
+            IStuSeFullTextAiEvaluationQueue fullTextAiEvaluationQueue)
         {
             _studySelectionService = studySelectionService;
             _paperService = paperService;
@@ -49,6 +53,8 @@ namespace SRSS.IAM.API.Controllers
             _studySelectionAIResultService = studySelectionAIResultService;
             _exclusionCodeService = exclusionCodeService;
             _studySelectionProcessPaperService = studySelectionProcessPaperService;
+            _fullTextAiEvaluationService = fullTextAiEvaluationService;
+            _fullTextAiEvaluationQueue = fullTextAiEvaluationQueue;
         }
 
         /// <summary>
@@ -402,6 +408,20 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, message);
         }
 
+        /// <summary>
+        /// Get the reviewer assignment table data for a specific reviewer in a specific study selection process.
+        /// Grouped by paper with status for both Title/Abstract and Full-Text phases.
+        /// </summary>
+        [HttpGet("study-selection/{processId}/reviewers/{reviewerId}/assignment-table")]
+        public async Task<ActionResult<ApiResponse<List<ReviewerAssignmentTableItemResponse>>>> GetReviewerAssignmentTable(
+            [FromRoute] Guid processId,
+            [FromRoute] Guid reviewerId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetReviewerAssignmentTableAsync(processId, reviewerId, cancellationToken);
+            return Ok(result, "Reviewer assignment table retrieved successfully.");
+        }
+
 
         /// <summary>
         /// Update full-text link (PDF URL / web URL) for a paper (Issue 2)
@@ -552,7 +572,8 @@ namespace SRSS.IAM.API.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<StuSeAIOutput>>> EvaluatePaperWithAi(
             [FromRoute] Guid studySelectionId,
-            [FromRoute] Guid paperId)
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
         {
             var userIdStr = _currentUserService.GetUserId();
             if (!Guid.TryParse(userIdStr, out var reviewerId))
@@ -560,8 +581,39 @@ namespace SRSS.IAM.API.Controllers
                 throw new ArgumentException("Invalid user ID in current context.");
             }
 
-            var result = await _stuSeAIService.EvaluateTitleAbstractAsync(studySelectionId, paperId, reviewerId);
+            var result = await _stuSeAIService.EvaluateTitleAbstractAsync(studySelectionId, paperId, reviewerId, cancellationToken);
             return Ok(result, "AI evaluation completed successfully.");
+        }
+
+        /// <summary>
+        /// Evaluate a paper using AI (Full-Text phase)
+        /// </summary>
+        [HttpPost("study-selection/{studySelectionId}/papers/{paperId}/full-text/ai-evaluate")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<string>>> EvaluateFullTextWithAi(
+            [FromRoute] Guid studySelectionId,
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            var userIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdStr, out var reviewerId))
+            {
+                throw new ArgumentException("Invalid user ID in current context.");
+            }
+
+            var isExist = _fullTextAiEvaluationQueue.IsProcessing(studySelectionId, paperId);
+            if (isExist)
+            {
+                return Ok("AI evaluation is already in progress for this paper.", "Evaluation already exists.");
+            }
+
+            var enqueued = _fullTextAiEvaluationQueue.Enqueue(new StuSeFullTextAiEvaluationTask(studySelectionId, paperId, reviewerId));
+            if (!enqueued)
+            {
+                return Ok("Failed to enqueue AI evaluation. The queue might be full.", "Queue full.");
+            }
+
+            return Ok("AI evaluation has been started in the background.", "Background job started.");
         }
 
         /// <summary>

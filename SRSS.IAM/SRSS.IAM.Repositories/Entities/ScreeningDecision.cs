@@ -17,11 +17,13 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid? ExclusionReasonId { get; set; }
         public string? Reason { get; set; }
         public DateTimeOffset DecidedAt { get; set; }
+        public Guid? ChecklistSubmissionId { get; set; }
 
         // Navigation Properties
         public StudySelectionProcess StudySelectionProcess { get; set; } = null!;
         public Paper Paper { get; set; } = null!;
         public StudySelectionExclusionReason? ExclusionReason { get; set; }
+        public StudySelectionChecklistSubmission? ChecklistSubmission { get; set; }
     }
 
     public enum ScreeningDecisionType

@@ -19,15 +19,22 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid OwnerId { get; set; }
 
         // Navigation Properties
-        public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
+        public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
+        public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
+        public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
+        public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
+        public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
         public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
         public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
         public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
         public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
         public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
+        public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
+        public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
+        public ICollection<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = new List<StudySelectionChecklistTemplate>();
 
         // Domain Methods
         public void Activate()
@@ -75,17 +82,11 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public ReviewProcess AddReviewProcess(string name, string? notes = null, ReviewProtocol? protocol = null)
+        public ReviewProcess AddReviewProcess(string name, string? notes = null)
         {
             if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
             {
                 throw new InvalidOperationException($"Cannot add processes to project in {Status} status.");
-            }
-
-
-            if (ReviewProcesses.Any(rp => rp.Status == ProcessStatus.InProgress))
-            {
-                throw new InvalidOperationException("Cannot add a new process while another process is in progress.");
             }
 
             var reviewProcess = new ReviewProcess
@@ -93,17 +94,11 @@ namespace SRSS.IAM.Repositories.Entities
                 Id = Guid.NewGuid(),
                 Name = name,
                 ProjectId = Id,
-                ProtocolId = protocol?.Id, // Initialize directly
                 Status = ProcessStatus.NotStarted,
                 Notes = notes,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
-
-            if (protocol != null)
-            {
-                reviewProcess.SetProtocol(protocol);
-            }
 
             ReviewProcesses.Add(reviewProcess);
             ModifiedAt = DateTimeOffset.UtcNow;

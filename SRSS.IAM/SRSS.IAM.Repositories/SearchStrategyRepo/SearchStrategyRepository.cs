@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 
@@ -8,9 +8,9 @@ namespace SRSS.IAM.Repositories.SearchStrategyRepo
 	{
 		public SearchSourceRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<SearchSource>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<SearchSource>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(s => s.ProtocolId == protocolId, isTracking: false, cancellationToken);
+			return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
 		}
 	}
 }

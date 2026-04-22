@@ -472,12 +472,12 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -799,13 +799,13 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1252,8 +1252,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             memoryStream.Position = 0; // Đặt con trỏ về đầu file
 
             // 3. Extract text from Grobid (Dùng memoryStream)
-            var paperText = await _grobidService.ProcessFulltextDocumentAsync(memoryStream);
-
+            var paperText = await _unitOfWork.PaperFullTexts
+                .GetRawXmlByPaperIdAsync(paperId, CancellationToken.None);
             if (string.IsNullOrWhiteSpace(paperText))
             {
                 throw new InvalidOperationException("Failed to extract full text from the PDF using Grobid. Check Backend Console Logs for details.");
@@ -1319,10 +1319,10 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found.");
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == extractionProcess.ReviewProcess.ProtocolId.Value);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == extractionProcess.ReviewProcess.ProjectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1839,13 +1839,13 @@ If no relevant data is found in the context, return a JSON object with null valu
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2113,7 +2113,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                 throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
             }
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == reviewProcess.ProtocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == reviewProcess.ProjectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2531,12 +2531,12 @@ If no relevant data is found in the context, return a JSON object with null valu
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)

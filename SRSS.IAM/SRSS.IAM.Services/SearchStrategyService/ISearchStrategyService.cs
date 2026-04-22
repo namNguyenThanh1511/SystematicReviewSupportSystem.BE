@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.SearchStrategy;
+using SRSS.IAM.Services.DTOs.SearchStrategy;
 
 namespace SRSS.IAM.Services.SearchStrategyService
 {
@@ -6,6 +6,6 @@ namespace SRSS.IAM.Services.SearchStrategyService
 	{
 		// Search Source
 		Task<List<SearchSourceDto>> BulkUpsertSearchSourcesAsync(List<SearchSourceDto> dtos);
-		Task<List<SearchSourceDto>> GetSearchSourcesByProtocolIdAsync(Guid protocolId);
+		Task<List<SearchSourceDto>> GetSearchSourcesByProjectIdAsync(Guid projectId);
 	}
 }

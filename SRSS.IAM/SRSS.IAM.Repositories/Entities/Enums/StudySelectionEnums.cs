@@ -60,6 +60,30 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         Retrieved = 1,
         NotRetrieved = 2
     }
+
+    /// <summary>
+    /// Validation outcome for an uploaded PDF version.
+    /// </summary>
+    public enum PdfValidationStatus
+    {
+        Pending = 0,
+        Valid = 1,
+        DoiMismatch = 2
+    }
+
+    /// <summary>
+    /// Workflow state for a PDF processing version.
+    /// </summary>
+    public enum PdfProcessingStatus
+    {
+        Uploaded = 0,
+        MetadataProcessing = 1,
+        MetadataValidated = 2,
+        MetadataInvalid = 3,
+        FullTextProcessing = 4,
+        Completed = 5,
+        Failed = 6
+    }
     /// <summary>
     /// Source of an exclusion reason (Library vs Custom)
     /// </summary>
@@ -77,5 +101,45 @@ namespace SRSS.IAM.Repositories.Entities.Enums
         All = 0,
         Library = 1,
         Custom = 2
+    }
+    /// <summary>
+    /// Status for a checklist version
+    /// </summary>
+    public enum ChecklistVersionStatus
+    {
+        Draft = 0,
+        Active = 1,
+        Archived = 2
+    }
+
+    /// <summary>
+    /// Type of input for a checklist item
+    /// </summary>
+    public enum ChecklistItemType
+    {
+        Boolean = 0,
+        SingleChoice = 1,
+        Text = 2
+    }
+
+    /// <summary>
+    /// Impact of a checklist item on the screening decision
+    /// </summary>
+    public enum ChecklistItemImpact
+    {
+        Include = 0,
+        Exclude = 1,
+        Neutral = 2
+    }
+
+    /// <summary>
+    /// Source of a checklist item (where it originated from)
+    /// </summary>
+    public enum ChecklistItemSourceType
+    {
+        Criteria = 0,
+        ResearchQuestion = 1,
+        PICOC = 2,
+        Manual = 3
     }
 }

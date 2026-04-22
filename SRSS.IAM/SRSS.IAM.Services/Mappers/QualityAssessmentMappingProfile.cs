@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
@@ -13,8 +13,8 @@ namespace SRSS.IAM.Services.Mappers
             return new QualityAssessmentStrategyDto
             {
                 QaStrategyId = entity.Id,
-                ProtocolId = entity.ProtocolId,
-                Description = entity.Description,
+                ProjectId = entity.ProjectId,
+                Description = entity.Description ?? string.Empty,
                 Checklists = entity.Checklists?.Select(c => c.ToDtoWithCriteria()).ToList() ?? new List<QualityAssessmentChecklistDto>()
             };
         }
@@ -31,15 +31,15 @@ namespace SRSS.IAM.Services.Mappers
             return new QualityAssessmentStrategy
             {
                 Id = dto.QaStrategyId ?? Guid.Empty,
-                ProtocolId = dto.ProtocolId,
-                Description = dto.Description
+                ProjectId = dto.ProjectId,
+                Description = dto.Description ?? string.Empty
             };
         }
 
         public static void UpdateEntity(this QualityAssessmentStrategyDto dto, QualityAssessmentStrategy entity)
         {
-            entity.ProtocolId = dto.ProtocolId;
-            entity.Description = dto.Description;
+            entity.ProjectId = dto.ProjectId;
+            entity.Description = dto.Description ?? string.Empty;
         }
 
         // ==================== QualityChecklist ====================
@@ -65,6 +65,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this QualityAssessmentChecklistDto dto, QualityChecklist entity)
         {
+            entity.Id = dto.ChecklistId ?? entity.Id; // Preserve existing ID if not provided
             entity.QaStrategyId = dto.QaStrategyId;
             entity.Name = dto.Name;
         }
@@ -94,6 +95,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this QualityAssessmentCriterionDto dto, QualityCriterion entity)
         {
+            entity.Id = dto.CriterionId ?? entity.Id; // Preserve existing ID if not provided
             entity.ChecklistId = dto.ChecklistId;
             entity.Question = dto.Question;
             entity.Weight = dto.Weight;
@@ -111,26 +113,6 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         public static List<QualityAssessmentCriterionDto> ToDtoList(this IEnumerable<QualityCriterion> entities)
-        {
-            return entities.Select(e => e.ToDto()).ToList();
-        }
-
-        public static List<StudySelectionCriteriaDto> ToDtoList(this IEnumerable<StudySelectionCriteria> entities)
-        {
-            return entities.Select(e => e.ToDto()).ToList();
-        }
-
-        public static List<InclusionCriterionDto> ToDtoList(this IEnumerable<InclusionCriterion> entities)
-        {
-            return entities.Select(e => e.ToDto()).ToList();
-        }
-
-        public static List<ExclusionCriterionDto> ToDtoList(this IEnumerable<ExclusionCriterion> entities)
-        {
-            return entities.Select(e => e.ToDto()).ToList();
-        }
-
-        public static List<StudySelectionProcedureDto> ToDtoList(this IEnumerable<StudySelectionProcedure> entities)
         {
             return entities.Select(e => e.ToDto()).ToList();
         }
@@ -188,7 +170,6 @@ namespace SRSS.IAM.Services.Mappers
         public static void UpdateEntity(this UpdateQualityAssessmentProcessRequest dto, QualityAssessmentProcess entity)
         {
             entity.Notes = dto.Notes;
-            // Status transitions handled by domain entity methods
         }
 
         public static QualityAssessmentProcessResponse ToResponse(this QualityAssessmentProcess entity)
@@ -209,18 +190,6 @@ namespace SRSS.IAM.Services.Mappers
             };
         }
 
-        public static void UpdateStatus(this QualityAssessmentProcess entity, QualityAssessmentProcessStatus newStatus)
-        {
-            if (newStatus != entity.Status)
-            {
-                entity.Status = newStatus;
-                if (newStatus == QualityAssessmentProcessStatus.InProgress && entity.StartedAt == null)
-                    entity.StartedAt = DateTimeOffset.UtcNow;
-                if (newStatus == QualityAssessmentProcessStatus.Completed && entity.CompletedAt == null)
-                    entity.CompletedAt = DateTimeOffset.UtcNow;
-            }
-        }
-
         // ==================== QualityAssessmentDecision ====================
         public static QualityAssessmentDecision ToEntity(this CreateQualityAssessmentDecisionRequest dto, Guid reviewerId, Guid qualityAssessmentPaperId)
         {
@@ -229,8 +198,7 @@ namespace SRSS.IAM.Services.Mappers
                 QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
                 ReviewerId = reviewerId,
                 QualityAssessmentPaperId = qualityAssessmentPaperId,
-                Score = dto.Score,
-                // Notes = dto.Notes
+                Score = dto.Score
             };
         }
 
@@ -247,6 +215,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentDecisionItemRequest dto, QualityAssessmentDecisionItem entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.Value = dto.Value;
             entity.Comment = dto.Comment;
             entity.PdfHighlightCoordinates = dto.PdfHighlightCoordinates;
@@ -265,8 +234,8 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentDecisionRequest dto, QualityAssessmentDecision entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.Score = dto.Score;
-            // entity.Notes = dto.Notes;
         }
 
         public static QualityAssessmentDecisionItemResponse ToDto(this QualityAssessmentDecisionItem entity)
@@ -295,7 +264,6 @@ namespace SRSS.IAM.Services.Mappers
                 ReviewerName = entity.Reviewer?.FullName ?? entity.Reviewer?.Username,
                 QualityAssessmentPaperId = entity.QualityAssessmentPaperId,
                 Score = entity.Score,
-                // Notes = entity.Notes,
                 DecisionItems = entity.DecisionItems?.Select(i => i.ToDto()).ToList() ?? new List<QualityAssessmentDecisionItemResponse>()
             };
         }
@@ -317,6 +285,7 @@ namespace SRSS.IAM.Services.Mappers
 
         public static void UpdateEntity(this UpdateQualityAssessmentResolutionRequest dto, QualityAssessmentResolution entity)
         {
+            entity.Id = dto.Id ?? entity.Id; // Preserve existing ID if not provided
             entity.FinalDecision = dto.FinalDecision;
             entity.FinalScore = dto.FinalScore;
             entity.ResolutionNotes = dto.ResolutionNotes;

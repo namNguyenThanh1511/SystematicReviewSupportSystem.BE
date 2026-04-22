@@ -93,6 +93,303 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
+        public async Task<PaginatedResponse<PaperResponse>> SearchPapersByProjectAsync(
+            Guid projectId,
+            PaperSearchQuery query,
+            CancellationToken cancellationToken = default)
+        {
+            // Validate project exists
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            // Validate pagination parameters
+            if (query.PageNumber < 1)
+            {
+                query.PageNumber = 1;
+            }
+
+            if (query.PageSize < 1)
+            {
+                query.PageSize = 20;
+            }
+
+            if (query.PageSize > 100)
+            {
+                query.PageSize = 100;
+            }
+
+            // Get papers with advanced filtering and pagination
+            var (papers, totalCount) = await _unitOfWork.Papers.SearchPapersByProjectAsync(
+                projectId,
+                query.Search,
+                query.SearchStrategyId,
+                query.SearchSourceId,
+                query.Year,
+                query.PageNumber,
+                query.PageSize,
+                cancellationToken);
+
+            // Map to response DTOs
+            var paperResponses = new List<PaperResponse>();
+            foreach (var p in papers)
+            {
+                paperResponses.Add(await MapToPaperResponseAsync(p, null, null, cancellationToken));
+            }
+
+            return new PaginatedResponse<PaperResponse>
+            {
+                Items = paperResponses,
+                TotalCount = totalCount,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
+
+        public async Task<PaginatedResponse<PaperResponse>> GetPaperPoolAsync(
+            Guid projectId,
+            PaperPoolQueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            if (request.PageNumber < 1) request.PageNumber = 1;
+            if (request.PageSize < 1) request.PageSize = 20;
+            if (request.PageSize > 100) request.PageSize = 100;
+
+            Guid? searchSourceId = null;
+            if (!string.IsNullOrWhiteSpace(request.SearchSourceId) &&
+                !request.SearchSourceId.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                searchSourceId = Guid.Parse(request.SearchSourceId);
+            }
+
+            Guid? importBatchId = null;
+            if (!string.IsNullOrWhiteSpace(request.ImportBatchId) &&
+                !request.ImportBatchId.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                importBatchId = Guid.Parse(request.ImportBatchId);
+            }
+
+            var (papers, totalCount) = await _unitOfWork.Papers.GetPaperPoolByProjectAsync(
+                projectId,
+                request.SearchText,
+                request.Keyword,
+                request.YearFrom,
+                request.YearTo,
+                searchSourceId,
+                importBatchId,
+                request.DoiState,
+                request.FullTextState,
+                request.OnlyUnused,
+                request.RecentlyImported,
+                request.PageNumber,
+                request.PageSize,
+                cancellationToken);
+
+            var items = new List<PaperResponse>();
+            foreach (var paper in papers)
+            {
+                items.Add(await MapToPaperResponseAsync(paper, null, null, cancellationToken));
+            }
+
+            return new PaginatedResponse<PaperResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+        }
+
+        public async Task<PaperPoolFilterMetadataResponse> GetFilterMetadataAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            var searchSources = await _unitOfWork.SearchSources.FindAllAsync(
+                x => x.ProjectId == projectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var importBatches = await _unitOfWork.ImportBatches.FindAllAsync(
+                x =>  x.Project.Id == projectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            return new PaperPoolFilterMetadataResponse
+            {
+                SearchSources = searchSources
+                    .OrderBy(x => x.Name)
+                    .Select(x => new FilterOptionResponse { Id = x.Id, Name = x.Name })
+                    .ToList(),
+                ImportBatches = importBatches
+                    .OrderByDescending(x => x.ImportedAt)
+                    .Select(x => new FilterOptionResponse
+                    {
+                        Id = x.Id,
+                        Name = string.IsNullOrWhiteSpace(x.FileName) ? $"Batch {x.ImportedAt:yyyy-MM-dd HH:mm}" : x.FileName
+                    })
+                    .ToList()
+            };
+        }
+
+        public async Task<List<FilterSettingResponse>> GetFilterSettingsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var filterSettings = await _unitOfWork.FilterSettings.FindAllAsync(
+                x => x.ProjectId == projectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            return filterSettings
+                .OrderByDescending(x => x.CreatedAt)
+                .Select(MapFilterSettingResponse)
+                .ToList();
+        }
+
+        public async Task<FilterSettingResponse> GetFilterSettingByIdAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var filterSetting = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.ProjectId == projectId && x.Id == id,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (filterSetting == null)
+            {
+                throw new InvalidOperationException("Filter setting not found.");
+            }
+
+            return MapFilterSettingResponse(filterSetting);
+        }
+
+        public async Task<FilterSettingResponse> CreateFilterSettingAsync(
+            Guid projectId,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateFilterSettingRequest(request);
+
+            var duplicate = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.ProjectId == projectId && x.Name.ToLower() == request.Name.Trim().ToLower(),
+                cancellationToken: cancellationToken);
+
+            if (duplicate != null)
+            {
+                throw new InvalidOperationException("Filter name already exists in this project.");
+            }
+
+            var filterSetting = new FilterSetting
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                Name = request.Name.Trim(),
+                SearchText = request.SearchText?.Trim(),
+                Keyword = request.Filters.Keyword?.Trim(),
+                YearFrom = request.Filters.YearFrom,
+                YearTo = request.Filters.YearTo,
+                SearchSourceId = ParseOptionalGuid(request.Filters.SearchSourceId),
+                ImportBatchId = ParseOptionalGuid(request.Filters.ImportBatchId),
+                DoiState = NormalizeState(request.Filters.DoiState),
+                FullTextState = NormalizeState(request.Filters.FullTextState),
+                OnlyUnused = request.Filters.OnlyUnused,
+                RecentlyImported = request.Filters.RecentlyImported
+            };
+
+            await _unitOfWork.FilterSettings.AddAsync(filterSetting, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapFilterSettingResponse(filterSetting);
+        }
+
+        public async Task<FilterSettingResponse> UpdateFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateFilterSettingRequest(request);
+
+            var filterSetting = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.Id == id && x.ProjectId == projectId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (filterSetting == null)
+            {
+                throw new InvalidOperationException("Filter setting not found.");
+            }
+
+            var duplicate = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.ProjectId == projectId && x.Id != id && x.Name.ToLower() == request.Name.Trim().ToLower(),
+                cancellationToken: cancellationToken);
+
+            if (duplicate != null)
+            {
+                throw new InvalidOperationException("Filter name already exists in this project.");
+            }
+
+            filterSetting.Name = request.Name.Trim();
+            filterSetting.SearchText = request.SearchText?.Trim();
+            filterSetting.Keyword = request.Filters.Keyword?.Trim();
+            filterSetting.YearFrom = request.Filters.YearFrom;
+            filterSetting.YearTo = request.Filters.YearTo;
+            filterSetting.SearchSourceId = ParseOptionalGuid(request.Filters.SearchSourceId);
+            filterSetting.ImportBatchId = ParseOptionalGuid(request.Filters.ImportBatchId);
+            filterSetting.DoiState = NormalizeState(request.Filters.DoiState);
+            filterSetting.FullTextState = NormalizeState(request.Filters.FullTextState);
+            filterSetting.OnlyUnused = request.Filters.OnlyUnused;
+            filterSetting.RecentlyImported = request.Filters.RecentlyImported;
+
+            await _unitOfWork.FilterSettings.UpdateAsync(filterSetting, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapFilterSettingResponse(filterSetting);
+        }
+
+        public async Task DeleteFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var filterSetting = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.Id == id && x.ProjectId == projectId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (filterSetting == null)
+            {
+                throw new InvalidOperationException("Filter setting not found.");
+            }
+
+            await _unitOfWork.FilterSettings.RemoveAsync(filterSetting, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         /// <summary>
         /// Get duplicate papers for a specific identification process
         /// Queries DeduplicationResult table for process-scoped results
@@ -223,6 +520,70 @@ namespace SRSS.IAM.Services.PaperService
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
+            };
+        }
+
+        private static string NormalizeState(string? value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "all" : value.Trim().ToLowerInvariant();
+        }
+
+        private static Guid? ParseOptionalGuid(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return Guid.Parse(value);
+        }
+
+        private static void ValidateFilterSettingRequest(FilterSettingRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                throw new ArgumentException("Filter name is required.");
+            }
+
+            if (request.Filters.YearFrom.HasValue &&
+                request.Filters.YearTo.HasValue &&
+                request.Filters.YearFrom.Value > request.Filters.YearTo.Value)
+            {
+                throw new ArgumentException("yearFrom must be less than or equal to yearTo.");
+            }
+
+            var validStates = new[] { "all", "has", "missing" };
+            if (!validStates.Contains(NormalizeState(request.Filters.DoiState)))
+            {
+                throw new ArgumentException("doiState must be one of: all, has, missing.");
+            }
+
+            if (!validStates.Contains(NormalizeState(request.Filters.FullTextState)))
+            {
+                throw new ArgumentException("fullTextState must be one of: all, has, missing.");
+            }
+        }
+
+        private static FilterSettingResponse MapFilterSettingResponse(FilterSetting x)
+        {
+            return new FilterSettingResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                SearchText = x.SearchText,
+                CreatedAt = x.CreatedAt,
+                Filters = new FilterStateDto
+                {
+                    Keyword = x.Keyword,
+                    YearFrom = x.YearFrom,
+                    YearTo = x.YearTo,
+                    SearchSourceId = x.SearchSourceId?.ToString() ?? "all",
+                    ImportBatchId = x.ImportBatchId?.ToString() ?? "all",
+                    DoiState = x.DoiState,
+                    FullTextState = x.FullTextState,
+                    OnlyUnused = x.OnlyUnused,
+                    RecentlyImported = x.RecentlyImported
+                }
             };
         }
 
@@ -361,8 +722,26 @@ namespace SRSS.IAM.Services.PaperService
             ResolveDuplicateRequest request,
             CancellationToken cancellationToken = default)
         {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.Id == deduplicationResultId && dr.IdentificationProcessId == identificationProcessId,
+                dr => dr.Id == deduplicationResultId && dr.ProjectId == reviewProcess.ProjectId,
                 isTracking: true,
                 cancellationToken);
 
@@ -377,13 +756,27 @@ namespace SRSS.IAM.Services.PaperService
             deduplicationResult.ReviewedAt = DateTimeOffset.UtcNow;
             deduplicationResult.ModifiedAt = DateTimeOffset.UtcNow;
 
+            var duplicatePaper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == deduplicationResult.PaperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (duplicatePaper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {deduplicationResult.PaperId} not found.");
+            }
+
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                duplicatePaper.IsDeleted = true;
+                duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
             {
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Rejected;
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                duplicatePaper.IsDeleted = false;
+                duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
 
             if (!string.IsNullOrWhiteSpace(request.Notes))
@@ -392,6 +785,7 @@ namespace SRSS.IAM.Services.PaperService
             }
 
             await _unitOfWork.DeduplicationResults.UpdateAsync(deduplicationResult, cancellationToken);
+            await _unitOfWork.Papers.UpdateAsync(duplicatePaper, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // Reload with navigation properties for response mapping
@@ -521,8 +915,26 @@ namespace SRSS.IAM.Services.PaperService
             ResolveDuplicatePairRequest request,
             CancellationToken cancellationToken = default)
         {
+            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
+                ip => ip.Id == identificationProcessId,
+                cancellationToken: cancellationToken);
+
+            if (identificationProcess == null)
+            {
+                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
+                rp => rp.Id == identificationProcess.ReviewProcessId,
+                cancellationToken: cancellationToken);
+
+            if (reviewProcess == null)
+            {
+                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
+            }
+
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.Id == pairId && dr.IdentificationProcessId == identificationProcessId,
+                dr => dr.Id == pairId && dr.ProjectId == reviewProcess.ProjectId,
                 isTracking: true,
                 cancellationToken);
 
@@ -547,18 +959,33 @@ namespace SRSS.IAM.Services.PaperService
                 deduplicationResult.Notes = request.Notes;
             }
 
+            var duplicatePaper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == deduplicationResult.PaperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (duplicatePaper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {deduplicationResult.PaperId} not found.");
+            }
+
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
-                // Confirmed duplicate — PaperId is excluded from this process
+                // Confirmed duplicate — soft-delete the duplicate paper.
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                duplicatePaper.IsDeleted = true;
+                duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
             {
-                // Not a duplicate — both papers remain
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Rejected;
+                // Not a duplicate — both papers remain visible.
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                duplicatePaper.IsDeleted = false;
+                duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
 
             await _unitOfWork.DeduplicationResults.UpdateAsync(deduplicationResult, cancellationToken);
+            await _unitOfWork.Papers.UpdateAsync(duplicatePaper, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new ResolveDuplicatePairResponse

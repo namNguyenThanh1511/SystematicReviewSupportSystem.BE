@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.StudySelectionCriteriaRepo;
@@ -9,9 +9,9 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 	{
 		public StudySelectionCriteriaRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<StudySelectionCriteria>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<StudySelectionCriteria>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(c => c.ProtocolId == protocolId, isTracking: false, cancellationToken);
+			return await FindAllAsync(c => c.ProjectId == projectId, isTracking: false, cancellationToken);
 		}
 	}
 

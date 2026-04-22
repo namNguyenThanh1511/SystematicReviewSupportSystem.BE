@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.DataExtraction;
+using SRSS.IAM.Services.DTOs.DataExtraction;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -8,7 +8,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto);
 
-        Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId);
+        Task<List<ExtractionTemplateDto>> GetTemplatesByProjectIdAsync(Guid projectId);
 
         Task<ExtractionTemplateDto> GetTemplateByIdAsync(Guid templateId);
 

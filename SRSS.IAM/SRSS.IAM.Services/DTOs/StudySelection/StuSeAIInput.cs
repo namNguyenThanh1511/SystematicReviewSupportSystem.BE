@@ -6,7 +6,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     public class StuSeAIInput
     {
         public StuSePaperInput Paper { get; set; } = null!;
-        public StuSeCriteriaInput Criteria { get; set; } = null!;
         public List<StuSeRQInput> ResearchQuestions { get; set; } = new();
         public List<StuSeCriteriaGroupInput> CriteriaGroups { get; set; } = new();
     }
@@ -33,12 +32,6 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? Language { get; set; }
     }
 
-    public class StuSeCriteriaInput
-    {
-        public string? Domain { get; set; }
-        public string? Language { get; set; }
-        public string? StudyType { get; set; }
-    }
 
     public class StuSePicocInput
     {

@@ -1,22 +1,52 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.UserService;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.SelectionCriteriaService
 {
 	public class SelectionCriteriaService : ISelectionCriteriaService
 	{
 		private readonly IUnitOfWork _unitOfWork;
+		private readonly ICurrentUserService _currentUserService;
 
-		public SelectionCriteriaService(IUnitOfWork unitOfWork)
+		public SelectionCriteriaService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
 		{
 			_unitOfWork = unitOfWork;
+			_currentUserService = currentUserService;
+		}
+
+		private async Task EnsureLeaderAsync(Guid projectId)
+		{
+			var userIdString = _currentUserService.GetUserId();
+			if (string.IsNullOrEmpty(userIdString))
+			{
+				throw new UnauthorizedException("User is not authenticated.");
+			}
+
+			var userId = Guid.Parse(userIdString);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
+			if (!isLeader)
+			{
+				throw new ForbiddenException("Only project leader can perform this action.");
+			}
+		}
+
+		private async Task EnsureLeaderByCriteriaIdAsync(Guid criteriaId)
+		{
+			var criteria = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId)
+				?? throw new KeyNotFoundException($"Criteria {criteriaId} không tồn tại");
+
+			await EnsureLeaderAsync(criteria.ProjectId);
 		}
 
 		// ==================== Study Selection Criteria ====================
 		public async Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto)
 		{
+			await EnsureLeaderAsync(dto.ProjectId);
+
 			StudySelectionCriteria entity;
 
 			if (dto.CriteriaId.HasValue && dto.CriteriaId.Value != Guid.Empty)
@@ -37,9 +67,9 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			return entity.ToDto();  
 		}
 
-		public async Task<List<StudySelectionCriteriaDto>> GetAllByProtocolIdAsync(Guid protocolId)
+		public async Task<List<StudySelectionCriteriaDto>> GetAllByProjectIdAsync(Guid projectId)
 		{
-			var entities = await _unitOfWork.SelectionCriterias.GetByProtocolIdAsync(protocolId);
+			var entities = await _unitOfWork.SelectionCriterias.GetByProjectIdAsync(projectId);
 			return entities.ToDtoList();  
 		}
 
@@ -48,6 +78,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			var entity = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId);
 			if (entity != null)
 			{
+				await EnsureLeaderAsync(entity.ProjectId);
 				await _unitOfWork.SelectionCriterias.RemoveAsync(entity);
 				await _unitOfWork.SaveChangesAsync();
 			}
@@ -56,6 +87,11 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		// ==================== Inclusion Criteria ====================
 		public async Task<List<InclusionCriterionDto>> BulkUpsertInclusionCriteriaAsync(List<InclusionCriterionDto> dtos)
 		{
+			if (dtos.Any())
+			{
+				await EnsureLeaderByCriteriaIdAsync(dtos.First().CriteriaId);
+			}
+
 			var results = new List<InclusionCriterion>();
 
 			foreach (var dto in dtos)
@@ -99,6 +135,11 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		// ==================== Exclusion Criteria ====================
 		public async Task<List<ExclusionCriterionDto>> BulkUpsertExclusionCriteriaAsync(List<ExclusionCriterionDto> dtos)
 		{
+			if (dtos.Any())
+			{
+				await EnsureLeaderByCriteriaIdAsync(dtos.First().CriteriaId);
+			}
+
 			var results = new List<ExclusionCriterion>();
 
 			foreach (var dto in dtos)
@@ -139,43 +180,5 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			return entities.ToDtoList();  
 		}
 
-		// ==================== Selection Procedures ====================
-		public async Task<StudySelectionProcedureDto> UpsertProcedureAsync(StudySelectionProcedureDto dto)
-		{
-			StudySelectionProcedure entity;
-
-			if (dto.ProcedureId.HasValue && dto.ProcedureId.Value != Guid.Empty)
-			{
-				entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == dto.ProcedureId.Value)
-					?? throw new KeyNotFoundException($"Procedure {dto.ProcedureId.Value} không tồn tại");
-
-				dto.UpdateEntity(entity);  
-				await _unitOfWork.SelectionProcedures.UpdateAsync(entity);
-			}
-			else
-			{
-				entity = dto.ToEntity();  
-				await _unitOfWork.SelectionProcedures.AddAsync(entity);
-			}
-
-			await _unitOfWork.SaveChangesAsync();
-			return entity.ToDto();  
-		}
-
-		public async Task<List<StudySelectionProcedureDto>> GetProceduresByProtocolIdAsync(Guid protocolId)
-		{
-			var entities = await _unitOfWork.SelectionProcedures.GetByProtocolIdAsync(protocolId);
-			return entities.ToDtoList();  
-		}
-
-		public async Task DeleteProcedureAsync(Guid procedureId)
-		{
-			var entity = await _unitOfWork.SelectionProcedures.FindSingleAsync(p => p.Id == procedureId);
-			if (entity != null)
-			{
-				await _unitOfWork.SelectionProcedures.RemoveAsync(entity);
-				await _unitOfWork.SaveChangesAsync();
-			}
-		}
 	}
 }

@@ -38,8 +38,6 @@ namespace SRSS.IAM.Repositories
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
 		public DbSet<ProjectMember> ProjectMembers { get; set; } = default!;
 		public DbSet<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = default!;
-		public DbSet<ReviewProtocol> ReviewProtocols { get; set; } = default!;
-		public DbSet<ProtocolVersion> ProtocolVersions { get; set; } = default!;
 		public DbSet<ResearchQuestion> ResearchQuestions { get; set; } = default!;
 		public DbSet<QuestionType> QuestionTypes { get; set; } = default!;
 		public DbSet<PicocElement> PicocElements { get; set; } = default!;
@@ -53,13 +51,9 @@ namespace SRSS.IAM.Repositories
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
-		public DbSet<ProtocolReviewer> ProtocolReviewers { get; set; } = default!;
-		public DbSet<ProtocolEvaluation> ProtocolEvaluations { get; set; } = default!;
 		public DbSet<ReviewNeed> ReviewNeeds { get; set; } = default!;
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;
-		public DbSet<StudySelectionProcedure> StudySelectionProcedures { get; set; } = default!;
-		public DbSet<StudyCharacteristics> StudyCharacteristics { get; set; } = default!;
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
@@ -83,12 +77,11 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ExtractedDataAuditLog> ExtractedDataAuditLogs { get; set; } = default!;
 
 		public DbSet<DataSynthesisStrategy> DataSynthesisStrategies { get; set; } = default!;
-		public DbSet<DisseminationStrategy> DisseminationStrategies { get; set; } = default!;
-		public DbSet<ProjectTimetable> ProjectTimetables { get; set; } = default!;
 		public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
 		public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
 		public DbSet<DataExtractionProcess> DataExtractionProcesses { get; set; } = default!;
-		public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
+
+		public DbSet<FilterSetting> FilterSettings { get; set; } = default!;
 		public DbSet<Paper> Papers { get; set; } = default!;
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;
@@ -115,8 +108,20 @@ namespace SRSS.IAM.Repositories
 		public DbSet<PaperEmbedding> PaperEmbeddings { get; set; } = default!;
 		public DbSet<StudySelectionAIResult> StudySelectionAIResults { get; set; } = default!;
 		public DbSet<PaperFullText> PaperFullTexts { get; set; } = default!;
+		public DbSet<PaperFullTextParsedSection> PaperFullTextParsedSections { get; set; } = default!;
+		public DbSet<PaperFullTextParsedParagraph> PaperFullTextParsedParagraphs { get; set; } = default!;
+		public DbSet<PaperFullTextChunk> PaperFullTextChunks { get; set; } = default!;
+		public DbSet<PaperFullTextChunkEmbedding> PaperFullTextChunkEmbeddings { get; set; } = default!;
 		public DbSet<ExclusionReasonLibrary> ExclusionReasonLibraries { get; set; } = default!;
 		public DbSet<StudySelectionExclusionReason> StudySelectionExclusionReasons { get; set; } = default!;
+
+		// Study Selection Checklist
+		public DbSet<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = default!;
+		public DbSet<StudySelectionChecklistTemplateSection> StudySelectionChecklistTemplateSections { get; set; } = default!;
+		public DbSet<StudySelectionChecklistTemplateItem> StudySelectionChecklistTemplateItems { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmission> StudySelectionChecklistSubmissions { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmissionSectionAnswer> StudySelectionChecklistSubmissionSectionAnswers { get; set; } = default!;
+		public DbSet<StudySelectionChecklistSubmissionItemAnswer> StudySelectionChecklistSubmissionItemAnswers { get; set; } = default!;
 
 		// RAG pipeline
 		public DbSet<PaperChunk> PaperChunks { get; set; } = default!;

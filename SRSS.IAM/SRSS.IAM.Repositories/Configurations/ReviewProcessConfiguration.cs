@@ -25,10 +25,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("project_id")
                 .IsRequired();
 
-            builder.Property(rp => rp.ProtocolId)
-                .HasColumnName("protocol_id");
-
-
             builder.Property(rp => rp.Status)
                 .HasColumnName("status")
                 .HasConversion<string>()
@@ -61,11 +57,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .WithMany(p => p.ReviewProcesses)
                 .HasForeignKey(rp => rp.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            builder.HasOne(rp => rp.Protocol)
-                .WithOne(p => p.ReviewProcess)
-                .HasForeignKey<ReviewProcess>(rp => rp.ProtocolId)
-                .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasOne(rp => rp.IdentificationProcess)
                 .WithOne(ip => ip.ReviewProcess)

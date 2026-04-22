@@ -76,5 +76,17 @@ namespace SRSS.IAM.API.Controllers
             var statusMessage = result.IsActive ? "Account activated successfully." : "Account deactivated successfully.";
             return Ok(result, statusMessage);
         }
+
+        /// <summary>
+        /// Get user progress overview for a project.
+        /// </summary>
+        /// <param name="request">Project ID, search and pagination parameters</param>
+        /// <returns>Paginated list of user progress overview</returns>
+        [HttpGet("progress-overview")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<UserProgressOverviewResponse>>>> GetUserProgressOverview([FromQuery] UserProgressRequest request)
+        {
+            var result = await _userService.GetUserProgressOverviewAsync(request);
+            return Ok(result, "User progress overview retrieved successfully.");
+        }
     }
 }

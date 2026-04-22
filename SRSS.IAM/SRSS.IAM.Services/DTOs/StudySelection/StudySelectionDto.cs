@@ -20,7 +20,10 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public ScreeningPhase Phase { get; set; }
         public string? Reason { get; set; }
         public Guid? ExclusionReasonId { get; set; }
+        public Guid? ChecklistSubmissionId { get; set; }
     }
+
+
 
     public class ResolveScreeningConflictRequest
     {
@@ -316,6 +319,15 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     {
         public bool IsFinishReview { get; set; }
         public List<ReviewerAssignmentResponse> AssignedMembers { get; set; } = new();
+    }
+
+    public class ReviewerAssignmentTableItemResponse
+    {
+        public Guid PaperId { get; set; }
+        public string PaperTitle { get; set; } = string.Empty;
+        public string TitleAbstractDisplay { get; set; } = string.Empty;
+        public string FullTextDisplay { get; set; } = string.Empty;
+        public string OverallStatus { get; set; } = string.Empty;
     }
 
     public class ReviewerDecisionDetailResponse

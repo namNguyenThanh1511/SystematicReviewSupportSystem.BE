@@ -1,4 +1,3 @@
-using System;
 using Shared.Entities.BaseEntity;
 
 namespace SRSS.IAM.Repositories.Entities

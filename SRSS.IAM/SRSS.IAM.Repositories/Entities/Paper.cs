@@ -54,6 +54,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
+        public Guid? CreatedFromImportBatchId { get; set; }
         public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
@@ -71,6 +72,7 @@ namespace SRSS.IAM.Repositories.Entities
         // AUDIT FIELDS (NO WORKFLOW STATE)
         // ============================================
         public string? InternalNotes { get; set; }
+        public bool IsDeleted { get; set; } = false;
 
         // ============================================
         // EXTERNAL METADATA (OPENALEX)
@@ -95,6 +97,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public ICollection<ScreeningDecision> ScreeningDecisions { get; set; } = new List<ScreeningDecision>();
         public ICollection<ScreeningResolution> ScreeningResolutions { get; set; } = new List<ScreeningResolution>();
+        public ICollection<StudySelectionChecklistSubmission> ChecklistSubmissions { get; set; } = new List<StudySelectionChecklistSubmission>();
 
         // Deduplication results where this paper IS the duplicate
         public ICollection<DeduplicationResult> DuplicateResults { get; set; } = new List<DeduplicationResult>();

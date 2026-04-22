@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
@@ -31,13 +31,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Criteria theo Protocol ID
+		/// Lấy tất cả Criteria theo Project ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}")]
-		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByProtocolId(
-			Guid protocolId)
+		[HttpGet("project/{projectId}")]
+		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByProjectId(
+			Guid projectId)
 		{
-			var result = await _service.GetAllByProtocolIdAsync(protocolId);
+			var result = await _service.GetAllByProjectIdAsync(projectId);
 			return Ok(result, "Lấy danh sách criteria thành công");
 		}
 
@@ -97,40 +97,6 @@ namespace SRSS.IAM.API.Controllers
 		{
 			var result = await _service.GetExclusionByCriteriaIdAsync(criteriaId);
 			return Ok(result, "Lấy danh sách exclusion criteria thành công");
-		}
-
-		// ==================== Selection Procedures ====================
-
-		/// <summary>
-		/// Upsert một Selection Procedure
-		/// </summary>
-		[HttpPost("procedures/upsert")]
-		public async Task<ActionResult<ApiResponse<StudySelectionProcedureDto>>> UpsertProcedure(
-			[FromBody] StudySelectionProcedureDto dto)
-		{
-			var result = await _service.UpsertProcedureAsync(dto);
-			return Ok(result, "Lưu procedure thành công");
-		}
-
-		/// <summary>
-		/// Lấy tất cả Procedures theo Protocol ID
-		/// </summary>
-		[HttpGet("protocol/{protocolId}/procedures")]
-		public async Task<ActionResult<ApiResponse<List<StudySelectionProcedureDto>>>> GetProceduresByProtocolId(
-			Guid protocolId)
-		{
-			var result = await _service.GetProceduresByProtocolIdAsync(protocolId);
-			return Ok(result, "Lấy danh sách procedures thành công");
-		}
-
-		/// <summary>
-		/// Xóa một Procedure
-		/// </summary>
-		[HttpDelete("procedures/{procedureId}")]
-		public async Task<ActionResult<ApiResponse>> DeleteProcedure(Guid procedureId)
-		{
-			await _service.DeleteProcedureAsync(procedureId);
-			return Ok("Xóa procedure thành công");
 		}
 	}
 }

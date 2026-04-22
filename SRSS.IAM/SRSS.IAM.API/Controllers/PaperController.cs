@@ -20,7 +20,7 @@ namespace SRSS.IAM.API.Controllers
         private readonly IIdentificationService _identificationService;
         private readonly IPaperService _paperService;
         private readonly ICurrentUserService _currentUserService;
- 
+
         public PaperController(IIdentificationService identificationService, IPaperService paperService, ICurrentUserService currentUserService)
         {
             _identificationService = identificationService;
@@ -314,5 +314,13 @@ namespace SRSS.IAM.API.Controllers
                 || string.Equals(value, "missing", StringComparison.OrdinalIgnoreCase);
         }
 
+        [HttpGet("{paperId}")]
+        public async Task<ActionResult<ApiResponse<PaperDetailsResponse>>> GetPaperById(
+                [FromRoute] Guid paperId,
+                CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetPaperByIdAsync(paperId, cancellationToken);
+            return Ok(result, "Paper details retrieved successfully.");
+        }
     }
 }

@@ -288,20 +288,22 @@ namespace SRSS.IAM.API.Data
             await SeedProjectsAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
-            await SeedCoreGovernanceAsync(context); // Needs ProjectId, seeds Research Questions
-            await SeedReviewProcessesAsync(context); // Needs ProjectId
-            await SeedDataExtractionProcessesAsync(context); // Needs ReviewProcessId
+            await SeedCoreGovernanceAsync(context); 
+            await SeedReviewProcessesAsync(context); 
 
-            await SeedSearchSourcesAsync(context);
-            await SeedStudySelectionCriteriaAsync(context);
-            await SeedQualityAssessmentAsync(context);
-            await SeedDataExtractionTemplateAsync(context); // Needs DataExtractionProcessId & ResearchQuestionId
-            await SeedDataSynthesisAsync(context);
-
+            // Seed Processes first to satisfy foreign key dependencies
             await SeedIdentificationProcessesAsync(context);
             await SeedStudySelectionProcessesAsync(context);
             await SeedQualityAssessmentProcessesAsync(context);
+            await SeedDataExtractionProcessesAsync(context);
             await SeedSynthesisProcessesAsync(context);
+
+            // Then seed details that depend on those processes
+            await SeedSearchSourcesAsync(context);
+            await SeedStudySelectionCriteriaAsync(context);
+            await SeedQualityAssessmentAsync(context);
+            await SeedDataExtractionTemplateAsync(context); 
+            await SeedDataSynthesisAsync(context);
 
             await SeedImportBatchesAsync(context);
             await SeedPapersAsync(context);
@@ -940,7 +942,7 @@ namespace SRSS.IAM.API.Data
         {
             if (!await context.StudySelectionCriterias.AnyAsync(x => x.Id == Har2SelectionCriteria1Id))
             {
-                await context.StudySelectionCriterias.AddAsync(new StudySelectionCriteria { Id = Har2SelectionCriteria1Id, ProjectId = HarProjectId, Description = "Criteria for HAR protocol v2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.StudySelectionCriterias.AddAsync(new StudySelectionCriteria { Id = Har2SelectionCriteria1Id, StudySelectionProcessId = HarStudySelectionProcessId, Description = "Criteria for HAR protocol v2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.InclusionCriteria.AddAsync(new InclusionCriterion { Id = Har2InclusionCriterion1Id, CriteriaId = Har2SelectionCriteria1Id, Rule = "Deep Learning applied to IMU data", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.ExclusionCriteria.AddAsync(new ExclusionCriterion { Id = Har2ExclusionCriterion1Id, CriteriaId = Har2SelectionCriteria1Id, Rule = "Not published in English", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.SaveChangesAsync();

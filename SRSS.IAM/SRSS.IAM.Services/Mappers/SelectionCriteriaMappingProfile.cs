@@ -11,7 +11,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new StudySelectionCriteriaDto
 			{
 				CriteriaId = entity.Id,
-				ProjectId = entity.ProjectId,
+				StudySelectionProcessId = entity.StudySelectionProcessId,
 				Description = entity.Description
 			};
 		}
@@ -21,14 +21,14 @@ namespace SRSS.IAM.Services.Mappers
 			return new StudySelectionCriteria
 			{
 				Id = dto.CriteriaId ?? Guid.Empty,
-				ProjectId = dto.ProjectId,
+				StudySelectionProcessId = dto.StudySelectionProcessId,
 				Description = dto.Description ?? string.Empty
 			};
 		}
 
 		public static void UpdateEntity(this StudySelectionCriteriaDto dto, StudySelectionCriteria entity)
 		{
-			entity.ProjectId = dto.ProjectId;
+			entity.StudySelectionProcessId = dto.StudySelectionProcessId;
 			entity.Description = dto.Description ?? string.Empty;
 		}
 

@@ -92,6 +92,10 @@ namespace SRSS.IAM.API.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _studySelectionService.StartStudySelectionProcessAsync(id, cancellationToken);
+            if (!result.IsHaveCriteria)
+            {
+                return Ok(result, "Failed, Setup Study Selection Criteria first to start phase");
+            }
             return Ok(result, "Study Selection Process started successfully.");
         }
 

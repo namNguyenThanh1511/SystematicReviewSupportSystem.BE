@@ -130,6 +130,19 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"StudySelectionProcess with ID {id} not found.");
             }
 
+            // Check if study selection criteria exists for this process
+            var hasCriteria = await _unitOfWork.SelectionCriterias.AnyAsync(
+                c => c.StudySelectionProcessId == id,
+                cancellationToken: cancellationToken);
+
+            if (!hasCriteria)
+            {
+                return new StudySelectionProcessResponse
+                {
+                    IsHaveCriteria = false
+                };
+            }
+
             // Load ReviewProcess with IdentificationProcess for validation
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
                 rp => rp.Id == process.ReviewProcessId,
@@ -156,7 +169,9 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(process);
+            var response = MapToResponse(process);
+            response.IsHaveCriteria = true;
+            return response;
         }
 
         public async Task<StudySelectionProcessResponse> CompleteStudySelectionProcessAsync(

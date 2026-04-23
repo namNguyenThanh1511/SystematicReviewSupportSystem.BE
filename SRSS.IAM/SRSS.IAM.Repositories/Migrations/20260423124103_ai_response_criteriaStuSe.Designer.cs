@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260423124103_ai_response_criteriaStuSe")]
+    partial class ai_response_criteriaStuSe
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4104,7 +4107,8 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StudySelectionProcessId");
+                    b.HasIndex("StudySelectionProcessId")
+                        .IsUnique();
 
                     b.ToTable("study_selection_criteria", (string)null);
                 });
@@ -5899,8 +5903,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
-                        .WithMany("StudySelectionCriterias")
-                        .HasForeignKey("StudySelectionProcessId")
+                        .WithOne("StudySelectionCriteria")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", "StudySelectionProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -6317,9 +6321,9 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("StudySelectionAIResults");
 
-                    b.Navigation("StudySelectionCriteriaAIResponses");
+                    b.Navigation("StudySelectionCriteria");
 
-                    b.Navigation("StudySelectionCriterias");
+                    b.Navigation("StudySelectionCriteriaAIResponses");
 
                     b.Navigation("StudySelectionProcessPapers");
 

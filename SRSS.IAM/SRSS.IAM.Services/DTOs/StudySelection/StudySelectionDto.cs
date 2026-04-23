@@ -110,6 +110,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public SelectionStatisticsResponse SelectionStatistics { get; set; }
         public PhaseStatisticsResponse PhaseStatistics { get; set; } = new();
         public TitleAbstractScreeningResponse? TitleAbstractScreening { get; set; }
+        public bool IsHaveCriteria { get; set; }
     }
 
     public class StudySelectionPhaseStatusResponse

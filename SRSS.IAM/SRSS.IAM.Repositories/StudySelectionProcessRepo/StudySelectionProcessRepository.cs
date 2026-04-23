@@ -70,14 +70,10 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                     .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.ResearchQuestions)
                             // .ThenInclude(rq => rq.PicocElements)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Project)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.InclusionCriteria)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Project)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.ExclusionCriteria)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.InclusionCriteria)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.ExclusionCriteria)
                 .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
         }
     }

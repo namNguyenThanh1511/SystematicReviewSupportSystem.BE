@@ -69,6 +69,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey<TitleAbstractScreening>(ta => ta.StudySelectionProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasMany(ssp => ssp.StudySelectionCriterias)
+                .WithOne(ssc => ssc.StudySelectionProcess)
+                .HasForeignKey(ssc => ssc.StudySelectionProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(ssp => ssp.FullTextScreening)
                 .WithOne(ft => ft.StudySelectionProcess)
                 .HasForeignKey<FullTextScreening>(ft => ft.StudySelectionProcessId)

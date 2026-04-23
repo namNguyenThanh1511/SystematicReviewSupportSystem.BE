@@ -59,9 +59,9 @@ namespace SRSS.IAM.Services.GeminiService
             });
         }
 
-        public StuSeAIInput BuildStuSeAIInput(Paper paper, SystematicReviewProject project)
+        public StuSeAIInput BuildStuSeAIInput(Paper paper, StudySelectionProcess process)
         {
-            return project.BuildStuSeAIInput(paper);
+            return process.BuildStuSeAIInput(paper);
         }
 
         public static Schema GenerateSchema<T>() => GenerateSchema(typeof(T));

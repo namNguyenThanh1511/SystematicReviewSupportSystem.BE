@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
@@ -36,16 +37,31 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 
 		private async Task EnsureLeaderByCriteriaIdAsync(Guid criteriaId)
 		{
-			var criteria = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId)
-				?? throw new KeyNotFoundException($"Criteria {criteriaId} không tồn tại");
+			var criteria = await _unitOfWork.SelectionCriterias
+				.GetQueryable(c => c.Id == criteriaId, isTracking: false)
+				.Include(c => c.StudySelectionProcess)
+					.ThenInclude(p => p.ReviewProcess)
+				.FirstOrDefaultAsync()
+				?? throw new KeyNotFoundException($"Criteria {criteriaId} not found");
 
-			await EnsureLeaderAsync(criteria.ProjectId);
+			await EnsureLeaderAsync(criteria.StudySelectionProcess.ReviewProcess.ProjectId);
+		}
+
+		private async Task EnsureLeaderByStudySelectionProcessIdAsync(Guid processId)
+		{
+			var process = await _unitOfWork.StudySelectionProcesses
+				.GetQueryable(p => p.Id == processId, isTracking: false)
+				.Include(p => p.ReviewProcess)
+				.FirstOrDefaultAsync()
+				?? throw new KeyNotFoundException($"Study selection process {processId} not found");
+
+			await EnsureLeaderAsync(process.ReviewProcess.ProjectId);
 		}
 
 		// ==================== Study Selection Criteria ====================
 		public async Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto)
 		{
-			await EnsureLeaderAsync(dto.ProjectId);
+			await EnsureLeaderByStudySelectionProcessIdAsync(dto.StudySelectionProcessId);
 
 			StudySelectionCriteria entity;
 
@@ -67,18 +83,22 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 			return entity.ToDto();  
 		}
 
-		public async Task<List<StudySelectionCriteriaDto>> GetAllByProjectIdAsync(Guid projectId)
+		public async Task<List<StudySelectionCriteriaDto>> GetAllByStudySelectionProcessIdAsync(Guid studySelectionProcessId)
 		{
-			var entities = await _unitOfWork.SelectionCriterias.GetByProjectIdAsync(projectId);
+			var entities = await _unitOfWork.SelectionCriterias.GetByStudySelectionProcessIdAsync(studySelectionProcessId);
 			return entities.ToDtoList();  
 		}
 
 		public async Task DeleteCriteriaAsync(Guid criteriaId)
 		{
-			var entity = await _unitOfWork.SelectionCriterias.FindSingleAsync(c => c.Id == criteriaId);
+			var entity = await _unitOfWork.SelectionCriterias
+				.GetQueryable(c => c.Id == criteriaId, isTracking: true)
+				.Include(c => c.StudySelectionProcess)
+					.ThenInclude(p => p.ReviewProcess)
+				.FirstOrDefaultAsync();
 			if (entity != null)
 			{
-				await EnsureLeaderAsync(entity.ProjectId);
+				await EnsureLeaderAsync(entity.StudySelectionProcess.ReviewProcess.ProjectId);
 				await _unitOfWork.SelectionCriterias.RemoveAsync(entity);
 				await _unitOfWork.SaveChangesAsync();
 			}

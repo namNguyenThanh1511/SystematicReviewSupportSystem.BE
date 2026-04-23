@@ -67,7 +67,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             }
 
             // 4. Build AI Input and Evaluate
-            var aiInput = studySelectionProcess.ReviewProcess.Project.BuildStuSeAIInput(paper);
+            var aiInput = studySelectionProcess.BuildStuSeAIInput(paper);
             var aiOutput = await GetAiEvaluationAsync(aiInput);
 
             // 6. Save AI Result

@@ -60,6 +60,7 @@ using SRSS.IAM.Services.PaperFullTextService.Embedding;
 using SRSS.IAM.Services.PaperFullTextService.Search;
 using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
 using SRSS.IAM.Services.AiSetupService;
+using SRSS.IAM.Services.OpenRouter;
 
 
 
@@ -137,6 +138,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IReferenceClassificationService, ReferenceClassificationService>();
             services.AddScoped<IReferenceProcessingService, ReferenceProcessingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
+
+            // OpenRouter integration
+            services.Configure<OpenRouterOptions>(configuration.GetSection(OpenRouterOptions.SectionName));
+            services.AddHttpClient<IOpenRouterService, OpenRouterService>();
 
             // OpenAlex integration
             services.Configure<OpenAlexSettings>(configuration.GetSection(OpenAlexSettings.SectionName));

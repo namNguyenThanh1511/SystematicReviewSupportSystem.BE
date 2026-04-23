@@ -43,6 +43,10 @@ Research Topic: ""{request.Topic}""
 1. Identify the primary Scientific Domain (e.g., Software Engineering, Health Informatics).
 2. Synthesize a concise Research Objective statement (max 2 sentences).
 
+### LANGUAGE REQUIREMENT
+- The output MUST be written entirely in: {request.Language}
+- Do NOT mix languages.
+
 {GlobalAiInstructions}
 ";
 
@@ -56,10 +60,10 @@ Research Topic: ""{request.Topic}""
                 Console.WriteLine($"AI Analysis failed: {ex.Message}");
 
                 // Graceful Degradation: Return fallback data
-                return new AnalyzeTopicResponse 
-                { 
-                    Objectives = "Failed to analyze topic. Please provide manual input.", 
-                    Domain = "Unknown" 
+                return new AnalyzeTopicResponse
+                {
+                    Objectives = "Failed to analyze topic. Please provide manual input.",
+                    Domain = "Unknown"
                 };
             }
         }
@@ -67,21 +71,46 @@ Research Topic: ""{request.Topic}""
         public async Task<GeneratePicocResponse> GeneratePicocAsync(GeneratePicocRequest request)
         {
             var prompt = $@"
-Act as an expert researcher. Based on the following context, suggest PICO-C elements for a Systematic Literature Review.
-PICO-C stands for: Population, Intervention, Comparator, Outcome, and Context.
+                Act as a senior academic researcher in systematic literature reviews.
 
-### CONTEXT
-- Topic: {request.Topic}
-- Objectives: {request.Objectives}
-- Domain: {request.Domain}
+                Your task is to generate precise PICO-C elements.
 
-### GUIDELINES
-- Be specific and technical.
-- If an element (like Comparator) is not applicable, state ""Not applicable"" or ""None"".
-- Ensure context aligns with the research domain.
+                ### CONTEXT
+                - Topic: {request.Topic}
+                - Objectives: {request.Objectives}
+                - Domain: {request.Domain}
 
-{GlobalAiInstructions}
-";
+                ### DEFINITIONS
+                - Population: Specific target users or subjects (clearly defined group)
+                - Intervention: Clearly defined method, framework, or strategy (NOT a long list)
+                - Comparator: A realistic baseline or alternative approach
+                - Outcome: 2–4 measurable research outcomes ONLY
+                - Context: Specific application environment
+
+                ### STRICT REQUIREMENTS
+                1. Each field MUST be concise (1–2 sentences max).
+                2. Avoid vague terms like ""improvement"" without specifying what improves.
+                3. Intervention MUST NOT list more than 3 techniques.
+                4. Outcome MUST include ONLY the most critical evaluation metrics (max 4).
+                5. Keep all elements aligned strictly with the given Domain.
+                6. Do NOT generalize beyond the Topic.
+
+                ### LANGUAGE REQUIREMENT
+                - The output MUST be written entirely in: {request.Language}
+                - Do NOT mix languages.
+                - All fields must strictly follow this language.
+
+                ### OUTPUT SCHEMA (MANDATORY)
+                {{
+                ""Population"": ""..."",
+                ""Intervention"": ""..."",
+                ""Comparator"": ""..."",
+                ""Outcome"": ""..."",
+                ""Context"": ""...""
+                }}
+
+                {GlobalAiInstructions}
+                ";
 
             try
             {
@@ -122,6 +151,10 @@ Act as a senior Academic Peer Reviewer. Based on the fully defined scope below, 
 1. The questions must be answerable through literature synthesis.
 2. Mix broad overview questions (e.g., ""What are the state-of-the-art...?"") with specific analytical questions (e.g., ""What are the primary challenges in...?"").
 3. Ensure RQs map directly to the defined PICO-C elements.
+
+### LANGUAGE REQUIREMENT
+- The output MUST be written entirely in: {request.Language}
+- Do NOT mix languages.
 
 {GlobalAiInstructions}
 ";

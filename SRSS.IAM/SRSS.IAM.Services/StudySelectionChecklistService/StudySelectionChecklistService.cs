@@ -169,7 +169,7 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                 .Include(ssp => ssp.ReviewProcess)
                     .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.ResearchQuestions)
-                            .ThenInclude(rq => rq.PicocElements)
+                            // .ThenInclude(rq => rq.PicocElements)
                 .Include(ssp => ssp.ReviewProcess)
                     .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.SelectionCriterias)
@@ -208,14 +208,14 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
             {
                 foreach (var rq in project.ResearchQuestions)
                 {
-                    var picocItems = rq.PicocElements != null && rq.PicocElements.Any()
-                        ? MapPicocToItems(rq.PicocElements)
-                        : null;
+                    // var picocItems = rq.PicocElements != null && rq.PicocElements.Any()
+                    //     ? MapPicocToItems(rq.PicocElements)
+                    //     : null;
 
                     var section = new LiveReviewSectionDto
                     {
                         Title = rq.QuestionText ?? "Untitled Research Question",
-                        Items = picocItems
+                        // Items = picocItems
                     };
 
                     result.Sections.Add(section);

@@ -31,7 +31,7 @@ namespace SRSS.IAM.Services.Mappers
                 .Select(rq => new StuSeRQInput
                 {
                     QuestionText = rq.QuestionText?.Trim() ?? string.Empty,
-                    PICOC = MapPicocFromElements(rq.PicocElements)
+                    // PICOC = MapPicocFromElements(rq.PicocElements)
                 })
                 .ToList() ?? new List<StuSeRQInput>();
 

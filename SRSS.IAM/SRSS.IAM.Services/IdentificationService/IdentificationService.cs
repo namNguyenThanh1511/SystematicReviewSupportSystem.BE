@@ -203,7 +203,7 @@ namespace SRSS.IAM.Services.IdentificationService
             var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
                 ip => ip.ReviewProcessId == reviewProcess.Id,
                 cancellationToken: cancellationToken);
-            
+
             if (identificationProcess == null)
             {
                 throw new InvalidOperationException($"IdentificationProcess not found.");
@@ -217,7 +217,7 @@ namespace SRSS.IAM.Services.IdentificationService
             var uniqueRecordsCount = uniquePaperIds.Count;
 
             // Get total deduplication result count for this process
-            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProcessAsync(identificationProcess.Id, cancellationToken);
+            var duplicateRecords = await _unitOfWork.DeduplicationResults.CountDuplicatesByProjectAsync(projectId, cancellationToken);
 
             var searchSourceIds = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId, cancellationToken);
 
@@ -246,15 +246,9 @@ namespace SRSS.IAM.Services.IdentificationService
             }
 
             // 3. Pending Selection (Ready but NOT in snapshot)
-                    var hasPendingDedup = await _unitOfWork.DeduplicationResults.AnyAsync(
-                        dr => dr.ProjectId == reviewProcess.ProjectId && dr.ReviewStatus == DeduplicationReviewStatus.Pending,
-                        cancellationToken: cancellationToken);
-
-                    if (hasPendingDedup)
-                    {
-                        throw new InvalidOperationException(
-                            "Cannot complete identification process with unresolved duplicate pairs. Please resolve all pending deduplication results first.");
-                    }
+            // var hasPendingDedup = await _unitOfWork.DeduplicationResults.AnyAsync(
+            //     dr => dr.ProjectId == reviewProcess.ProjectId && dr.ReviewStatus == DeduplicationReviewStatus.Pending,
+            //     cancellationToken: cancellationToken);
 
             var deduplicationQuery = _unitOfWork.DeduplicationResults.GetQueryable();
             var snapshotQuery = _unitOfWork.IdentificationProcessPapers.GetQueryable()
@@ -262,12 +256,12 @@ namespace SRSS.IAM.Services.IdentificationService
             var pendingSelectionCount = await _unitOfWork.Papers.GetQueryable()
                 .Where(p => p.ProjectId == reviewProcess.ProjectId)
                 // Not a duplicate (CANCEL) and not pending review
-                .Where(p => !deduplicationQuery.Any(d => d.PaperId == p.Id && 
-                                                        d.ProjectId == reviewProcess.ProjectId && 
-                                                        (d.ResolvedDecision == DuplicateResolutionDecision.CANCEL || 
+                .Where(p => !deduplicationQuery.Any(d => d.PaperId == p.Id &&
+                                                        d.ProjectId == reviewProcess.ProjectId &&
+                                                        (d.ResolvedDecision == DuplicateResolutionDecision.CANCEL ||
                                                          d.ReviewStatus == DeduplicationReviewStatus.Pending)))
                 // Not already in the snapshot
-                .Where(p => !snapshotQuery.Any(i => i.IdentificationProcessId == identificationProcess.Id && 
+                .Where(p => !snapshotQuery.Any(i => i.IdentificationProcessId == identificationProcess.Id &&
                                                      i.PaperId == p.Id))
                 .CountAsync(cancellationToken);
 
@@ -327,7 +321,7 @@ namespace SRSS.IAM.Services.IdentificationService
             return MapToImportBatchResponse(importBatch);
         }
 
-       
+
 
         public async Task<List<ImportBatchResponse>> GetImportBatchesByProjectIdAsync(
             Guid projectId,
@@ -436,7 +430,7 @@ namespace SRSS.IAM.Services.IdentificationService
             };
         }
 
-       
+
         public async Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream,
             string fileName,
@@ -678,7 +672,7 @@ namespace SRSS.IAM.Services.IdentificationService
                     ImportedAt = importBatch.ImportedAt,
                     ImportedBy = importBatch.ImportedBy,
                     CreatedAt = now,
-                    ModifiedAt = now
+                    ModifiedAt = now,
                 };
 
                 // Add embedding if exists
@@ -710,12 +704,8 @@ namespace SRSS.IAM.Services.IdentificationService
                         DuplicateOfPaperId = duplicateOfPaperId.Value,
                         Method = MapDeduplicationMethod(bestMatch.Strategy),
                         ConfidenceScore = bestMatch.ConfidenceScore,
-                        ReviewStatus = bestMatch.ConfidenceScore >= 0.95m
-                            ? DeduplicationReviewStatus.Confirmed
-                            : DeduplicationReviewStatus.Pending,
-                        ResolvedDecision = bestMatch.ConfidenceScore >= 0.95m
-                            ? DuplicateResolutionDecision.CANCEL
-                            : null,
+                        ReviewStatus = DeduplicationReviewStatus.Pending,
+                        ResolvedDecision = null,
                         Notes = "Detected during project-level import",
                         CreatedAt = now,
                         ModifiedAt = now
@@ -810,69 +800,7 @@ namespace SRSS.IAM.Services.IdentificationService
             return sb.ToString().Trim();
         }
 
-        public async Task MarkAsDuplicateAsync(
-            Guid identificationProcessId,
-            Guid paperId,
-            MarkAsDuplicateRequest request,
-            CancellationToken cancellationToken = default)
-        {
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.Id == identificationProcessId,
-                cancellationToken: cancellationToken);
 
-            if (identificationProcess == null)
-            {
-                throw new InvalidOperationException($"IdentificationProcess with ID {identificationProcessId} not found.");
-            }
-
-            await EnsureIdentificationProcessCanBeEditedAsync(identificationProcess, cancellationToken);
-
-            var paper = await _unitOfWork.Papers.FindSingleAsync(
-                p => p.Id == paperId,
-                cancellationToken: cancellationToken);
-
-            if (paper == null)
-            {
-                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
-            }
-
-            var duplicateOfPaper = await _unitOfWork.Papers.FindSingleAsync(
-                p => p.Id == request.DuplicateOfPaperId,
-                cancellationToken: cancellationToken);
-
-            if (duplicateOfPaper == null)
-            {
-                throw new InvalidOperationException($"Original paper with ID {request.DuplicateOfPaperId} not found.");
-            }
-
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
-                rp => rp.Id == identificationProcess.ReviewProcessId,
-                isTracking: false,
-                cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new InvalidOperationException($"ReviewProcess with ID {identificationProcess.ReviewProcessId} not found.");
-            }
-
-            var deduplicationResult = new DeduplicationResult
-            {
-                Id = Guid.NewGuid(),
-                ProjectId = reviewProcess.ProjectId,
-                PaperId = paperId,
-                DuplicateOfPaperId = request.DuplicateOfPaperId,
-                Method = DeduplicationMethod.MANUAL,
-                ReviewStatus = DeduplicationReviewStatus.Confirmed,
-                ResolvedDecision = DuplicateResolutionDecision.CANCEL,
-                ConfidenceScore = 1.0m,
-                Notes = request.Reason,
-                CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
-            };
-
-            await _unitOfWork.DeduplicationResults.AddAsync(deduplicationResult, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
 
         private async Task EnsureIdentificationProcessCanBeEditedAsync(
             IdentificationProcess identificationProcess,
@@ -1105,7 +1033,7 @@ namespace SRSS.IAM.Services.IdentificationService
         //             ModifiedAt = now
         //         });
         //     }
-    
+
         //     var snapshotRecords = newPaperIds.Select(paperId => new IdentificationProcessPaper
         //     {
         //         Id = Guid.NewGuid(),

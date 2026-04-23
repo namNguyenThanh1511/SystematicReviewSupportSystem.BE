@@ -62,8 +62,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             // 2. Lấy danh sách Paper đã PASS vòng Full-Text Screening (Include Paper để lấy PdfUrl)
             var (eligiblePapers, _) = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(
-                selectionProcessId, 
-                pageSize: int.MaxValue, 
+                selectionProcessId,
+                pageSize: int.MaxValue,
                 cancellationToken: cancellationToken);
 
             // 3. Lấy danh sách Task đã tồn tại trong Data Extraction để tránh tạo trùng
@@ -105,6 +105,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 throw new UnauthorizedAccessException("Current user ID is invalid.");
             }
+
+            await SyncEligiblePapersAsync(extractionProcessId);
 
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
                 .Include(dp => dp.ReviewProcess)
@@ -475,9 +477,9 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (extractionProcess?.ReviewProcess == null)
                 throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var projectId = extractionProcess.ReviewProcess.ProjectId;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -802,10 +804,10 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (extractionProcess?.ReviewProcess == null)
                 throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var projectId = extractionProcess.ReviewProcess.ProjectId;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1060,13 +1062,13 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (string.IsNullOrEmpty(value)) return "";
 
             bool requiresQuotes = value.Contains(",") || value.Contains("\"") || value.Contains("\r") || value.Contains("\n");
-            
+
             if (requiresQuotes)
             {
                 value = value.Replace("\"", "\"\"");
                 return $"\"{value}\"";
             }
-            
+
             return value;
         }
 
@@ -1322,7 +1324,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (extractionProcess?.ReviewProcess == null)
                 throw new InvalidOperationException("ReviewProcess not found.");
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == extractionProcess.ReviewProcess.ProjectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1842,10 +1844,10 @@ If no relevant data is found in the context, return a JSON object with null valu
             if (extractionProcess?.ReviewProcess == null)
                 throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var projectId = extractionProcess.ReviewProcess.ProjectId;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2113,7 +2115,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                 throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
             }
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == reviewProcess.ProjectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2477,7 +2479,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                     .Where(pm => pm.Role == ProjectRole.Leader)
                     .Select(pm => pm.UserId)
                     .ToListAsync();
-                
+
                 notifyIds.AddRange(leaders);
             }
 
@@ -2534,9 +2536,9 @@ If no relevant data is found in the context, return a JSON object with null valu
             if (extractionProcess?.ReviewProcess == null)
                 throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var projectId = extractionProcess.ReviewProcess.ProjectId;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProjectId == projectId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)

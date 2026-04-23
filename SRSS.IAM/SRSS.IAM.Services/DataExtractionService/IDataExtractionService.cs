@@ -8,7 +8,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto);
 
-        Task<List<ExtractionTemplateDto>> GetTemplatesByProjectIdAsync(Guid projectId);
+        Task<List<ExtractionTemplateDto>> GetTemplatesByProcessIdAsync(Guid processId);
 
         Task<ExtractionTemplateDto> GetTemplateByIdAsync(Guid templateId);
 

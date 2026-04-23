@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             _currentUserService = currentUserService;
         }
 
-        private async Task EnsureLeaderAsync(Guid projectId)
+        private async Task EnsureLeaderAsync(Guid processId)
         {
             var userIdString = _currentUserService.GetUserId();
             if (string.IsNullOrEmpty(userIdString))
@@ -27,7 +27,15 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
+            
+            var process = await _unitOfWork.DataExtractionProcesses
+                .FindSingleAsync(x => x.Id == processId)
+                ?? throw new KeyNotFoundException($"Process {processId} không tồn tại");
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(x => x.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException("ReviewProcess không tồn tại.");
+
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
             if (!isLeader)
             {
                 throw new ForbiddenException("Only project leader can perform this action.");
@@ -38,7 +46,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
         {
-            await EnsureLeaderAsync(dto.ProjectId);
+            await EnsureLeaderAsync(dto.DataExtractionProcessId);
 
             // Validate first
             var validationResult = await ValidateTemplateAsync(dto);
@@ -71,7 +79,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                 template = new ExtractionTemplate
                 {
                     Id = Guid.NewGuid(),
-                    ProjectId = dto.ProjectId,
+                    DataExtractionProcessId = dto.DataExtractionProcessId,
                     Name = dto.Name,
                     Description = dto.Description,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -118,10 +126,10 @@ namespace SRSS.IAM.Services.DataExtractionService
             return result;
         }
 
-        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProjectIdAsync(Guid projectId)
+        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProcessIdAsync(Guid processId)
         {
             var templates = await _unitOfWork.ExtractionTemplates
-                .GetByProjectIdAsync(projectId);
+                .GetByProcessIdAsync(processId);
 
             return templates.Select(t => t.ToDto()).ToList();
         }
@@ -141,7 +149,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .FindSingleAsync(t => t.Id == templateId)
                 ?? throw new KeyNotFoundException($"Template {templateId} not found.");
 
-            await EnsureLeaderAsync(template.ProjectId);
+            await EnsureLeaderAsync(template.DataExtractionProcessId);
 
             // Delete sections first (cascade will handle fields and options)
             await DeleteSectionsAsync(templateId);

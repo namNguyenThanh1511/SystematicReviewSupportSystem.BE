@@ -12,6 +12,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string Title { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string? Description { get; set; }
+        public string? ResearchTopic { get; set; }
+        public string? ResearchObjective { get; set; }
         public ProjectStatus Status { get; set; } = ProjectStatus.Draft;
         public DateTimeOffset? StartDate { get; set; }
         public DateTimeOffset? EndDate { get; set; }
@@ -22,7 +24,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
         public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
         public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
-        public ICollection<ExtractionTemplate> ExtractionTemplates { get; set; } = new List<ExtractionTemplate>();
+
         public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
         public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
@@ -32,6 +34,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
         public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
         public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
+        public ICollection<ProjectPicoc> ProjectPicocs { get; set; } = new List<ProjectPicoc>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
         public ICollection<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = new List<StudySelectionChecklistTemplate>();

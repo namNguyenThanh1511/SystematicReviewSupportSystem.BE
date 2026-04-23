@@ -12,7 +12,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplateDto
 			{
 				TemplateId = entity.Id,
-				ProjectId = entity.ProjectId,
+				DataExtractionProcessId = entity.DataExtractionProcessId,
 				Name = entity.Name,
 				Description = entity.Description,
 				Sections = entity.Sections != null
@@ -29,7 +29,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplate
 			{
 				Id = dto.TemplateId ?? Guid.NewGuid(),
-				ProjectId = dto.ProjectId,
+				DataExtractionProcessId = dto.DataExtractionProcessId,
 				Name = dto.Name,
 				Description = dto.Description,
 				CreatedAt = DateTimeOffset.UtcNow,
@@ -56,6 +56,8 @@ namespace SRSS.IAM.Services.Mappers
 				Description = entity.Description,
 				SectionType = (int)entity.SectionType,
 				OrderIndex = entity.OrderIndex,
+				IsPicoc = entity.IsPicoc,
+				LinkedResearchQuestionId = entity.LinkedResearchQuestionId,
 				Fields = entity.Fields != null
 					? entity.Fields
 						.Where(f => f.ParentFieldId == null) // Only root fields
@@ -82,6 +84,8 @@ namespace SRSS.IAM.Services.Mappers
 				Description = dto.Description,
 				SectionType = (SectionType)dto.SectionType,
 				OrderIndex = dto.OrderIndex,
+				IsPicoc = dto.IsPicoc,
+				LinkedResearchQuestionId = dto.LinkedResearchQuestionId,
 				CreatedAt = DateTimeOffset.UtcNow,
 				ModifiedAt = DateTimeOffset.UtcNow
 			};

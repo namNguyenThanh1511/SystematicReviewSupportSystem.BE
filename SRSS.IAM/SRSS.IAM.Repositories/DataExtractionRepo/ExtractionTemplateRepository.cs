@@ -12,10 +12,10 @@ namespace SRSS.IAM.Repositories.DataExtractionRepo
 			_context = context;
 		}
 
-		public async Task<List<ExtractionTemplate>> GetByProjectIdAsync(Guid projectId)
+		public async Task<List<ExtractionTemplate>> GetByProcessIdAsync(Guid processId)
 		{
 			return await _context.ExtractionTemplates
-				.Where(t => t.ProjectId == projectId)
+				.Where(t => t.DataExtractionProcessId == processId)
 				.Include(t => t.Sections)
 					.ThenInclude(s => s.MatrixColumns)
 				.Include(t => t.Sections) // Root fields only

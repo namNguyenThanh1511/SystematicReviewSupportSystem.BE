@@ -10,7 +10,7 @@
 
 This endpoint retrieves **duplicate papers** detected within a specific Identification Process. In the PRISMA 2020 workflow, after papers are imported from multiple databases, a deduplication step identifies papers that appear more than once. Each duplicate record includes **deduplication metadata** — which original paper it duplicates, the detection method used, and a confidence score.
 
-**Key concept:** Duplication is **process-scoped**, not global. A paper is a "duplicate" only in the context of a given Identification Process. The same paper can have different deduplication status across processes.
+**Key concept:** Duplication is **project-scoped**, not global. A paper is a "duplicate" only in the context of a given Identification Process. The same paper can have different deduplication status across processes.
 
 ---
 
@@ -21,7 +21,7 @@ This endpoint retrieves **duplicate papers** detected within a specific Identifi
 | Property | Value |
 |----------|-------|
 | **Method** | `GET` |
-| **Route** | `/api/identification-processes/{identificationProcessId}/duplicates` |
+| **Route** | `/api/projects/{projectId}/duplicates` |
 | **Content-Type** | `application/json` |
 | **Description** | Get paginated list of duplicate papers with deduplication metadata for a specific identification process |
 
@@ -230,7 +230,7 @@ Each duplicate record includes a `method` field indicating how the duplicate was
 | Property | Value |
 |----------|-------|
 | **Method** | `POST` |
-| **Route** | `/api/identification-processes/{identificationProcessId}/duplicates/{deduplicationResultId}/resolve` |
+| **Route** | `/api/projects/{projectId}/duplicates/{deduplicationResultId}/resolve` |
 | **Content-Type** | `application/json` |
 | **Description** | Resolve a duplicate detection result with CANCEL or KEEP_BOTH |
 
@@ -524,7 +524,7 @@ async function getDuplicatePapers(
   if (params.pageNumber) queryParams.set('pageNumber', params.pageNumber.toString());
   if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
 
-  const url = `/api/identification-processes/${params.identificationProcessId}/duplicates?${queryParams}`;
+  const url = `/api/projects/${params.projectId}/duplicates?${queryParams}`;
 
   const response = await fetch(url, {
     method: 'GET',
@@ -773,7 +773,7 @@ function getConfidenceColor(score: number | null): string {
 
 ```bash
 # Basic call
-curl -X GET "https://your-api.com/api/identification-processes/abc-123-def/duplicates" \
+curl -X GET "https://your-api.com/api/projects/{projectId}/duplicates" \
   -H "Authorization: Bearer {token}"
 
 # With search and pagination
@@ -809,7 +809,7 @@ curl -X GET "https://your-api.com/api/identification-processes/abc-123-def/dupli
 **Backend Implementation:**
 - Controller: `SRSS.IAM.API.Controllers.PapersController`
 - Service: `SRSS.IAM.Services.PaperService.IPaperService`
-- Repository (flat): `SRSS.IAM.Repositories.PaperRepo.IPaperRepository.GetDuplicatePapersByIdentificationProcessAsync`
+- Repository (flat): `SRSS.IAM.Repositories.PaperRepo.IPaperRepository.GetDuplicatePapersByProjectAsync`
 - Repository (pairs): `SRSS.IAM.Repositories.DeduplicationResultRepo.IDeduplicationResultRepository.GetDuplicatePairsAsync`
 
 **Document Version:** 3.0  
@@ -1050,12 +1050,12 @@ interface DuplicatePairResponse {
 
 ```bash
 # CANCEL — exclude PaperId as duplicate
-curl -X PATCH "https://your-api.com/api/identification-processes/{processId}/duplicate-pairs/{pairId}/resolve" \
+curl -X PATCH "https://your-api.com/api/projects/{projectId}/duplicate-pairs/{pairId}/resolve" \
   -H "Content-Type: application/json" \
   -d '{"decision": 1, "notes": "Confirmed duplicate by DOI"}'
 
 # KEEP_BOTH — not a real duplicate
-curl -X PATCH "https://your-api.com/api/identification-processes/{processId}/duplicate-pairs/{pairId}/resolve" \
+curl -X PATCH "https://your-api.com/api/projects/{projectId}/duplicate-pairs/{pairId}/resolve" \
   -H "Content-Type: application/json" \
   -d '{"decision": 0, "notes": "Different editions, keep both"}'
 ```

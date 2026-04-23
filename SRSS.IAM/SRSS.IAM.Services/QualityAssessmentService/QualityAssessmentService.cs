@@ -17,6 +17,9 @@ using SRSS.IAM.Services.RagService; // Added
 using System.Net.Http;
 using SRSS.IAM.Services.AuditLogService;
 using Shared.Exceptions;
+using SRSS.IAM.Services.DTOs.StudySelection;
+
+using SRSS.IAM.Services.StudySelectionProcessPaperService;
 
 namespace SRSS.IAM.Services.QualityAssessmentService
 {
@@ -30,6 +33,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         private readonly IGrobidService _grobidService;
         private readonly IRagRetrievalService _ragRetrievalService; // Added
         private readonly IAuditLogService _auditLogService;
+        private readonly IStudySelectionProcessPaperService _studySelectionProcessPaperService;
 
         public QualityAssessmentService(
             IUnitOfWork unitOfWork,
@@ -39,7 +43,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             IHttpClientFactory httpClientFactory,
             IGrobidService grobidService,
             IRagRetrievalService ragRetrievalService, // Added
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            IStudySelectionProcessPaperService studySelectionProcessPaperService)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
@@ -49,6 +54,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             _grobidService = grobidService;
             _ragRetrievalService = ragRetrievalService; // Added
             _auditLogService = auditLogService;
+            _studySelectionProcessPaperService = studySelectionProcessPaperService;
         }
 
         private async Task EnsureLeaderAsync(Guid projectId)
@@ -255,7 +261,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         }
 
         // ==================== Quality Assessment Process ====================
-        public async Task<QualityAssessmentProcessResponse> GetProcessByReviewProcessIdAsync(Guid reviewProcessId)
+        public async Task<QualityAssessmentProcessResponse?> GetProcessByReviewProcessIdAsync(Guid reviewProcessId)
         {
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(
                 p => p.ReviewProcessId == reviewProcessId);
@@ -299,32 +305,6 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             entity.Start();
 
-            // Populate QualityAssessmentPaper from StudySelectionProcessPaper
-            if (studySelectionProcess != null)
-            {
-                // Fetch the papers that passed full text screening (and thus are in StudySelectionProcessPaper with Include decision)
-                // Note: The StudySelectionProcessPaper holds the "final snapshot" of included papers after Complete phase.
-                var passedPapers = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(studySelectionProcess.Id, default);
-
-                // Get currently existing QualityAssessmentPaper to avoid duplication if Start is called multiple times.
-                var existingQAPapers = await _unitOfWork.QualityAssessmentPapers.FindAllAsync(x => x.QualityAssessmentProcessId == id);
-                var existingPaperIds = existingQAPapers.Select(x => x.PaperId).ToHashSet();
-
-                var newQAPapers = passedPapers
-                    .Where(p => !existingPaperIds.Contains(p.PaperId))
-                    .Select(p => new QualityAssessmentPaper
-                    {
-                        QualityAssessmentProcessId = id,
-                        PaperId = p.PaperId,
-                        CreatedAt = DateTimeOffset.UtcNow
-                    }).ToList();
-
-                if (newQAPapers.Any())
-                {
-                    await _unitOfWork.QualityAssessmentPapers.AddRangeAsync(newQAPapers);
-                }
-            }
-
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
@@ -346,17 +326,29 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             return process.ToResponse();
         }
 
-        public async Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid id)
+        public async Task<QALeaderDashboardResponse> GetLeaderDashboardAsync(Guid id, int pageNumber = 1, int pageSize = 10, string? search = null)
         {
             var result = new QALeaderDashboardResponse();
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == id);
             if (process == null) return result;
 
-            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
+            var eligiblePaperPage = await _studySelectionProcessPaperService.GetIncludedPapersByReviewProcessIdAsync(process.ReviewProcessId, search, pageNumber, pageSize, default);
+            if (eligiblePaperPage == null) return result;
+
+            var datasetPaperIds = eligiblePaperPage.Items.Select(x => x.PaperId).ToHashSet();
+            var eligiblePapers = eligiblePaperPage.Items.ToList();
 
             // Also include any papers that are already assigned or have resolutions just in case
             var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
+            foreach (var assignment in assignments)
+            {
+                if (assignment.Papers != null)
+                {
+                    assignment.Papers = assignment.Papers.Where(p => datasetPaperIds.Contains(p.Id)).ToList();
+                }
+            }
+
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
 
             // Calculate criteria count to compute percentage
@@ -383,19 +375,19 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 {
                     ReviewerId = g.Key,
                     ReviewerName = g.First().User.FullName ?? g.First().User.Username,
-                    TotalExpectedDecisions = g.SelectMany(a => a.QualityAssessmentPapers).Distinct().Count() * criteriaCount,
+                    TotalExpectedDecisions = g.SelectMany(a => a.Papers).Distinct().Count() * criteriaCount,
                     ActualDecisions = 0,
                     CompletedPapers = 0,
                     InProgressPapers = 0,
                     NotStartedPapers = 0
                 });
 
-            foreach (var paper in eligiblePaper)
+            foreach (var paper in eligiblePapers)
             {
-                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.PaperId);
 
                 var reviewersAssignedToPaper = assignments
-                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                    .Where(a => a.Papers.Any(p => p.Id == paper.PaperId))
                     .Select(a => a.User)
                     .Where(u => u != null)
                     .GroupBy(u => u.Id)
@@ -439,7 +431,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 var percentage = expectedDecisions > 0 ? (double)actualDecisions / expectedDecisions * 100 : 0;
                 if (percentage > 100) percentage = 100;
 
-                var resolution = processResolutions.FirstOrDefault(r => r.QualityAssessmentPaperId == paper.Id);
+                var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paper.PaperId);
 
                 string? resolvedByName = null;
                 if (resolution != null)
@@ -460,10 +452,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 else if (summary.Status == "in-progress") result.InProgressPapers++;
                 else result.NotStartedPapers++;
 
-                result.Papers.Add(summary);
+                result.Papers.Items.Add(summary);
             }
 
-            result.TotalPapers = result.Papers.Count;
+            result.TotalPapers = eligiblePaperPage.TotalCount;
+            result.Papers.TotalCount = eligiblePaperPage.TotalCount;
+            result.Papers.PageNumber = eligiblePaperPage.PageNumber;
+            result.Papers.PageSize = eligiblePaperPage.PageSize;
 
             foreach (var kvp in memberProgressDict)
             {
@@ -483,15 +478,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentStatisticsResponse> GetQualityStatisticsAsync(Guid processId)
         {
-            await EnsureLeaderAsync(processId);
-
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == processId);
             if (process == null) return new QualityAssessmentStatisticsResponse();
 
-            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
+            var eligiblePaperPage = await _studySelectionProcessPaperService.GetIncludedPapersByReviewProcessIdAsync(process.ReviewProcessId, null, 1, 1000000, default);
+            var eligiblePapers = eligiblePaperPage?.Items.ToList() ?? new List<IncludedPaperResponse>();
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
 
-            var totalPapers = eligiblePaper.Count;
+            var totalPapers = eligiblePapers.Count;
             var highQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.HighQuality);
             var lowQuality = processResolutions.Count(r => r.FinalDecision == Repositories.Entities.Enums.QualityAssessmentResolutionDecision.LowQuality);
 
@@ -500,18 +494,18 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             int notStartedCount = 0;
             int inProgressCount = 0;
 
-            foreach (var paper in eligiblePaper)
+            foreach (var paper in eligiblePapers)
             {
-                var resolution = processResolutions.FirstOrDefault(r => r.QualityAssessmentPaperId == paper.Id);
+                var resolution = processResolutions.FirstOrDefault(r => r.PaperId == paper.PaperId);
                 if (resolution != null)
                 {
                     continue; // Handled by High/Low
                 }
 
                 // It's not resolved, check progress
-                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.PaperId);
                 var reviewersAssignedToPaper = assignments
-                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                    .Where(a => a.Papers.Any(p => p.Id == paper.PaperId))
                     .Select(a => a.User)
                     .Where(u => u != null)
                     .GroupBy(u => u.Id)
@@ -551,10 +545,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var processAssignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
 
             // Validate reviewer limit per paper (max 2)
-            foreach (var qualityAssessmentPaperId in dto.QualityAssessmentPaperIds)
+            foreach (var qualityAssessmentPaperId in dto.PaperIds)
             {
                 var assignedUsers = processAssignments
-                    .Where(a => a.QualityAssessmentPapers != null && a.QualityAssessmentPapers.Any(p => p.Id == qualityAssessmentPaperId))
+                    .Where(a => a.Papers != null && a.Papers.Any(p => p.Id == qualityAssessmentPaperId))
                     .Select(a => a.UserId)
                     .ToList();
 
@@ -582,24 +576,24 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
 
                 // Check resolution for each paper before assigning
-                var papersToAdd = new List<QualityAssessmentPaper>();
-                foreach (var qualityAssessmentPaperId in dto.QualityAssessmentPaperIds)
+                var papersToAdd = new List<Paper>();
+                foreach (var qualityAssessmentPaperId in dto.PaperIds)
                 {
                     // If paper has resolution, skip adding
-                    var qaPaper = await _unitOfWork.QualityAssessmentPapers
-                        .FindSingleAsync(p => p.Id == qualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+                    var qaPaper = await _unitOfWork.Papers
+                        .FindSingleAsync(p => p.Id == qualityAssessmentPaperId);
 
                     if (qaPaper == null) continue;
 
                     var hasResolution = await _unitOfWork.QualityAssessmentResolutions
-                       .AnyAsync(r => r.QualityAssessmentPaperId == qaPaper.Id && r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+                       .AnyAsync(r => r.PaperId == qaPaper.Id && r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
 
                     if (hasResolution) continue;
 
                     papersToAdd.Add(qaPaper);
                 }
 
-                if (assignment.QualityAssessmentPapers == null) assignment.QualityAssessmentPapers = new List<QualityAssessmentPaper>();
+                if (assignment.Papers == null) assignment.Papers = new List<Paper>();
 
                 // Add papers to assignment (many-to-many) - This requires loading the collection or using a direct insert approach if valid
                 // Since EF Core generic repo might not expose direct collection manipulation easily without tracking,
@@ -614,9 +608,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 {
                     foreach (var paper in papersToAdd)
                     {
-                        if (!assignmentWithPapers.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                        if (assignmentWithPapers.Papers != null && !assignmentWithPapers.Papers.Any(p => p.Id == paper.Id))
                         {
-                            assignmentWithPapers.QualityAssessmentPapers.Add(paper);
+                            assignmentWithPapers.Papers.Add(paper);
                         }
                     }
                     await _unitOfWork.QualityAssessmentAssignments.UpdateAsync(assignmentWithPapers);
@@ -631,7 +625,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid id)
+        public async Task<QAMemberDashboardResponse> GetMemberDashboardAsync(Guid id, int pageNumber = 1, int pageSize = 10, string? search = null)
         {
             var (userIdString, _) = _currentUserService.GetCurrentUser();
             Guid userId = Guid.Parse(userIdString);
@@ -641,7 +635,13 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(process.Id, userId);
 
-            if (assignment == null || assignment.QualityAssessmentPapers == null) return new QAMemberDashboardResponse();
+            if (assignment == null || assignment.Papers == null) return new QAMemberDashboardResponse();
+
+            var includedPapersPage = await _studySelectionProcessPaperService.GetIncludedPapersByReviewProcessIdAsync(process.ReviewProcessId, search, pageNumber, pageSize, default);
+            if (includedPapersPage == null) return new QAMemberDashboardResponse();
+            
+            var datasetPaperIds = includedPapersPage.Items.Select(x => x.PaperId).ToHashSet();
+            assignment.Papers = assignment.Papers.Where(p => datasetPaperIds.Contains(p.Id)).ToList();
 
             // Need to calculate completion percentage.
             // 1. Get Project -> QA Strategy -> Checklists -> Criteria count
@@ -659,14 +659,17 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             }
 
             var result = new QAMemberDashboardResponse();
-            var totalExpectedDecisions = assignment.QualityAssessmentPapers.Count * criteriaCount;
+            var totalExpectedDecisions = assignment.Papers.Count * criteriaCount;
             var actualDecisions = 0;
 
-            foreach (var qaPaper in assignment.QualityAssessmentPapers)
+            foreach (var assignPaper in assignment.Papers)
             {
+                var dictPaper = includedPapersPage.Items.FirstOrDefault(x => x.PaperId == assignPaper.Id);
+                if(dictPaper == null) continue;
+
                 // Check for resolution
                 var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                   r => r.QualityAssessmentPaperId == qaPaper.Id && r.QualityAssessmentProcessId == process.Id);
+                   r => r.PaperId == assignPaper.Id && r.QualityAssessmentProcessId == process.Id);
 
                 string? resolvedByName = null;
                 if (resolution != null)
@@ -676,24 +679,28 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
 
                 // Calculate decisions count for this paper by this user
-                var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdAndUserIdWithDetailsAsync(qaPaper.Id, userId);
+                var userDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdAndUserIdWithDetailsAsync(assignPaper.Id, userId);
                 var userDecisionsCount = userDecisions?.DecisionItems?.Count ?? 0;
                 actualDecisions += userDecisionsCount;
 
                 double percentage = criteriaCount > 0 ? (double)userDecisionsCount / criteriaCount * 100 : 0;
                 if (percentage > 100) percentage = 100; // Cap at 100 if updates happen
 
-                var dto = qaPaper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions, resolvedByName);
-                result.Papers.Add(dto);
+                var dto = dictPaper.ToMemberDashboardPaperResponse(percentage, resolution, userDecisions, resolvedByName);
+                result.Papers.Items.Add(dto);
 
                 if (dto.Status == "completed" || dto.Status == "resolved") result.CompletedPapers++;
                 else if (dto.Status == "in-progress") result.InProgressPapers++;
                 else result.NotStartedPapers++;
             }
 
-            result.TotalPapers = assignment.QualityAssessmentPapers.Count;
+            result.TotalPapers = includedPapersPage.TotalCount;
             result.CompletionPercentage = totalExpectedDecisions > 0 ? (double)actualDecisions / totalExpectedDecisions * 100 : 0;
             if (result.CompletionPercentage > 100) result.CompletionPercentage = 100;
+
+            result.Papers.TotalCount = includedPapersPage.TotalCount;
+            result.Papers.PageNumber = includedPapersPage.PageNumber;
+            result.Papers.PageSize = includedPapersPage.PageSize;
 
             return result;
         }
@@ -708,12 +715,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
             if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
 
-            var qaPaper = assignment.QualityAssessmentPapers.FirstOrDefault(x => x.Id == dto.QualityAssessmentPaperId);
+            var qaPaper = assignment.Papers?.FirstOrDefault(x => x.Id == dto.PaperId);
             if (qaPaper == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
 
             // Check if resolution exists
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaper.Id);
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaper.Id);
 
             if (resolution != null)
             {
@@ -722,7 +729,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             // Check existing decision
             var existing = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                d => d.ReviewerId == userId && d.QualityAssessmentPaperId == qaPaper.Id);
+                d => d.ReviewerId == userId && d.PaperId == qaPaper.Id);
 
             if (existing != null)
                 throw new InvalidOperationException("Decision for this paper already exists. Use update instead.");
@@ -757,9 +764,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var decision = await _unitOfWork.QualityAssessmentDecisions.GetByIdWithDetailsAsync(decisionId);
             if (decision == null) throw new KeyNotFoundException("Decision not found.");
 
-            var qaPaperId = decision.QualityAssessmentPaperId;
+            var qaPaperId = decision.PaperId;
 
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
+            var qaPaper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == qaPaperId);
             if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
 
             if (decision.ReviewerId != userId)
@@ -770,7 +777,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (assignment == null) throw new KeyNotFoundException("Assignment not found");
 
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaperId);
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaperId);
 
             if (resolution != null)
             {
@@ -819,10 +826,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByQaPaperIdAsync(Guid qaPaperId)
+        public async Task<List<QualityAssessmentDecisionResponse>> GetDecisionsByPaperIdAsync(Guid paperId)
         {
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
-            var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(qaPaperId);
+            var decisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paperId);
 
             return decisions.Select(d => d.ToDto()).ToList();
         }
@@ -834,12 +840,12 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == dto.QualityAssessmentPaperId && p.QualityAssessmentProcessId == dto.QualityAssessmentProcessId);
+            var qaPaper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == dto.PaperId);
             if (qaPaper == null) throw new KeyNotFoundException("Paper not found");
 
             // Verify existing
             var existing = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId && r.QualityAssessmentPaperId == dto.QualityAssessmentPaperId);
+                r => r.QualityAssessmentProcessId == dto.QualityAssessmentProcessId && r.PaperId == dto.PaperId);
 
             if (existing != null) throw new InvalidOperationException("Resolution already exists for this paper");
 
@@ -876,10 +882,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
         public async Task<QualityAssessmentResolutionResponse> GetResolutionByQaPaperIdAsync(Guid qaPaperId)
         {
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == qaPaperId);
+            var qaPaper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == qaPaperId);
             if (qaPaper == null) return null!;
 
-            var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.QualityAssessmentPaperId == qaPaper.Id);
+            var res = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(r => r.PaperId == qaPaper.Id);
             if (res == null) return null!;
 
             return res.ToResponse();
@@ -890,10 +896,8 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var resolutions = await _unitOfWork.QualityAssessmentResolutions
                 .FindAllAsync(r => r.QualityAssessmentProcessId == processId && r.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);
 
-            var qaPaperIds = resolutions.Select(r => r.QualityAssessmentPaperId).ToList();
-            var qaPapers = await _unitOfWork.QualityAssessmentPapers.FindAllAsync(p => qaPaperIds.Contains(p.Id));
-
-            var papers = await _unitOfWork.Papers.FindAllAsync(p => qaPapers.Select(qa => qa.PaperId).Contains(p.Id));
+            var qaPaperIds = resolutions.Select(r => r.PaperId).ToList();
+            var papers = await _unitOfWork.Papers.FindAllAsync(p => qaPaperIds.Contains(p.Id));
 
             return papers.Select(p => p.ToResponse()).ToList();
         }
@@ -910,7 +914,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId);
             if (process == null) throw new KeyNotFoundException("Process not found");
 
-            var eligiblePaper = await _unitOfWork.QualityAssessmentPapers.GetByProcessIdWithDetailsAsync(process.Id);
+            var eligiblePaperPage = await _studySelectionProcessPaperService.GetIncludedPapersByReviewProcessIdAsync(process.ReviewProcessId, null, 1, 1000000, default);
+            var eligiblePapers = eligiblePaperPage?.Items.ToList() ?? new List<IncludedPaperResponse>();
+
             var assignments = await _unitOfWork.QualityAssessmentAssignments.GetAllWithPapersByProcessIdAsync(process.Id);
             var processResolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == process.Id);
 
@@ -928,14 +934,14 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 }
             }
 
-            foreach (var paper in eligiblePaper)
+            foreach (var paper in eligiblePapers)
             {
-                if (processResolutions.Any(r => r.QualityAssessmentPaperId == paper.Id)) continue;
-
-                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.Id);
+                if (processResolutions.Any(r => r.PaperId == paper.PaperId)) continue;
+                
+                var paperDecisions = await _unitOfWork.QualityAssessmentDecisions.GetByQaPaperIdWithDetailsAsync(paper.PaperId);
 
                 var reviewersAssignedToPaper = assignments
-                    .Where(a => a.QualityAssessmentPapers.Any(p => p.Id == paper.Id))
+                    .Where(a => a.Papers != null && a.Papers.Any(p => p.Id == paper.PaperId))
                     .Select(a => a.User)
                     .Where(u => u != null)
                     .GroupBy(u => u.Id)
@@ -976,7 +982,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
                 var resolution = new QualityAssessmentResolution
                 {
                     QualityAssessmentProcessId = process.Id,
-                    QualityAssessmentPaperId = paper.Id,
+                    PaperId = paper.PaperId,
                     FinalDecision = isPassed ? QualityAssessmentResolutionDecision.HighQuality : QualityAssessmentResolutionDecision.LowQuality,
                     FinalScore = (decimal)avgScore,
                     ResolutionNotes = "Auto-resolved",
@@ -998,21 +1004,18 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
-            var qaPaper = await _unitOfWork.QualityAssessmentPapers.FindSingleAsync(p => p.Id == request.QualityAssessmentPaperId);
-            if (qaPaper == null) throw new KeyNotFoundException("Quality Assessment Paper Not Found");
-
             // Validate and find assignment
             var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
             if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
 
             // Check if resolution exists
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.QualityAssessmentPaperId == qaPaper.Id);
+                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == request.PaperId);
 
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == qaPaper.PaperId);
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId);
             if (paper == null) throw new KeyNotFoundException("Paper Not Found");
 
-            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == qaPaper.QualityAssessmentProcessId)
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Process not found");
 
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
@@ -1029,7 +1032,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var relevantChunksByCriterion = new Dictionary<string, string>();
             foreach (var c in criteriaQuestions)
             {
-                var chunks = await _ragRetrievalService.GetRelevantChunksAsync(qaPaper.PaperId, c.Question, topK: 10);
+                var chunks = await _ragRetrievalService.GetRelevantChunksAsync(paper.Id, c.Question, topK: 10);
                 var formattedChunks = string.Join("\n\n---\n\n", chunks.Select(chunk =>
                     $"[Source Chunk coordinates: {chunk.CoordinatesJson}]\n{chunk.TextContent}"
                 ));
@@ -1058,11 +1061,11 @@ Criteria Questions and retrieved relevant excerpts from abstract/full text:
 --------------------------------
 
 Here are the paper details:
-- Title: {qaPaper.Paper.Title}
-- Authors: {qaPaper.Paper.Authors}
-- Publication Year: {qaPaper.Paper.PublicationYear}
-- Journal/Conference: {(!string.IsNullOrWhiteSpace(qaPaper.Paper.Journal) ? qaPaper.Paper.Journal : qaPaper.Paper.ConferenceName)}
-- Abstract: {qaPaper.Paper.Abstract}
+- Title: {paper.Title}
+- Authors: {paper.Authors}
+- Publication Year: {paper.PublicationYear}
+- Journal/Conference: {(!string.IsNullOrWhiteSpace(paper.Journal) ? paper.Journal : paper.ConferenceName)}
+- Abstract: {paper.Abstract}
 ";
 
             var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);
@@ -1076,9 +1079,9 @@ Here are the paper details:
                 projectId: reviewProcess.ProjectId,
                 action: "AI Automated Quality Assessment executed",
                 actionType: "Automate",
-                resourceType: "QualityAssessmentPaper",
-                resourceId: qaPaper.Id.ToString(),
-                newValue: new { GeneratedDecisionsCount = result.Count, PaperTitle = qaPaper.Paper.Title }
+                resourceType: "Paper",
+                resourceId: paper.Id.ToString(),
+                newValue: new { GeneratedDecisionsCount = result.Count, PaperTitle = paper.Title }
             );
 
             return result;
@@ -1142,7 +1145,7 @@ Here are the paper details:
 
             // Populate data
             var currentRow = 3;
-            foreach (var paper in papers)
+            foreach (var paper in papers.Items)
             {
                 // Use decisions list (each decision is per reviewer)
                 var decisions = paper.Decisions ?? new List<QualityAssessmentDecisionResponse>();
@@ -1167,7 +1170,7 @@ Here are the paper details:
 
                 foreach (var dec in decisions)
                 {
-                    ws.Cell(currentRow, 1).Value = paper.Title ?? paper.Id.ToString();
+                    ws.Cell(currentRow, 1).Value = paper.Title ?? paper.PaperId.ToString();
                     ws.Cell(currentRow, 2).Value = dec.ReviewerName ?? string.Empty;
 
                     // For each criterion column, find the matching decision item

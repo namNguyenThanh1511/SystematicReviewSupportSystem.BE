@@ -24,12 +24,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
     {
     }
 
-    public interface IQualityAssessmentPaperRepository : IGenericRepository<QualityAssessmentPaper, Guid, AppDbContext>
-    {
-        public Task<QualityAssessmentPaper?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
-        public Task<List<QualityAssessmentPaper>> GetByProcessIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
-    }
-
     public interface IQualityAssessmentAssignmentRepository : IGenericRepository<QualityAssessmentAssignment, Guid, AppDbContext>
     {
         Task<QualityAssessmentAssignment?> GetWithPapersAsync(Guid id, CancellationToken cancellationToken = default);
@@ -94,26 +88,6 @@ namespace SRSS.IAM.Repositories.QualityRepo
         public QualityAssessmentProcessRepository(AppDbContext context) : base(context) { }
     }
 
-    public class QualityAssessmentPaperRepository : GenericRepository<QualityAssessmentPaper, Guid, AppDbContext>, IQualityAssessmentPaperRepository
-    {
-        public QualityAssessmentPaperRepository(AppDbContext context) : base(context) { }
-
-        public async Task<QualityAssessmentPaper?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            return await _context.Set<QualityAssessmentPaper>()
-                .Include(p => p.Paper)
-                .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
-        }
-
-        public async Task<List<QualityAssessmentPaper>> GetByProcessIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
-        {
-            return await _context.Set<QualityAssessmentPaper>()
-                .Include(p => p.Paper)
-                .Where(p => p.QualityAssessmentProcessId == id)
-                .ToListAsync(cancellationToken);
-        }
-    }
-
     public class QualityAssessmentAssignmentRepository : GenericRepository<QualityAssessmentAssignment, Guid, AppDbContext>, IQualityAssessmentAssignmentRepository
     {
         public QualityAssessmentAssignmentRepository(AppDbContext context) : base(context) { }
@@ -121,33 +95,28 @@ namespace SRSS.IAM.Repositories.QualityRepo
         public async Task<QualityAssessmentAssignment?> GetWithPapersAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentAssignment>()
-                .Include(a => a.QualityAssessmentPapers)
-                .ThenInclude(p => p.Paper)
+                .Include(a => a.Papers)
                 .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
         }
 
         public async Task<QualityAssessmentAssignment?> GetWithPapersByProcessAndUserAsync(Guid processId, Guid userId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentAssignment>()
-                .Include(a => a.QualityAssessmentPapers)
-                .ThenInclude(p => p.Paper)
-                .AsNoTracking()
+                .Include(a => a.Papers)
                 .FirstOrDefaultAsync(a => a.QualityAssessmentProcessId == processId && a.UserId == userId, cancellationToken);
         }
 
         public async Task<QualityAssessmentAssignment?> GetByUserAndQaPaperAsync(Guid userId, Guid qaPaperId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentAssignment>()
-                .Include(a => a.QualityAssessmentPapers)
-                .ThenInclude(p => p.Paper)
-                .FirstOrDefaultAsync(a => a.UserId == userId && a.QualityAssessmentPapers.Any(p => p.Id == qaPaperId), cancellationToken);
+                .Include(a => a.Papers)
+                .FirstOrDefaultAsync(a => a.UserId == userId && a.Papers.Any(p => p.Id == qaPaperId), cancellationToken);
         }
 
         public async Task<List<QualityAssessmentAssignment>> GetAllWithPapersByProcessIdAsync(Guid processId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentAssignment>()
-                .Include(a => a.QualityAssessmentPapers)
-                .ThenInclude(p => p.Paper)
+                .Include(a => a.Papers)
                 .Include(a => a.User)
                 .Where(a => a.QualityAssessmentProcessId == processId)
                 .ToListAsync(cancellationToken);
@@ -163,7 +132,7 @@ namespace SRSS.IAM.Repositories.QualityRepo
             return await _context.Set<QualityAssessmentDecision>()
                 .Include(d => d.Reviewer)
                 .Include(d => d.DecisionItems)
-                .Where(d => d.QualityAssessmentPaperId == qaPaperId)
+                .Where(d => d.PaperId == qaPaperId)
                 .ToListAsync(cancellationToken);
         }
 
@@ -172,7 +141,7 @@ namespace SRSS.IAM.Repositories.QualityRepo
             return await _context.Set<QualityAssessmentDecision>()
                 .Include(d => d.Reviewer)
                 .Include(d => d.DecisionItems)
-                .Where(d => d.QualityAssessmentPaperId == qaPaperId && d.ReviewerId == userId)
+                .Where(d => d.PaperId == qaPaperId && d.ReviewerId == userId)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 

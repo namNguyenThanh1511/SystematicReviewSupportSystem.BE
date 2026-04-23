@@ -10,7 +10,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Navigation Properties
         public QualityAssessmentProcess QualityAssessmentProcess { get; set; } = null!;
-        public ICollection<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = new List<QualityAssessmentPaper>(); // Papers assigned to this member for review
+        public ICollection<Paper> Papers { get; set; } = new List<Paper>(); // Papers assigned to this member for review
         public User User { get; set; } = null!;
     }
 }

@@ -2,6 +2,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.Mappers
 {
@@ -191,14 +192,15 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         // ==================== QualityAssessmentDecision ====================
-        public static QualityAssessmentDecision ToEntity(this CreateQualityAssessmentDecisionRequest dto, Guid reviewerId, Guid qualityAssessmentPaperId)
+        public static QualityAssessmentDecision ToEntity(this CreateQualityAssessmentDecisionRequest dto, Guid reviewerId, Guid paperId)
         {
             return new QualityAssessmentDecision
             {
                 QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
                 ReviewerId = reviewerId,
-                QualityAssessmentPaperId = qualityAssessmentPaperId,
-                Score = dto.Score
+                PaperId = paperId,
+                Score = dto.Score,
+                // Notes = dto.Notes
             };
         }
 
@@ -262,7 +264,7 @@ namespace SRSS.IAM.Services.Mappers
                 Id = entity.Id,
                 ReviewerId = entity.ReviewerId,
                 ReviewerName = entity.Reviewer?.FullName ?? entity.Reviewer?.Username,
-                QualityAssessmentPaperId = entity.QualityAssessmentPaperId,
+                PaperId = entity.PaperId,
                 Score = entity.Score,
                 DecisionItems = entity.DecisionItems?.Select(i => i.ToDto()).ToList() ?? new List<QualityAssessmentDecisionItemResponse>()
             };
@@ -274,7 +276,7 @@ namespace SRSS.IAM.Services.Mappers
             return new QualityAssessmentResolution
             {
                 QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
-                QualityAssessmentPaperId = dto.QualityAssessmentPaperId,
+                PaperId = dto.PaperId,
                 ResolvedBy = resolvedBy,
                 FinalDecision = dto.FinalDecision,
                 FinalScore = dto.FinalScore,
@@ -299,7 +301,7 @@ namespace SRSS.IAM.Services.Mappers
             {
                 Id = entity.Id,
                 QualityAssessmentProcessId = entity.QualityAssessmentProcessId,
-                QualityAssessmentPaperId = entity.QualityAssessmentPaperId,
+                PaperId = entity.PaperId,
                 FinalDecision = entity.FinalDecision,
                 FinalScore = entity.FinalScore,
                 ResolutionNotes = entity.ResolutionNotes,
@@ -324,7 +326,7 @@ namespace SRSS.IAM.Services.Mappers
 
         // ==================== Paper Mapping ====================
         public static QALeaderDashboardPaperResponse ToLeaderDashboardPaperResponse(
-            this QualityAssessmentPaper qaPaper,
+            this IncludedPaperResponse qaPaper,
             double percentage,
             QualityAssessmentResolution? resolution,
             List<User>? reviewers = null,
@@ -335,35 +337,19 @@ namespace SRSS.IAM.Services.Mappers
 
             var response = new QALeaderDashboardPaperResponse
             {
-                Id = qaPaper.Id,
-                Title = qaPaper.Paper.Title,
-                Authors = qaPaper.Paper.Authors,
-                Abstract = qaPaper.Paper.Abstract,
-                DOI = qaPaper.Paper.DOI,
-                PublicationType = qaPaper.Paper.PublicationType,
-                PublicationYear = qaPaper.Paper.PublicationYear,
-                PublicationYearInt = qaPaper.Paper.PublicationYearInt,
-                PublicationDate = qaPaper.Paper.PublicationDate,
-                Volume = qaPaper.Paper.Volume,
-                Issue = qaPaper.Paper.Issue,
-                Pages = qaPaper.Paper.Pages,
-                Publisher = qaPaper.Paper.Publisher,
-                Language = qaPaper.Paper.Language,
-                Keywords = qaPaper.Paper.Keywords,
-                Url = qaPaper.Paper.Url,
-                ConferenceName = qaPaper.Paper.ConferenceName,
-                ConferenceLocation = qaPaper.Paper.ConferenceLocation,
-                ConferenceCountry = qaPaper.Paper.ConferenceCountry,
-                ConferenceYear = qaPaper.Paper.ConferenceYear,
-                Journal = qaPaper.Paper.Journal,
-                JournalIssn = qaPaper.Paper.JournalIssn,
-                Source = qaPaper.Paper.Source,
-                ImportedAt = qaPaper.Paper.ImportedAt,
-                ImportedBy = qaPaper.Paper.ImportedBy,
-                PdfUrl = qaPaper.Paper.PdfUrl,
-                FullTextAvailable = qaPaper.Paper.FullTextAvailable,
+                PaperId = qaPaper.PaperId,
+                Title = qaPaper.Title,
+                DOI = qaPaper.DOI,
+                Authors = qaPaper.Authors,
+                Abstract = qaPaper.Abstract,
+                PublicationYear = qaPaper.PublicationYear,
+                PublicationType = qaPaper.PublicationType,
+                Journal = qaPaper.Journal,
+                Source = qaPaper.Source,
+                Keywords = qaPaper.Keywords,
+                Url = qaPaper.Url,
+                PdfUrl = qaPaper.PdfUrl,
                 CreatedAt = qaPaper.CreatedAt,
-                ModifiedAt = qaPaper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
                 Status = resolution != null ? "resolved" : (percentage > 0 ? "in-progress" : "not-started"),
                 Reviewers = reviewers?.Select(u => u.ToQualityAssessmentReviewerResponse()).ToList() ?? new List<QualityAssessmentReviewerResponse>(),
@@ -379,7 +365,7 @@ namespace SRSS.IAM.Services.Mappers
         }
 
         public static QAMemberDashboardPaperResponse ToMemberDashboardPaperResponse(
-            this QualityAssessmentPaper qaPaper,
+            this IncludedPaperResponse qaPaper,
             double percentage,
             QualityAssessmentResolution? resolution,
             QualityAssessmentDecision? userDecision,
@@ -389,35 +375,19 @@ namespace SRSS.IAM.Services.Mappers
 
             var response = new QAMemberDashboardPaperResponse
             {
-                Id = qaPaper.Id,
-                Title = qaPaper.Paper.Title,
-                Authors = qaPaper.Paper.Authors,
-                Abstract = qaPaper.Paper.Abstract,
-                DOI = qaPaper.Paper.DOI,
-                PublicationType = qaPaper.Paper.PublicationType,
-                PublicationYear = qaPaper.Paper.PublicationYear,
-                PublicationYearInt = qaPaper.Paper.PublicationYearInt,
-                PublicationDate = qaPaper.Paper.PublicationDate,
-                Volume = qaPaper.Paper.Volume,
-                Issue = qaPaper.Paper.Issue,
-                Pages = qaPaper.Paper.Pages,
-                Publisher = qaPaper.Paper.Publisher,
-                Language = qaPaper.Paper.Language,
-                Keywords = qaPaper.Paper.Keywords,
-                Url = qaPaper.Paper.Url,
-                ConferenceName = qaPaper.Paper.ConferenceName,
-                ConferenceLocation = qaPaper.Paper.ConferenceLocation,
-                ConferenceCountry = qaPaper.Paper.ConferenceCountry,
-                ConferenceYear = qaPaper.Paper.ConferenceYear,
-                Journal = qaPaper.Paper.Journal,
-                JournalIssn = qaPaper.Paper.JournalIssn,
-                Source = qaPaper.Paper.Source,
-                ImportedAt = qaPaper.Paper.ImportedAt,
-                ImportedBy = qaPaper.Paper.ImportedBy,
-                PdfUrl = qaPaper.Paper.PdfUrl,
-                FullTextAvailable = qaPaper.Paper.FullTextAvailable,
+                PaperId = qaPaper.PaperId,
+                Title = qaPaper.Title,
+                DOI = qaPaper.DOI,
+                Authors = qaPaper.Authors,
+                Abstract = qaPaper.Abstract,
+                PublicationYear = qaPaper.PublicationYear,
+                PublicationType = qaPaper.PublicationType,
+                Journal = qaPaper.Journal,
+                Source = qaPaper.Source,
+                Keywords = qaPaper.Keywords,
+                Url = qaPaper.Url,
+                PdfUrl = qaPaper.PdfUrl,
                 CreatedAt = qaPaper.CreatedAt,
-                ModifiedAt = qaPaper.ModifiedAt,
                 CompletionPercentage = Math.Round(percentage, 2),
                 Status = resolution != null ? "resolved" : (percentage >= 100 ? "completed" : (percentage > 0 ? "in-progress" : "not-started")),
                 Decisions = userDecision != null ? new List<QualityAssessmentDecisionResponse> { userDecision.ToDto() } : new List<QualityAssessmentDecisionResponse>()

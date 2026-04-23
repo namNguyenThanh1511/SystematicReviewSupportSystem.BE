@@ -128,7 +128,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
         private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
         private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
-        private IQualityAssessmentPaperRepository? _qualityAssessmentPapers;
 
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
@@ -395,7 +394,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
-        public IQualityAssessmentPaperRepository QualityAssessmentPapers => _qualityAssessmentPapers ??= new QualityAssessmentPaperRepository(_dbContext);
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);

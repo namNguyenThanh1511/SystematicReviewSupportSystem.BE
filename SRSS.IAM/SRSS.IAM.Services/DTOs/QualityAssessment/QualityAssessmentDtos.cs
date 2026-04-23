@@ -1,6 +1,9 @@
 using System.Text.Json.Serialization;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.Common;
+
+using SRSS.IAM.Services.DTOs.StudySelection;
 
 namespace SRSS.IAM.Services.DTOs.QualityAssessment
 {
@@ -56,7 +59,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public Guid? Id { get; set; }
         public Guid ReviewerId { get; set; }
         public string? ReviewerName { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
         public decimal? Score { get; set; }
         public List<QualityAssessmentDecisionItemResponse> DecisionItems { get; set; } = new();
     }
@@ -74,7 +77,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     public class CreateQualityAssessmentResolutionRequest
     {
         public Guid QualityAssessmentProcessId { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }
@@ -92,13 +95,13 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     {
         public Guid QualityAssessmentProcessId { get; set; }
         public List<Guid> UserIds { get; set; } = new();
-        public List<Guid> QualityAssessmentPaperIds { get; set; } = new();
+        public List<Guid> PaperIds { get; set; } = new();
     }
 
     public class CreateQualityAssessmentDecisionRequest
     {
         public Guid QualityAssessmentProcessId { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
         public decimal? Score { get; set; }
         public string? Notes { get; set; }
         public List<CreateQualityAssessmentDecisionItemRequest> DecisionItems { get; set; } = new();
@@ -132,7 +135,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     public class AutomateQualityAssessmentRequest
     {
         public Guid QualityAssessmentProcessId { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
     }
 
     public class AutoResolveQualityAssessmentRequest
@@ -196,8 +199,9 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     /// For reviewer
     /// </summary>
-    public class QAMemberDashboardPaperResponse : QAPaperResponse
+    public class QAMemberDashboardPaperResponse : IncludedPaperResponse
     {
+        public Guid Id { get; set; }
         /// <summary>
         /// Tính theo số lượng criterion đã hoàn thành trên tổng số criterion được yêu cầu đánh giá
         /// </summary>
@@ -210,7 +214,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     /// <summary>
     ///  For leader
     /// </summary>
-    public class QALeaderDashboardPaperResponse : QAPaperResponse
+    public class QALeaderDashboardPaperResponse : IncludedPaperResponse
     {
         public List<QualityAssessmentReviewerResponse> Reviewers { get; set; } = new();
         public List<QualityAssessmentDecisionResponse> Decisions { get; set; } = new();
@@ -224,7 +228,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 
     public class QAMemberDashboardResponse
     {
-        public List<QAMemberDashboardPaperResponse> Papers { get; set; } = new();
+        public PaginatedResponse<QAMemberDashboardPaperResponse> Papers { get; set; } = new();
         public double CompletionPercentage { get; set; }
         public int TotalPapers { get; set; }
         public int CompletedPapers { get; set; }
@@ -234,7 +238,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 
     public class QALeaderDashboardResponse
     {
-        public List<QALeaderDashboardPaperResponse> Papers { get; set; } = new();
+        public PaginatedResponse<QALeaderDashboardPaperResponse> Papers { get; set; } = new();
         public List<QAReviewerProgressResponse> ReviewerProgresses { get; set; } = new();
         public int TotalPapers { get; set; }
         public int CompletedPapers { get; set; }
@@ -267,7 +271,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
     {
         public Guid? Id { get; set; }
         public Guid QualityAssessmentProcessId { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }

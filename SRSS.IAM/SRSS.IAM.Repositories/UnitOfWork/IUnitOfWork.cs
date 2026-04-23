@@ -150,7 +150,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         // Quality Assessment
         IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
-        IQualityAssessmentPaperRepository QualityAssessmentPapers { get; }
         IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
         IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
         IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }

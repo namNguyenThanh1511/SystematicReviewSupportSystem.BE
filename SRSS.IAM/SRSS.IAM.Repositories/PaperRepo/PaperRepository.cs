@@ -270,7 +270,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                 query = query.Where(p =>
                     !_context.IdentificationProcessPapers.Any(x => x.PaperId == p.Id) &&
                     !_context.StudySelectionProcessPapers.Any(x => x.PaperId == p.Id) &&
-                    !_context.QualityAssessmentPapers.Any(x => x.PaperId == p.Id) &&
+                    !_context.QualityAssessmentDecisions.Any(x => x.PaperId == p.Id) &&
                     !_context.ExtractionPaperTasks.Any(x => x.PaperId == p.Id));
             }
 

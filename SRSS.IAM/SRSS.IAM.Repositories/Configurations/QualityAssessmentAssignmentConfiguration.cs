@@ -46,14 +46,14 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(q => q.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasMany(q => q.QualityAssessmentPapers)
+            builder.HasMany(q => q.Papers)
                 .WithMany(p => p.QualityAssessmentAssignments)
                 .UsingEntity<Dictionary<string, object>>(
                     "quality_assessment_assignment_papers",
                     j => j
-                        .HasOne<QualityAssessmentPaper>()
+                        .HasOne<Paper>()
                         .WithMany()
-                        .HasForeignKey("quality_assessment_paper_id")
+                        .HasForeignKey("paper_id")
                         .OnDelete(DeleteBehavior.Cascade),
                     j => j
                         .HasOne<QualityAssessmentAssignment>()

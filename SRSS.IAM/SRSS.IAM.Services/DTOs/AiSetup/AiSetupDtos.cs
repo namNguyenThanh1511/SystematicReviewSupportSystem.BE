@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace SRSS.IAM.Services.DTOs.AiSetup
 {

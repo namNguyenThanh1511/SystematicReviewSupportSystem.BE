@@ -4,6 +4,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.AiSetupService;
 using SRSS.IAM.Services.DTOs.AiSetup;
 using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.OpenRouter;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,7 @@ namespace SRSS.IAM.Services.AiSetupService
     {
         private readonly IGeminiService _geminiService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IOpenRouterService _openRouterService;
 
         private const string GlobalAiInstructions = @"
 ### OUTPUT STRUCTURE ENFORCEMENT
@@ -24,35 +26,42 @@ namespace SRSS.IAM.Services.AiSetupService
 4. FIELD COMPLETENESS: The output JSON MUST contain ALL required fields defined in the schema.
 ";
 
-        public AiSetupService(IGeminiService geminiService, IUnitOfWork unitOfWork)
+        public AiSetupService(IGeminiService geminiService, IUnitOfWork unitOfWork, IOpenRouterService openRouterService)
         {
             _geminiService = geminiService;
             _unitOfWork = unitOfWork;
+            _openRouterService = openRouterService;
         }
 
         public async Task<AnalyzeTopicResponse> AnalyzeTopicAsync(AnalyzeTopicRequest request)
         {
             var prompt = $@"
-Act as a senior Research Consultant specializing in Systematic Literature Reviews (SLR) and PRISMA guidelines.
-Your task is to analyze a raw research idea/topic and extract structured metadata.
+            Act as a senior Research Consultant specializing in Systematic Literature Reviews (SLR) and PRISMA guidelines.
+            Your task is to analyze a raw research idea/topic and extract structured metadata.
 
-### INPUT
-Research Topic: ""{request.Topic}""
+            ### INPUT
+            Research Topic: ""{request.Topic}""
 
-### TASKS
-1. Identify the primary Scientific Domain (e.g., Software Engineering, Health Informatics).
-2. Synthesize a concise Research Objective statement (max 2 sentences).
+            ### TASKS
+            1. Identify the primary Scientific Domain (e.g., Software Engineering, Health Informatics).
+            2. Synthesize a concise Research Objective statement (max 2 sentences).
 
-### LANGUAGE REQUIREMENT
-- The output MUST be written entirely in: {request.Language}
-- Do NOT mix languages.
+            ### LANGUAGE REQUIREMENT
+            - The output MUST be written entirely in: {request.Language}
+            - Do NOT mix languages.
+            ### OUTPUT SCHEMA (MANDATORY)
+                {{
+                ""domain"": ""..."",
+                ""objectives"": ""..."",
+                }}
 
-{GlobalAiInstructions}
-";
+
+            {GlobalAiInstructions}
+            ";
 
             try
             {
-                return await _geminiService.GenerateStructuredContentAsync<AnalyzeTopicResponse>(prompt);
+                return await _openRouterService.GenerateStructuredContentAsync<AnalyzeTopicResponse>(prompt);
             }
             catch (Exception ex)
             {
@@ -114,7 +123,7 @@ Research Topic: ""{request.Topic}""
 
             try
             {
-                return await _geminiService.GenerateStructuredContentAsync<GeneratePicocResponse>(prompt);
+                return await _openRouterService.GenerateStructuredContentAsync<GeneratePicocResponse>(prompt);
             }
             catch (Exception ex)
             {
@@ -134,34 +143,45 @@ Research Topic: ""{request.Topic}""
         public async Task<GenerateRqsResponse> GenerateRqsAsync(GenerateRqsRequest request)
         {
             var prompt = $@"
-Act as a senior Academic Peer Reviewer. Based on the fully defined scope below, suggest 3 to 5 high-quality, researchable, and non-trivial Research Questions (RQs) for a Systematic Literature Review.
+            Act as a senior Academic Peer Reviewer. Based on the fully defined scope below, suggest 3 to 5 high-quality, researchable, and non-trivial Research Questions (RQs) for a Systematic Literature Review.
 
-### SCOPE
-- Topic: {request.Topic}
-- Objectives: {request.Objectives}
-- Domain: {request.Domain}
-- PICO-C:
-  * Population: {request.Picoc.Population}
-  * Intervention: {request.Picoc.Intervention}
-  * Comparator: {request.Picoc.Comparator}
-  * Outcome: {request.Picoc.Outcome}
-  * Context: {request.Picoc.Context}
+            ### SCOPE
+            - Topic: {request.Topic}
+            - Objectives: {request.Objectives}
+            - Domain: {request.Domain}
+            - PICO-C:
+            * Population: {request.Picoc.Population}
+            * Intervention: {request.Picoc.Intervention}
+            * Comparator: {request.Picoc.Comparator}
+            * Outcome: {request.Picoc.Outcome}
+            * Context: {request.Picoc.Context}
 
-### RQ DESIGN RULES
-1. The questions must be answerable through literature synthesis.
-2. Mix broad overview questions (e.g., ""What are the state-of-the-art...?"") with specific analytical questions (e.g., ""What are the primary challenges in...?"").
-3. Ensure RQs map directly to the defined PICO-C elements.
+            ### RQ DESIGN RULES
+            1. The questions must be answerable through literature synthesis.
+            2. Mix broad overview questions (e.g., ""What are the state-of-the-art...?"") with specific analytical questions (e.g., ""What are the primary challenges in...?"").
+            3. Ensure RQs map directly to the defined PICO-C elements.
 
-### LANGUAGE REQUIREMENT
-- The output MUST be written entirely in: {request.Language}
-- Do NOT mix languages.
+            ### LANGUAGE REQUIREMENT
+            - The output MUST be written entirely in: {request.Language}
+            - Do NOT mix languages.
+            
+            ### OUTPUT FORMAT REQUIREMENT
+            1. The output MUST be a valid JSON object.
+            2. The JSON MUST follow this exact structure:
+            {{
+            ""SuggestedQuestions"": [
+                ""Research Question 1?"",
+                ""Research Question 2?"",
+                ""Research Question 3?""    
+            ]
+            }}
 
-{GlobalAiInstructions}
-";
+            {GlobalAiInstructions}
+            ";
 
             try
             {
-                return await _geminiService.GenerateStructuredContentAsync<GenerateRqsResponse>(prompt);
+                return await _openRouterService.GenerateStructuredContentAsync<GenerateRqsResponse>(prompt);
             }
             catch (Exception)
             {

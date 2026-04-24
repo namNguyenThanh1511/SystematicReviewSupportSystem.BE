@@ -15,7 +15,7 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IOpenRouterService _openRouterService;
 
         public DataExtractionService(
-            IUnitOfWork unitOfWork, 
+            IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IOpenRouterService openRouterService)
         {
@@ -33,7 +33,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             }
 
             var userId = Guid.Parse(userIdString);
-            
+
             var process = await _unitOfWork.DataExtractionProcesses
                 .FindSingleAsync(x => x.Id == processId)
                 ?? throw new KeyNotFoundException($"Process {processId} không tồn tại");
@@ -70,7 +70,7 @@ namespace SRSS.IAM.Services.DataExtractionService
                     ?? throw new KeyNotFoundException($"Template {dto.TemplateId.Value} không tồn tại");
 
                 dto.UpdateEntity(template);
-                
+
                 // Delta Update (Merge) Sections
                 await MergeSectionsAsync(template, dto.Sections);
             }
@@ -131,10 +131,10 @@ namespace SRSS.IAM.Services.DataExtractionService
                 if (existingSection != null)
                 {
                     sectionDto.UpdateEntity(existingSection);
-                    
+
                     // Merge Fields
                     await MergeFieldsAsync(existingSection.Id, existingSection.Fields.ToList(), sectionDto.Fields, null);
-                    
+
                     // Merge Matrix Columns
                     await MergeMatrixColumnsAsync(existingSection, sectionDto.MatrixColumns);
                 }
@@ -185,10 +185,10 @@ namespace SRSS.IAM.Services.DataExtractionService
                 if (existingField != null)
                 {
                     fieldDto.UpdateEntity(existingField);
-                    
+
                     // Merge Options
                     await MergeOptionsAsync(existingField, fieldDto.Options);
-                    
+
                     // Merge SubFields (Recursive)
                     await MergeFieldsAsync(sectionId, existingField.SubFields.ToList(), fieldDto.SubFields, existingField.Id);
                 }
@@ -273,15 +273,15 @@ namespace SRSS.IAM.Services.DataExtractionService
             var prompt = $@"You are a methodology expert in Systematic Literature Reviews (Software Engineering). 
 I need to extract data from primary studies to answer the following Research Question (or Context): '{sectionName}'. 
 {(string.IsNullOrEmpty(projectContext) ? "" : $"Additional context: {projectContext}")}
-Suggest a JSON array of 3 to 5 highly relevant data extraction fields. 
-Use this strict JSON schema: [{{ ""Name"": ""string"", ""Instruction"": ""string"", ""FieldType"": int, ""Options"": [{{ ""Value"": ""string"" }}] }}]. 
+Suggest a JSON object containing 3 to 5 highly relevant data extraction fields. 
+Use this strict JSON schema: {{ ""DataExtractionFields"": [{{ ""Name"": ""string"", ""Instruction"": ""string"", ""FieldType"": int, ""Options"": [{{ ""Value"": ""string"" }}] }}] }}. 
 FieldType mapping: 0=Text, 1=Integer, 2=Decimal, 3=Boolean, 4=SingleSelect, 5=MultiSelect. 
 For select types (4 or 5), provide 2-4 standard Options.";
 
             try
             {
-                var response = await _openRouterService.GenerateStructuredContentAsync<List<ExtractionFieldDto>>(prompt);
-                return response;
+                var response = await _openRouterService.GenerateStructuredContentAsync<SuggestFieldsResponseDto>(prompt);
+                return response?.DataExtractionFields ?? new List<ExtractionFieldDto>();
             }
             catch (Exception ex)
             {

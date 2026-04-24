@@ -185,7 +185,15 @@ namespace SRSS.IAM.Services.StudySelectionCriteriaService
             sb.AppendLine("   - For RQ: 'sourceType' is 'RQ', 'sourceId' MUST be the FULL research question text (e.g., 'What are the benefits of...'), NOT labels like 'RQ1'.");
             sb.AppendLine("6. CRITERIA QUALITY: Criteria must be ATOMIC (one condition), SPECIFIC, and TESTABLE from a paper's content. Avoid vague terms like 'relevant', 'significant', or 'high quality'.");
             sb.AppendLine("7. THEMES: Organize criteria into logical groups (e.g., 'Population Filtering', 'Methodology Constraints', 'Outcome Metrics').");
-            sb.AppendLine("8. LANGUAGE CONSISTENCY: Detect the language of the provided PICOC and Research Questions and generate all criteria (descriptions, inclusionCriteria, exclusionCriteria) in the SAME language. Do not translate unless explicitly required.");
+            sb.AppendLine("8. LANGUAGE CONSISTENCY:");
+            sb.AppendLine("   - Detect the language of the provided PICOC and Research Questions.");
+            sb.AppendLine("   - ALL generated text MUST strictly follow that language, including:");
+            sb.AppendLine("     * criteriaGroups[].description");
+            sb.AppendLine("     * inclusionCriteria[].text");
+            sb.AppendLine("     * exclusionCriteria[].text");
+            sb.AppendLine("   - DO NOT mix languages under any circumstances.");
+            sb.AppendLine("   - DO NOT translate or switch language unless explicitly instructed.");
+            sb.AppendLine("   - The language of each criteria group description MUST match EXACTLY the detected language.");
             sb.AppendLine("9. LIMIT: Generate a reasonable number of criteria groups (typically between 2 and 5). Avoid excessive grouping.");
             sb.AppendLine("10. NO DUPLICATION: Do not generate duplicate or semantically overlapping criteria across or within groups. Each criterion must be distinct in meaning.");
             sb.AppendLine("11. COVERAGE: Within each criteria group, generate as many distinct inclusion and exclusion criteria as needed to adequately cover the relevant aspects of the theme. Do not limit a group to only one criterion if multiple meaningful criteria can be derived.");

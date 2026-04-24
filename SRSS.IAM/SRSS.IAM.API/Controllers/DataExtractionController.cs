@@ -72,5 +72,16 @@ namespace SRSS.IAM.API.Controllers
             await _service.DeleteTemplateAsync(templateId);
             return Ok("Xóa template thành công");
         }
+
+        /// <summary>
+        /// AI gợi ý các trường extraction dựa trên tên section (RQ)
+        /// </summary>
+        [HttpPost("suggest-fields")]
+        public async Task<ActionResult<ApiResponse<List<ExtractionFieldDto>>>> SuggestFields(
+            [FromBody] SuggestFieldsRequestDto request)
+        {
+            var result = await _service.SuggestFieldsForSectionAsync(request.SectionName, request.ProjectContext ?? "");
+            return Ok(result, "AI đã gợi ý các trường thành công");
+        }
     }
 }

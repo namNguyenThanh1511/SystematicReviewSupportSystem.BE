@@ -91,6 +91,17 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
+		public static void UpdateEntity(this ExtractionSectionDto dto, ExtractionSection entity)
+		{
+			entity.Name = dto.Name;
+			entity.Description = dto.Description;
+			entity.SectionType = (SectionType)dto.SectionType;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.IsPicoc = dto.IsPicoc;
+			entity.LinkedResearchQuestionId = dto.LinkedResearchQuestionId;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
+		}
+
 		// ==================== ExtractionMatrixColumn ====================
 
 		public static ExtractionMatrixColumnDto ToDto(this ExtractionMatrixColumn entity)
@@ -116,6 +127,14 @@ namespace SRSS.IAM.Services.Mappers
 				CreatedAt = DateTimeOffset.UtcNow,
 				ModifiedAt = DateTimeOffset.UtcNow
 			};
+		}
+
+		public static void UpdateEntity(this ExtractionMatrixColumnDto dto, ExtractionMatrixColumn entity)
+		{
+			entity.Name = dto.Name;
+			entity.Description = dto.Description;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
 		}
 
 		// ==================== ExtractionField (Recursive) ====================
@@ -204,6 +223,16 @@ namespace SRSS.IAM.Services.Mappers
 			}
 
 			return entities;
+		}
+
+		public static void UpdateEntity(this ExtractionFieldDto dto, ExtractionField entity)
+		{
+			entity.Name = dto.Name;
+			entity.Instruction = dto.Instruction;
+			entity.FieldType = (FieldType)dto.FieldType;
+			entity.IsRequired = dto.IsRequired;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
 		}
 
 		// ==================== FieldOption ====================

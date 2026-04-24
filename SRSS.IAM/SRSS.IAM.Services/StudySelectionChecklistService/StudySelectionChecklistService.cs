@@ -170,14 +170,10 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                     .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.ResearchQuestions)
                             // .ThenInclude(rq => rq.PicocElements)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Project)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.InclusionCriteria)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Project)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.ExclusionCriteria)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.InclusionCriteria)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.ExclusionCriteria)
                 .FirstOrDefaultAsync(ssp => ssp.Id == studySelectionProcessId, cancellationToken);
 
             if (process == null)
@@ -187,11 +183,12 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
 
             var project = process.ReviewProcess.Project;
 
-            return MapToLiveReviewChecklist(project);
+            return MapToLiveReviewChecklist(process);
         }
 
-        private LiveReviewChecklistDto MapToLiveReviewChecklist(SystematicReviewProject project)
+        private LiveReviewChecklistDto MapToLiveReviewChecklist(StudySelectionProcess process)
         {
+            var project = process.ReviewProcess.Project;
             // 2. Map to LiveReviewChecklistDto
             var result = new LiveReviewChecklistDto
             {
@@ -222,39 +219,37 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                 }
             }
 
-            // 4. Map Criteria Groups
-            if (project.SelectionCriterias != null)
+            // 4. Map Study Selection Criteria
+            if (process.StudySelectionCriterias != null && process.StudySelectionCriterias.Any())
             {
-                foreach (var cg in project.SelectionCriterias)
+                foreach (var ssc in process.StudySelectionCriterias)
                 {
                     var section = new LiveReviewSectionDto
                     {
-                        Title = cg.Description ?? "Eligibility Criteria",
+                        Title = ssc.Description ?? "Eligibility Criteria",
                         Items = new List<LiveReviewItemDto>()
                     };
 
-                    if (cg.InclusionCriteria != null)
+                    if (ssc.InclusionCriteria != null)
                     {
-                        foreach (var inc in cg.InclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
+                        foreach (var inc in ssc.InclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
                         {
                             section.Items.Add(new LiveReviewItemDto { Text = $"Include: {inc.Rule!.Trim()}" });
                         }
                     }
 
-                    if (cg.ExclusionCriteria != null)
+                    if (ssc.ExclusionCriteria != null)
                     {
-                        foreach (var exc in cg.ExclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
+                        foreach (var exc in ssc.ExclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
                         {
                             section.Items.Add(new LiveReviewItemDto { Text = $"Exclude: {exc.Rule!.Trim()}" });
                         }
                     }
 
-                    if (!section.Items.Any())
+                    if (section.Items.Any())
                     {
-                        section.Items = null;
+                        result.Sections.Add(section);
                     }
-
-                    result.Sections.Add(section);
                 }
             }
 

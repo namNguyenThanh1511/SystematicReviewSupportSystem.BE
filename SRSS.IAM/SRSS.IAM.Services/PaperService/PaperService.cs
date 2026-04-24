@@ -7,6 +7,7 @@ using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.NotificationService;
 using SRSS.IAM.Services.StudySelectionService;
+using SRSS.IAM.Repositories.PaperRepo;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Services.DTOs.Identification;
@@ -1403,7 +1404,7 @@ namespace SRSS.IAM.Services.PaperService
         }
 
 
-        public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
+        public async Task<SimplifiedPapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
@@ -1413,9 +1414,9 @@ namespace SRSS.IAM.Services.PaperService
 
             if (!eligiblePaperIds.Any())
             {
-                return new CheckedDuplicatePapersResponse
+                return new SimplifiedPapersResponse
                 {
-                    Items = new List<PaperResponse>(),
+                    Items = new List<SimplifiedPaperResponse>(),
                     TotalCount = 0,
                     PageNumber = request.PageNumber,
                     PageSize = request.PageSize,
@@ -1424,28 +1425,28 @@ namespace SRSS.IAM.Services.PaperService
                 };
             }
 
-            // 2. Fetch papers with pagination and filtering
-            var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
+            // 2. Fetch required reviewers count
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            int requiredReviewers = process?.TitleAbstractScreening?.MinReviewersPerPaper ?? 2;
+
+            // 3. Fetch papers with direct projection
+            var (projections, totalCount) = await _unitOfWork.Papers.GetSimplifiedPapersAsync(
                 eligiblePaperIds,
+                studySelectionProcessId,
+                ScreeningPhase.TitleAbstract,
+                requiredReviewers,
                 request.Search,
                 request.Year,
                 request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
-                ScreeningPhase.TitleAbstract,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = new List<PaperResponse>();
-            foreach (var p in papers)
+            return new SimplifiedPapersResponse
             {
-                paperResponses.Add(await MapToPaperResponseAsync(p, ScreeningPhase.TitleAbstract, studySelectionProcessId, cancellationToken));
-            }
-
-            return new CheckedDuplicatePapersResponse
-            {
-                Items = paperResponses,
+                Items = projections,
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
@@ -1454,7 +1455,7 @@ namespace SRSS.IAM.Services.PaperService
             };
         }
 
-        public async Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
+        public async Task<SimplifiedPapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default)
@@ -1469,9 +1470,9 @@ namespace SRSS.IAM.Services.PaperService
 
             if (!eligiblePaperIds.Any())
             {
-                return new CheckedDuplicatePapersResponse
+                return new SimplifiedPapersResponse
                 {
-                    Items = new List<PaperResponse>(),
+                    Items = new List<SimplifiedPaperResponse>(),
                     TotalCount = 0,
                     PageNumber = request.PageNumber,
                     PageSize = request.PageSize,
@@ -1480,28 +1481,28 @@ namespace SRSS.IAM.Services.PaperService
                 };
             }
 
-            // 2. Fetch papers with pagination and filtering
-            var (papers, totalCount) = await _unitOfWork.Papers.GetPapersByIdsAsync(
+            // 2. Fetch required reviewers count
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            int requiredReviewers = process?.FullTextScreening?.MinReviewersPerPaper ?? 2;
+
+            // 3. Fetch papers with direct projection
+            var (projections, totalCount) = await _unitOfWork.Papers.GetSimplifiedPapersAsync(
                 eligiblePaperIds,
+                studySelectionProcessId,
+                ScreeningPhase.FullText,
+                requiredReviewers,
                 request.Search,
                 request.Year,
                 request.SearchSourceId,
                 request.AssignmentStatus,
                 request.DecisionStatus,
-                ScreeningPhase.FullText,
                 request.PageNumber,
                 request.PageSize,
                 cancellationToken);
 
-            var paperResponses = new List<PaperResponse>();
-            foreach (var p in papers)
+            return new SimplifiedPapersResponse
             {
-                paperResponses.Add(await MapToPaperResponseAsync(p, ScreeningPhase.FullText, studySelectionProcessId, cancellationToken));
-            }
-
-            return new CheckedDuplicatePapersResponse
-            {
-                Items = paperResponses,
+                Items = projections,
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize,
@@ -1509,6 +1510,7 @@ namespace SRSS.IAM.Services.PaperService
                 CurrentPhaseText = ScreeningPhase.FullText.ToString()
             };
         }
+
 
         public async Task<PaginatedResponse<PaperResponse>> GetAssignedPapersByPhaseAsync(
             Guid studySelectionProcessId,

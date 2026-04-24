@@ -131,6 +131,19 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"StudySelectionProcess with ID {id} not found.");
             }
 
+            // Check if study selection criteria exists for this process
+            var hasCriteria = await _unitOfWork.SelectionCriterias.AnyAsync(
+                c => c.StudySelectionProcessId == id,
+                cancellationToken: cancellationToken);
+
+            if (!hasCriteria)
+            {
+                return new StudySelectionProcessResponse
+                {
+                    IsHaveCriteria = false
+                };
+            }
+
             // Load ReviewProcess with IdentificationProcess for validation
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
                 rp => rp.Id == process.ReviewProcessId,
@@ -157,7 +170,9 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(process);
+            var response = MapToResponse(process);
+            response.IsHaveCriteria = true;
+            return response;
         }
 
         public async Task<StudySelectionProcessResponse> CompleteStudySelectionProcessAsync(
@@ -1138,12 +1153,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                 return PaperSelectionStatus.Pending;
             }
 
-            // 3. Với phase Full-Text: Chỉ cho phép status khi có resolution
-            // Nếu không có resolution, luôn coi là Conflict hoặc Pending quá trình resolution
-            if (phase == ScreeningPhase.FullText)
-            {
-                return PaperSelectionStatus.Conflict;
-            }
 
             // 4. Với phase Title-Abstract: Áp dụng quy tắc unanimous (tất cả các quyết định thống nhất)
             var includeCount = decisions.Count(d => d.Decision == ScreeningDecisionType.Include);
@@ -1815,13 +1824,13 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             if (process.TitleAbstractScreening != null)
             {
-                response.TitleAbstractScreening = MapToTAResponse(process.TitleAbstractScreening);
+                response.TitleAbstractScreening = MapToTAResponse(process.TitleAbstractScreening, process.PaperAssignments?.Any(pa => pa.Phase == ScreeningPhase.TitleAbstract) ?? false);
             }
 
             return response;
         }
 
-        private static TitleAbstractScreeningResponse MapToTAResponse(TitleAbstractScreening ta)
+        private static TitleAbstractScreeningResponse MapToTAResponse(TitleAbstractScreening ta, bool isAssigned = false)
         {
             return new TitleAbstractScreeningResponse
             {
@@ -1834,7 +1843,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 MinReviewersPerPaper = ta.MinReviewersPerPaper,
                 MaxReviewersPerPaper = ta.MaxReviewersPerPaper,
                 CreatedAt = ta.CreatedAt,
-                ModifiedAt = ta.ModifiedAt
+                ModifiedAt = ta.ModifiedAt,
+                IsAssigned = isAssigned
             };
         }
 
@@ -1876,7 +1886,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             await _unitOfWork.TitleAbstractScreenings.AddAsync(taScreening, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            return MapToTAResponse(taScreening, false);
         }
 
         public async Task<TitleAbstractScreeningResponse> StartTitleAbstractScreeningAsync(
@@ -1941,7 +1951,11 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         public async Task<TitleAbstractScreeningResponse> CompleteTitleAbstractScreeningAsync(
@@ -1977,7 +1991,11 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         public async Task<TitleAbstractScreeningResponse> GetTitleAbstractScreeningAsync(
@@ -1992,7 +2010,11 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Title/Abstract screening not found for process {studySelectionProcessId}.");
             }
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         // ============================================
@@ -2653,8 +2675,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             var assignmentList = assignments.ToList();
             int assignedCount = assignmentList.Count;
 
-            // 3. Chỉ cho phép auto khi đúng 2 reviewers (initial round)
-            if (assignedCount != 2) return;
+            // 3. Chỉ cho phép auto khi có ít nhất 1 assignment
+            if (assignedCount < 1) return;
 
             // 4. Lấy decisions
             var decisions = await _unitOfWork.ScreeningDecisions.GetByPaperAsync(
@@ -2671,19 +2693,19 @@ namespace SRSS.IAM.Services.StudySelectionService
             bool hasConflict = includeCount > 0 && excludeCount > 0;
             if (hasConflict) return;
 
-            // 8. Chỉ auto khi unanimous (2/2)
+            // 8. Chỉ auto khi unanimous
             ScreeningDecisionType? autoDecision = null;
             string? autoNotes = null;
 
-            if (includeCount == 2)
+            if (includeCount == assignedCount)
             {
                 autoDecision = ScreeningDecisionType.Include;
-                autoNotes = "Auto-resolved: unanimous Include (2/2 reviewers).";
+                autoNotes = $"Auto-resolved: unanimous Include ({includeCount}/{assignedCount} reviewers).";
             }
-            else if (excludeCount == 2)
+            else if (excludeCount == assignedCount)
             {
                 autoDecision = ScreeningDecisionType.Exclude;
-                autoNotes = "Auto-resolved: unanimous Exclude (2/2 reviewers).";
+                autoNotes = $"Auto-resolved: unanimous Exclude ({excludeCount}/{assignedCount} reviewers).";
             }
             else
             {

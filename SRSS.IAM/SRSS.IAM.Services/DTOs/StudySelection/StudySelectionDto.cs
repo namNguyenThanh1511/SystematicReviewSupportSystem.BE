@@ -1,5 +1,8 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.Common;
+
+using SRSS.IAM.Repositories.PaperRepo;
 
 namespace SRSS.IAM.Services.DTOs.StudySelection
 {
@@ -110,6 +113,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public SelectionStatisticsResponse SelectionStatistics { get; set; }
         public PhaseStatisticsResponse PhaseStatistics { get; set; } = new();
         public TitleAbstractScreeningResponse? TitleAbstractScreening { get; set; }
+        public bool IsHaveCriteria { get; set; }
     }
 
     public class StudySelectionPhaseStatusResponse
@@ -134,6 +138,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public int MaxReviewersPerPaper { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+        public bool IsAssigned { get; set; }
     }
 
     public class ReviewerAssignmentResponse
@@ -358,6 +363,14 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string PhaseText { get; set; } = string.Empty;
         public PaperSelectionStatus Status { get; set; }
         public string StatusText { get; set; } = string.Empty;
+    }
+
+
+
+    public class SimplifiedPapersResponse : PaginatedResponse<SimplifiedPaperResponse>
+    {
+        public ScreeningPhase CurrentPhase { get; set; }
+        public string CurrentPhaseText { get; set; } = string.Empty;
     }
 
     public class ConflictedPapersRequest

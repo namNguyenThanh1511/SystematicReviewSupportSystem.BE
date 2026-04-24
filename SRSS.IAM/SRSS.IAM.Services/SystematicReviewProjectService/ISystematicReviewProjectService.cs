@@ -1,6 +1,8 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.ResearchQuestion;
+
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
@@ -65,5 +67,14 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             Guid projectId,
             Guid paperId,
             CancellationToken cancellationToken = default);
+
+        Task<List<ProjectPicocResponse>> GetProjectPicocsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ResearchQuestionDetailResponse>> GetProjectResearchQuestionsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
     }
 }
+

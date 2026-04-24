@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260423072325_stuse criteria_relationship")]
+    partial class stusecriteria_relationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4104,40 +4107,10 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StudySelectionProcessId");
+                    b.HasIndex("StudySelectionProcessId")
+                        .IsUnique();
 
                     b.ToTable("study_selection_criteria", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteriaAIResponse", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<string>("RawJson")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("raw_json");
-
-                    b.Property<Guid>("StudySelectionProcessId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("study_selection_process_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StudySelectionProcessId");
-
-                    b.ToTable("study_selection_criteria_ai_responses", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionExclusionReason", b =>
@@ -5899,19 +5872,8 @@ namespace SRSS.IAM.Repositories.Migrations
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", b =>
                 {
                     b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
-                        .WithMany("StudySelectionCriterias")
-                        .HasForeignKey("StudySelectionProcessId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StudySelectionProcess");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionCriteriaAIResponse", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.StudySelectionProcess", "StudySelectionProcess")
-                        .WithMany("StudySelectionCriteriaAIResponses")
-                        .HasForeignKey("StudySelectionProcessId")
+                        .WithOne("StudySelectionCriteria")
+                        .HasForeignKey("SRSS.IAM.Repositories.Entities.StudySelectionCriteria", "StudySelectionProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -6317,9 +6279,7 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("StudySelectionAIResults");
 
-                    b.Navigation("StudySelectionCriteriaAIResponses");
-
-                    b.Navigation("StudySelectionCriterias");
+                    b.Navigation("StudySelectionCriteria");
 
                     b.Navigation("StudySelectionProcessPapers");
 

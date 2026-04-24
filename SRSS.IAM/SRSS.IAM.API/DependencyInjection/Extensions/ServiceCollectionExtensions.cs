@@ -64,6 +64,7 @@ using SRSS.IAM.Services.OpenRouter;
 
 
 
+using SRSS.IAM.Services.StudySelectionCriteriaService;
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
@@ -216,6 +217,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
             services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
 
+            services.AddScoped<IStudySelectionCriteriaService, StudySelectionCriteriaService>();
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<AuditInterceptor>();
         }

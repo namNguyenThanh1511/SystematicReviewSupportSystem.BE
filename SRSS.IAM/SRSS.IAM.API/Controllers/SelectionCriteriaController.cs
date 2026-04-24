@@ -3,6 +3,7 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
 using SRSS.IAM.Services.SelectionCriteriaService;
+using SRSS.IAM.Services.StudySelectionCriteriaService;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -11,10 +12,12 @@ namespace SRSS.IAM.API.Controllers
 	public class SelectionCriteriaController : BaseController
 	{
 		private readonly ISelectionCriteriaService _service;
+		private readonly IStudySelectionCriteriaService _aiService;
 
-		public SelectionCriteriaController(ISelectionCriteriaService service)
+		public SelectionCriteriaController(ISelectionCriteriaService service, IStudySelectionCriteriaService aiService)
 		{
 			_service = service;
+			_aiService = aiService;
 		}
 
 		// ==================== Study Selection Criteria ====================
@@ -31,13 +34,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Criteria theo Project ID
+		/// Lấy tất cả Criteria theo Study Selection Process ID
 		/// </summary>
-		[HttpGet("project/{projectId}")]
-		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByProjectId(
-			Guid projectId)
+		[HttpGet("process/{studySelectionProcessId}")]
+		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByStudySelectionProcessId(
+			Guid studySelectionProcessId)
 		{
-			var result = await _service.GetAllByProjectIdAsync(projectId);
+			var result = await _service.GetAllByStudySelectionProcessIdAsync(studySelectionProcessId);
 			return Ok(result, "Lấy danh sách criteria thành công");
 		}
 
@@ -97,6 +100,26 @@ namespace SRSS.IAM.API.Controllers
 		{
 			var result = await _service.GetExclusionByCriteriaIdAsync(criteriaId);
 			return Ok(result, "Lấy danh sách exclusion criteria thành công");
+		}
+
+		/// <summary>
+		/// Generate criteria using AI based on PICOC and Research Questions
+		/// </summary>
+		[HttpPost("generate-ai/{studySelectionProcessId}")]
+		public async Task<ActionResult<ApiResponse<AICriteriaResponse>>> GenerateCriteriaWithAi(Guid studySelectionProcessId)
+		{
+			var result = await _aiService.GenerateCriteriaWithAiAsync(studySelectionProcessId);
+			return Ok(result, "AI suggest criteria successfully");
+		}
+
+		/// <summary>
+		/// Save criteria suggested by AI and persist raw response for traceability
+		/// </summary>
+		[HttpPost("save-ai-result")]
+		public async Task<ActionResult<ApiResponse>> SaveAICriteria([FromBody] SaveAICriteriaRequestV2 request)
+		{
+			await _aiService.SaveAICriteriaAsync(request);
+			return Ok("AI criteria saved successfully");
 		}
 	}
 }

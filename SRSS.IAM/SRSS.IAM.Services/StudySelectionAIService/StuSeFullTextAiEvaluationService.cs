@@ -81,7 +81,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             }
 
             // 3. Build AI Input
-            var aiInput = studySelectionProcess.ReviewProcess.Project.BuildStuSeAIInput(paper);
+            var aiInput = studySelectionProcess.BuildStuSeAIInput(paper);
 
             // 4. Retrieve Relevant Chunks
             var pdf = paper.PaperPdfs.FirstOrDefault(p => p.FullTextProcessed);

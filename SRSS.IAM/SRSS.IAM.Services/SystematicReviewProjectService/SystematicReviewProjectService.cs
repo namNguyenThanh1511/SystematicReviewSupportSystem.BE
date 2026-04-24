@@ -5,6 +5,8 @@ using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
 using Shared.Exceptions;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.DTOs.ResearchQuestion;
+
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
@@ -424,7 +426,67 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             }).ToList();
         }
 
+        public async Task<List<ProjectPicocResponse>> GetProjectPicocsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var picocs = await _unitOfWork.ProjectPicocs.GetQueryable()
+                .Where(p => p.ProjectId == projectId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return picocs.Select(p => new ProjectPicocResponse
+            {
+                Id = p.Id,
+                ProjectId = p.ProjectId,
+                Population = p.Population,
+                Intervention = p.Intervention,
+                Comparator = p.Comparator,
+                Outcome = p.Outcome,
+                Context = p.Context,
+                CreatedAt = p.CreatedAt
+            }).ToList();
+        }
+
+        public async Task<List<ResearchQuestionDetailResponse>> GetProjectResearchQuestionsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var questions = await _unitOfWork.ResearchQuestions.GetQueryable()
+                .Include(q => q.QuestionType)
+                .Where(q => q.ProjectId == projectId)
+                .OrderBy(q => q.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return questions.Select(q => new ResearchQuestionDetailResponse
+            {
+                ResearchQuestionId = q.Id,
+                ProjectId = q.ProjectId,
+                QuestionType = q.QuestionType?.Name,
+                QuestionText = q.QuestionText,
+                Rationale = q.Rationale,
+                CreatedAt = q.CreatedAt
+            }).ToList();
+        }
+
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)
+
         {
             return new SystematicReviewProjectResponse
             {

@@ -9,9 +9,12 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 	{
 		public StudySelectionCriteriaRepository(AppDbContext context) : base(context) { }
 
-		public async Task<IEnumerable<StudySelectionCriteria>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+		public async Task<IEnumerable<StudySelectionCriteria>> GetByStudySelectionProcessIdAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(c => c.ProjectId == projectId, isTracking: false, cancellationToken);
+			return await GetQueryable(c => c.StudySelectionProcessId == studySelectionProcessId, isTracking: false)
+				.Include(c => c.InclusionCriteria)
+				.Include(c => c.ExclusionCriteria)
+				.ToListAsync(cancellationToken);
 		}
 	}
 
@@ -32,6 +35,16 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 		public async Task<IEnumerable<ExclusionCriterion>> GetByCriteriaIdAsync(Guid criteriaId, CancellationToken cancellationToken = default)
 		{
 			return await FindAllAsync(c => c.CriteriaId == criteriaId, isTracking: false, cancellationToken);
+		}
+	}
+
+	public class StudySelectionCriteriaAIResponseRepository : GenericRepository<StudySelectionCriteriaAIResponse, Guid, AppDbContext>, IStudySelectionCriteriaAIResponseRepository
+	{
+		public StudySelectionCriteriaAIResponseRepository(AppDbContext context) : base(context) { }
+
+		public async Task<IEnumerable<StudySelectionCriteriaAIResponse>> GetByStudySelectionProcessIdAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default)
+		{
+			return await FindAllAsync(c => c.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken);
 		}
 	}
 }

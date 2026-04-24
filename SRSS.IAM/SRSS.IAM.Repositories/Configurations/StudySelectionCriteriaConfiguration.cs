@@ -16,8 +16,8 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("criteria_id")
 				.IsRequired();
 
-			builder.Property(x => x.ProjectId)
-				.HasColumnName("project_id")
+			builder.Property(x => x.StudySelectionProcessId)
+				.HasColumnName("study_selection_process_id")
 				.IsRequired();
 
 			builder.Property(x => x.Description)
@@ -29,9 +29,9 @@ namespace SRSS.IAM.Repositories.Configurations
 			builder.Property(x => x.ModifiedAt)
 				.HasColumnName("modified_at");
 
-			builder.HasOne(x => x.Project)
-				.WithMany(x => x.SelectionCriterias)
-				.HasForeignKey(x => x.ProjectId)
+			builder.HasOne(x => x.StudySelectionProcess)
+				.WithMany(x => x.StudySelectionCriterias)
+				.HasForeignKey(x => x.StudySelectionProcessId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

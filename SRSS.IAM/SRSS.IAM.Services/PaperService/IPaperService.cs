@@ -137,12 +137,12 @@ namespace SRSS.IAM.Services.PaperService
             ApplyMetadataRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
+        Task<SimplifiedPapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
+        Task<SimplifiedPapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default);

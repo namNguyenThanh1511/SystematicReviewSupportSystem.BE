@@ -147,6 +147,20 @@ namespace SRSS.IAM.Repositories.PaperRepo
             Guid qaProcessId,
             CancellationToken cancellationToken = default);
 
+        Task<(List<SimplifiedPaperResponse> Items, int TotalCount)> GetSimplifiedPapersAsync(
+            List<Guid> paperIds,
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            int requiredReviewers,
+            string? search,
+            int? year,
+            Guid? searchSourceId,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
         Task<Paper?> GetForAiEvaluationAsync(
             Guid id,
             CancellationToken cancellationToken = default);

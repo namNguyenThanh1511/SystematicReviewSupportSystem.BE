@@ -25,7 +25,7 @@ namespace SRSS.IAM.Services.SupabaseService
             _supabaseClient = new Supabase.Client(url, key, options);
         }
 
-        public async Task<string> UploadArticlePdfAsync(IFormFile file, Guid projectId, Guid processId)
+        public async Task<string> UploadArticlePdfAsync(IFormFile file, Guid projectId)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File không hợp lệ");
@@ -42,13 +42,13 @@ namespace SRSS.IAM.Services.SupabaseService
                 // Khởi tạo kết nối client (bắt buộc trước khi gọi các API)
                 await _supabaseClient.InitializeAsync();
 
-				// 1. Làm sạch tên file: Xóa ký tự đặc biệt, dấu ~ và khoảng trắng
+                // 1. Làm sạch tên file: Xóa ký tự đặc biệt, dấu ~ và khoảng trắng
                 string rawFileName = Path.GetFileName(file.FileName);
                 string cleanFileName = Regex.Replace(rawFileName, @"[^a-zA-Z0-9\._-]", "_");
 
-				// Tạo đường dẫn file lưu trên Supabase (ví dụ: papers/project-id/process-id/ten-file-random.pdf)
-				var fileName = $"{Guid.NewGuid()}_{cleanFileName}";
-				var storagePath = $"papers/{projectId}/{processId}/{fileName}";
+                // Tạo đường dẫn file lưu trên Supabase (ví dụ: papers/project-id/ten-file-random.pdf)
+                var fileName = $"{Guid.NewGuid()}_{cleanFileName}";
+                var storagePath = $"papers/{projectId}/{fileName}";
 
                 // Đọc IFormFile thành mảng byte để upload lên Supabase
                 using var memoryStream = new MemoryStream();
@@ -82,7 +82,7 @@ namespace SRSS.IAM.Services.SupabaseService
             try
             {
                 await _supabaseClient.InitializeAsync();
-                
+
                 // If the path is a full URL, extract the relative path
                 // Example URL: https://xyz.supabase.co/storage/v1/object/public/research-papers/papers/123/456/file.pdf
                 // Relative path: papers/123/456/file.pdf

@@ -22,7 +22,6 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Navigation Properties
         public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
-        public ICollection<StudySelectionCriteria> SelectionCriterias { get; set; } = new List<StudySelectionCriteria>();
         public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
 
         public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();

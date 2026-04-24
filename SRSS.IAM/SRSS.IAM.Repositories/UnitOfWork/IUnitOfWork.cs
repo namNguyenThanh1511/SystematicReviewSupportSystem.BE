@@ -86,6 +86,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionCriteriaRepository SelectionCriterias { get; }
         IInclusionCriterionRepository InclusionCriteria { get; }
         IExclusionCriterionRepository ExclusionCriteria { get; }
+        IStudySelectionCriteriaAIResponseRepository StudySelectionCriteriaAIResponses { get; }
 
         // Quality Assessment
         IQualityAssessmentStrategyRepository QualityStrategies { get; }

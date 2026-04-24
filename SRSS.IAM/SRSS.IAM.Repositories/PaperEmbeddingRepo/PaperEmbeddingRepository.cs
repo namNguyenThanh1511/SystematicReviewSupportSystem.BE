@@ -76,7 +76,7 @@ namespace SRSS.IAM.Repositories.PaperEmbeddingRepo
                           FROM deduplication_results dr
                           WHERE dr.paper_id = p.id
                             AND dr.project_id = {projectId}
-                            AND dr.review_status = {DeduplicationReviewStatus.Confirmed.ToString()}
+                            AND dr.review_status = {DeduplicationReviewStatus.Resolved.ToString()}
                             AND dr.resolved_decision = {DuplicateResolutionDecision.CANCEL.ToString()}
                       )
                     ORDER BY pe.embedding <=> {queryVector}

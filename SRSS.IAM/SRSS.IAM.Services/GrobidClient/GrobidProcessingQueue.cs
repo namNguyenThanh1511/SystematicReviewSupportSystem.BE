@@ -8,7 +8,6 @@ namespace SRSS.IAM.Services.GrobidClient
         public Guid PaperPdfId { get; set; }
         public string FileHash { get; set; } = string.Empty;
         public Guid PaperId { get; set; }
-        public Guid StudySelectionProcessId { get; set; }
         public Guid UserId { get; set; }
     }
 

@@ -6,7 +6,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 	{
 		// Study Selection Criteria
 		Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto);
-		Task<List<StudySelectionCriteriaDto>> GetAllByProjectIdAsync(Guid projectId);
+		Task<List<StudySelectionCriteriaDto>> GetAllByStudySelectionProcessIdAsync(Guid studySelectionProcessId);
 		Task DeleteCriteriaAsync(Guid criteriaId);
 
 		// Inclusion Criteria

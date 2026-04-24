@@ -52,6 +52,7 @@ namespace SRSS.IAM.Repositories
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
+		public DbSet<StudySelectionCriteriaAIResponse> StudySelectionCriteriaAIResponses { get; set; } = default!;
 		public DbSet<ReviewNeed> ReviewNeeds { get; set; } = default!;
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;

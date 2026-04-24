@@ -115,6 +115,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionCriteriaRepository? _selectionCriterias;
         private IInclusionCriterionRepository? _inclusionCriteria;
         private IExclusionCriterionRepository? _exclusionCriteria;
+        private IStudySelectionCriteriaAIResponseRepository? _studySelectionCriteriaAIResponses;
         private IQualityAssessmentStrategyRepository? _qualityStrategies;
         private IQualityChecklistRepository? _qualityChecklists;
         private IQualityCriterionRepository? _qualityCriteria;
@@ -245,6 +246,9 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         public IExclusionCriterionRepository ExclusionCriteria =>
             _exclusionCriteria ??= new ExclusionCriterionRepository(_dbContext);
+
+        public IStudySelectionCriteriaAIResponseRepository StudySelectionCriteriaAIResponses =>
+            _studySelectionCriteriaAIResponses ??= new StudySelectionCriteriaAIResponseRepository(_dbContext);
 
 
 

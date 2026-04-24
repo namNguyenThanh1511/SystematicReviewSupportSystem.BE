@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Authorization;
 using SRSS.IAM.Services.ProjectMemberInvitationService;
 using SRSS.IAM.Services.DTOs.ProjectMemberInvitation;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.DTOs.ResearchQuestion;
+
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -275,5 +277,36 @@ namespace SRSS.IAM.API.Controllers
             var result = await _projectService.GetAvailableMembersForPaperAsync(projectId, paperId, cancellationToken);
             return Ok(result, "Available project members retrieved successfully.");
         }
+
+        /// <summary>
+        /// Get list of PICOC elements for a project
+        /// </summary>
+        /// <param name="id">Project ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of project PICOCs</returns>
+        [HttpGet("{id}/picocs")]
+        public async Task<ActionResult<ApiResponse<List<ProjectPicocResponse>>>> GetProjectPicocs(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _projectService.GetProjectPicocsAsync(id, cancellationToken);
+            return Ok(result, "Project PICOCs retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get list of research questions for a project
+        /// </summary>
+        /// <param name="id">Project ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of project research questions</returns>
+        [HttpGet("{id}/research-questions")]
+        public async Task<ActionResult<ApiResponse<List<ResearchQuestionDetailResponse>>>> GetProjectResearchQuestions(
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _projectService.GetProjectResearchQuestionsAsync(id, cancellationToken);
+            return Ok(result, "Project research questions retrieved successfully.");
+        }
     }
 }
+

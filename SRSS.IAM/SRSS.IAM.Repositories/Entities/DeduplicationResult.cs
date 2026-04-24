@@ -113,14 +113,9 @@ namespace SRSS.IAM.Repositories.Entities
         Pending = 0,
 
         /// <summary>
-        /// Researcher confirmed this is a duplicate
+        /// Researcher has resolved this duplicate pair
         /// </summary>
-        Confirmed = 1,
-
-        /// <summary>
-        /// Researcher rejected — not actually a duplicate, keep both papers
-        /// </summary>
-        Rejected = 2
+        Resolved = 1
     }
 
     /// <summary>

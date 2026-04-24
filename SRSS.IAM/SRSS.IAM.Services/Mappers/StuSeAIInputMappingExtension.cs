@@ -8,8 +8,9 @@ namespace SRSS.IAM.Services.Mappers
 {
     public static class StuSeAIInputMappingExtension
     {
-        public static StuSeAIInput BuildStuSeAIInput(this SystematicReviewProject project, Paper paper)
+        public static StuSeAIInput BuildStuSeAIInput(this StudySelectionProcess process, Paper paper)
         {
+            var project = process.ReviewProcess.Project;
             var result = new StuSeAIInput
             {
                 Paper = new StuSePaperInput
@@ -36,14 +37,19 @@ namespace SRSS.IAM.Services.Mappers
                 .ToList() ?? new List<StuSeRQInput>();
 
             // 5. CRITERIA GROUPS
-            result.CriteriaGroups = project.SelectionCriterias?
-                .Select(cg => new StuSeCriteriaGroupInput
+            if (process.StudySelectionCriterias != null && process.StudySelectionCriterias.Any())
+            {
+                result.CriteriaGroups = process.StudySelectionCriterias.Select(cg => new StuSeCriteriaGroupInput
                 {
                     Description = cg.Description?.Trim(),
                     InclusionRules = MapCriteria(cg.InclusionCriteria?.Select(c => c.Rule)),
                     ExclusionRules = MapCriteria(cg.ExclusionCriteria?.Select(c => c.Rule))
-                })
-                .ToList() ?? new List<StuSeCriteriaGroupInput>();
+                }).ToList();
+            }
+            else
+            {
+                result.CriteriaGroups = new List<StuSeCriteriaGroupInput>();
+            }
 
 
             return result;

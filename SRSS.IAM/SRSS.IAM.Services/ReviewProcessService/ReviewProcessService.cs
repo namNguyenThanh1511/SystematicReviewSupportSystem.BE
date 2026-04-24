@@ -395,42 +395,28 @@ namespace SRSS.IAM.Services.ReviewProcessService
             CancellationToken cancellationToken = default)
         {
             var reviewProcesses = await _unitOfWork.ReviewProcesses.GetByProjectIdAsync(projectId, cancellationToken);
-            var processIds = reviewProcesses.Select(x => x.Id).ToList();
+            var responses = new List<ReviewProcessSnapshotResponse>();
 
-            var identificationProcessIds = reviewProcesses
-                .Where(x => x.IdentificationProcess != null)
-                .Select(x => x.IdentificationProcess!.Id)
-                .ToList();
+            foreach (var process in reviewProcesses.OrderByDescending(x => x.CreatedAt))
+            {
+                var importedCount = 0;
+                var includeCount = 0;
+                var excludeCount = 0;
 
-            var importedCountByProcess = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
-                .AsNoTracking()
-                .Where(x => identificationProcessIds.Contains(x.IdentificationProcessId) && x.IncludedAfterDedup)
-                .GroupBy(x => x.IdentificationProcessId)
-                .Select(g => new { g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
+                if (process.IdentificationProcess != null)
+                {
+                    var prismaStats = await _identificationService.GetPrismaStatisticsAsync(process.Id, cancellationToken);
+                    importedCount = prismaStats.UniqueRecords;
+                }
 
-            var studySelectionProcessIds = reviewProcesses
-                .Where(x => x.StudySelectionProcess != null)
-                .Select(x => x.StudySelectionProcess!.Id)
-                .ToList();
+                if (process.StudySelectionProcess != null)
+                {
+                    var selectionStats = await _studySelectionService.GetPhaseStatisticsAsync(process.StudySelectionProcess.Id, ScreeningPhase.FullText, cancellationToken);
+                    includeCount = selectionStats.IncludedCount;
+                    excludeCount = selectionStats.ExcludedCount;
+                }
 
-            var includeCountByProcess = await _unitOfWork.ScreeningResolutions.GetQueryable()
-                .AsNoTracking()
-                .Where(x => studySelectionProcessIds.Contains(x.StudySelectionProcessId) && x.FinalDecision == ScreeningDecisionType.Include)
-                .GroupBy(x => x.StudySelectionProcessId)
-                .Select(g => new { g.Key, Count = g.Select(x => x.PaperId).Distinct().Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
-
-            var excludeCountByProcess = await _unitOfWork.ScreeningResolutions.GetQueryable()
-                .AsNoTracking()
-                .Where(x => studySelectionProcessIds.Contains(x.StudySelectionProcessId) && x.FinalDecision == ScreeningDecisionType.Exclude)
-                .GroupBy(x => x.StudySelectionProcessId)
-                .Select(g => new { g.Key, Count = g.Select(x => x.PaperId).Distinct().Count() })
-                .ToDictionaryAsync(x => x.Key, x => x.Count, cancellationToken);
-
-            return reviewProcesses
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(process => new ReviewProcessSnapshotResponse
+                responses.Add(new ReviewProcessSnapshotResponse
                 {
                     ProcessId = process.Id,
                     ProcessName = process.Name,
@@ -438,20 +424,13 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     StartAt = process.StartedAt,
                     CompletedAt = process.CompletedAt,
                     ProgressPercent = CalculateProgressPercent(process),
-                    TotalPapersImported = process.IdentificationProcess != null &&
-                                         importedCountByProcess.TryGetValue(process.IdentificationProcess.Id, out var importedCount)
-                        ? importedCount
-                        : 0,
-                    TotalIncludedPapers = process.StudySelectionProcess != null &&
-                                          includeCountByProcess.TryGetValue(process.StudySelectionProcess.Id, out var includeCount)
-                        ? includeCount
-                        : 0,
-                    TotalExcludedPapers = process.StudySelectionProcess != null &&
-                                          excludeCountByProcess.TryGetValue(process.StudySelectionProcess.Id, out var excludeCount)
-                        ? excludeCount
-                        : 0
-                })
-                .ToList();
+                    TotalPapersImported = importedCount,
+                    TotalIncludedPapers = includeCount,
+                    TotalExcludedPapers = excludeCount
+                });
+            }
+
+            return responses;
         }
 
         public async Task<AddPapersToReviewProcessResponse> AddSelectedPapersAsync(

@@ -1,6 +1,7 @@
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.GrobidClient;
 
@@ -40,7 +41,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid paperId,
             SubmitScreeningDecisionRequest request,
             CancellationToken cancellationToken = default);
-        
+
 
 
 
@@ -138,19 +139,13 @@ namespace SRSS.IAM.Services.StudySelectionService
             CancellationToken cancellationToken = default);
 
         // Issue 2: Full-text upload/link management
-        Task<PaperWithDecisionsResponse> UpdatePaperFullTextAsync(
-            Guid studySelectionProcessId,
+        Task<PaperDetailsResponse> UpdatePaperFullTextAsync(
             Guid paperId,
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default);
 
-        Task MarkPaperAsNotRetrievedAsync(
-            Guid studySelectionProcessId,
-            Guid paperId,
-            CancellationToken cancellationToken = default);
 
         Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
-            Guid studySelectionProcessId,
             Guid paperId,
             RetryExtractionRequest request,
             CancellationToken cancellationToken = default);

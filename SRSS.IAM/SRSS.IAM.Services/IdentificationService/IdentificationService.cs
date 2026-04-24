@@ -1024,7 +1024,7 @@ namespace SRSS.IAM.Services.IdentificationService
         //             ConfidenceScore = match.ConfidenceScore,
         //             Notes = $"Snapshot duplicate detected ({match.Strategy} match).",
         //             ReviewStatus = match.ConfidenceScore >= 0.95m
-        //                 ? DeduplicationReviewStatus.Confirmed
+        //                 ? DeduplicationReviewStatus.Resolved
         //                 : DeduplicationReviewStatus.Pending,
         //             ResolvedDecision = match.ConfidenceScore >= 0.95m
         //                 ? DuplicateResolutionDecision.CANCEL

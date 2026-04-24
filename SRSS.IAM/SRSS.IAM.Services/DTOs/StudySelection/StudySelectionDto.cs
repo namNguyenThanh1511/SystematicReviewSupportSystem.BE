@@ -257,6 +257,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string? EISSN { get; set; }
         public string? Md5 { get; set; }
         public List<string> UpdatedFields { get; set; } = new();
+        public List<string> SuggestedFields { get; set; } = new();
     }
 
     public class ApplyMetadataRequest

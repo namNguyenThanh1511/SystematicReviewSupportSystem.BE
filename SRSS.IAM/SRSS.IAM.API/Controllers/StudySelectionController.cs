@@ -426,29 +426,16 @@ namespace SRSS.IAM.API.Controllers
         /// <summary>
         /// Update full-text link (PDF URL / web URL) for a paper (Issue 2)
         /// </summary>
-        [HttpPost("study-selection/{id}/papers/{paperId}/full-text")]
-        public async Task<ActionResult<ApiResponse<PaperWithDecisionsResponse>>> UpdatePaperFullText(
-            [FromRoute] Guid id,
+        [HttpPost("papers/{paperId}/full-text")]
+        public async Task<ActionResult<ApiResponse<PaperDetailsResponse>>> UpdatePaperFullText(
             [FromRoute] Guid paperId,
             [FromBody] UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _studySelectionService.UpdatePaperFullTextAsync(id, paperId, request, cancellationToken);
+            var result = await _studySelectionService.UpdatePaperFullTextAsync(paperId, request, cancellationToken);
             return Ok(result, "Paper full-text updated successfully.");
         }
 
-        /// <summary>
-        /// Mark a paper as not retrieved for full-text.
-        /// </summary>
-        [HttpPost("study-selection/{id}/papers/{paperId}/full-text/not-retrieved")]
-        public async Task<ActionResult<ApiResponse<bool>>> MarkPaperAsNotRetrieved(
-            [FromRoute] Guid id,
-            [FromRoute] Guid paperId,
-            CancellationToken cancellationToken)
-        {
-            await _studySelectionService.MarkPaperAsNotRetrievedAsync(id, paperId, cancellationToken);
-            return Ok(true, "Paper marked as not retrieved successfully.");
-        }
 
         /// <summary>
         /// Save multiple included papers for FullText phase

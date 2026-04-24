@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
     public class ReferenceMatchingService : IReferenceMatchingService
     {
         private readonly IUnitOfWork _unitOfWork;
-        
+
         private static readonly HashSet<string> Stopwords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "the", "for", "and", "of", "to", "in", "using", "a", "an", "on", "with", "as", "by", "at", "it", "from"
@@ -143,7 +143,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             foreach (var candidate in candidates)
             {
                 var candidateNormalizedTitle = NormalizeText(candidate.Title);
-                
+
                 // Step 3: Title Similarity (Fuzzy Matching)
                 decimal titleScore = 0;
                 MatchStrategy currentStrategy = MatchStrategy.None;
@@ -201,7 +201,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             }
 
             // Match Selection
-            if (bestMatch != null && highestScore >= 0.6m) 
+            if (bestMatch != null && highestScore >= 0.6m)
             {
                 if (highestScore < 0.75m)
                 {
@@ -238,7 +238,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
 
             var cancelledDuplicates = await _unitOfWork.DeduplicationResults.FindAllAsync(
                 dr => dr.ProjectId == projectId
-                    && dr.ReviewStatus == DeduplicationReviewStatus.Confirmed
+                    && dr.ReviewStatus == DeduplicationReviewStatus.Resolved
                     && dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL,
                 cancellationToken: cancellationToken);
 
@@ -448,86 +448,6 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             }
 
             return bestMatch.ConfidenceScore >= 0.7m ? bestMatch : new MatchResult { ConfidenceScore = 0 };
-        }
-
-        private async Task<MatchResult?> FindSemanticMatchInProcessAsync(
-            float[] embedding,
-            ExtractedReference reference,
-            Guid identificationProcessId,
-            CancellationToken cancellationToken)
-        {
-            // Retrieve top-5 nearest candidates for metadata veto filtering
-            var nearestEmbeddings = await _unitOfWork.PaperEmbeddings.FindClosestByCosineDistanceInIdentificationProcessAsync(
-                embedding,
-                identificationProcessId,
-                cancellationToken,
-                take: 5);
-
-            if (!nearestEmbeddings.Any())
-            {
-                return null;
-            }
-
-            // Extract reference metadata for cross-check
-            int? refYear = int.TryParse(reference.PublishedYear, out var ry) ? ry : null;
-            var refAuthorTokens = ExtractAuthorTokens(reference.Authors);
-
-            foreach (var candidateEmbedding in nearestEmbeddings)
-            {
-                if (candidateEmbedding.Paper == null) continue;
-
-                var similarity = CosineSimilarity(embedding, candidateEmbedding.Embedding.ToArray());
-
-                // Hard threshold: reject anything below 0.85
-                if (similarity < 0.85f)
-                {
-                    continue;
-                }
-
-                // Near-exact semantic match (>= 0.95): accept unconditionally
-                if (similarity < 0.95f)
-                {
-                    // Metadata cross-check veto for sub-0.95 matches
-                    var candidatePaper = candidateEmbedding.Paper;
-
-                    // Year veto: reject if year difference > 2
-                    if (refYear.HasValue && candidatePaper.PublicationYearInt.HasValue)
-                    {
-                        if (Math.Abs(refYear.Value - candidatePaper.PublicationYearInt.Value) > 2)
-                        {
-                            _logger.LogDebug(
-                                "Semantic match vetoed by year difference: ref={RefYear}, candidate={CandYear}, similarity={Similarity}",
-                                refYear.Value, candidatePaper.PublicationYearInt.Value, similarity);
-                            continue;
-                        }
-                    }
-
-                    // Author veto: reject if author overlap < 0.3
-                    var candidateAuthorTokens = ExtractAuthorTokens(candidatePaper.Authors);
-                    if (refAuthorTokens.Any() && candidateAuthorTokens.Any())
-                    {
-                        var authorScore = ComputeAuthorScore(refAuthorTokens, candidateAuthorTokens);
-                        if (authorScore < 0.3m)
-                        {
-                            _logger.LogDebug(
-                                "Semantic match vetoed by low author score: {AuthorScore}, similarity={Similarity}",
-                                authorScore, similarity);
-                            continue;
-                        }
-                    }
-                }
-
-                // Candidate passed all veto checks
-                return new MatchResult
-                {
-                    MatchedPaper = candidateEmbedding.Paper,
-                    MatchedPaperId = candidateEmbedding.PaperId,
-                    ConfidenceScore = (decimal)similarity,
-                    Strategy = MatchStrategy.Semantic
-                };
-            }
-
-            return null;
         }
 
         private Task<MatchResult?> FindSemanticMatchInCandidatesAsync(
@@ -768,13 +688,13 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
         private decimal ComputeTitleScore(string a, string b)
         {
             if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return 0;
-            
+
             var tokensA = Tokenize(a);
             var tokensB = Tokenize(b);
-            
+
             var jaccard = ComputeJaccard(tokensA, tokensB);
             var levenshtein = ComputeLevenshteinSimilarity(a, b);
-            
+
             return (jaccard * 0.6m) + (levenshtein * 0.4m);
         }
 
@@ -787,14 +707,14 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
         private string NormalizeText(string? input)
         {
             if (string.IsNullOrWhiteSpace(input)) return string.Empty;
-            
+
             var text = input.ToLowerInvariant();
             text = Regex.Replace(text, @"[^\w\s]", " "); // Replace punctuation with space
             text = Regex.Replace(text, @"\s+", " ");    // Collapse whitespace
-            
+
             var tokens = text.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                              .Where(t => !Stopwords.Contains(t));
-                             
+
             return string.Join(" ", tokens).Trim();
         }
 
@@ -807,7 +727,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
         private decimal ComputeJaccard(List<string> a, List<string> b)
         {
             if (!a.Any() || !b.Any()) return 0m;
-            
+
             int intersection = 0;
             var usedB = new bool[b.Count];
 
@@ -833,7 +753,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             if (a == b) return true;
             if (a.Length > 3 && b.Length > 3)
             {
-                return a.StartsWith(b, StringComparison.OrdinalIgnoreCase) || 
+                return a.StartsWith(b, StringComparison.OrdinalIgnoreCase) ||
                        b.StartsWith(a, StringComparison.OrdinalIgnoreCase);
             }
             return false;
@@ -917,7 +837,7 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
             int? refYear = int.TryParse(reference.PublishedYear, out var y) ? y : null;
             var normalizedTitle = NormalizeText(reference.Title);
             var tokens = Tokenize(normalizedTitle);
-            
+
             // Extract top 3 keywords (longest meaningful tokens)
             var topKeywords = tokens
                 .Where(t => t.Length > 3)
@@ -935,8 +855,8 @@ namespace SRSS.IAM.Services.ReferenceMatchingService
                 }
 
                 // Rule 2: Journal match (if available)
-                if (!string.IsNullOrWhiteSpace(reference.Journal) && 
-                    !string.IsNullOrWhiteSpace(p.Journal) && 
+                if (!string.IsNullOrWhiteSpace(reference.Journal) &&
+                    !string.IsNullOrWhiteSpace(p.Journal) &&
                     reference.Journal.Equals(p.Journal, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;

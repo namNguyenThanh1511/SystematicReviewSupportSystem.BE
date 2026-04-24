@@ -10,6 +10,7 @@ using SRSS.IAM.Services.StudySelectionService;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Services.DTOs.Identification;
+using System.Globalization;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -760,13 +761,13 @@ namespace SRSS.IAM.Services.PaperService
 
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDeleted = true;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
             {
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDeleted = false;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
@@ -955,14 +956,14 @@ namespace SRSS.IAM.Services.PaperService
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
                 // Confirmed duplicate — soft-delete the duplicate paper.
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDeleted = true;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
             {
                 // Not a duplicate — both papers remain visible.
-                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Confirmed;
+                deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDeleted = false;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
@@ -1024,7 +1025,7 @@ namespace SRSS.IAM.Services.PaperService
                 PaperId = paperId,
                 DuplicateOfPaperId = request.DuplicateOfPaperId,
                 Method = DeduplicationMethod.MANUAL,
-                ReviewStatus = DeduplicationReviewStatus.Confirmed,
+                ReviewStatus = DeduplicationReviewStatus.Resolved,
                 ResolvedDecision = DuplicateResolutionDecision.CANCEL,
                 ConfidenceScore = 1.0m,
                 Notes = request.Reason,
@@ -1367,11 +1368,13 @@ namespace SRSS.IAM.Services.PaperService
             // Apply selected fields
             await _metadataMergeService.MergeSelectedFieldsAsync(paper, sourceMetadata, request.Fields);
 
-
+            var normalizedFields = request.Fields
+            .Select(f => NormalizeFieldName(f))
+            .ToList();
             // Track provenance: merge new fields with previously applied ones
             sourceMetadata.AppliedFields = sourceMetadata.AppliedFields
-                .Union(request.Fields)
-                .Distinct()
+                .Union(normalizedFields)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             sourceMetadata.ModifiedAt = DateTimeOffset.UtcNow;
@@ -1389,6 +1392,15 @@ namespace SRSS.IAM.Services.PaperService
             return await MapToPaperResponseAsync(paper, null, null, cancellationToken);
         }
 
+        private string NormalizeFieldName(string field)
+        {
+            return field.Trim().ToLowerInvariant() switch
+            {
+                "md5" => "Md5",
+                "eissn" => "EISSN",
+                _ => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(field.ToLower())
+            };
+        }
 
 
         public async Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(

@@ -14,6 +14,8 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.NotificationService;
 using System.Xml.Linq;
+using SRSS.IAM.Services.OpenRouter;
+
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -27,6 +29,8 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IRagRetrievalService _ragRetrievalService;
         private readonly IRagIngestionQueue _ragQueue;
         private readonly INotificationService _notificationService;
+        private readonly IOpenRouterService _openRouterService;
+
 
         public DataExtractionConductingService(
             IUnitOfWork unitOfWork,
@@ -36,7 +40,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             IConfiguration configuration,
             IRagRetrievalService ragRetrievalService,
             IRagIngestionQueue ragQueue,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IOpenRouterService openRouterService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
@@ -46,7 +51,9 @@ namespace SRSS.IAM.Services.DataExtractionService
             _ragRetrievalService = ragRetrievalService;
             _ragQueue = ragQueue;
             _notificationService = notificationService;
+            _openRouterService = openRouterService;
         }
+
 
         private async Task SyncEligiblePapersAsync(Guid extractionProcessId, CancellationToken cancellationToken = default)
         {
@@ -1350,112 +1357,31 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             var schemaJson = JsonSerializer.Serialize(schemaObj, new JsonSerializerOptions { WriteIndented = true });
 
-            // 5. Call Gemini
-            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
-            if (string.IsNullOrWhiteSpace(apiKey))
-            {
-                throw new InvalidOperationException("Gemini API key is not configured.");
-            }
-
-            Console.WriteLine("clear text: " + cleanPaperText);
-
+            // 5. Call OpenRouter
             string prompt = $@"
 You are an expert academic researcher. 
 I will provide you with a PAPER TEXT and an extraction SCHEMA.
 Your task is to extract the correct answers from the PAPER TEXT according to the SCHEMA.
-For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' provided in the schema.
-You MUST return ONLY a JSON array that exactly matches the following structure:
-[
-  {{
-    ""FieldId"": ""uuid"",
-    ""OptionId"": ""uuid or null"",
-    ""StringValue"": ""extracted text or null"",
-    ""NumericValue"": decimal or null,
-    ""BooleanValue"": boolean or null,
-    ""MatrixColumnId"": ""uuid or null"",
-    ""MatrixRowIndex"": int or null
-  }}
-]
-Do not include any other markdown formatting like ```json or comments. 
-If no data is found for a field, omit it or leave values as null.
 
-=== SCHEMA ===
+### INSTRUCTIONS
+1. For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' provided in the schema.
+2. If no data is found for a field, omit it or leave values as null.
+3. You MUST return ONLY a JSON array that exactly matches the structure of List<ExtractedValueDto>.
+
+### OUTPUT STRUCTURE ENFORCEMENT
+1. STRICT JSON OUTPUT: The output MUST be a single valid JSON array. 
+2. NO MARKDOWN WRAPPER: Do NOT wrap the JSON inside markdown (no ```json). 
+3. NO EXPLANATIONS: Do NOT include explanations outside JSON. Do NOT include text before or after the JSON.
+
+### SCHEMA
 {schemaJson}
 
-=== PAPER TEXT ===
+### PAPER TEXT
 {cleanPaperText}
 ";
 
-            var requestPayload = new
-            {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = prompt }
-                        }
-                    }
-                },
-                generationConfig = new
-                {
-                    responseMimeType = "application/json"
-                }
-            };
-
-            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
-            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload);
-
-            if (!geminiResponse.IsSuccessStatusCode)
-            {
-                var errorStr = await geminiResponse.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Gemini API error: {errorStr}");
-            }
-
-            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>();
-            try
-            {
-                var responseText = geminiResult?.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString();
-
-                if (string.IsNullOrWhiteSpace(responseText))
-                    return new List<ExtractedValueDto>();
-
-                responseText = responseText.Trim();
-                if (responseText.StartsWith("```json"))
-                {
-                    responseText = responseText.Substring(7);
-                }
-                if (responseText.StartsWith("```"))
-                {
-                    responseText = responseText.Substring(3);
-                }
-                if (responseText.EndsWith("```"))
-                {
-                    responseText = responseText.Substring(0, responseText.Length - 3);
-                }
-                responseText = responseText.Trim();
-
-                var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                // var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
-                // {
-                //     PropertyNameCaseInsensitive = true
-                // });
-
-                return extractedValues ?? new List<ExtractedValueDto>();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to parse Gemini response.", ex);
-            }
+            var extractedValues = await _openRouterService.GenerateStructuredContentAsync<List<ExtractedValueDto>>(prompt);
+            return extractedValues ?? new List<ExtractedValueDto>();
         }
 
         public async Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default)
@@ -1505,10 +1431,7 @@ If no data is found for a field, omit it or leave values as null.
             string combinedCoordinates = JsonSerializer.Serialize(coordinatesList);
             string combinedContext = textContextBuilder.ToString();
 
-            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new InvalidOperationException("Gemini API key is not configured.");
-
+            // 5. Call OpenRouter
             string optionsInstruction = string.IsNullOrWhiteSpace(request.OptionsJson)
                 ? ""
                 : $"\nValid Options (JSON format: [OptionId, Value]): {request.OptionsJson}\nYou MUST match your extracted answer to ONE of the OptionIds provided above if applicable.\n";
@@ -1517,85 +1440,32 @@ If no data is found for a field, omit it or leave values as null.
 You are an expert academic researcher. 
 Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
 
-Field Name: {request.FieldName}
-Field Type: {request.FieldType}
-Instructions: {request.FieldInstruction}
+### FIELD DETAILS
+- Field Name: {request.FieldName}
+- Field Type: {request.FieldType}
+- Instructions: {request.FieldInstruction}
 {optionsInstruction}
 
-You MUST return ONLY a JSON object that exactly matches the following structure (ExtractedValueDto):
-{{
-  ""FieldId"": ""{request.FieldId}"",
-  ""OptionId"": ""uuid or null"",
-  ""StringValue"": ""extracted text or null"",
-  ""NumericValue"": decimal or null,
-  ""BooleanValue"": boolean or null
-}}
+### OUTPUT STRUCTURE ENFORCEMENT
+1. STRICT JSON OUTPUT: The output MUST be a single valid JSON object matching ExtractedValueDto. 
+2. NO MARKDOWN WRAPPER: Do NOT wrap the JSON inside markdown (no ```json). 
+3. NO EXPLANATIONS: Do NOT include explanations outside JSON. Do NOT include text before or after the JSON.
 
-Do not include any other markdown formatting like ```json or comments. 
-If no relevant data is found in the context, return a JSON object with null values for OptionId, StringValue, NumericValue, and BooleanValue.
-
-=== PAPER CONTEXT ===
+### PAPER CONTEXT
 {combinedContext}
 ";
 
-            var requestPayload = new
-            {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[] { new { text = prompt } }
-                    }
-                },
-                generationConfig = new { responseMimeType = "application/json" }
-            };
+            var extractedValue = await _openRouterService.GenerateStructuredContentAsync<ExtractedValueDto>(prompt, ct: cancellationToken);
 
-            var httpClient = _httpClientFactory.CreateClient();
-            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
-            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload, cancellationToken);
-
-            if (!geminiResponse.IsSuccessStatusCode)
+            if (extractedValue != null)
             {
-                var errorStr = await geminiResponse.Content.ReadAsStringAsync(cancellationToken);
-                throw new InvalidOperationException($"Gemini API error: {errorStr}");
+                extractedValue.FieldId = request.FieldId;
+                extractedValue.EvidenceCoordinates = combinedCoordinates;
+                extractedValue.MatrixColumnId = request.MatrixColumnId;
+                extractedValue.MatrixRowIndex = request.MatrixRowIndex;
             }
 
-            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
-            try
-            {
-                var responseText = geminiResult?.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString();
-
-                if (string.IsNullOrWhiteSpace(responseText))
-                    return null;
-
-                responseText = responseText.Trim();
-                if (responseText.StartsWith("```json")) responseText = responseText.Substring(7);
-                if (responseText.StartsWith("```")) responseText = responseText.Substring(3);
-                if (responseText.EndsWith("```")) responseText = responseText.Substring(0, responseText.Length - 3);
-                responseText = responseText.Trim();
-
-                var extractedValue = JsonSerializer.Deserialize<ExtractedValueDto>(responseText, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (extractedValue != null)
-                {
-                    extractedValue.EvidenceCoordinates = combinedCoordinates;
-                    extractedValue.MatrixColumnId = request.MatrixColumnId;
-                    extractedValue.MatrixRowIndex = request.MatrixRowIndex;
-                }
-
-                return extractedValue;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to parse Gemini response for single field.", ex);
-            }
+            return extractedValue;
         }
 
         public async Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken)

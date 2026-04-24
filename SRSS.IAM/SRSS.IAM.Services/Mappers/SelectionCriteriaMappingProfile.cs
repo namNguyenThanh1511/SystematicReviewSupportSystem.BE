@@ -12,7 +12,9 @@ namespace SRSS.IAM.Services.Mappers
 			{
 				CriteriaId = entity.Id,
 				StudySelectionProcessId = entity.StudySelectionProcessId,
-				Description = entity.Description
+				Description = entity.Description,
+				InclusionCriteria = entity.InclusionCriteria?.Select(i => i.ToDto()).ToList() ?? new(),
+				ExclusionCriteria = entity.ExclusionCriteria?.Select(e => e.ToDto()).ToList() ?? new()
 			};
 		}
 

@@ -11,7 +11,10 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 
 		public async Task<IEnumerable<StudySelectionCriteria>> GetByStudySelectionProcessIdAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(c => c.StudySelectionProcessId == studySelectionProcessId, isTracking: false, cancellationToken);
+			return await GetQueryable(c => c.StudySelectionProcessId == studySelectionProcessId, isTracking: false)
+				.Include(c => c.InclusionCriteria)
+				.Include(c => c.ExclusionCriteria)
+				.ToListAsync(cancellationToken);
 		}
 	}
 

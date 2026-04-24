@@ -11,6 +11,9 @@ namespace SRSS.IAM.Services.DTOs.SelectionCriteria
 
 		[StringLength(2000, ErrorMessage = "Description không được vượt quá 2000 ký tự")]
 		public string? Description { get; set; }
+
+		public List<InclusionCriterionDto> InclusionCriteria { get; set; } = new();
+		public List<ExclusionCriterionDto> ExclusionCriteria { get; set; } = new();
 	}
 
 	public class InclusionCriterionDto

@@ -18,5 +18,10 @@ namespace SRSS.IAM.Services.DataExtractionService
         /// Validate template structure without saving to database
         /// </summary>
         Task<TemplateValidationResultDto> ValidateTemplateAsync(ExtractionTemplateDto dto);
+
+        /// <summary>
+        /// AI suggests extraction fields based on section name/context (RQ)
+        /// </summary>
+        Task<List<ExtractionFieldDto>> SuggestFieldsForSectionAsync(string sectionName, string projectContext = "");
     }
 }

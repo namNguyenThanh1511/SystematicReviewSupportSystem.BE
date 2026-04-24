@@ -547,7 +547,7 @@ namespace SRSS.IAM.API.Controllers
         /// Get papers eligible for Title/Abstract screening (Step 1)
         /// </summary>
         [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
-        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
+        public async Task<ActionResult<ApiResponse<SimplifiedPapersResponse>>> GetTitleAbstractEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
             [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
@@ -560,7 +560,7 @@ namespace SRSS.IAM.API.Controllers
         /// Get papers eligible for Full-Text screening (Step 2)
         /// </summary>
         [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
-        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
+        public async Task<ActionResult<ApiResponse<SimplifiedPapersResponse>>> GetFullTextEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
             [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)

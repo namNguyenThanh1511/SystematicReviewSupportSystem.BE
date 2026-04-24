@@ -50,6 +50,7 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                 .AsNoTracking()
                 .Include(ssp => ssp.ScreeningDecisions)
                 .Include(ssp => ssp.ScreeningResolutions)
+                .Include(ssp => ssp.PaperAssignments)
                 .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
         }
 

@@ -587,6 +587,40 @@ namespace SRSS.IAM.Services.StudySelectionService
             };
         }
 
+        public async Task<List<PaperConflictStatusResponse>> GetPaperConflictStatusesAsync(
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch resolved paper IDs separately to avoid correlated subqueries
+            var resolvedPaperIds = (await _unitOfWork.ScreeningResolutions.GetQueryable(
+                sr => sr.StudySelectionProcessId == studySelectionProcessId && sr.Phase == phase,
+                isTracking: false)
+                .Select(sr => sr.PaperId)
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
+            // 2. Query decision groupings (Include/Exclude flags per paper)
+            var decisionConflicts = await _unitOfWork.ScreeningDecisions.GetQueryable(
+                sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase,
+                isTracking: false)
+                .GroupBy(sd => sd.PaperId)
+                .Select(g => new
+                {
+                    PaperId = g.Key,
+                    HasInclude = g.Any(d => d.Decision == ScreeningDecisionType.Include),
+                    HasExclude = g.Any(d => d.Decision == ScreeningDecisionType.Exclude)
+                })
+                .ToListAsync(cancellationToken);
+
+            // 3. Compute final conflict status using in-memory lookup
+            return decisionConflicts.Select(dc => new PaperConflictStatusResponse
+            {
+                PaperId = dc.PaperId,
+                HasConflict = !resolvedPaperIds.Contains(dc.PaperId) && dc.HasInclude && dc.HasExclude
+            }).ToList();
+        }
+
         public async Task<ScreeningResolutionResponse> ResolveConflictAsync(
             Guid studySelectionProcessId,
             Guid paperId,

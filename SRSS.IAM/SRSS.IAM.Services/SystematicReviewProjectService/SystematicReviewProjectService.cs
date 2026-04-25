@@ -21,6 +21,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             _currentUserService = currentUserService;
         }
 
+        private static readonly Random _random = new Random();
+
         public async Task<SystematicReviewProjectResponse> CreateProjectAsync(
             CreateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken = default)
@@ -30,10 +32,16 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 throw new ArgumentException("Title is required.", nameof(request.Title));
             }
 
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var random = _random.Next(1000); // 0–999
+
+            var code = $"SLR{(now + random) % 1_000_000:D6}";
+
             var project = new Repositories.Entities.SystematicReviewProject
             {
                 Id = Guid.NewGuid(),
                 Title = request.Title,
+                Code = code,
                 Domain = request.Domain,
                 Description = request.Description,
                 Status = ProjectStatus.Draft,
@@ -97,6 +105,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
 
             var projects = await query
                 .Include(p => p.ReviewProcesses)
+                .Include(p => p.ProjectMembers)
+                    .ThenInclude(pm => pm.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -341,14 +351,11 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 .OrderByDescending(m => m.Project.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync(cancellationToken);
-
-            return new PaginatedResponse<MyProjectResponse>
-            {
-                Items = memberships.Select(m => new MyProjectResponse
+                .Select(m => new MyProjectResponse
                 {
                     Id = m.ProjectId,
                     Title = m.Project.Title,
+                    Code = m.Project.Code,
                     Domain = m.Project.Domain,
                     Description = m.Project.Description,
                     Status = m.Project.Status,
@@ -359,8 +366,22 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     StartDate = m.Project.StartDate,
                     EndDate = m.Project.EndDate,
                     CreatedAt = m.Project.CreatedAt,
-                    ModifiedAt = m.Project.ModifiedAt
-                }).ToList(),
+                    ModifiedAt = m.Project.ModifiedAt,
+                    Leader = m.Project.ProjectMembers
+                        .Where(pm => pm.Role == ProjectRole.Leader)
+                        .Select(pm => new ProjectLeaderDto
+                        {
+                            UserId = pm.UserId,
+                            FullName = pm.User.FullName,
+                            Username = pm.User.Username,
+                            Email = pm.User.Email
+                        }).FirstOrDefault()
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<MyProjectResponse>
+            {
+                Items = memberships,
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
@@ -492,6 +513,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             {
                 Id = project.Id,
                 Title = project.Title,
+                Code = project.Code,
                 Domain = project.Domain,
                 Description = project.Description,
                 Status = project.Status,
@@ -509,7 +531,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     StatusText = p.Status.ToString(),
                     StartedAt = p.StartedAt,
                     CompletedAt = p.CompletedAt
-                }).ToList()
+                }).ToList(),
+                Leader = MapToLeaderDto(project.ProjectMembers)
             };
         }
 
@@ -519,6 +542,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             {
                 Id = project.Id,
                 Title = project.Title,
+                Code = project.Code,
                 Domain = project.Domain,
                 Description = project.Description,
                 Status = project.Status,
@@ -541,7 +565,22 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     Notes = p.Notes,
                     CreatedAt = p.CreatedAt,
                     ModifiedAt = p.ModifiedAt
-                }).ToList()
+                }).ToList(),
+                Leader = MapToLeaderDto(project.ProjectMembers)
+            };
+        }
+
+        private static ProjectLeaderDto? MapToLeaderDto(IEnumerable<ProjectMember> members)
+        {
+            var leader = members?.FirstOrDefault(m => m.Role == ProjectRole.Leader);
+            if (leader == null || leader.User == null) return null;
+
+            return new ProjectLeaderDto
+            {
+                UserId = leader.UserId,
+                FullName = leader.User.FullName,
+                Username = leader.User.Username,
+                Email = leader.User.Email
             };
         }
     }

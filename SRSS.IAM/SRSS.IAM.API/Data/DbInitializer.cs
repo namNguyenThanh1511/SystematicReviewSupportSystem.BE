@@ -288,8 +288,8 @@ namespace SRSS.IAM.API.Data
             await SeedProjectsAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
-            await SeedCoreGovernanceAsync(context); 
-            await SeedReviewProcessesAsync(context); 
+            await SeedCoreGovernanceAsync(context);
+            await SeedReviewProcessesAsync(context);
 
             // Seed Processes first to satisfy foreign key dependencies
             await SeedIdentificationProcessesAsync(context);
@@ -302,7 +302,7 @@ namespace SRSS.IAM.API.Data
             await SeedSearchSourcesAsync(context);
             await SeedStudySelectionCriteriaAsync(context);
             await SeedQualityAssessmentAsync(context);
-            await SeedDataExtractionTemplateAsync(context); 
+            await SeedDataExtractionTemplateAsync(context);
             await SeedDataSynthesisAsync(context);
 
             await SeedImportBatchesAsync(context);
@@ -413,7 +413,11 @@ namespace SRSS.IAM.API.Data
 
         private static async Task SeedProjectsAsync(AppDbContext context)
         {
-            if (await context.SystematicReviewProjects.AnyAsync(x => x.Id == HarProjectId || x.Id == ScientificLiteracyProjectId))
+            if (await context.SystematicReviewProjects.AnyAsync(x =>
+                x.Id == HarProjectId ||
+                x.Id == ScientificLiteracyProjectId ||
+                x.Code == "SLR111111" ||
+                x.Code == "SLR222222"))
             {
                 return;
             }
@@ -422,6 +426,7 @@ namespace SRSS.IAM.API.Data
                 new SystematicReviewProject{
                     Id = HarProjectId,
                     Title = "AI-based Human Activity Recognition",
+                    Code = "SLR111111",
                     Domain = "Computer Science",
                     Description = "Systematic review of AI-based HAR approaches using deep learning and machine learning techniques",
                     Status = ProjectStatus.Active,
@@ -432,6 +437,7 @@ namespace SRSS.IAM.API.Data
                 new SystematicReviewProject{
                     Id = ScientificLiteracyProjectId,
                     Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+                    Code = "SLR222222",
                     Domain = "Science Education",
                     Description = "A systematic literature review investigating definitions, strategies, and research trends related to empowering scientific literacy among science teachers.",
                     Status = ProjectStatus.Completed,
@@ -565,7 +571,7 @@ namespace SRSS.IAM.API.Data
             await context.SaveChangesAsync();
         }
 
-       
+
 
         private static async Task SeedImportBatchesAsync(AppDbContext context)
         {

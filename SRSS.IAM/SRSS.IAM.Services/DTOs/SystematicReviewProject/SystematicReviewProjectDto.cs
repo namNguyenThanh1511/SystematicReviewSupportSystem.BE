@@ -30,6 +30,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string? Description { get; set; }
         public ProjectStatus Status { get; set; }
@@ -41,12 +42,14 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public int TotalProcesses { get; set; }
         public int CompletedProcesses { get; set; }
         public List<ReviewProcessSummaryDto> Processes { get; set; } = new();
+        public ProjectLeaderDto? Leader { get; set; }
     }
 
     public class SystematicReviewProjectDetailResponse
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string? Description { get; set; }
         public ProjectStatus Status { get; set; }
@@ -57,6 +60,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
         public List<ReviewProcessResponse> ReviewProcesses { get; set; } = new();
+        public ProjectLeaderDto? Leader { get; set; }
     }
 
     public class ReviewProcessSummaryDto
@@ -75,6 +79,7 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
     {
         public Guid Id { get; set; }
         public string Title { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string? Description { get; set; }
         public ProjectStatus Status { get; set; }
@@ -86,12 +91,21 @@ namespace SRSS.IAM.Services.DTOs.SystematicReviewProject
         public DateTimeOffset? EndDate { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
+        public ProjectLeaderDto? Leader { get; set; }
     }
 
     public class ProjectMembershipResponse
     {
         public ProjectRole Role { get; set; }
         public string RoleText { get; set; } = string.Empty;
+    }
+
+    public class ProjectLeaderDto
+    {
+        public Guid UserId { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
     }
 }
 

@@ -187,6 +187,7 @@ public class OpenRouterService : IOpenRouterService
                 ReadCommentHandling = JsonCommentHandling.Skip,
                 NumberHandling = JsonNumberHandling.AllowReadingFromString
             };
+            deserializedOptions.Converters.Add(new FlexibleStringConverter());
 
             try
             {
@@ -265,5 +266,35 @@ public class OpenRouterService : IOpenRouterService
             }
         }
         return sb.ToString();
+    }
+}
+
+public class FlexibleStringConverter : JsonConverter<string>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            return reader.GetString();
+        }
+
+        if (reader.TokenType == JsonTokenType.Number || 
+            reader.TokenType == JsonTokenType.True || 
+            reader.TokenType == JsonTokenType.False)
+        {
+            return Encoding.UTF8.GetString(reader.ValueSpan);
+        }
+
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+
+        return Encoding.UTF8.GetString(reader.ValueSpan);
+    }
+
+    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+    {
+        writer.WriteStringValue(value);
     }
 }

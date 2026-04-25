@@ -99,8 +99,18 @@ namespace SRSS.IAM.Services.DataExtractionService
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // ==========================================
-                // KÍCH HOẠT RAG INGESTION ĐÃ CHUYỂN SANG STUDY SELECTION COMPLETE
+                // KÍCH HOẠT RAG INGESTION
                 // ==========================================
+                var paperIds = newPapers.Select(t => t.PaperId).ToList();
+                var papers = await _unitOfWork.Papers
+                    .GetQueryable()
+                    .Where(p => paperIds.Contains(p.Id))
+                    .ToListAsync(cancellationToken);
+                foreach (var paper in papers)
+                {
+                    await _ragQueue.QueuePaperForIngestionAsync(paper.Id, paper.PdfUrl);
+                }
+
             }
         }
 
@@ -1359,19 +1369,29 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             // 5. Call OpenRouter
             string prompt = $@"
-You are an expert academic researcher. 
+You are an expert academic researcher specializing in Systematic Literature Reviews.
 I will provide you with a PAPER TEXT and an extraction SCHEMA.
 Your task is to extract the correct answers from the PAPER TEXT according to the SCHEMA.
 
-### INSTRUCTIONS
-1. For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' provided in the schema.
-2. If no data is found for a field, omit it or leave values as null.
-3. You MUST return ONLY a JSON array that exactly matches the structure of List<ExtractedValueDto>.
+### EXTRACTION RULES
+1. For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' (GUID) provided in the schema.
+2. For Text, Integer, or Decimal fields, provide the value in 'StringValue', 'NumericValue' as appropriate.
+3. If a field is not found in the text, you can omit it or set its values to null.
+4. For Matrix Grid sections, you MUST provide both 'FieldId', 'MatrixColumnId' (GUID), and 'MatrixRowIndex' (0-indexed).
 
-### OUTPUT STRUCTURE ENFORCEMENT
-1. STRICT JSON OUTPUT: The output MUST be a single valid JSON array. 
-2. NO MARKDOWN WRAPPER: Do NOT wrap the JSON inside markdown (no ```json). 
-3. NO EXPLANATIONS: Do NOT include explanations outside JSON. Do NOT include text before or after the JSON.
+### OUTPUT ENFORCEMENT
+- Return ONLY a JSON object with a property named ""ExtractedData"" containing an array of objects.
+- Each object in the array must follow the structure:
+  {{
+    ""FieldId"": ""GUID"",
+    ""OptionId"": ""GUID or null"",
+    ""StringValue"": ""string or null"",
+    ""NumericValue"": number or null,
+    ""BooleanValue"": boolean or null,
+    ""MatrixColumnId"": ""GUID or null"",
+    ""MatrixRowIndex"": number or null
+  }}
+- Do NOT include any explanations or markdown.
 
 ### SCHEMA
 {schemaJson}
@@ -1380,8 +1400,8 @@ Your task is to extract the correct answers from the PAPER TEXT according to the
 {cleanPaperText}
 ";
 
-            var extractedValues = await _openRouterService.GenerateStructuredContentAsync<List<ExtractedValueDto>>(prompt);
-            return extractedValues ?? new List<ExtractedValueDto>();
+            var response = await _openRouterService.GenerateStructuredContentAsync<AutoExtractionAiResponseDto>(prompt);
+            return response?.ExtractedData ?? new List<ExtractedValueDto>();
         }
 
         public async Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default)
@@ -1446,10 +1466,16 @@ Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
 - Instructions: {request.FieldInstruction}
 {optionsInstruction}
 
-### OUTPUT STRUCTURE ENFORCEMENT
-1. STRICT JSON OUTPUT: The output MUST be a single valid JSON object matching ExtractedValueDto. 
-2. NO MARKDOWN WRAPPER: Do NOT wrap the JSON inside markdown (no ```json). 
-3. NO EXPLANATIONS: Do NOT include explanations outside JSON. Do NOT include text before or after the JSON.
+### OUTPUT ENFORCEMENT
+- Return ONLY a JSON object matching the structure:
+  {{
+    ""FieldId"": ""{request.FieldId}"",
+    ""OptionId"": ""GUID or null"",
+    ""StringValue"": ""string or null"",
+    ""NumericValue"": number or null,
+    ""BooleanValue"": boolean or null
+  }}
+- Do NOT include any explanations, markdown code blocks, or text outside the JSON object.
 
 ### PAPER CONTEXT
 {combinedContext}

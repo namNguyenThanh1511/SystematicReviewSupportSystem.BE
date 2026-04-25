@@ -37,7 +37,13 @@ namespace SRSS.IAM.Services.SynthesisService
         // ==================== Data Synthesis Strategies ====================
         public async Task<DataSynthesisStrategyDto> UpsertSynthesisStrategyAsync(DataSynthesisStrategyDto dto)
         {
-            await EnsureLeaderAsync(dto.ProjectId);
+            var process = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.Id == dto.SynthesisProcessId)
+                ?? throw new KeyNotFoundException($"SynthesisProcess {dto.SynthesisProcessId} không tồn tại");
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException($"ReviewProcess {process.ReviewProcessId} không tồn tại");
+
+            await EnsureLeaderAsync(reviewProcess.ProjectId);
 
             DataSynthesisStrategy entity;
 
@@ -59,9 +65,9 @@ namespace SRSS.IAM.Services.SynthesisService
             return entity.ToDto();
         }
 
-        public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProjectIdAsync(Guid projectId)
+        public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProcessIdAsync(Guid processId)
         {
-            var entities = await _unitOfWork.SynthesisStrategies.GetByProjectIdAsync(projectId);
+            var entities = await _unitOfWork.SynthesisStrategies.GetByProcessIdAsync(processId);
             return entities.ToDtoList();
         }
 
@@ -70,7 +76,13 @@ namespace SRSS.IAM.Services.SynthesisService
             var entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == strategyId);
             if (entity != null)
             {
-                await EnsureLeaderAsync(entity.ProjectId);
+                var process = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.Id == entity.SynthesisProcessId)
+                    ?? throw new KeyNotFoundException($"SynthesisProcess {entity.SynthesisProcessId} không tồn tại");
+
+                var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                    ?? throw new KeyNotFoundException($"ReviewProcess {process.ReviewProcessId} không tồn tại");
+
+                await EnsureLeaderAsync(reviewProcess.ProjectId);
                 await _unitOfWork.SynthesisStrategies.RemoveAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
             }

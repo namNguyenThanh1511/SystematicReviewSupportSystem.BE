@@ -221,7 +221,16 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
 
             await _unitOfWork.SynthesisProcesses.UpdateAsync(synthesisProcess);
 
-            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq => rq.ProjectId == reviewProcess.ProjectId);
+            var strategy = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.SynthesisProcessId == synthesisProcess.Id);
+            var targetQuestionIds = strategy?.TargetResearchQuestionIds ?? new List<Guid>();
+
+            if (!targetQuestionIds.Any())
+            {
+                throw new InvalidOperationException("No target research questions selected in synthesis strategy.");
+            }
+
+            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq => 
+                rq.ProjectId == reviewProcess.ProjectId && targetQuestionIds.Contains(rq.Id));
 
             foreach (var rq in researchQuestions)
             {

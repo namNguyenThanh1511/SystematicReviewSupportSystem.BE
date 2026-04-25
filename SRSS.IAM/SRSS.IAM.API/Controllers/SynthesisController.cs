@@ -30,14 +30,11 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Lưu synthesis strategy thành công");
 		}
 
-		/// <summary>
-		/// Lấy tất cả Synthesis Strategies theo Project ID
-		/// </summary>
-		[HttpGet("project/{projectId}/synthesis-strategies")]
-		public async Task<ActionResult<ApiResponse<List<DataSynthesisStrategyDto>>>> GetSynthesisStrategiesByProjectId(
-			Guid projectId)
+		[HttpGet("process/{processId}/synthesis-strategies")]
+		public async Task<ActionResult<ApiResponse<List<DataSynthesisStrategyDto>>>> GetSynthesisStrategiesByProcessId(
+			Guid processId)
 		{
-			var result = await _service.GetSynthesisStrategiesByProjectIdAsync(projectId);
+			var result = await _service.GetSynthesisStrategiesByProcessIdAsync(processId);
 			return Ok(result, "Lấy danh sách synthesis strategies thành công");
 		}
 

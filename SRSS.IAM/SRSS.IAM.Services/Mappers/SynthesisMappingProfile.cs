@@ -11,7 +11,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new DataSynthesisStrategyDto
 			{
 				SynthesisStrategyId = entity.Id,
-				ProjectId = entity.ProjectId,
+				SynthesisProcessId = entity.SynthesisProcessId,
 				SynthesisType = entity.SynthesisType,
 				Description = entity.Description,
 				TargetResearchQuestionIds = entity.TargetResearchQuestionIds ?? new List<Guid>(),
@@ -25,7 +25,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new DataSynthesisStrategy
 			{
 				Id = dto.SynthesisStrategyId ?? Guid.Empty,
-				ProjectId = dto.ProjectId,
+				SynthesisProcessId = dto.SynthesisProcessId,
 				SynthesisType = dto.SynthesisType,
 				Description = dto.Description,
 				TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>(),
@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.Mappers
 
 		public static void UpdateEntity(this DataSynthesisStrategyDto dto, DataSynthesisStrategy entity)
 		{
-			entity.ProjectId = dto.ProjectId;
+			entity.SynthesisProcessId = dto.SynthesisProcessId;
 			entity.SynthesisType = dto.SynthesisType;
 			entity.Description = dto.Description;
 			entity.TargetResearchQuestionIds = dto.TargetResearchQuestionIds ?? new List<Guid>();

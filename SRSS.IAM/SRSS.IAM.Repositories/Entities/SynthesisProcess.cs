@@ -15,6 +15,6 @@ namespace SRSS.IAM.Repositories.Entities
         public ReviewProcess ReviewProcess { get; set; } = null!;
         public ICollection<SynthesisTheme> Themes { get; set; } = new List<SynthesisTheme>();
         public ICollection<ResearchQuestionFinding> Findings { get; set; } = new List<ResearchQuestionFinding>();
-
+        public ICollection<DataSynthesisStrategy> SynthesisStrategies { get; set; } = new List<DataSynthesisStrategy>();
     }
 }

@@ -84,9 +84,9 @@ namespace SRSS.IAM.Services.StudySelectionAIService.Retrieval
         {
             if (!string.IsNullOrWhiteSpace(picoc.Population))
             {
-                queries.Add(new StuSeRetrievalQueryDto 
-                { 
-                    QueryType = "Population", 
+                queries.Add(new StuSeRetrievalQueryDto
+                {
+                    QueryType = "Population",
                     QueryText = $"population evidence: {picoc.Population.Trim()}",
                     SourceLabel = picoc.Population.Trim()
                 });
@@ -94,9 +94,9 @@ namespace SRSS.IAM.Services.StudySelectionAIService.Retrieval
 
             if (!string.IsNullOrWhiteSpace(picoc.Intervention))
             {
-                queries.Add(new StuSeRetrievalQueryDto 
-                { 
-                    QueryType = "Intervention", 
+                queries.Add(new StuSeRetrievalQueryDto
+                {
+                    QueryType = "Intervention",
                     QueryText = $"intervention evidence: {picoc.Intervention.Trim()}",
                     SourceLabel = picoc.Intervention.Trim()
                 });
@@ -104,9 +104,9 @@ namespace SRSS.IAM.Services.StudySelectionAIService.Retrieval
 
             if (!string.IsNullOrWhiteSpace(picoc.Comparison))
             {
-                queries.Add(new StuSeRetrievalQueryDto 
-                { 
-                    QueryType = "Comparison", 
+                queries.Add(new StuSeRetrievalQueryDto
+                {
+                    QueryType = "Comparison",
                     QueryText = $"comparison evidence: {picoc.Comparison.Trim()}",
                     SourceLabel = picoc.Comparison.Trim()
                 });
@@ -114,9 +114,9 @@ namespace SRSS.IAM.Services.StudySelectionAIService.Retrieval
 
             if (!string.IsNullOrWhiteSpace(picoc.Outcome))
             {
-                queries.Add(new StuSeRetrievalQueryDto 
-                { 
-                    QueryType = "Outcome", 
+                queries.Add(new StuSeRetrievalQueryDto
+                {
+                    QueryType = "Outcome",
                     QueryText = $"outcome evidence: {picoc.Outcome.Trim()}",
                     SourceLabel = picoc.Outcome.Trim()
                 });
@@ -124,9 +124,9 @@ namespace SRSS.IAM.Services.StudySelectionAIService.Retrieval
 
             if (!string.IsNullOrWhiteSpace(picoc.Context))
             {
-                queries.Add(new StuSeRetrievalQueryDto 
-                { 
-                    QueryType = "Context", 
+                queries.Add(new StuSeRetrievalQueryDto
+                {
+                    QueryType = "Context",
                     QueryText = $"context evidence: {picoc.Context.Trim()}",
                     SourceLabel = picoc.Context.Trim()
                 });

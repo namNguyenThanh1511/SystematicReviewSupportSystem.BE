@@ -16,8 +16,8 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("id")
 				.IsRequired();
 
-			builder.Property(x => x.ProtocolId)
-				.HasColumnName("protocol_id")
+			builder.Property(x => x.ProjectId)
+				.HasColumnName("project_id")
 				.IsRequired();
 
 			builder.Property(x => x.MasterSourceId)
@@ -36,9 +36,9 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("modified_at")
 				.IsRequired();
 
-			builder.HasOne(x => x.Protocol)
+			builder.HasOne(x => x.Project)
 				.WithMany(x => x.SearchSources)
-				.HasForeignKey(x => x.ProtocolId)
+				.HasForeignKey(x => x.ProjectId)
 				.OnDelete(DeleteBehavior.Cascade);
 
 			builder.HasOne(x => x.MasterSource)

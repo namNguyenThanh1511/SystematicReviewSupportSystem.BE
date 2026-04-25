@@ -4,7 +4,6 @@ using Shared.Repositories;
 using SRSS.IAM.Repositories.AuditLogRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
-using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
@@ -14,7 +13,6 @@ using SRSS.IAM.Repositories.SynthesisExecutionRepo;
 using SRSS.IAM.Repositories.UserRepo;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
-using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.MasterSearchSourceRepo;
 using SRSS.IAM.Repositories.PaperRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
@@ -47,6 +45,9 @@ using SRSS.IAM.Repositories.PaperFullTextParsedSectionRepo;
 using SRSS.IAM.Repositories.PaperFullTextParsedParagraphRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
+using SRSS.IAM.Repositories.FilterSettingRepo;
+using SRSS.IAM.Repositories.ProjectPicocRepo;
+
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -67,10 +68,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IReviewObjectiveRepository ReviewObjectives { get; }
         IQuestionTypeRepository QuestionTypes { get; }
 
-        // Protocol
-        IReviewProtocolRepository Protocols { get; }
-        IProtocolVersionRepository ProtocolVersions { get; }
-        IProtocolEvaluationRepository ProtocolEvaluations { get; }
+
 
         // Research Question
         IResearchQuestionRepository ResearchQuestions { get; }
@@ -88,7 +86,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IStudySelectionCriteriaRepository SelectionCriterias { get; }
         IInclusionCriterionRepository InclusionCriteria { get; }
         IExclusionCriterionRepository ExclusionCriteria { get; }
-        IStudySelectionProcedureRepository SelectionProcedures { get; }
+        IStudySelectionCriteriaAIResponseRepository StudySelectionCriteriaAIResponses { get; }
 
         // Quality Assessment
         IQualityAssessmentStrategyRepository QualityStrategies { get; }
@@ -117,9 +115,11 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         IResearchQuestionFindingRepository ResearchQuestionFindings { get; }
         IDataSynthesisStrategyRepository SynthesisStrategies { get; }
         ISystematicReviewProjectRepository SystematicReviewProjects { get; }
+        IProjectPicocRepository ProjectPicocs { get; }
         IReviewProcessRepository ReviewProcesses { get; }
+
+        IFilterSettingRepository FilterSettings { get; }
         IIdentificationProcessRepository IdentificationProcesses { get; }
-        ISearchExecutionRepository SearchExecutions { get; }
         IPaperRepository Papers { get; }
         IImportBatchRepository ImportBatches { get; }
         IPrismaReportRepository PrismaReports { get; }
@@ -151,7 +151,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         // Quality Assessment
         IQualityAssessmentProcessRepository QualityAssessmentProcesses { get; }
-        IQualityAssessmentPaperRepository QualityAssessmentPapers { get; }
         IQualityAssessmentAssignmentRepository QualityAssessmentAssignments { get; }
         IQualityAssessmentDecisionRepository QualityAssessmentDecisions { get; }
         IQualityAssessmentResolutionRepository QualityAssessmentResolutions { get; }

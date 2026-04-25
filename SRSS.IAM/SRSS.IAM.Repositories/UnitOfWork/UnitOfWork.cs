@@ -5,10 +5,8 @@ using Shared.Entities.BaseEntity;
 using SRSS.IAM.Repositories.IdentificationProcessRepo;
 using SRSS.IAM.Repositories.ImportBatchRepo;
 using SRSS.IAM.Repositories.PaperRepo;
-using SRSS.IAM.Repositories.SearchExecutionRepo;
 using SRSS.IAM.Repositories.CoreGovernRepo;
 using SRSS.IAM.Repositories.DataExtractionRepo;
-using SRSS.IAM.Repositories.ProtocolRepo;
 using SRSS.IAM.Repositories.QualityRepo;
 using SRSS.IAM.Repositories.ResearchQuestionRepo;
 using SRSS.IAM.Repositories.SearchStrategyRepo;
@@ -49,6 +47,9 @@ using SRSS.IAM.Repositories.PaperFullTextChunkRepo;
 using SRSS.IAM.Repositories.PaperFullTextChunkEmbeddingRepo;
 using SRSS.IAM.Repositories.AuditLogRepo;
 
+using SRSS.IAM.Repositories.FilterSettingRepo;
+using SRSS.IAM.Repositories.ProjectPicocRepo;
+
 
 namespace SRSS.IAM.Repositories.UnitOfWork
 {
@@ -61,14 +62,15 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private INotificationRepository? _notifications;
         private IProjectMemberInvitationRepository? _projectMemberInvitations;
         private ISystematicReviewProjectRepository? _systematicReviewProjects;
+        private IProjectPicocRepository? _projectPicocs;
         // Core Governance
         private IReviewNeedRepository? _reviewNeeds;
         private ICommissioningDocumentRepository? _commissioningDocuments;
         private IReviewObjectiveRepository? _reviewObjectives;
         private IQuestionTypeRepository? _questionTypes;
         private IReviewProcessRepository? _reviewProcesses;
+        private IFilterSettingRepository? _filterSettings;
         private IIdentificationProcessRepository? _identificationProcesses;
-        private ISearchExecutionRepository? _searchExecutions;
         private IPaperRepository? _papers;
         private IImportBatchRepository? _importBatches;
         private IPrismaReportRepository? _prismaReports;
@@ -97,10 +99,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IPaperFullTextChunkRepository? _paperFullTextChunks;
         private IPaperFullTextChunkEmbeddingRepository? _paperFullTextChunkEmbeddings;
         private IMasterSearchSourceRepository? _masterSearchSources;
-        // Protocol
-        private IReviewProtocolRepository? _protocols;
-        private IProtocolVersionRepository? _protocolVersions;
-        private IProtocolEvaluationRepository? _protocolEvaluations;
+
 
         // Research Question
         private IResearchQuestionRepository? _researchQuestions;
@@ -116,7 +115,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IStudySelectionCriteriaRepository? _selectionCriterias;
         private IInclusionCriterionRepository? _inclusionCriteria;
         private IExclusionCriterionRepository? _exclusionCriteria;
-        private IStudySelectionProcedureRepository? _selectionProcedures;
+        private IStudySelectionCriteriaAIResponseRepository? _studySelectionCriteriaAIResponses;
         private IQualityAssessmentStrategyRepository? _qualityStrategies;
         private IQualityChecklistRepository? _qualityChecklists;
         private IQualityCriterionRepository? _qualityCriteria;
@@ -130,7 +129,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         private IQualityAssessmentAssignmentRepository? _qualityAssessmentAssignments;
         private IQualityAssessmentDecisionRepository? _qualityAssessmentDecisions;
         private IQualityAssessmentResolutionRepository? _qualityAssessmentResolutions;
-        private IQualityAssessmentPaperRepository? _qualityAssessmentPapers;
 
         private IExtractionTemplateRepository? _extractionTemplates;
         private IExtractionSectionRepository? _extractionSections;
@@ -226,10 +224,7 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IReviewObjectiveRepository ReviewObjectives => _reviewObjectives ??= new ReviewObjectiveRepository(_dbContext);
         public IQuestionTypeRepository QuestionTypes => _questionTypes ??= new QuestionTypeRepository(_dbContext);
 
-        // Protocol
-        public IReviewProtocolRepository Protocols => _protocols ??= new ReviewProtocolRepository(_dbContext);
-        public IProtocolVersionRepository ProtocolVersions => _protocolVersions ??= new ProtocolVersionRepository(_dbContext);
-        public IProtocolEvaluationRepository ProtocolEvaluations => _protocolEvaluations ??= new ProtocolEvaluationRepository(_dbContext);
+
 
         // Research Question
         public IResearchQuestionRepository ResearchQuestions => _researchQuestions ??= new ResearchQuestionRepository(_dbContext);
@@ -252,8 +247,10 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public IExclusionCriterionRepository ExclusionCriteria =>
             _exclusionCriteria ??= new ExclusionCriterionRepository(_dbContext);
 
-        public IStudySelectionProcedureRepository SelectionProcedures =>
-            _selectionProcedures ??= new StudySelectionProcedureRepository(_dbContext);
+        public IStudySelectionCriteriaAIResponseRepository StudySelectionCriteriaAIResponses =>
+            _studySelectionCriteriaAIResponses ??= new StudySelectionCriteriaAIResponseRepository(_dbContext);
+
+
 
         public IQualityAssessmentStrategyRepository QualityStrategies =>
             _qualityStrategies ??= new QualityAssessmentStrategyRepository(_dbContext);
@@ -314,14 +311,18 @@ namespace SRSS.IAM.Repositories.UnitOfWork
         public ISystematicReviewProjectRepository SystematicReviewProjects
             => _systematicReviewProjects ??= new SystematicReviewProjectRepository(_dbContext);
 
+        public IProjectPicocRepository ProjectPicocs
+            => _projectPicocs ??= new ProjectPicocRepository(_dbContext);
+
         public IReviewProcessRepository ReviewProcesses
             => _reviewProcesses ??= new ReviewProcessRepository(_dbContext);
+
+        public IFilterSettingRepository FilterSettings
+            => _filterSettings ??= new FilterSettingRepository(_dbContext);
 
         public IIdentificationProcessRepository IdentificationProcesses
             => _identificationProcesses ??= new IdentificationProcessRepository(_dbContext);
 
-        public ISearchExecutionRepository SearchExecutions
-            => _searchExecutions ??= new SearchExecutionRepository(_dbContext);
 
         public IPaperRepository Papers
             => _papers ??= new PaperRepository(_dbContext);
@@ -397,7 +398,6 @@ namespace SRSS.IAM.Repositories.UnitOfWork
 
         // Quality Assessment
         public IQualityAssessmentProcessRepository QualityAssessmentProcesses => _qualityAssessmentProcesses ??= new QualityAssessmentProcessRepository(_dbContext);
-        public IQualityAssessmentPaperRepository QualityAssessmentPapers => _qualityAssessmentPapers ??= new QualityAssessmentPaperRepository(_dbContext);
         public IQualityAssessmentAssignmentRepository QualityAssessmentAssignments => _qualityAssessmentAssignments ??= new QualityAssessmentAssignmentRepository(_dbContext);
         public IQualityAssessmentDecisionRepository QualityAssessmentDecisions => _qualityAssessmentDecisions ??= new QualityAssessmentDecisionRepository(_dbContext);
         public IQualityAssessmentResolutionRepository QualityAssessmentResolutions => _qualityAssessmentResolutions ??= new QualityAssessmentResolutionRepository(_dbContext);

@@ -14,6 +14,8 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.RagService;
 using SRSS.IAM.Services.NotificationService;
 using System.Xml.Linq;
+using SRSS.IAM.Services.OpenRouter;
+
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -27,6 +29,8 @@ namespace SRSS.IAM.Services.DataExtractionService
         private readonly IRagRetrievalService _ragRetrievalService;
         private readonly IRagIngestionQueue _ragQueue;
         private readonly INotificationService _notificationService;
+        private readonly IOpenRouterService _openRouterService;
+
 
         public DataExtractionConductingService(
             IUnitOfWork unitOfWork,
@@ -36,7 +40,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             IConfiguration configuration,
             IRagRetrievalService ragRetrievalService,
             IRagIngestionQueue ragQueue,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IOpenRouterService openRouterService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
@@ -46,7 +51,9 @@ namespace SRSS.IAM.Services.DataExtractionService
             _ragRetrievalService = ragRetrievalService;
             _ragQueue = ragQueue;
             _notificationService = notificationService;
+            _openRouterService = openRouterService;
         }
+
 
         private async Task SyncEligiblePapersAsync(Guid extractionProcessId, CancellationToken cancellationToken = default)
         {
@@ -62,8 +69,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             // 2. Lấy danh sách Paper đã PASS vòng Full-Text Screening (Include Paper để lấy PdfUrl)
             var (eligiblePapers, _) = await _unitOfWork.StudySelectionProcessPapers.GetWithPaperByProcessAsync(
-                selectionProcessId, 
-                pageSize: int.MaxValue, 
+                selectionProcessId,
+                pageSize: int.MaxValue,
                 cancellationToken: cancellationToken);
 
             // 3. Lấy danh sách Task đã tồn tại trong Data Extraction để tránh tạo trùng
@@ -92,8 +99,18 @@ namespace SRSS.IAM.Services.DataExtractionService
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // ==========================================
-                // KÍCH HOẠT RAG INGESTION ĐÃ CHUYỂN SANG STUDY SELECTION COMPLETE
+                // KÍCH HOẠT RAG INGESTION
                 // ==========================================
+                var paperIds = newPapers.Select(t => t.PaperId).ToList();
+                var papers = await _unitOfWork.Papers
+                    .GetQueryable()
+                    .Where(p => paperIds.Contains(p.Id))
+                    .ToListAsync(cancellationToken);
+                foreach (var paper in papers)
+                {
+                    await _ragQueue.QueuePaperForIngestionAsync(paper.Id, paper.PdfUrl);
+                }
+
             }
         }
 
@@ -105,6 +122,8 @@ namespace SRSS.IAM.Services.DataExtractionService
             {
                 throw new UnauthorizedAccessException("Current user ID is invalid.");
             }
+
+            await SyncEligiblePapersAsync(extractionProcessId);
 
             var extractionProcess = await _unitOfWork.DataExtractionProcesses.GetQueryable()
                 .Include(dp => dp.ReviewProcess)
@@ -472,12 +491,12 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -799,13 +818,13 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1060,13 +1079,13 @@ namespace SRSS.IAM.Services.DataExtractionService
             if (string.IsNullOrEmpty(value)) return "";
 
             bool requiresQuotes = value.Contains(",") || value.Contains("\"") || value.Contains("\r") || value.Contains("\n");
-            
+
             if (requiresQuotes)
             {
                 value = value.Replace("\"", "\"\"");
                 return $"\"{value}\"";
             }
-            
+
             return value;
         }
 
@@ -1319,10 +1338,10 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found.");
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == extractionProcess.ReviewProcess.ProtocolId.Value);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -1348,112 +1367,43 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             var schemaJson = JsonSerializer.Serialize(schemaObj, new JsonSerializerOptions { WriteIndented = true });
 
-            // 5. Call Gemini
-            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
-            if (string.IsNullOrWhiteSpace(apiKey))
-            {
-                throw new InvalidOperationException("Gemini API key is not configured.");
-            }
-
-            Console.WriteLine("clear text: " + cleanPaperText);
-
+            // 5. Call OpenRouter
             string prompt = $@"
-You are an expert academic researcher. 
+You are an expert academic researcher specializing in Systematic Literature Reviews.
 I will provide you with a PAPER TEXT and an extraction SCHEMA.
 Your task is to extract the correct answers from the PAPER TEXT according to the SCHEMA.
-For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' provided in the schema.
-You MUST return ONLY a JSON array that exactly matches the following structure:
-[
-  {{
-    ""FieldId"": ""uuid"",
-    ""OptionId"": ""uuid or null"",
-    ""StringValue"": ""extracted text or null"",
-    ""NumericValue"": decimal or null,
-    ""BooleanValue"": boolean or null,
-    ""MatrixColumnId"": ""uuid or null"",
-    ""MatrixRowIndex"": int or null
-  }}
-]
-Do not include any other markdown formatting like ```json or comments. 
-If no data is found for a field, omit it or leave values as null.
 
-=== SCHEMA ===
+### EXTRACTION RULES
+1. For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' (GUID) provided in the schema.
+2. For Text, Integer, or Decimal fields, provide the value in 'StringValue', 'NumericValue' as appropriate.
+3. If a field is not found in the text, you can omit it or set its values to null.
+4. For Matrix Grid sections, you MUST provide both 'FieldId', 'MatrixColumnId' (GUID), and 'MatrixRowIndex' (0-indexed).
+
+### OUTPUT ENFORCEMENT
+- Return ONLY a JSON object with a property named ""ExtractedData"" which is an array of objects.
+- Each object in the array must follow the structure:
+  {{
+    ""FieldId"": ""GUID"",
+    ""OptionId"": ""GUID or null"",
+    ""StringValue"": ""string or null"",
+    ""NumericValue"": number or null,
+    ""BooleanValue"": boolean or null,
+    ""MatrixColumnId"": ""GUID or null"",
+    ""MatrixRowIndex"": number or null
+  }}
+- **FLEXIBLE EXTRACTION**: If a specific numeric/option value is not reported but discussed qualitatively (e.g., ""high"", ""low"", ""not measured""), put that description in 'StringValue'.
+- **FALLBACK**: If a study discusses a topic but doesn't give a specific data point, summarize the study's stance in 1 sentence in 'StringValue'.
+- Do NOT include any explanations or markdown.
+
+### SCHEMA
 {schemaJson}
 
-=== PAPER TEXT ===
+### PAPER TEXT
 {cleanPaperText}
 ";
 
-            var requestPayload = new
-            {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[]
-                        {
-                            new { text = prompt }
-                        }
-                    }
-                },
-                generationConfig = new
-                {
-                    responseMimeType = "application/json"
-                }
-            };
-
-            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
-            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload);
-
-            if (!geminiResponse.IsSuccessStatusCode)
-            {
-                var errorStr = await geminiResponse.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Gemini API error: {errorStr}");
-            }
-
-            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>();
-            try
-            {
-                var responseText = geminiResult?.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString();
-
-                if (string.IsNullOrWhiteSpace(responseText))
-                    return new List<ExtractedValueDto>();
-
-                responseText = responseText.Trim();
-                if (responseText.StartsWith("```json"))
-                {
-                    responseText = responseText.Substring(7);
-                }
-                if (responseText.StartsWith("```"))
-                {
-                    responseText = responseText.Substring(3);
-                }
-                if (responseText.EndsWith("```"))
-                {
-                    responseText = responseText.Substring(0, responseText.Length - 3);
-                }
-                responseText = responseText.Trim();
-
-                var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                // var extractedValues = JsonSerializer.Deserialize<List<ExtractedValueDto>>(responseText, new JsonSerializerOptions
-                // {
-                //     PropertyNameCaseInsensitive = true
-                // });
-
-                return extractedValues ?? new List<ExtractedValueDto>();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to parse Gemini response.", ex);
-            }
+            var response = await _openRouterService.GenerateStructuredContentAsync<AutoExtractionAiResponseDto>(prompt);
+            return response?.ExtractedData ?? new List<ExtractedValueDto>();
         }
 
         public async Task<ExtractedValueDto?> AskAiSingleFieldAsync(Guid extractionProcessId, AskAiFieldRequestDto request, CancellationToken cancellationToken = default)
@@ -1503,10 +1453,7 @@ If no data is found for a field, omit it or leave values as null.
             string combinedCoordinates = JsonSerializer.Serialize(coordinatesList);
             string combinedContext = textContextBuilder.ToString();
 
-            var apiKey = _configuration["Gemini:ApiKey"] ?? Environment.GetEnvironmentVariable("Gemini:ApiKey");
-            if (string.IsNullOrWhiteSpace(apiKey))
-                throw new InvalidOperationException("Gemini API key is not configured.");
-
+            // 5. Call OpenRouter
             string optionsInstruction = string.IsNullOrWhiteSpace(request.OptionsJson)
                 ? ""
                 : $"\nValid Options (JSON format: [OptionId, Value]): {request.OptionsJson}\nYou MUST match your extracted answer to ONE of the OptionIds provided above if applicable.\n";
@@ -1515,85 +1462,40 @@ If no data is found for a field, omit it or leave values as null.
 You are an expert academic researcher. 
 Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
 
-Field Name: {request.FieldName}
-Field Type: {request.FieldType}
-Instructions: {request.FieldInstruction}
+### FIELD DETAILS
+- Field Name: {request.FieldName}
+- Field Type: {request.FieldType}
+- Instructions: {request.FieldInstruction}
 {optionsInstruction}
 
-You MUST return ONLY a JSON object that exactly matches the following structure (ExtractedValueDto):
-{{
-  ""FieldId"": ""{request.FieldId}"",
-  ""OptionId"": ""uuid or null"",
-  ""StringValue"": ""extracted text or null"",
-  ""NumericValue"": decimal or null,
-  ""BooleanValue"": boolean or null
-}}
+### OUTPUT ENFORCEMENT
+- Return ONLY a JSON object matching the structure:
+  {{
+    ""FieldId"": ""{request.FieldId}"",
+    ""OptionId"": ""GUID or null"",
+    ""StringValue"": ""string or null"",
+    ""NumericValue"": number or null,
+    ""BooleanValue"": boolean or null
+  }}
+- **FLEXIBLE EXTRACTION**: If the study does not explicitly provide a numeric/boolean value but describes the result (e.g., ""highly satisfied"", ""improved significantly""), put that qualitative description in 'StringValue'. 
+- **FALLBACK**: If no direct value is found, provide a 1-sentence summary of what the study says about this field in 'StringValue' instead of leaving everything null.
+- Do NOT include any explanations or markdown outside the JSON object.
 
-Do not include any other markdown formatting like ```json or comments. 
-If no relevant data is found in the context, return a JSON object with null values for OptionId, StringValue, NumericValue, and BooleanValue.
-
-=== PAPER CONTEXT ===
+### PAPER CONTEXT
 {combinedContext}
 ";
 
-            var requestPayload = new
-            {
-                contents = new[]
-                {
-                    new
-                    {
-                        parts = new[] { new { text = prompt } }
-                    }
-                },
-                generationConfig = new { responseMimeType = "application/json" }
-            };
+            var extractedValue = await _openRouterService.GenerateStructuredContentAsync<ExtractedValueDto>(prompt, ct: cancellationToken);
 
-            var httpClient = _httpClientFactory.CreateClient();
-            var geminiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
-            var geminiResponse = await httpClient.PostAsJsonAsync(geminiUrl, requestPayload, cancellationToken);
-
-            if (!geminiResponse.IsSuccessStatusCode)
+            if (extractedValue != null)
             {
-                var errorStr = await geminiResponse.Content.ReadAsStringAsync(cancellationToken);
-                throw new InvalidOperationException($"Gemini API error: {errorStr}");
+                extractedValue.FieldId = request.FieldId;
+                extractedValue.EvidenceCoordinates = combinedCoordinates;
+                extractedValue.MatrixColumnId = request.MatrixColumnId;
+                extractedValue.MatrixRowIndex = request.MatrixRowIndex;
             }
 
-            var geminiResult = await geminiResponse.Content.ReadFromJsonAsync<JsonDocument>(cancellationToken: cancellationToken);
-            try
-            {
-                var responseText = geminiResult?.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString();
-
-                if (string.IsNullOrWhiteSpace(responseText))
-                    return null;
-
-                responseText = responseText.Trim();
-                if (responseText.StartsWith("```json")) responseText = responseText.Substring(7);
-                if (responseText.StartsWith("```")) responseText = responseText.Substring(3);
-                if (responseText.EndsWith("```")) responseText = responseText.Substring(0, responseText.Length - 3);
-                responseText = responseText.Trim();
-
-                var extractedValue = JsonSerializer.Deserialize<ExtractedValueDto>(responseText, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (extractedValue != null)
-                {
-                    extractedValue.EvidenceCoordinates = combinedCoordinates;
-                    extractedValue.MatrixColumnId = request.MatrixColumnId;
-                    extractedValue.MatrixRowIndex = request.MatrixRowIndex;
-                }
-
-                return extractedValue;
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException("Failed to parse Gemini response for single field.", ex);
-            }
+            return extractedValue;
         }
 
         public async Task DirectExtractByLeaderAsync(Guid extractionProcessId, Guid paperId, SubmitExtractionRequestDto payload, CancellationToken cancellationToken)
@@ -1839,13 +1741,13 @@ If no relevant data is found in the context, return a JSON object with null valu
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
             // 2. Fetch Template
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2113,7 +2015,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                 throw new UnauthorizedAccessException($"User is not authorized. Must be a Leader for project {projectId}.");
             }
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == reviewProcess.ProtocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)
@@ -2477,7 +2379,7 @@ If no relevant data is found in the context, return a JSON object with null valu
                     .Where(pm => pm.Role == ProjectRole.Leader)
                     .Select(pm => pm.UserId)
                     .ToListAsync();
-                
+
                 notifyIds.AddRange(leaders);
             }
 
@@ -2531,12 +2433,12 @@ If no relevant data is found in the context, return a JSON object with null valu
                 .Include(dp => dp.ReviewProcess)
                 .FirstOrDefaultAsync(dp => dp.Id == extractionProcessId);
 
-            if (extractionProcess?.ReviewProcess?.ProtocolId == null)
-                throw new InvalidOperationException("Protocol not found for this extraction process.");
+            if (extractionProcess?.ReviewProcess == null)
+                throw new InvalidOperationException("ReviewProcess not found for this extraction process.");
 
-            var protocolId = extractionProcess.ReviewProcess.ProtocolId.Value;
+            // var projectId = extractionProcess.ReviewProcess.ProjectId;
 
-            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.ProtocolId == protocolId);
+            var templateList = await _unitOfWork.ExtractionTemplates.FindAllAsync(t => t.DataExtractionProcessId == extractionProcessId);
             var templateEntity = templateList.FirstOrDefault();
 
             if (templateEntity == null)

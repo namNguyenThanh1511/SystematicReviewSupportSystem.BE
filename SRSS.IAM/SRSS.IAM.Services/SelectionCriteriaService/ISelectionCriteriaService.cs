@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.SelectionCriteria;
+using SRSS.IAM.Services.DTOs.SelectionCriteria;
 
 namespace SRSS.IAM.Services.SelectionCriteriaService
 {
@@ -6,7 +6,7 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 	{
 		// Study Selection Criteria
 		Task<StudySelectionCriteriaDto> UpsertCriteriaAsync(StudySelectionCriteriaDto dto);
-		Task<List<StudySelectionCriteriaDto>> GetAllByProtocolIdAsync(Guid protocolId);
+		Task<List<StudySelectionCriteriaDto>> GetAllByStudySelectionProcessIdAsync(Guid studySelectionProcessId);
 		Task DeleteCriteriaAsync(Guid criteriaId);
 
 		// Inclusion Criteria
@@ -17,9 +17,6 @@ namespace SRSS.IAM.Services.SelectionCriteriaService
 		Task<List<ExclusionCriterionDto>> BulkUpsertExclusionCriteriaAsync(List<ExclusionCriterionDto> dtos);
 		Task<List<ExclusionCriterionDto>> GetExclusionByCriteriaIdAsync(Guid criteriaId);
 
-		// Selection Procedures
-		Task<StudySelectionProcedureDto> UpsertProcedureAsync(StudySelectionProcedureDto dto);
-		Task<List<StudySelectionProcedureDto>> GetProceduresByProtocolIdAsync(Guid protocolId);
-		Task DeleteProcedureAsync(Guid procedureId);
+
 	}
 }

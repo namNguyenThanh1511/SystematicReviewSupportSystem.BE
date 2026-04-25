@@ -28,6 +28,10 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("source")
                 .HasMaxLength(100);
 
+            builder.Property(ib => ib.ProjectId)
+                .HasColumnName("project_id")
+                .IsRequired();
+
             builder.Property(ib => ib.TotalRecords)
                 .HasColumnName("total_records")
                 .IsRequired();
@@ -39,9 +43,6 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(ib => ib.ImportedAt)
                 .HasColumnName("imported_at")
                 .IsRequired();
-
-            builder.Property(ib => ib.SearchExecutionId)
-                .HasColumnName("search_execution_id");
 
             builder.Property(ib => ib.CreatedAt)
                 .HasColumnName("created_at")
@@ -57,10 +58,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(p => p.ImportBatchId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            builder.HasOne(ib => ib.SearchExecution)
-                .WithMany(se => se.ImportBatches)
-                .HasForeignKey(ib => ib.SearchExecutionId)
-                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

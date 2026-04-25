@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.SelectionCriteria;
 using SRSS.IAM.Services.SelectionCriteriaService;
+using SRSS.IAM.Services.StudySelectionCriteriaService;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -11,10 +12,12 @@ namespace SRSS.IAM.API.Controllers
 	public class SelectionCriteriaController : BaseController
 	{
 		private readonly ISelectionCriteriaService _service;
+		private readonly IStudySelectionCriteriaService _aiService;
 
-		public SelectionCriteriaController(ISelectionCriteriaService service)
+		public SelectionCriteriaController(ISelectionCriteriaService service, IStudySelectionCriteriaService aiService)
 		{
 			_service = service;
+			_aiService = aiService;
 		}
 
 		// ==================== Study Selection Criteria ====================
@@ -31,13 +34,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Criteria theo Protocol ID
+		/// Lấy tất cả Criteria theo Study Selection Process ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}")]
-		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByProtocolId(
-			Guid protocolId)
+		[HttpGet("process/{studySelectionProcessId}")]
+		public async Task<ActionResult<ApiResponse<List<StudySelectionCriteriaDto>>>> GetAllByStudySelectionProcessId(
+			Guid studySelectionProcessId)
 		{
-			var result = await _service.GetAllByProtocolIdAsync(protocolId);
+			var result = await _service.GetAllByStudySelectionProcessIdAsync(studySelectionProcessId);
 			return Ok(result, "Lấy danh sách criteria thành công");
 		}
 
@@ -99,38 +102,24 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Lấy danh sách exclusion criteria thành công");
 		}
 
-		// ==================== Selection Procedures ====================
-
 		/// <summary>
-		/// Upsert một Selection Procedure
+		/// Generate criteria using AI based on PICOC and Research Questions
 		/// </summary>
-		[HttpPost("procedures/upsert")]
-		public async Task<ActionResult<ApiResponse<StudySelectionProcedureDto>>> UpsertProcedure(
-			[FromBody] StudySelectionProcedureDto dto)
+		[HttpPost("generate-ai/{studySelectionProcessId}")]
+		public async Task<ActionResult<ApiResponse<AICriteriaResponse>>> GenerateCriteriaWithAi(Guid studySelectionProcessId)
 		{
-			var result = await _service.UpsertProcedureAsync(dto);
-			return Ok(result, "Lưu procedure thành công");
+			var result = await _aiService.GenerateCriteriaWithAiAsync(studySelectionProcessId);
+			return Ok(result, "AI suggest criteria successfully");
 		}
 
 		/// <summary>
-		/// Lấy tất cả Procedures theo Protocol ID
+		/// Save criteria suggested by AI and persist raw response for traceability
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/procedures")]
-		public async Task<ActionResult<ApiResponse<List<StudySelectionProcedureDto>>>> GetProceduresByProtocolId(
-			Guid protocolId)
+		[HttpPost("save-ai-result")]
+		public async Task<ActionResult<ApiResponse>> SaveAICriteria([FromBody] SaveAICriteriaRequestV2 request)
 		{
-			var result = await _service.GetProceduresByProtocolIdAsync(protocolId);
-			return Ok(result, "Lấy danh sách procedures thành công");
-		}
-
-		/// <summary>
-		/// Xóa một Procedure
-		/// </summary>
-		[HttpDelete("procedures/{procedureId}")]
-		public async Task<ActionResult<ApiResponse>> DeleteProcedure(Guid procedureId)
-		{
-			await _service.DeleteProcedureAsync(procedureId);
-			return Ok("Xóa procedure thành công");
+			await _aiService.SaveAICriteriaAsync(request);
+			return Ok("AI criteria saved successfully");
 		}
 	}
 }

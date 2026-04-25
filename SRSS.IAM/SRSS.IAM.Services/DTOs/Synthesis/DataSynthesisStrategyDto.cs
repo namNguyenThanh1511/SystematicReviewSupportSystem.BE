@@ -7,8 +7,8 @@ namespace SRSS.IAM.Services.DTOs.Synthesis
 	{
 		public Guid? SynthesisStrategyId { get; set; }
 
-		[Required(ErrorMessage = "ProtocolId là bắt buộc")]
-		public Guid ProtocolId { get; set; }
+		[Required(ErrorMessage = "SynthesisProcessId là bắt buộc")]
+		public Guid SynthesisProcessId { get; set; }
 
 		[Required(ErrorMessage = "SynthesisType là bắt buộc")]
 		public SynthesisType SynthesisType { get; set; }
@@ -22,8 +22,4 @@ namespace SRSS.IAM.Services.DTOs.Synthesis
 
 		public string? SensitivityAnalysisPlan { get; set; }
 	}
-
-
-
-
 }

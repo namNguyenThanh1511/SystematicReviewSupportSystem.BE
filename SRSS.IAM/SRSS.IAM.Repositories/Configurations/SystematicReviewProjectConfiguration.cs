@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 
@@ -20,6 +20,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("title")
                 .HasMaxLength(500)
                 .IsRequired();
+            
+            builder.Property(p => p.Code)
+                .HasColumnName("code")
+                .HasMaxLength(100)
+                .IsRequired();
 
             builder.Property(p => p.Domain)
                 .HasColumnName("domain")
@@ -27,6 +32,14 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(p => p.Description)
                 .HasColumnName("description")
+                .HasMaxLength(2000);
+
+            builder.Property(p => p.ResearchTopic)
+                .HasColumnName("research_topic")
+                .HasMaxLength(2000);
+
+            builder.Property(p => p.ResearchObjective)
+                .HasColumnName("research_objective")
                 .HasMaxLength(2000);
 
             builder.Property(p => p.Status)
@@ -59,12 +72,21 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(pr => pr.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.HasMany(p => p.ProjectPicocs)
+                .WithOne(pp => pp.Project)
+                .HasForeignKey(pp => pp.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // Indexes
             builder.HasIndex(p => p.Status)
                 .HasDatabaseName("idx_project_status");
 
             builder.HasIndex(p => p.Title)
                 .HasDatabaseName("idx_project_title");
+
+            builder.HasIndex(p => p.Code)
+                .IsUnique()
+                .HasDatabaseName("idx_project_code");
         }
     }
 }

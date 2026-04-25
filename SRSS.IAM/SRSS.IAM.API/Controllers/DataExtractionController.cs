@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.DataExtraction;
@@ -20,13 +20,13 @@ namespace SRSS.IAM.API.Controllers
         // ==================== Extraction Templates ====================
 
         /// <summary>
-        /// Lấy tất cả Templates theo Protocol ID (với cấu trúc cây)
+        /// Lấy tất cả Templates theo Data Extraction Process ID (với cấu trúc cây)
         /// </summary>
-        [HttpGet("protocol/{protocolId}/templates")]
-        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProtocolId(
-            Guid protocolId)
+        [HttpGet("process/{processId}/templates")]
+        public async Task<ActionResult<ApiResponse<List<ExtractionTemplateDto>>>> GetTemplatesByProcessId(
+            Guid processId)
         {
-            var result = await _service.GetTemplatesByProtocolIdAsync(protocolId);
+            var result = await _service.GetTemplatesByProcessIdAsync(processId);
             return Ok(result, "Lấy danh sách templates thành công");
         }
 
@@ -71,6 +71,17 @@ namespace SRSS.IAM.API.Controllers
         {
             await _service.DeleteTemplateAsync(templateId);
             return Ok("Xóa template thành công");
+        }
+
+        /// <summary>
+        /// AI gợi ý các trường extraction dựa trên tên section (RQ)
+        /// </summary>
+        [HttpPost("suggest-fields")]
+        public async Task<ActionResult<ApiResponse<List<ExtractionFieldDto>>>> SuggestFields(
+            [FromBody] SuggestFieldsRequestDto request)
+        {
+            var result = await _service.SuggestFieldsForSectionAsync(request.SectionName, request.ProjectContext ?? "");
+            return Ok(result, "AI đã gợi ý các trường thành công");
         }
     }
 }

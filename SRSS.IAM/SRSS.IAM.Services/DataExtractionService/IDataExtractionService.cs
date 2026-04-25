@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.DataExtraction;
+using SRSS.IAM.Services.DTOs.DataExtraction;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -8,7 +8,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto);
 
-        Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId);
+        Task<List<ExtractionTemplateDto>> GetTemplatesByProcessIdAsync(Guid processId);
 
         Task<ExtractionTemplateDto> GetTemplateByIdAsync(Guid templateId);
 
@@ -18,5 +18,10 @@ namespace SRSS.IAM.Services.DataExtractionService
         /// Validate template structure without saving to database
         /// </summary>
         Task<TemplateValidationResultDto> ValidateTemplateAsync(ExtractionTemplateDto dto);
+
+        /// <summary>
+        /// AI suggests extraction fields based on section name/context (RQ)
+        /// </summary>
+        Task<List<ExtractionFieldDto>> SuggestFieldsForSectionAsync(string sectionName, string projectContext = "");
     }
 }

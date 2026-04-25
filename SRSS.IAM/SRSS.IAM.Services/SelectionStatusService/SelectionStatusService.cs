@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 
@@ -51,7 +52,9 @@ namespace SRSS.IAM.Services.SelectionStatusService
         {
             // Check if paper is duplicate first
             var deduplication = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.PaperId == paperId,
+                dr => dr.PaperId == paperId &&
+                      (dr.ReviewStatus == DeduplicationReviewStatus.Pending ||
+                       dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL),
                 cancellationToken: cancellationToken);
 
             if (deduplication != null)
@@ -88,7 +91,9 @@ namespace SRSS.IAM.Services.SelectionStatusService
 
             // Get all duplicates
             var duplicates = await _unitOfWork.DeduplicationResults.FindAllAsync(
-                dr => paperIds.Contains(dr.PaperId),
+                dr => paperIds.Contains(dr.PaperId) &&
+                      (dr.ReviewStatus == DeduplicationReviewStatus.Pending ||
+                       dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL),
                 cancellationToken: cancellationToken);
 
             var resolutionDict = resolutions.ToDictionary(r => r.PaperId);
@@ -120,8 +125,22 @@ namespace SRSS.IAM.Services.SelectionStatusService
             Guid paperId,
             CancellationToken cancellationToken = default)
         {
+            var projectId = await _unitOfWork.IdentificationProcesses.GetQueryable()
+                .AsNoTracking()
+                .Where(ip => ip.Id == identificationProcessId)
+                .Select(ip => ip.ReviewProcess.ProjectId)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (projectId == Guid.Empty)
+            {
+                return false;
+            }
+
             var deduplication = await _unitOfWork.DeduplicationResults.FindSingleAsync(
-                dr => dr.IdentificationProcessId == identificationProcessId && dr.PaperId == paperId,
+                dr => dr.ProjectId == projectId &&
+                      dr.PaperId == paperId &&
+                      (dr.ReviewStatus == DeduplicationReviewStatus.Pending ||
+                       dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL),
                 cancellationToken: cancellationToken);
 
             return deduplication != null;

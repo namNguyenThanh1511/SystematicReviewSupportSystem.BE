@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,11 +9,11 @@ namespace SRSS.IAM.Repositories.Entities
 {
 	public class StudySelectionCriteria : BaseEntity<Guid>
 	{
-		public Guid ProtocolId { get; set; }
-		public string? Description { get; set; }
+		public Guid StudySelectionProcessId { get; set; }
+		public string Description { get; set; } = string.Empty;
 
 		// Navigation properties
-		public ReviewProtocol Protocol { get; set; } = null!;
+		public StudySelectionProcess StudySelectionProcess { get; set; } = null!;
 		public ICollection<InclusionCriterion> InclusionCriteria { get; set; } = new List<InclusionCriterion>();
 		public ICollection<ExclusionCriterion> ExclusionCriteria { get; set; } = new List<ExclusionCriterion>();
 	}

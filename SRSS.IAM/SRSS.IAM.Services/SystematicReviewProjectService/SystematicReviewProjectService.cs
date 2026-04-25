@@ -5,6 +5,8 @@ using SRSS.IAM.Services.DTOs.SystematicReviewProject;
 using SRSS.IAM.Services.DTOs.Common;
 using Shared.Exceptions;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.DTOs.ResearchQuestion;
+
 
 namespace SRSS.IAM.Services.SystematicReviewProjectService
 {
@@ -19,24 +21,39 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             _currentUserService = currentUserService;
         }
 
+        private static readonly Random _random = new Random();
+
         public async Task<SystematicReviewProjectResponse> CreateProjectAsync(
             CreateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken = default)
         {
+            var (userId, role) = _currentUserService.GetCurrentUser();
+            if (role != Role.Admin.ToString())
+            {
+                throw new UnauthorizedAccessException("You are not authorized to create a project.");
+            }
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 throw new ArgumentException("Title is required.", nameof(request.Title));
             }
 
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var random = _random.Next(1000); // 0–999
+
+            var code = $"SLR{(now + random) % 1_000_000:D6}";
+
             var project = new Repositories.Entities.SystematicReviewProject
             {
                 Id = Guid.NewGuid(),
                 Title = request.Title,
+                Code = code,
                 Domain = request.Domain,
                 Description = request.Description,
                 Status = ProjectStatus.Draft,
                 CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
+                ModifiedAt = DateTimeOffset.UtcNow,
+                UpdatedByUserId = Guid.Parse(userId),
+                CreatedByUserId = Guid.Parse(userId)
             };
 
             await _unitOfWork.SystematicReviewProjects.AddAsync(project, cancellationToken);
@@ -95,6 +112,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
 
             var projects = await query
                 .Include(p => p.ReviewProcesses)
+                .Include(p => p.ProjectMembers)
+                    .ThenInclude(pm => pm.User)
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
@@ -219,30 +238,18 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             return MapToResponse(project);
         }
 
-        public async Task<SystematicReviewProjectResponse> ArchiveProjectAsync(
-            Guid id,
-            CancellationToken cancellationToken = default)
-        {
-            var project = await _unitOfWork.SystematicReviewProjects
-                .GetByIdWithProcessesAsync(id, cancellationToken);
 
-            if (project == null)
-            {
-                throw new InvalidOperationException($"Project with ID {id} not found.");
-            }
-
-            project.Archive();
-
-            await _unitOfWork.SystematicReviewProjects.UpdateAsync(project, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return MapToResponse(project);
-        }
 
         public async Task<bool> DeleteProjectAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
+            var (userId, role) = _currentUserService.GetCurrentUser();
+            var userIdGuid = Guid.Parse(userId);
+            if (role != Role.Admin.ToString())
+            {
+                throw new UnauthorizedAccessException("You are not authorized to delete this project.");
+            }
             var project = await _unitOfWork.SystematicReviewProjects
                 .FindSingleAsync(p => p.Id == id, cancellationToken: cancellationToken);
 
@@ -250,8 +257,11 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             {
                 throw new NotFoundException("Project not found.");
             }
+            project.IsDeleted = true;
+            project.ModifiedAt = DateTimeOffset.UtcNow;
+            project.UpdatedByUserId = userIdGuid;
 
-            await _unitOfWork.SystematicReviewProjects.RemoveAsync(project, cancellationToken);
+            await _unitOfWork.SystematicReviewProjects.UpdateAsync(project, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
@@ -339,14 +349,11 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 .OrderByDescending(m => m.Project.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .ToListAsync(cancellationToken);
-
-            return new PaginatedResponse<MyProjectResponse>
-            {
-                Items = memberships.Select(m => new MyProjectResponse
+                .Select(m => new MyProjectResponse
                 {
                     Id = m.ProjectId,
                     Title = m.Project.Title,
+                    Code = m.Project.Code,
                     Domain = m.Project.Domain,
                     Description = m.Project.Description,
                     Status = m.Project.Status,
@@ -357,8 +364,22 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     StartDate = m.Project.StartDate,
                     EndDate = m.Project.EndDate,
                     CreatedAt = m.Project.CreatedAt,
-                    ModifiedAt = m.Project.ModifiedAt
-                }).ToList(),
+                    ModifiedAt = m.Project.ModifiedAt,
+                    Leader = m.Project.ProjectMembers
+                        .Where(pm => pm.Role == ProjectRole.Leader)
+                        .Select(pm => new ProjectLeaderDto
+                        {
+                            UserId = pm.UserId,
+                            FullName = pm.User.FullName,
+                            Username = pm.User.Username,
+                            Email = pm.User.Email
+                        }).FirstOrDefault()
+                })
+                .ToListAsync(cancellationToken);
+
+            return new PaginatedResponse<MyProjectResponse>
+            {
+                Items = memberships,
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
@@ -424,12 +445,73 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             }).ToList();
         }
 
+        public async Task<List<ProjectPicocResponse>> GetProjectPicocsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var picocs = await _unitOfWork.ProjectPicocs.GetQueryable()
+                .Where(p => p.ProjectId == projectId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return picocs.Select(p => new ProjectPicocResponse
+            {
+                Id = p.Id,
+                ProjectId = p.ProjectId,
+                Population = p.Population,
+                Intervention = p.Intervention,
+                Comparator = p.Comparator,
+                Outcome = p.Outcome,
+                Context = p.Context,
+                CreatedAt = p.CreatedAt
+            }).ToList();
+        }
+
+        public async Task<List<ResearchQuestionDetailResponse>> GetProjectResearchQuestionsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects
+                .FindSingleAsync(p => p.Id == projectId, cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new NotFoundException("Project not found.");
+            }
+
+            var questions = await _unitOfWork.ResearchQuestions.GetQueryable()
+                .Include(q => q.QuestionType)
+                .Where(q => q.ProjectId == projectId)
+                .OrderBy(q => q.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return questions.Select(q => new ResearchQuestionDetailResponse
+            {
+                ResearchQuestionId = q.Id,
+                ProjectId = q.ProjectId,
+                QuestionType = q.QuestionType?.Name,
+                QuestionText = q.QuestionText,
+                Rationale = q.Rationale,
+                CreatedAt = q.CreatedAt
+            }).ToList();
+        }
+
         private static SystematicReviewProjectResponse MapToResponse(Repositories.Entities.SystematicReviewProject project)
+
         {
             return new SystematicReviewProjectResponse
             {
                 Id = project.Id,
                 Title = project.Title,
+                Code = project.Code,
                 Domain = project.Domain,
                 Description = project.Description,
                 Status = project.Status,
@@ -447,7 +529,8 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     StatusText = p.Status.ToString(),
                     StartedAt = p.StartedAt,
                     CompletedAt = p.CompletedAt
-                }).ToList()
+                }).ToList(),
+                Leader = MapToLeaderDto(project.ProjectMembers)
             };
         }
 
@@ -457,6 +540,7 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             {
                 Id = project.Id,
                 Title = project.Title,
+                Code = project.Code,
                 Domain = project.Domain,
                 Description = project.Description,
                 Status = project.Status,
@@ -479,7 +563,22 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                     Notes = p.Notes,
                     CreatedAt = p.CreatedAt,
                     ModifiedAt = p.ModifiedAt
-                }).ToList()
+                }).ToList(),
+                Leader = MapToLeaderDto(project.ProjectMembers)
+            };
+        }
+
+        private static ProjectLeaderDto? MapToLeaderDto(IEnumerable<ProjectMember> members)
+        {
+            var leader = members?.FirstOrDefault(m => m.Role == ProjectRole.Leader);
+            if (leader == null || leader.User == null) return null;
+
+            return new ProjectLeaderDto
+            {
+                UserId = leader.UserId,
+                FullName = leader.User.FullName,
+                Username = leader.User.Username,
+                Email = leader.User.Email
             };
         }
     }

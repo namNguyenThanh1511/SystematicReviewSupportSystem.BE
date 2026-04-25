@@ -7,6 +7,7 @@ namespace SRSS.IAM.Services.StudySelectionProcessPaperService
     {
         Task SaveFinalIncludedPapersAsync(Guid processId, CancellationToken cancellationToken);
         Task<PaginatedResponse<IncludedPaperResponse>> GetIncludedPapersByProcessIdAsync(Guid processId, string? search, int pageNumber, int pageSize, CancellationToken cancellationToken);
+        Task<PaginatedResponse<IncludedPaperResponse>> GetIncludedPapersByReviewProcessIdAsync(Guid reviewProcessId, string? search, int pageNumber, int pageSize, CancellationToken cancellationToken);
         Task SaveMultipleIncludedPapersInFullTextPhaseAsync(Guid processId, List<Guid> paperIds, CancellationToken cancellationToken);
     }
 }

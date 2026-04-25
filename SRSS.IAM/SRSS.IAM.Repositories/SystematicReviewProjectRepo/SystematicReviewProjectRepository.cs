@@ -14,6 +14,8 @@ namespace SRSS.IAM.Repositories.SystematicReviewProjectRepo
         {
             return await _context.SystematicReviewProjects
                 .Include(p => p.ReviewProcesses)
+                .Include(p => p.ProjectMembers)
+                    .ThenInclude(pm => pm.User)
                 .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         }
 

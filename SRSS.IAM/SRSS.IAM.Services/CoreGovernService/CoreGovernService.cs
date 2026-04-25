@@ -245,55 +245,55 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		// ─────────────────────────── ResearchQuestion ──────────────────────
 
-		public async Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request)
-		{
-			await CheckLeaderRoleAsync(request.ProjectId);
-			await _unitOfWork.BeginTransactionAsync();
+		// public async Task<ResearchQuestionDetailResponse> CreateResearchQuestionAsync(CreateResearchQuestionRequest request)
+		// {
+		// 	await CheckLeaderRoleAsync(request.ProjectId);
+		// 	await _unitOfWork.BeginTransactionAsync();
 
-			try
-			{
-				var entity = new ResearchQuestion
-				{
-					ProjectId = request.ProjectId,
-					QuestionTypeId = request.QuestionTypeId,
-					QuestionText = request.QuestionText,
-					Rationale = request.Rationale
-				};
+		// 	try
+		// 	{
+		// 		var entity = new ResearchQuestion
+		// 		{
+		// 			ProjectId = request.ProjectId,
+		// 			QuestionTypeId = request.QuestionTypeId,
+		// 			QuestionText = request.QuestionText,
+		// 			Rationale = request.Rationale
+		// 		};
 
-				await _unitOfWork.ResearchQuestions.AddAsync(entity);
-				await _unitOfWork.SaveChangesAsync();
+		// 		await _unitOfWork.ResearchQuestions.AddAsync(entity);
+		// 		await _unitOfWork.SaveChangesAsync();
 
-				foreach (var picocRequest in request.PicocElements)
-				{
-					var picocElement = new PicocElement
-					{
-						ResearchQuestionId = entity.Id,
-						ElementType = picocRequest.ElementType,
-						Description = picocRequest.Description
-					};
+		// 		foreach (var picocRequest in request.PicocElements)
+		// 		{
+		// 			var picocElement = new PicocElement
+		// 			{
+		// 				ResearchQuestionId = entity.Id,
+		// 				ElementType = picocRequest.ElementType,
+		// 				Description = picocRequest.Description
+		// 			};
 
-					await _unitOfWork.PicocElements.AddAsync(picocElement);
-					await _unitOfWork.SaveChangesAsync();
+		// 			await _unitOfWork.PicocElements.AddAsync(picocElement);
+		// 			await _unitOfWork.SaveChangesAsync();
 
-					await CreateSpecificPicocChildAsync(picocElement.Id, picocRequest.ElementType,
-						picocRequest.PopulationDetail?.Description,
-						picocRequest.InterventionDetail?.Description,
-						picocRequest.ComparisonDetail?.Description,
-						picocRequest.OutcomeDetail?.Metric, picocRequest.OutcomeDetail?.Description,
-						picocRequest.ContextDetail?.Environment, picocRequest.ContextDetail?.Description);
-				}
+		// 			await CreateSpecificPicocChildAsync(picocElement.Id, picocRequest.ElementType,
+		// 				picocRequest.PopulationDetail?.Description,
+		// 				picocRequest.InterventionDetail?.Description,
+		// 				picocRequest.ComparisonDetail?.Description,
+		// 				picocRequest.OutcomeDetail?.Metric, picocRequest.OutcomeDetail?.Description,
+		// 				picocRequest.ContextDetail?.Environment, picocRequest.ContextDetail?.Description);
+		// 		}
 
-				await _unitOfWork.SaveChangesAsync();
-				await _unitOfWork.CommitTransactionAsync();
+		// 		await _unitOfWork.SaveChangesAsync();
+		// 		await _unitOfWork.CommitTransactionAsync();
 
-				return await BuildResearchQuestionResponseAsync(entity.Id);
-			}
-			catch
-			{
-				await _unitOfWork.RollbackTransactionAsync();
-				throw;
-			}
-		}
+		// 		return await BuildResearchQuestionResponseAsync(entity.Id);
+		// 	}
+		// 	catch
+		// 	{
+		// 		await _unitOfWork.RollbackTransactionAsync();
+		// 		throw;
+		// 	}
+		// }
 
 		public async Task<ResearchQuestionDetailResponse> GetResearchQuestionByIdAsync(Guid id)
 		{
@@ -345,126 +345,126 @@ namespace SRSS.IAM.Services.CoreGovernService
 
 		// ─────────────────────────── PICOC ─────────────────────────────────
 
-		public async Task<PicocElementDto> GetPicocElementByIdAsync(Guid picocElementId)
-		{
-			var picoc = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picocElementId)
-				?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
+		// public async Task<PicocElementDto> GetPicocElementByIdAsync(Guid picocElementId)
+		// {
+		// 	var picoc = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picocElementId)
+		// 		?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
 
-			return picoc.ToResponse();
-		}
+		// 	return picoc.ToResponse();
+		// }
 
-		public async Task<IEnumerable<PicocElementDto>> GetPicocElementsByResearchQuestionIdAsync(Guid researchQuestionId)
-		{
-			var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == researchQuestionId);
-			if (!questionExists)
-				throw new InvalidOperationException($"ResearchQuestion với ID {researchQuestionId} không tồn tại.");
+		// public async Task<IEnumerable<PicocElementDto>> GetPicocElementsByResearchQuestionIdAsync(Guid researchQuestionId)
+		// {
+		// 	var questionExists = await _unitOfWork.ResearchQuestions.AnyAsync(r => r.Id == researchQuestionId);
+		// 	if (!questionExists)
+		// 		throw new InvalidOperationException($"ResearchQuestion với ID {researchQuestionId} không tồn tại.");
 
-			var elements = await _unitOfWork.PicocElements.GetByResearchQuestionIdAsync(researchQuestionId);
-			// Map all element in the list to responseDTO
-			return elements.Select(p => p.ToResponse()).ToList();
-		}
+		// 	var elements = await _unitOfWork.PicocElements.GetByResearchQuestionIdAsync(researchQuestionId);
+		// 	// Map all element in the list to responseDTO
+		// 	return elements.Select(p => p.ToResponse()).ToList();
+		// }
 
-		public async Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request)
-		{
-			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == request.ResearchQuestionId);
-			if (question == null)
-				throw new InvalidOperationException($"ResearchQuestion với ID {request.ResearchQuestionId} không tồn tại.");
+		// public async Task<PicocElementDto> AddPicocElementAsync(AddPicocElementRequest request)
+		// {
+		// 	var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == request.ResearchQuestionId);
+		// 	if (question == null)
+		// 		throw new InvalidOperationException($"ResearchQuestion với ID {request.ResearchQuestionId} không tồn tại.");
 
-			await CheckLeaderRoleAsync(question.ProjectId);
+		// 	await CheckLeaderRoleAsync(question.ProjectId);
 
-			var picoc = new PicocElement
-			{
-				ResearchQuestionId = request.ResearchQuestionId,
-				ElementType = request.ElementType,
-				Description = request.Description
-			};
+		// 	var picoc = new PicocElement
+		// 	{
+		// 		ResearchQuestionId = request.ResearchQuestionId,
+		// 		ElementType = request.ElementType,
+		// 		Description = request.Description
+		// 	};
 
-			await _unitOfWork.PicocElements.AddAsync(picoc);
-			await _unitOfWork.SaveChangesAsync();
+		// 	await _unitOfWork.PicocElements.AddAsync(picoc);
+		// 	await _unitOfWork.SaveChangesAsync();
 
-			await CreateSpecificPicocChildAsync(picoc.Id, request.ElementType,
-				request.PopulationDetail?.Description,
-				request.InterventionDetail?.Description,
-				request.ComparisonDetail?.Description,
-				request.OutcomeDetail?.Metric, request.OutcomeDetail?.Description,
-				request.ContextDetail?.Environment, request.ContextDetail?.Description);
+		// 	await CreateSpecificPicocChildAsync(picoc.Id, request.ElementType,
+		// 		request.PopulationDetail?.Description,
+		// 		request.InterventionDetail?.Description,
+		// 		request.ComparisonDetail?.Description,
+		// 		request.OutcomeDetail?.Metric, request.OutcomeDetail?.Description,
+		// 		request.ContextDetail?.Environment, request.ContextDetail?.Description);
 
-			await _unitOfWork.SaveChangesAsync();
+		// 	await _unitOfWork.SaveChangesAsync();
 
-			var created = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
-				?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi tạo.");
-			return created.ToResponse();
-		}
+		// 	var created = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
+		// 		?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi tạo.");
+		// 	return created.ToResponse();
+		// }
 
-		public async Task<PicocElementDto> UpdatePicocElementAsync(UpdatePicocElementRequest request)
-		{
-			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == request.Id)
-				?? throw new InvalidOperationException($"PicocElement với ID {request.Id} không tồn tại.");
+		// public async Task<PicocElementDto> UpdatePicocElementAsync(UpdatePicocElementRequest request)
+		// {
+		// 	var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == request.Id)
+		// 		?? throw new InvalidOperationException($"PicocElement với ID {request.Id} không tồn tại.");
 
-			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
-			if (question != null)
-			{
-				await CheckLeaderRoleAsync(question.ProjectId);
-			}
+		// 	var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
+		// 	if (question != null)
+		// 	{
+		// 		await CheckLeaderRoleAsync(question.ProjectId);
+		// 	}
 
-			picoc.Description = request.Description;
-			await _unitOfWork.PicocElements.UpdateAsync(picoc);
+		// 	picoc.Description = request.Description;
+		// 	await _unitOfWork.PicocElements.UpdateAsync(picoc);
 
-			await UpdateSpecificPicocChildAsync(picoc.Id, picoc.ElementType,
-				request.PopulationDetail?.Description,
-				request.InterventionDetail?.Description,
-				request.ComparisonDetail?.Description,
-				request.OutcomeDetail?.Metric, request.OutcomeDetail?.Description,
-				request.ContextDetail?.Environment, request.ContextDetail?.Description);
+		// 	await UpdateSpecificPicocChildAsync(picoc.Id, picoc.ElementType,
+		// 		request.PopulationDetail?.Description,
+		// 		request.InterventionDetail?.Description,
+		// 		request.ComparisonDetail?.Description,
+		// 		request.OutcomeDetail?.Metric, request.OutcomeDetail?.Description,
+		// 		request.ContextDetail?.Environment, request.ContextDetail?.Description);
 
-			await _unitOfWork.SaveChangesAsync();
+		// 	await _unitOfWork.SaveChangesAsync();
 
-			var updated = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
-				?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi cập nhật.");
-			return updated.ToResponse();
-		}
+		// 	var updated = await _unitOfWork.PicocElements.GetByIdWithChildrenAsync(picoc.Id)
+		// 		?? throw new InvalidOperationException($"Không thể tải PicocElement sau khi cập nhật.");
+		// 	return updated.ToResponse();
+		// }
 
-		public async Task DeletePicocElementAsync(Guid picocElementId)
-		{
-			var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == picocElementId)
-				?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
+		// public async Task DeletePicocElementAsync(Guid picocElementId)
+		// {
+		// 	var picoc = await _unitOfWork.PicocElements.FindSingleAsync(p => p.Id == picocElementId)
+		// 		?? throw new InvalidOperationException($"PicocElement với ID {picocElementId} không tồn tại.");
 
-			var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
-			if (question != null)
-			{
-				await CheckLeaderRoleAsync(question.ProjectId);
-			}
+		// 	var question = await _unitOfWork.ResearchQuestions.FindSingleAsync(r => r.Id == picoc.ResearchQuestionId);
+		// 	if (question != null)
+		// 	{
+		// 		await CheckLeaderRoleAsync(question.ProjectId);
+		// 	}
 
-			await _unitOfWork.PicocElements.RemoveAsync(picoc);
-			await _unitOfWork.SaveChangesAsync();
-		}
+		// 	await _unitOfWork.PicocElements.RemoveAsync(picoc);
+		// 	await _unitOfWork.SaveChangesAsync();
+		// }
 
-		// ─────────────────────────── Private Helpers ───────────────────────
+		// // ─────────────────────────── Private Helpers ───────────────────────
 
-		private async Task CreateSpecificPicocChildAsync(Guid picocId, string elementType,
-			string? populationDesc, string? interventionDesc, string? comparisonDesc,
-			string? outcomeMetric, string? outcomeDesc,
-			string? contextEnv, string? contextDesc)
-		{
-			switch (elementType)
-			{
-				case "Population" when populationDesc != null:
-					await _unitOfWork.Populations.AddAsync(new Population { PicocId = picocId, Description = populationDesc });
-					break;
-				case "Intervention" when interventionDesc != null:
-					await _unitOfWork.Interventions.AddAsync(new Intervention { PicocId = picocId, Description = interventionDesc });
-					break;
-				case "Comparison" when comparisonDesc != null:
-					await _unitOfWork.Comparisons.AddAsync(new Comparison { PicocId = picocId, Description = comparisonDesc });
-					break;
-				case "Outcome" when outcomeDesc != null:
-					await _unitOfWork.Outcomes.AddAsync(new Outcome { PicocId = picocId, Metric = outcomeMetric, Description = outcomeDesc });
-					break;
-				case "Context" when contextDesc != null:
-					await _unitOfWork.Contexts.AddAsync(new Context { PicocId = picocId, Environment = contextEnv, Description = contextDesc });
-					break;
-			}
-		}
+		// private async Task CreateSpecificPicocChildAsync(Guid picocId, string elementType,
+		// 	string? populationDesc, string? interventionDesc, string? comparisonDesc,
+		// 	string? outcomeMetric, string? outcomeDesc,
+		// 	string? contextEnv, string? contextDesc)
+		// {
+		// 	switch (elementType)
+		// 	{
+		// 		case "Population" when populationDesc != null:
+		// 			await _unitOfWork.Populations.AddAsync(new Population { PicocId = picocId, Description = populationDesc });
+		// 			break;
+		// 		case "Intervention" when interventionDesc != null:
+		// 			await _unitOfWork.Interventions.AddAsync(new Intervention { PicocId = picocId, Description = interventionDesc });
+		// 			break;
+		// 		case "Comparison" when comparisonDesc != null:
+		// 			await _unitOfWork.Comparisons.AddAsync(new Comparison { PicocId = picocId, Description = comparisonDesc });
+		// 			break;
+		// 		case "Outcome" when outcomeDesc != null:
+		// 			await _unitOfWork.Outcomes.AddAsync(new Outcome { PicocId = picocId, Metric = outcomeMetric, Description = outcomeDesc });
+		// 			break;
+		// 		case "Context" when contextDesc != null:
+		// 			await _unitOfWork.Contexts.AddAsync(new Context { PicocId = picocId, Environment = contextEnv, Description = contextDesc });
+		// 			break;
+		// 	}
+		// }
 
 		private async Task UpdateSpecificPicocChildAsync(Guid picocId, string elementType,
 			string? populationDesc, string? interventionDesc, string? comparisonDesc,

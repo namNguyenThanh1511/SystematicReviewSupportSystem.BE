@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.SearchStrategyService
 			_currentUserService = currentUserService;
 		}
 
-		private async Task EnsureLeaderAsync(Guid protocolId)
+		private async Task EnsureLeaderAsync(Guid projectId)
 		{
 			var userIdString = _currentUserService.GetUserId();
 			if (string.IsNullOrEmpty(userIdString))
@@ -26,11 +26,8 @@ namespace SRSS.IAM.Services.SearchStrategyService
 				throw new UnauthorizedException("User is not authenticated.");
 			}
 
-			var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-				?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
 			var userId = Guid.Parse(userIdString);
-			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+			var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
 			if (!isLeader)
 			{
 				throw new ForbiddenException("Only project leader can perform this action.");
@@ -43,7 +40,7 @@ namespace SRSS.IAM.Services.SearchStrategyService
 		{
 			if (dtos.Any())
 			{
-				await EnsureLeaderAsync(dtos.First().ProtocolId);
+				await EnsureLeaderAsync(dtos.First().ProjectId);
 			}
 
 			var results = new List<SearchSource>();
@@ -96,9 +93,9 @@ namespace SRSS.IAM.Services.SearchStrategyService
 			return results.ToDtoList();  
 		}
 
-		public async Task<List<SearchSourceDto>> GetSearchSourcesByProtocolIdAsync(Guid protocolId)
+		public async Task<List<SearchSourceDto>> GetSearchSourcesByProjectIdAsync(Guid projectId)
 		{
-			var entities = await _unitOfWork.SearchSources.GetByProtocolIdAsync(protocolId);
+			var entities = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId);
 			return entities.ToDtoList();  
 		}
 	}

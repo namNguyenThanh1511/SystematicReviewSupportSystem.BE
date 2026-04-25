@@ -1,4 +1,3 @@
-using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Repositories.Entities;
 
@@ -39,18 +38,23 @@ namespace SRSS.IAM.Services.ReviewProcessService
             Guid id,
             CancellationToken cancellationToken = default);
 
-        Task<ReviewProcessResponse> AssignProtocolAsync(
-            Guid processId,
-            Guid protocolId,
-            CancellationToken cancellationToken = default);
-
-        Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
-            Guid processId,
-            CancellationToken cancellationToken = default);
-
         Task<ReviewProcessResponse> ReopenPhaseAsync(
             Guid reviewProcessId,
             ProcessPhase phase,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ReviewProcessSnapshotResponse>> GetReviewProcessSnapshotsByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<AddPapersToReviewProcessResponse> AddSelectedPapersAsync(
+            Guid reviewProcessId,
+            AddSelectedPapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<AddPapersFromFilterResponse> AddPapersFromFilterSettingAsync(
+            Guid reviewProcessId,
+            AddFromFilterSettingRequest request,
             CancellationToken cancellationToken = default);
     }
 }

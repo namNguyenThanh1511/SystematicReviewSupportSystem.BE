@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
@@ -6,6 +7,7 @@ using SRSS.IAM.Services.QualityAssessmentService;
 
 namespace SRSS.IAM.API.Controllers
 {
+	[Authorize]
 	[ApiController]
 	[Route("api/quality-assessment")]
 	public class QualityAssessmentController : BaseController
@@ -31,13 +33,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Quality Strategies theo Protocol ID
+		/// Lấy tất cả Quality Strategies theo Review Process ID
 		/// </summary>
-		[HttpGet("protocol/{protocolId}/strategies")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByProtocolId(
-			Guid protocolId)
+		[HttpGet("review-process/{reviewProcessId}/strategies")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByReviewProcessId(
+			Guid reviewProcessId)
 		{
-			var result = await _service.GetStrategiesByProtocolIdAsync(protocolId);
+			var result = await _service.GetStrategiesByReviewProcessIdAsync(reviewProcessId);
 			return Ok(result, "Lấy danh sách strategies thành công");
 		}
 
@@ -139,16 +141,16 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		[HttpGet("{id}/assignments/my")]
-		public async Task<ActionResult<ApiResponse<QAMemberDashboardResponse>>> GetMemberDashboard(Guid id)
+		public async Task<ActionResult<ApiResponse<QAMemberDashboardResponse>>> GetMemberDashboard(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
 		{
-			var result = await _service.GetMemberDashboardAsync(id);
+			var result = await _service.GetMemberDashboardAsync(id, pageNumber, pageSize, search);
 			return Ok(result, "Lấy danh sách bài báo được phân công thành công");
 		}
 
 		[HttpGet("{id}/leader")]
-		public async Task<ActionResult<ApiResponse<QALeaderDashboardResponse>>> GetLeaderDashboardByProcessId(Guid id)
+		public async Task<ActionResult<ApiResponse<QALeaderDashboardResponse>>> GetLeaderDashboardByProcessId(Guid id, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
 		{
-			var result = await _service.GetLeaderDashboardAsync(id);
+			var result = await _service.GetLeaderDashboardAsync(id, pageNumber, pageSize, search);
 			return Ok(result, "Lấy danh sách bài báo thành công");
 		}
 
@@ -194,10 +196,10 @@ namespace SRSS.IAM.API.Controllers
 			return Ok(result, "Thực hiện tự động đánh giá chất lượng thành công");
 		}
 
-		[HttpGet("papers/{qaPaperId}/decisions")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByQaPaperId(Guid qaPaperId)
+		[HttpGet("papers/{paperId}/decisions")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionResponse>>>> GetDecisionsByPaperId(Guid paperId)
 		{
-			var result = await _service.GetDecisionsByQaPaperIdAsync(qaPaperId);
+			var result = await _service.GetDecisionsByPaperIdAsync(paperId);
 			return Ok(result, "Lấy danh sách quyết định thành công");
 		}
 

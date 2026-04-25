@@ -9,8 +9,8 @@ namespace SRSS.IAM.Repositories.PaperRepo
     public interface IPaperRepository : IGenericRepository<Paper, Guid, AppDbContext>
     {
         IQueryable<Paper> GetPapersQueryable(List<Guid> ids);
+        Task<Paper?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndProjectAsync(string doi, Guid projectId, CancellationToken cancellationToken = default);
-        Task<Paper?> GetByDoiAndSearchExecutionAsync(string doi, Guid searchExecutionId, CancellationToken cancellationToken = default);
         Task<Paper?> GetByDoiAndIdentificationProcessAsync(string doi, Guid identificationProcessId, CancellationToken cancellationToken = default);
         Task<(List<Paper> Papers, int TotalCount)> GetPapersByProjectAsync(
             Guid projectId,
@@ -24,11 +24,41 @@ namespace SRSS.IAM.Repositories.PaperRepo
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Get duplicate papers for a specific identification process
-        /// Uses DeduplicationResult table for process-scoped results
+        /// Search papers in a project with advanced filtering capabilities
+        /// Supports filtering by search text, search strategy ID, search source ID, and publication year
         /// </summary>
-        Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        Task<(List<Paper> Papers, int TotalCount)> SearchPapersByProjectAsync(
+            Guid projectId,
+            string? search,
+            Guid? searchStrategyId,
+            Guid? searchSourceId,
+            int? year,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<Paper> Papers, int TotalCount)> GetPaperPoolByProjectAsync(
+            Guid projectId,
+            string? searchText,
+            string? keyword,
+            int? yearFrom,
+            int? yearTo,
+            Guid? searchSourceId,
+            Guid? importBatchId,
+            string doiState,
+            string fullTextState,
+            bool onlyUnused,
+            bool recentlyImported,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get duplicate papers for a specific project
+        /// Uses DeduplicationResult table for project-scoped results
+        /// </summary>
+        Task<(List<Paper> Papers, List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
             string? search,
             int? year,
             string? sortBy,
@@ -115,6 +145,20 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<List<Paper>> GetPapersWithQaDetailsByIdsAsync(
             IEnumerable<Guid> paperIds,
             Guid qaProcessId,
+            CancellationToken cancellationToken = default);
+
+        Task<(List<SimplifiedPaperResponse> Items, int TotalCount)> GetSimplifiedPapersAsync(
+            List<Guid> paperIds,
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            int requiredReviewers,
+            string? search,
+            int? year,
+            Guid? searchSourceId,
+            AssignmentFilterStatus assignmentStatus,
+            ResolutionFilterStatus resolutionStatus,
+            int pageNumber,
+            int pageSize,
             CancellationToken cancellationToken = default);
 
         Task<Paper?> GetForAiEvaluationAsync(

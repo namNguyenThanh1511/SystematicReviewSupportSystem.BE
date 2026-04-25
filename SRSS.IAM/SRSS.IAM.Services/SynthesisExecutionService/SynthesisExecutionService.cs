@@ -193,8 +193,8 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == reviewProcessId)
                 ?? throw new InvalidOperationException($"ReviewProcess with ID {reviewProcessId} not found.");
 
-            if (reviewProcess.ProtocolId == null)
-                throw new InvalidOperationException($"ReviewProcess {reviewProcessId} has no assigned Protocol.");
+             // Protocol checks removed as Protocol module is deprecated.
+             // Research questions will be loaded from the project below.
 
             var synthesisProcess = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.ReviewProcessId == reviewProcessId)
                 ?? throw new InvalidOperationException("Synthesis process has not been initialized for this review process.");
@@ -221,7 +221,16 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
 
             await _unitOfWork.SynthesisProcesses.UpdateAsync(synthesisProcess);
 
-            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq => rq.ProjectId == reviewProcess.ProjectId);
+            var strategy = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.SynthesisProcessId == synthesisProcess.Id);
+            var targetQuestionIds = strategy?.TargetResearchQuestionIds ?? new List<Guid>();
+
+            if (!targetQuestionIds.Any())
+            {
+                throw new InvalidOperationException("No target research questions selected in synthesis strategy.");
+            }
+
+            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq => 
+                rq.ProjectId == reviewProcess.ProjectId && targetQuestionIds.Contains(rq.Id));
 
             foreach (var rq in researchQuestions)
             {

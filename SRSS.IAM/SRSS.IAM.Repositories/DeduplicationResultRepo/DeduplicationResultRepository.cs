@@ -10,42 +10,43 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
         {
         }
 
-        public async Task<List<DeduplicationResult>> GetByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        public async Task<List<DeduplicationResult>> GetByProjectAsync(
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             return await _context.DeduplicationResults
                 .AsNoTracking()
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId)
+                .Where(dr => dr.ProjectId == projectId)
                 .OrderBy(dr => dr.CreatedAt)
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<DeduplicationResult?> GetByPaperAndProcessAsync(
+        public async Task<DeduplicationResult?> GetByPaperAndProjectAsync(
             Guid paperId,
-            Guid identificationProcessId,
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
             return await _context.DeduplicationResults
                 .AsNoTracking()
                 .FirstOrDefaultAsync(
-                    dr => dr.PaperId == paperId && dr.IdentificationProcessId == identificationProcessId,
+                    dr => dr.PaperId == paperId && dr.ProjectId == projectId,
                     cancellationToken);
         }
 
-        public async Task<int> CountDuplicatesByProcessAsync(
-            Guid identificationProcessId,
+        public async Task<int> CountDuplicatesByProjectAsync(
+            Guid projectId,
             CancellationToken cancellationToken = default)
         {
-            // Only count active duplicates (exclude Rejected/keep-both which are not real duplicates)
+            // Only count active duplicates (pending or confirmed CANCEL).
             return await _context.DeduplicationResults
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId
-                    && dr.ReviewStatus != DeduplicationReviewStatus.Rejected)
+                .Where(dr => dr.ProjectId == projectId
+                    && (dr.ReviewStatus == DeduplicationReviewStatus.Pending
+                        || dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL))
                 .CountAsync(cancellationToken);
         }
 
         public async Task<(List<DeduplicationResult> Results, int TotalCount)> GetDuplicatePairsAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             string? search,
             DeduplicationReviewStatus? status,
             decimal? minConfidence,
@@ -59,7 +60,7 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
                 .AsNoTracking()
                 .Include(dr => dr.Paper)
                 .Include(dr => dr.DuplicateOfPaper)
-                .Where(dr => dr.IdentificationProcessId == identificationProcessId);
+                .Where(dr => dr.ProjectId == projectId && !dr.Paper.IsDeleted && !dr.DuplicateOfPaper.IsDeleted && dr.ReviewStatus == DeduplicationReviewStatus.Pending);
 
             // Filter by review status
             if (status.HasValue)
@@ -70,7 +71,7 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
             // Filter by minimum confidence
             if (minConfidence.HasValue)
             {
-                query = query.Where(dr => dr.ConfidenceScore != null && dr.ConfidenceScore >= minConfidence.Value);
+                query = query.Where(dr => dr.ConfidenceScore >= minConfidence.Value);
             }
 
             // Filter by detection method

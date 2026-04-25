@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace SRSS.IAM.Services.DTOs.QualityAssessment
 {
@@ -6,8 +6,8 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
 	{
 		public Guid? QaStrategyId { get; set; }
 
-		[Required(ErrorMessage = "ProtocolId là bắt buộc")]
-		public Guid ProtocolId { get; set; }
+		[Required(ErrorMessage = "ReviewProcessId là bắt buộc")]
+		public Guid ReviewProcessId { get; set; }
 
 		[StringLength(2000, ErrorMessage = "Description không được vượt quá 2000 ký tự")]
 		public string? Description { get; set; }

@@ -6,8 +6,8 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
     {
         public Guid? TemplateId { get; set; }
 
-        [Required(ErrorMessage = "ProtocolId là bắt buộc")]
-        public Guid ProtocolId { get; set; }
+        [Required(ErrorMessage = "DataExtractionProcessId là bắt buộc")]
+        public Guid DataExtractionProcessId { get; set; }
 
         [Required(ErrorMessage = "Name là bắt buộc")]
         [StringLength(500, ErrorMessage = "Name không được vượt quá 500 ký tự")]
@@ -39,6 +39,9 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public int SectionType { get; set; }
 
         public int OrderIndex { get; set; }
+
+        public bool IsPicoc { get; set; }
+        public Guid? LinkedResearchQuestionId { get; set; }
 
         /// <summary>
         /// Danh sách fields trong section (recursive tree structure)

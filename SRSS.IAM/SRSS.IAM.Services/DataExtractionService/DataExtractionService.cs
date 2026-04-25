@@ -3,6 +3,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.OpenRouter;
 using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.DataExtractionService
@@ -11,14 +12,19 @@ namespace SRSS.IAM.Services.DataExtractionService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IOpenRouterService _openRouterService;
 
-        public DataExtractionService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        public DataExtractionService(
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IOpenRouterService openRouterService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _openRouterService = openRouterService;
         }
 
-        private async Task EnsureLeaderAsync(Guid protocolId)
+        private async Task EnsureLeaderAsync(Guid processId)
         {
             var userIdString = _currentUserService.GetUserId();
             if (string.IsNullOrEmpty(userIdString))
@@ -26,11 +32,16 @@ namespace SRSS.IAM.Services.DataExtractionService
                 throw new UnauthorizedException("User is not authenticated.");
             }
 
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
             var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+
+            var process = await _unitOfWork.DataExtractionProcesses
+                .FindSingleAsync(x => x.Id == processId)
+                ?? throw new KeyNotFoundException($"Process {processId} không tồn tại");
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(x => x.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException("ReviewProcess không tồn tại.");
+
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
             if (!isLeader)
             {
                 throw new ForbiddenException("Only project leader can perform this action.");
@@ -41,9 +52,8 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task<ExtractionTemplateDto> UpsertTemplateAsync(ExtractionTemplateDto dto)
         {
-            await EnsureLeaderAsync(dto.ProtocolId);
+            await EnsureLeaderAsync(dto.DataExtractionProcessId);
 
-            // Validate first
             var validationResult = await ValidateTemplateAsync(dto);
             if (!validationResult.IsValid)
             {
@@ -55,26 +65,21 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             if (dto.TemplateId.HasValue && dto.TemplateId.Value != Guid.Empty)
             {
-                // UPDATE: Load existing template
                 template = await _unitOfWork.ExtractionTemplates
-                    .FindSingleAsync(t => t.Id == dto.TemplateId.Value)
+                    .GetByIdWithFieldsAsync(dto.TemplateId.Value)
                     ?? throw new KeyNotFoundException($"Template {dto.TemplateId.Value} không tồn tại");
 
-                // Update basic properties
-                template.Name = dto.Name;
-                template.Description = dto.Description;
-                template.ModifiedAt = DateTimeOffset.UtcNow;
+                dto.UpdateEntity(template);
 
-                // Delete old sections (cascade will delete fields and options)
-                await DeleteSectionsAsync(template.Id);
+                // Delta Update (Merge) Sections
+                await MergeSectionsAsync(template, dto.Sections);
             }
             else
             {
-                // CREATE: New template
                 template = new ExtractionTemplate
                 {
                     Id = Guid.NewGuid(),
-                    ProtocolId = dto.ProtocolId,
+                    DataExtractionProcessId = dto.DataExtractionProcessId,
                     Name = dto.Name,
                     Description = dto.Description,
                     CreatedAt = DateTimeOffset.UtcNow,
@@ -82,49 +87,213 @@ namespace SRSS.IAM.Services.DataExtractionService
                 };
 
                 await _unitOfWork.ExtractionTemplates.AddAsync(template);
-            }
 
-            // Add sections with their fields
-            foreach (var sectionDto in dto.Sections)
-            {
-                var section = sectionDto.ToEntity(template.Id);
-                await _unitOfWork.ExtractionSections.AddAsync(section);
-
-                // Add fields for this section
-                if (sectionDto.Fields != null && sectionDto.Fields.Count > 0)
+                foreach (var sectionDto in dto.Sections)
                 {
-                    foreach (var fieldDto in sectionDto.Fields)
+                    var section = sectionDto.ToEntity(template.Id);
+                    await _unitOfWork.ExtractionSections.AddAsync(section);
+
+                    if (sectionDto.Fields != null)
                     {
-                        var fieldEntities = fieldDto.ToEntitiesRecursive(section.Id, null);
-                        foreach (var field in fieldEntities)
+                        foreach (var fieldDto in sectionDto.Fields)
                         {
-                            await _unitOfWork.ExtractionFields.AddAsync(field);
+                            var fieldEntities = fieldDto.ToEntitiesRecursive(section.Id, null);
+                            foreach (var field in fieldEntities)
+                            {
+                                await _unitOfWork.ExtractionFields.AddAsync(field);
+                            }
                         }
                     }
-                }
 
-                // Add matrix columns for this section
-                if (sectionDto.MatrixColumns != null && sectionDto.MatrixColumns.Count > 0)
-                {
-                    foreach (var columnDto in sectionDto.MatrixColumns)
+                    if (sectionDto.MatrixColumns != null)
                     {
-                        var columnEntity = columnDto.ToEntity(section.Id);
-                        await _unitOfWork.ExtractionMatrixColumns.AddAsync(columnEntity);
+                        foreach (var columnDto in sectionDto.MatrixColumns)
+                        {
+                            var columnEntity = columnDto.ToEntity(section.Id);
+                            await _unitOfWork.ExtractionMatrixColumns.AddAsync(columnEntity);
+                        }
                     }
                 }
             }
 
             await _unitOfWork.SaveChangesAsync();
-
-            // Reload to get full tree structure
-            var result = await GetTemplateByIdAsync(template.Id);
-            return result;
+            return await GetTemplateByIdAsync(template.Id);
         }
 
-        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProtocolIdAsync(Guid protocolId)
+        private async Task MergeSectionsAsync(ExtractionTemplate template, List<ExtractionSectionDto> incomingSections)
+        {
+            var existingSections = template.Sections.ToList();
+
+            // 1. Update or Add
+            foreach (var sectionDto in incomingSections)
+            {
+                var existingSection = existingSections.FirstOrDefault(s => s.Id == sectionDto.SectionId);
+                if (existingSection != null)
+                {
+                    sectionDto.UpdateEntity(existingSection);
+
+                    // Merge Fields
+                    await MergeFieldsAsync(existingSection.Id, existingSection.Fields.ToList(), sectionDto.Fields, null);
+
+                    // Merge Matrix Columns
+                    await MergeMatrixColumnsAsync(existingSection, sectionDto.MatrixColumns);
+                }
+                else
+                {
+                    var newSection = sectionDto.ToEntity(template.Id);
+                    await _unitOfWork.ExtractionSections.AddAsync(newSection);
+
+                    if (sectionDto.Fields != null)
+                    {
+                        foreach (var fieldDto in sectionDto.Fields)
+                        {
+                            var fieldEntities = fieldDto.ToEntitiesRecursive(newSection.Id, null);
+                            foreach (var field in fieldEntities)
+                            {
+                                await _unitOfWork.ExtractionFields.AddAsync(field);
+                            }
+                        }
+                    }
+
+                    if (sectionDto.MatrixColumns != null)
+                    {
+                        foreach (var columnDto in sectionDto.MatrixColumns)
+                        {
+                            var columnEntity = columnDto.ToEntity(newSection.Id);
+                            await _unitOfWork.ExtractionMatrixColumns.AddAsync(columnEntity);
+                        }
+                    }
+                }
+            }
+
+            // 2. Delete missing
+            var sectionsToDelete = existingSections.Where(s => !incomingSections.Any(dto => dto.SectionId == s.Id)).ToList();
+            foreach (var section in sectionsToDelete)
+            {
+                await _unitOfWork.ExtractionSections.RemoveAsync(section);
+            }
+        }
+
+        private async Task MergeFieldsAsync(Guid sectionId, List<ExtractionField> existingFields, List<ExtractionFieldDto> incomingFields, Guid? parentFieldId)
+        {
+            incomingFields ??= new List<ExtractionFieldDto>();
+
+            // 1. Update or Add
+            foreach (var fieldDto in incomingFields)
+            {
+                var existingField = existingFields.FirstOrDefault(f => f.Id == fieldDto.FieldId);
+                if (existingField != null)
+                {
+                    fieldDto.UpdateEntity(existingField);
+
+                    // Merge Options
+                    await MergeOptionsAsync(existingField, fieldDto.Options);
+
+                    // Merge SubFields (Recursive)
+                    await MergeFieldsAsync(sectionId, existingField.SubFields.ToList(), fieldDto.SubFields, existingField.Id);
+                }
+                else
+                {
+                    var fieldEntities = fieldDto.ToEntitiesRecursive(sectionId, parentFieldId);
+                    foreach (var field in fieldEntities)
+                    {
+                        await _unitOfWork.ExtractionFields.AddAsync(field);
+                    }
+                }
+            }
+
+            // 2. Delete missing
+            var fieldsToDelete = existingFields.Where(f => !incomingFields.Any(dto => dto.FieldId == f.Id)).ToList();
+            foreach (var field in fieldsToDelete)
+            {
+                await _unitOfWork.ExtractionFields.RemoveAsync(field);
+            }
+        }
+
+        private async Task MergeOptionsAsync(ExtractionField field, List<FieldOptionDto> incomingOptions)
+        {
+            incomingOptions ??= new List<FieldOptionDto>();
+            var existingOptions = field.Options.ToList();
+
+            // 1. Update or Add
+            foreach (var optionDto in incomingOptions)
+            {
+                var existingOption = existingOptions.FirstOrDefault(o => o.Id == optionDto.OptionId);
+                if (existingOption != null)
+                {
+                    existingOption.Value = optionDto.Value;
+                    existingOption.DisplayOrder = optionDto.DisplayOrder;
+                    existingOption.ModifiedAt = DateTimeOffset.UtcNow;
+                }
+                else
+                {
+                    var newOption = optionDto.ToEntity(field.Id);
+                    await _unitOfWork.FieldOptions.AddAsync(newOption);
+                }
+            }
+
+            // 2. Delete missing
+            var optionsToDelete = existingOptions.Where(o => !incomingOptions.Any(dto => dto.OptionId == o.Id)).ToList();
+            foreach (var option in optionsToDelete)
+            {
+                await _unitOfWork.FieldOptions.RemoveAsync(option);
+            }
+        }
+
+        private async Task MergeMatrixColumnsAsync(ExtractionSection section, List<ExtractionMatrixColumnDto> incomingColumns)
+        {
+            incomingColumns ??= new List<ExtractionMatrixColumnDto>();
+            var existingColumns = section.MatrixColumns.ToList();
+
+            // 1. Update or Add
+            foreach (var columnDto in incomingColumns)
+            {
+                var existingColumn = existingColumns.FirstOrDefault(c => c.Id == columnDto.ColumnId);
+                if (existingColumn != null)
+                {
+                    columnDto.UpdateEntity(existingColumn);
+                }
+                else
+                {
+                    var newColumn = columnDto.ToEntity(section.Id);
+                    await _unitOfWork.ExtractionMatrixColumns.AddAsync(newColumn);
+                }
+            }
+
+            // 2. Delete missing
+            var columnsToDelete = existingColumns.Where(c => !incomingColumns.Any(dto => dto.ColumnId == c.Id)).ToList();
+            foreach (var column in columnsToDelete)
+            {
+                await _unitOfWork.ExtractionMatrixColumns.RemoveAsync(column);
+            }
+        }
+
+        public async Task<List<ExtractionFieldDto>> SuggestFieldsForSectionAsync(string sectionName, string projectContext = "")
+        {
+            var prompt = $@"You are a methodology expert in Systematic Literature Reviews (Software Engineering). 
+I need to extract data from primary studies to answer the following Research Question (or Context): '{sectionName}'. 
+{(string.IsNullOrEmpty(projectContext) ? "" : $"Additional context: {projectContext}")}
+Suggest a JSON object containing 3 to 5 highly relevant data extraction fields. 
+Use this strict JSON schema: {{ ""DataExtractionFields"": [{{ ""Name"": ""string"", ""Instruction"": ""string"", ""FieldType"": int, ""Options"": [{{ ""Value"": ""string"" }}] }}] }}. 
+FieldType mapping: 0=Text, 1=Integer, 2=Decimal, 3=Boolean, 4=SingleSelect, 5=MultiSelect. 
+For select types (4 or 5), provide 2-4 standard Options.";
+
+            try
+            {
+                var response = await _openRouterService.GenerateStructuredContentAsync<SuggestFieldsResponseDto>(prompt);
+                return response?.DataExtractionFields ?? new List<ExtractionFieldDto>();
+            }
+            catch (Exception ex)
+            {
+                // Fallback or rethrow as a domain exception if preferred
+                throw new InvalidOperationException($"Failed to suggest fields: {ex.Message}");
+            }
+        }
+
+        public async Task<List<ExtractionTemplateDto>> GetTemplatesByProcessIdAsync(Guid processId)
         {
             var templates = await _unitOfWork.ExtractionTemplates
-                .GetByProtocolIdAsync(protocolId);
+                .GetByProcessIdAsync(processId);
 
             return templates.Select(t => t.ToDto()).ToList();
         }
@@ -140,12 +309,11 @@ namespace SRSS.IAM.Services.DataExtractionService
 
         public async Task DeleteTemplateAsync(Guid templateId)
         {
-            // Fix #7: throw KeyNotFoundException instead of silently doing nothing
             var template = await _unitOfWork.ExtractionTemplates
                 .FindSingleAsync(t => t.Id == templateId)
                 ?? throw new KeyNotFoundException($"Template {templateId} not found.");
 
-            await EnsureLeaderAsync(template.ProtocolId);
+            await EnsureLeaderAsync(template.DataExtractionProcessId);
 
             // Delete sections first (cascade will handle fields and options)
             await DeleteSectionsAsync(templateId);

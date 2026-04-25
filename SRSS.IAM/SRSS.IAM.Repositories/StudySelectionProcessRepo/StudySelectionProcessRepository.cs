@@ -50,6 +50,7 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                 .AsNoTracking()
                 .Include(ssp => ssp.ScreeningDecisions)
                 .Include(ssp => ssp.ScreeningResolutions)
+                .Include(ssp => ssp.PaperAssignments)
                 .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
         }
 
@@ -69,17 +70,11 @@ namespace SRSS.IAM.Repositories.StudySelectionProcessRepo
                 .Include(ssp => ssp.ReviewProcess)
                     .ThenInclude(rp => rp.Project)
                         .ThenInclude(p => p.ResearchQuestions)
-                            .ThenInclude(rq => rq.PicocElements)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Protocol)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Protocol)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.InclusionCriteria)
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Protocol)
-                        .ThenInclude(p => p.SelectionCriterias)
-                            .ThenInclude(sc => sc.ExclusionCriteria)
+                            // .ThenInclude(rq => rq.PicocElements)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.InclusionCriteria)
+                .Include(ssp => ssp.StudySelectionCriterias)
+                    .ThenInclude(sc => sc.ExclusionCriteria)
                 .FirstOrDefaultAsync(ssp => ssp.Id == id, cancellationToken);
         }
     }

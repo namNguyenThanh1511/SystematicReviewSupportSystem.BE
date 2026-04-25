@@ -6,7 +6,7 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 	{
 		// Quality Assessment Strategies
 		Task<QualityAssessmentStrategyDto> UpsertStrategyAsync(QualityAssessmentStrategyDto dto);
-		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProjectIdAsync(Guid projectId);
+		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByReviewProcessIdAsync(Guid reviewProcessId);
 		Task<List<QualityAssessmentStrategyDto>> GetStrategiesByProcessIdAsync(Guid processId);
 		Task DeleteStrategyAsync(Guid strategyId);
 

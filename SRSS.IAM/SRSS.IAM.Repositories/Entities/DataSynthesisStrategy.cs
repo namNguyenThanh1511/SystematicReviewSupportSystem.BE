@@ -5,7 +5,7 @@ namespace SRSS.IAM.Repositories.Entities
 {
 	public class DataSynthesisStrategy : BaseEntity<Guid>
 	{
-		public Guid ProjectId { get; set; }
+		public Guid SynthesisProcessId { get; set; }
 		public SynthesisType SynthesisType { get; set; }
 		public string? Description { get; set; }
 
@@ -14,6 +14,6 @@ namespace SRSS.IAM.Repositories.Entities
 		public string? SensitivityAnalysisPlan { get; set; }
 
 		// Navigation properties
-		public SystematicReviewProject Project { get; set; } = null!;
+		public SynthesisProcess SynthesisProcess { get; set; } = null!;
 	}
 }

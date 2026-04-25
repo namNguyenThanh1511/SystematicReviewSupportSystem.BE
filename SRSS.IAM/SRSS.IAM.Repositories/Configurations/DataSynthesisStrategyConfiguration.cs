@@ -4,42 +4,42 @@ using SRSS.IAM.Repositories.Entities;
 
 namespace SRSS.IAM.Repositories.Configurations
 {
-	public class DataSynthesisStrategyConfiguration : IEntityTypeConfiguration<DataSynthesisStrategy>
-	{
-		public void Configure(EntityTypeBuilder<DataSynthesisStrategy> builder)
-		{
-			builder.ToTable("data_synthesis_strategy");
+    public class DataSynthesisStrategyConfiguration : IEntityTypeConfiguration<DataSynthesisStrategy>
+    {
+        public void Configure(EntityTypeBuilder<DataSynthesisStrategy> builder)
+        {
+            builder.ToTable("data_synthesis_strategy");
 
-			builder.HasKey(x => x.Id);
-			builder.Property(x => x.Id)
-				.HasColumnName("synthesis_strategy_id")
-				.IsRequired();
+            builder.HasKey(x => x.Id);
+            builder.Property(x => x.Id)
+                .HasColumnName("synthesis_strategy_id")
+                .IsRequired();
 
-			builder.Property(x => x.ProjectId)
-				.HasColumnName("project_id")
-				.IsRequired();
+            builder.Property(x => x.SynthesisProcessId)
+                .HasColumnName("synthesis_process_id")
+                .IsRequired();
 
-			builder.Property(x => x.SynthesisType)
-				.HasColumnName("synthesis_type")
-				.IsRequired()
-				.HasConversion<string>();
+            builder.Property(x => x.SynthesisType)
+                .HasColumnName("synthesis_type")
+                .IsRequired()
+                .HasConversion<string>();
 
-			builder.Property(x => x.Description)
-				.HasColumnName("description");
+            builder.Property(x => x.Description)
+                .HasColumnName("description");
 
-			builder.Property(x => x.TargetResearchQuestionIds)
-				.HasColumnName("target_research_question_ids");
+            builder.Property(x => x.TargetResearchQuestionIds)
+                .HasColumnName("target_research_question_ids");
 
-			builder.Property(x => x.DataGroupingPlan)
-				.HasColumnName("data_grouping_plan");
+            builder.Property(x => x.DataGroupingPlan)
+                .HasColumnName("data_grouping_plan");
 
-			builder.Property(x => x.SensitivityAnalysisPlan)
-				.HasColumnName("sensitivity_analysis_plan");
+            builder.Property(x => x.SensitivityAnalysisPlan)
+                .HasColumnName("sensitivity_analysis_plan");
 
-			builder.HasOne(x => x.Project)
-				.WithMany(x => x.SynthesisStrategies)
-				.HasForeignKey(x => x.ProjectId)
-				.OnDelete(DeleteBehavior.Cascade);
-		}
-	}
+            builder.HasOne(x => x.SynthesisProcess)
+                .WithMany(x => x.SynthesisStrategies)
+                .HasForeignKey(x => x.SynthesisProcessId)
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+    }
 }

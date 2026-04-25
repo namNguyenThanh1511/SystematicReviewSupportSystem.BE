@@ -288,8 +288,8 @@ namespace SRSS.IAM.API.Data
             await SeedProjectsAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
-            await SeedCoreGovernanceAsync(context); 
-            await SeedReviewProcessesAsync(context); 
+            await SeedCoreGovernanceAsync(context);
+            await SeedReviewProcessesAsync(context);
 
             // Seed Processes first to satisfy foreign key dependencies
             await SeedIdentificationProcessesAsync(context);
@@ -302,7 +302,7 @@ namespace SRSS.IAM.API.Data
             await SeedSearchSourcesAsync(context);
             await SeedStudySelectionCriteriaAsync(context);
             await SeedQualityAssessmentAsync(context);
-            await SeedDataExtractionTemplateAsync(context); 
+            await SeedDataExtractionTemplateAsync(context);
             await SeedDataSynthesisAsync(context);
 
             await SeedImportBatchesAsync(context);
@@ -565,7 +565,7 @@ namespace SRSS.IAM.API.Data
             await context.SaveChangesAsync();
         }
 
-       
+
 
         private static async Task SeedImportBatchesAsync(AppDbContext context)
         {
@@ -978,7 +978,7 @@ namespace SRSS.IAM.API.Data
         {
             if (!await context.DataSynthesisStrategies.AnyAsync(x => x.Id == Har2SynthesisStrategy1Id))
             {
-                await context.DataSynthesisStrategies.AddAsync(new DataSynthesisStrategy { Id = Har2SynthesisStrategy1Id, ProjectId = HarProjectId, SynthesisType = SynthesisType.NarrativeThematic, DataGroupingPlan = "Studies will be stratified structurally by SE methodology (e.g., Agile, DevOps) and further categorized by company size (SME vs Enterprise).", SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.", Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.DataSynthesisStrategies.AddAsync(new DataSynthesisStrategy { Id = Har2SynthesisStrategy1Id, SynthesisProcessId = HarSynthesisProcessId, SynthesisType = SynthesisType.NarrativeThematic, DataGroupingPlan = "Studies will be stratified structurally by SE methodology (e.g., Agile, DevOps) and further categorized by company size (SME vs Enterprise).", SensitivityAnalysisPlan = "We will perform a sensitivity analysis by temporarily excluding studies flagged as 'Low Quality' during the formal Quality Assessment phase to observe if they inflate error ranges or skew the general narrative findings.", Description = "Narrative synthesis of contextual factors and outcomes extracted from primary studies based on thematic clustering.", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.SaveChangesAsync();
             }
         }

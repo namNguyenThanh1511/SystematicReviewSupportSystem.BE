@@ -29,6 +29,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public int LowQualityPapers { get; set; }
         public int InProgressPapers { get; set; }
         public int NotStartedPapers { get; set; }
+        public bool HasSetupCriteria { get; set; }
     }
 
     public class CreateQualityAssessmentProcessDto

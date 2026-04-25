@@ -22,6 +22,7 @@ namespace SRSS.IAM.Repositories.Entities
         public SynthesisProcess? SynthesisProcess { get; set; }
         public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
         public ICollection<PrismaReport> PrismaReports { get; set; } = new List<PrismaReport>();
+        public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
 
         // Domain Methods
         public void Start()

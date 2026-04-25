@@ -6,8 +6,8 @@ namespace SRSS.IAM.Repositories.QualityRepo
 {
     public interface IQualityAssessmentStrategyRepository : IGenericRepository<QualityAssessmentStrategy, Guid, AppDbContext>
     {
-        Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
-        Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<QualityAssessmentStrategy>> GetByReviewProcessIdAsync(Guid reviewProcessId, CancellationToken cancellationToken = default);
+        Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByReviewProcessIdAsync(Guid reviewProcessId, CancellationToken cancellationToken = default);
     }
 
     public interface IQualityChecklistRepository : IGenericRepository<QualityChecklist, Guid, AppDbContext>
@@ -47,18 +47,18 @@ namespace SRSS.IAM.Repositories.QualityRepo
     {
         public QualityAssessmentStrategyRepository(AppDbContext context) : base(context) { }
 
-        public async Task<IEnumerable<QualityAssessmentStrategy>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<QualityAssessmentStrategy>> GetByReviewProcessIdAsync(Guid reviewProcessId, CancellationToken cancellationToken = default)
         {
-            return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
+            return await FindAllAsync(s => s.ReviewProcessId == reviewProcessId, isTracking: false, cancellationToken);
         }
 
-        public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<QualityAssessmentStrategy>> GetFullStrategyByReviewProcessIdAsync(Guid reviewProcessId, CancellationToken cancellationToken = default)
         {
             return await _context.Set<QualityAssessmentStrategy>()
                 .Include(s => s.Checklists)
                 .ThenInclude(c => c.Criteria)
                 .AsNoTracking()
-                .Where(s => s.ProjectId == projectId)
+                .Where(s => s.ReviewProcessId == reviewProcessId)
                 .ToListAsync(cancellationToken);
         }
     }

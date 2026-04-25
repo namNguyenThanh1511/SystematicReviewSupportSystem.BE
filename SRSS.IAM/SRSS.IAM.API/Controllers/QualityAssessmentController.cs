@@ -33,13 +33,13 @@ namespace SRSS.IAM.API.Controllers
 		}
 
 		/// <summary>
-		/// Lấy tất cả Quality Strategies theo Project ID
+		/// Lấy tất cả Quality Strategies theo Review Process ID
 		/// </summary>
-		[HttpGet("project/{projectId}/strategies")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByProjectId(
-			Guid projectId)
+		[HttpGet("review-process/{reviewProcessId}/strategies")]
+		public async Task<ActionResult<ApiResponse<List<QualityAssessmentStrategyDto>>>> GetStrategiesByReviewProcessId(
+			Guid reviewProcessId)
 		{
-			var result = await _service.GetStrategiesByProjectIdAsync(projectId);
+			var result = await _service.GetStrategiesByReviewProcessIdAsync(reviewProcessId);
 			return Ok(result, "Lấy danh sách strategies thành công");
 		}
 

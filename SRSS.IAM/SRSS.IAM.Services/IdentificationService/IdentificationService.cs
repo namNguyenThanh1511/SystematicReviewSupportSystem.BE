@@ -394,7 +394,8 @@ namespace SRSS.IAM.Services.IdentificationService
                 AccessType = paper.AccessType,
                 AccessTypeText = paper.AccessType?.ToString(),
                 CreatedAt = paper.CreatedAt,
-                ModifiedAt = paper.ModifiedAt
+                ModifiedAt = paper.ModifiedAt,
+                IsDuplicated = paper.IsDuplicated
             };
         }
 
@@ -720,6 +721,7 @@ namespace SRSS.IAM.Services.IdentificationService
                     });
 
                     result.DuplicateRecords++;
+                    newPaper.IsDuplicated = true;
                 }
 
                 papersToCreate.Add(newPaper);

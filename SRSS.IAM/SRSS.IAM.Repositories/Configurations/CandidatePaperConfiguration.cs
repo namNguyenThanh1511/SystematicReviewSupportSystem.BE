@@ -29,12 +29,6 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasMaxLength(255);
             builder.Property(c => c.ConfidenceScore)
                 .HasColumnName("confidence_score");
-            
-            builder.HasOne(c => c.ReviewProcess)
-                .WithMany()
-                .HasForeignKey(c => c.ReviewProcessId)
-                .OnDelete(DeleteBehavior.Cascade);
-
             builder.HasOne(c => c.OriginPaper)
                 .WithMany()
                 .HasForeignKey(c => c.OriginPaperId)

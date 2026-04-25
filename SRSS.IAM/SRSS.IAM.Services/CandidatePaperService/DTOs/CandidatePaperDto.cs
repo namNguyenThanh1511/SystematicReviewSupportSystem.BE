@@ -23,7 +23,7 @@ namespace SRSS.IAM.Services.CandidatePaperService.DTOs
         public decimal ConfidenceScore { get; set; }
         public decimal ExtractionQualityScore { get; set; }
         public decimal MatchConfidenceScore { get; set; }
-        public bool IsSelectedInScreening { get; set; }
+        public bool IsSelectedInProjectRepository { get; set; }
         public string? ValidationNote { get; set; }
     }
 
@@ -42,6 +42,7 @@ namespace SRSS.IAM.Services.CandidatePaperService.DTOs
 
     public class SelectCandidatePaperRequest
     {
+        public Guid ProjectId { get; set; }
         public List<Guid> CandidateIds { get; set; } = new List<Guid>();
     }
 

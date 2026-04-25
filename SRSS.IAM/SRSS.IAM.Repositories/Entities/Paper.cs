@@ -77,6 +77,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string? InternalNotes { get; set; }
         public bool IsDeleted { get; set; } = false;
 
+        public bool IsDuplicated { get; set; } = false;
+
         // ============================================
         // EXTERNAL METADATA (OPENALEX)
         // ============================================

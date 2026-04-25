@@ -206,7 +206,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(pa => pa.ProjectMember)
                         .ThenInclude(pm => pm.User)
                 .Include(p => p.ScreeningResolutions)
-                .Where(p => p.ProjectId == projectId && !p.IsDeleted);
+                .Where(p => p.ProjectId == projectId && !p.IsDeleted && p.IsDuplicated == false);
 
             if (!string.IsNullOrWhiteSpace(searchText))
             {

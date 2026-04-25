@@ -1380,7 +1380,7 @@ Your task is to extract the correct answers from the PAPER TEXT according to the
 4. For Matrix Grid sections, you MUST provide both 'FieldId', 'MatrixColumnId' (GUID), and 'MatrixRowIndex' (0-indexed).
 
 ### OUTPUT ENFORCEMENT
-- Return ONLY a JSON object with a property named ""ExtractedData"" containing an array of objects.
+- Return ONLY a JSON object with a property named ""ExtractedData"" which is an array of objects.
 - Each object in the array must follow the structure:
   {{
     ""FieldId"": ""GUID"",
@@ -1391,6 +1391,8 @@ Your task is to extract the correct answers from the PAPER TEXT according to the
     ""MatrixColumnId"": ""GUID or null"",
     ""MatrixRowIndex"": number or null
   }}
+- **FLEXIBLE EXTRACTION**: If a specific numeric/option value is not reported but discussed qualitatively (e.g., ""high"", ""low"", ""not measured""), put that description in 'StringValue'.
+- **FALLBACK**: If a study discusses a topic but doesn't give a specific data point, summarize the study's stance in 1 sentence in 'StringValue'.
 - Do NOT include any explanations or markdown.
 
 ### SCHEMA
@@ -1475,7 +1477,9 @@ Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
     ""NumericValue"": number or null,
     ""BooleanValue"": boolean or null
   }}
-- Do NOT include any explanations, markdown code blocks, or text outside the JSON object.
+- **FLEXIBLE EXTRACTION**: If the study does not explicitly provide a numeric/boolean value but describes the result (e.g., ""highly satisfied"", ""improved significantly""), put that qualitative description in 'StringValue'. 
+- **FALLBACK**: If no direct value is found, provide a 1-sentence summary of what the study says about this field in 'StringValue' instead of leaving everything null.
+- Do NOT include any explanations or markdown outside the JSON object.
 
 ### PAPER CONTEXT
 {combinedContext}

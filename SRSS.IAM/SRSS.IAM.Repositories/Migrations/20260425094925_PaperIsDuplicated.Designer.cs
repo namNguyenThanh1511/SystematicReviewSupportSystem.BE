@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260425094925_PaperIsDuplicated")]
+    partial class PaperIsDuplicated
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -144,7 +147,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<decimal>("ExtractionQualityScore")
                         .HasColumnType("numeric");
 
-                    b.Property<bool>("IsSelectedInProjectRepository")
+                    b.Property<bool>("IsSelectedInScreening")
                         .HasColumnType("boolean");
 
                     b.Property<decimal>("MatchConfidenceScore")
@@ -170,6 +173,9 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<int>("ReferenceType")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("ReviewProcessId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset?>("SelectedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -194,6 +200,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("CitationId");
 
                     b.HasIndex("OriginPaperId");
+
+                    b.HasIndex("ReviewProcessId");
 
                     b.HasIndex("TargetPaperId");
 
@@ -1808,7 +1816,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("abstract");
 
                     b.Property<string>("AbstractLanguage")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("abstract_language");
 
                     b.Property<string>("AccessType")
@@ -1816,14 +1825,16 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("access_type");
 
                     b.Property<string>("Authors")
-                        .HasColumnType("text")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
                         .HasColumnName("authors");
 
                     b.Property<string>("BookTitle")
                         .HasColumnType("text");
 
                     b.Property<string>("ConferenceCountry")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("conference_country");
 
                     b.Property<string>("ConferenceDate")
@@ -1834,11 +1845,13 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("conference_end_date");
 
                     b.Property<string>("ConferenceLocation")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("conference_location");
 
                     b.Property<string>("ConferenceName")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("conference_name");
 
                     b.Property<DateTimeOffset?>("ConferenceStartDate")
@@ -1861,7 +1874,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("DOI")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("doi");
 
                     b.Property<int>("EnrichmentStatus")
@@ -1931,23 +1945,28 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("Issue")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("issue");
 
                     b.Property<string>("Journal")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("journal");
 
                     b.Property<string>("JournalEIssn")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("journal_e_issn");
 
                     b.Property<string>("JournalIssn")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("journal_issn");
 
                     b.Property<string>("JournalPublisher")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("journal_publisher");
 
                     b.Property<string>("Keywords")
@@ -1955,7 +1974,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("keywords");
 
                     b.Property<string>("Language")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("language");
 
                     b.Property<string>("Md5")
@@ -1971,7 +1991,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("open_alex_id");
 
                     b.Property<string>("Pages")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("pages");
 
                     b.Property<string>("PdfFileName")
@@ -1991,11 +2012,13 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("publication_date");
 
                     b.Property<string>("PublicationType")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("publication_type");
 
                     b.Property<string>("PublicationYear")
-                        .HasColumnType("text")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
                         .HasColumnName("publication_year");
 
                     b.Property<int?>("PublicationYearInt")
@@ -2003,7 +2026,8 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("publication_year_int");
 
                     b.Property<string>("Publisher")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("publisher");
 
                     b.Property<string>("RawReference")
@@ -2018,11 +2042,13 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Source")
-                        .HasColumnType("text")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("source");
 
                     b.Property<string>("SourceRecordId")
-                        .HasColumnType("text")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
                         .HasColumnName("source_record_id");
 
                     b.Property<int>("SourceType")
@@ -2030,15 +2056,18 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("title");
 
                     b.Property<string>("Url")
-                        .HasColumnType("text")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("url");
 
                     b.Property<string>("Volume")
-                        .HasColumnType("text")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("volume");
 
                     b.HasKey("Id");
@@ -4337,12 +4366,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("code");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -4394,10 +4417,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnName("title");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Code")
-                        .IsUnique()
-                        .HasDatabaseName("idx_project_code");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("idx_project_status");
@@ -4627,6 +4646,12 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasForeignKey("OriginPaperId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
+                        .WithMany()
+                        .HasForeignKey("ReviewProcessId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("SRSS.IAM.Repositories.Entities.Paper", "TargetPaper")
                         .WithMany()
                         .HasForeignKey("TargetPaperId");
@@ -4634,6 +4659,8 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("Citation");
 
                     b.Navigation("OriginPaper");
+
+                    b.Navigation("ReviewProcess");
 
                     b.Navigation("TargetPaper");
                 });

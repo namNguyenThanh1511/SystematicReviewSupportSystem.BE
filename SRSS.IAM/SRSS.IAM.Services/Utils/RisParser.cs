@@ -1,10 +1,14 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using SRSS.IAM.Services.DTOs.Identification;
 
 namespace SRSS.IAM.Services.Utils
 {
-    public static class RisParser
+    public static partial class RisParser
     {
+        [GeneratedRegex(@"\b(19|20)\d{2}\b")]
+        private static partial Regex YearRegex();
+
         public static List<RisPaperDto> Parse(Stream fileStream)
         {
             var papers = new List<RisPaperDto>();
@@ -71,7 +75,7 @@ namespace SRSS.IAM.Services.Utils
                         break;
 
                     case "TI": // Primary Title
-                    case "T1": 
+                    case "T1":
                         if (string.IsNullOrEmpty(currentPaper.Title))
                             currentPaper.Title = value;
                         break;
@@ -99,7 +103,7 @@ namespace SRSS.IAM.Services.Utils
 
                     case "PY": // Publication Year
                     case "Y1":
-                        currentPaper.PublicationYear = value;
+                        currentPaper.PublicationYear = ExtractYear(value);
                         break;
 
                     case "DA": // Publication Date
@@ -190,6 +194,13 @@ namespace SRSS.IAM.Services.Utils
             FinalizePaper();
 
             return papers;
+        }
+        private static string? ExtractYear(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return null;
+
+            var match = YearRegex().Match(input);
+            return match.Success ? match.Value : null;
         }
     }
 }

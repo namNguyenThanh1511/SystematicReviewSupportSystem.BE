@@ -78,6 +78,7 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public DateTimeOffset ModifiedAt { get; set; }
 
         public string DecidedStatus { get; set; } = "None";
+        public bool IsDuplicated { get; set; }
     }
 
     public class AssignedReviewerDto

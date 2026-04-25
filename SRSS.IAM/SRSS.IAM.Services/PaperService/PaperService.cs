@@ -958,6 +958,7 @@ namespace SRSS.IAM.Services.PaperService
             {
                 // Confirmed duplicate — soft-delete the duplicate paper.
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
+                duplicatePaper.IsDuplicated = true;
                 duplicatePaper.IsDeleted = true;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
@@ -965,6 +966,7 @@ namespace SRSS.IAM.Services.PaperService
             {
                 // Not a duplicate — both papers remain visible.
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
+                duplicatePaper.IsDuplicated = false;
                 duplicatePaper.IsDeleted = false;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }

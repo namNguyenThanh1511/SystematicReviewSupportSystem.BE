@@ -230,7 +230,11 @@ namespace SRSS.IAM.Services.IdentificationService
             var identifiedBreakdown =
                 paperToSearchSource
                 .GroupBy(ip => ip.SearchSourceId)
-                .Select(g => new PrismaBreakdownResponse { Label = g.Key.ToString(), Count = g.Count() })
+                .Select(g =>
+                {
+                    var sourceName = searchSourceIds.FirstOrDefault(s => s.Id == g.Key)?.Name ?? "Others";
+                    return new PrismaBreakdownResponse { Label = sourceName, Count = g.Count() };
+                })
                 .ToList();
 
             // 2. Identification: Snowballing

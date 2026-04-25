@@ -27,6 +27,11 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             CreateSystematicReviewProjectRequest request,
             CancellationToken cancellationToken = default)
         {
+            var (userId, role) = _currentUserService.GetCurrentUser();
+            if (role != Role.Admin.ToString())
+            {
+                throw new UnauthorizedAccessException("You are not authorized to create a project.");
+            }
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 throw new ArgumentException("Title is required.", nameof(request.Title));
@@ -46,7 +51,9 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
                 Description = request.Description,
                 Status = ProjectStatus.Draft,
                 CreatedAt = DateTimeOffset.UtcNow,
-                ModifiedAt = DateTimeOffset.UtcNow
+                ModifiedAt = DateTimeOffset.UtcNow,
+                UpdatedByUserId = Guid.Parse(userId),
+                CreatedByUserId = Guid.Parse(userId)
             };
 
             await _unitOfWork.SystematicReviewProjects.AddAsync(project, cancellationToken);
@@ -231,30 +238,18 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             return MapToResponse(project);
         }
 
-        public async Task<SystematicReviewProjectResponse> ArchiveProjectAsync(
-            Guid id,
-            CancellationToken cancellationToken = default)
-        {
-            var project = await _unitOfWork.SystematicReviewProjects
-                .GetByIdWithProcessesAsync(id, cancellationToken);
 
-            if (project == null)
-            {
-                throw new InvalidOperationException($"Project with ID {id} not found.");
-            }
-
-            project.Archive();
-
-            await _unitOfWork.SystematicReviewProjects.UpdateAsync(project, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return MapToResponse(project);
-        }
 
         public async Task<bool> DeleteProjectAsync(
             Guid id,
             CancellationToken cancellationToken = default)
         {
+            var (userId, role) = _currentUserService.GetCurrentUser();
+            var userIdGuid = Guid.Parse(userId);
+            if (role != Role.Admin.ToString())
+            {
+                throw new UnauthorizedAccessException("You are not authorized to delete this project.");
+            }
             var project = await _unitOfWork.SystematicReviewProjects
                 .FindSingleAsync(p => p.Id == id, cancellationToken: cancellationToken);
 
@@ -262,8 +257,11 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             {
                 throw new NotFoundException("Project not found.");
             }
+            project.IsDeleted = true;
+            project.ModifiedAt = DateTimeOffset.UtcNow;
+            project.UpdatedByUserId = userIdGuid;
 
-            await _unitOfWork.SystematicReviewProjects.RemoveAsync(project, cancellationToken);
+            await _unitOfWork.SystematicReviewProjects.UpdateAsync(project, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;

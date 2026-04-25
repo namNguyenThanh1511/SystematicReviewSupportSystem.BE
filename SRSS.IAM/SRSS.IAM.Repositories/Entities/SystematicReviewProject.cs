@@ -19,7 +19,12 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? StartDate { get; set; }
         public DateTimeOffset? EndDate { get; set; }
 
-        public Guid OwnerId { get; set; }
+        public DateTimeOffset? ActualStartDate { get; set; }
+        public DateTimeOffset? ActualEndDate { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
+        public Guid CreatedByUserId { get; set; }
+        public Guid UpdatedByUserId { get; set; }
 
         // Navigation Properties
         public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
@@ -72,20 +77,11 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public void Archive()
-        {
-            if (Status != ProjectStatus.Active && Status != ProjectStatus.Completed)
-            {
-                throw new InvalidOperationException($"Cannot archive project from {Status} status.");
-            }
 
-            Status = ProjectStatus.Archived;
-            ModifiedAt = DateTimeOffset.UtcNow;
-        }
 
         public ReviewProcess AddReviewProcess(string name, string? notes = null)
         {
-            if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
+            if (Status == ProjectStatus.Completed)
             {
                 throw new InvalidOperationException($"Cannot add processes to project in {Status} status.");
             }
@@ -109,7 +105,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public bool CanAddProcess()
         {
-            if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
+            if (Status == ProjectStatus.Completed)
             {
                 return false;
             }
@@ -125,7 +121,6 @@ namespace SRSS.IAM.Repositories.Entities
     {
         Draft = 0,
         Active = 1,
-        Completed = 2,
-        Archived = 3
+        Completed = 2
     }
 }

@@ -38,10 +38,6 @@ namespace SRSS.IAM.Services.SystematicReviewProjectService
             Guid id,
             CancellationToken cancellationToken = default);
 
-        Task<SystematicReviewProjectResponse> ArchiveProjectAsync(
-            Guid id,
-            CancellationToken cancellationToken = default);
-
         Task<bool> DeleteProjectAsync(
             Guid id,
             CancellationToken cancellationToken = default);

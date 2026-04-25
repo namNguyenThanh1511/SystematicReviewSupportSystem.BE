@@ -285,7 +285,9 @@ namespace SRSS.IAM.API.Data
             var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
 
             await SeedUsersAsync(context, passwordHasher);
+            await SeedExclusionReasonLibraryAsync(context);
             await SeedProjectsAsync(context);
+            await SeedMasterSearchSourcesAsync(context);
 
             // ── Protocol Planning Phase ─────────────────────────────
             await SeedCoreGovernanceAsync(context);
@@ -1549,6 +1551,56 @@ namespace SRSS.IAM.API.Data
             };
 
             context.AuditLogs.AddRange(auditLogs);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedMasterSearchSourcesAsync(AppDbContext context)
+        {
+            if (await context.MasterSearchSources.AnyAsync()) return;
+
+            var sources = new List<MasterSearchSources>
+            {
+                new MasterSearchSources { SourceName = "IEEE Xplore", BaseUrl = "https://ieeexplore.ieee.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "ACM Digital Library", BaseUrl = "https://dl.acm.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "ScienceDirect", BaseUrl = "https://www.sciencedirect.com/", IsActive = true },
+                new MasterSearchSources { SourceName = "DBLP", BaseUrl = "https://dblp.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "Semantic Scholar", BaseUrl = "https://www.semanticscholar.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "Google Scholar", BaseUrl = "https://scholar.google.com/", IsActive = true },
+                new MasterSearchSources { SourceName = "CiteSeerX", BaseUrl = "https://citeseerx.ist.psu.edu/", IsActive = true },
+                new MasterSearchSources { SourceName = "arXiv", BaseUrl = "https://arxiv.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "ACL Anthology", BaseUrl = "https://aclanthology.org/", IsActive = true },
+                new MasterSearchSources { SourceName = "Papers With Code", BaseUrl = "https://paperswithcode.com/", IsActive = true },
+                new MasterSearchSources { SourceName = "Scopus", BaseUrl = "https://www.scopus.com/", IsActive = true },
+                new MasterSearchSources { SourceName = "Web of Science", BaseUrl = "https://www.webofscience.com/", IsActive = true },
+                new MasterSearchSources { SourceName = "UCI ML Repository", BaseUrl = "https://archive.ics.uci.edu/", IsActive = true },
+                new MasterSearchSources { SourceName = "Kaggle Datasets", BaseUrl = "https://www.kaggle.com/datasets", IsActive = true }
+            };
+
+            context.MasterSearchSources.AddRange(sources);
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task SeedExclusionReasonLibraryAsync(AppDbContext context)
+        {
+            if (await context.ExclusionReasonLibraries.AnyAsync()) return;
+
+            var reasons = new List<ExclusionReasonLibrary>
+            {
+                new ExclusionReasonLibrary { Code = 1, Name = "Duplicate", IsActive = true },
+                new ExclusionReasonLibrary { Code = 2, Name = "Wrong Population", IsActive = true },
+                new ExclusionReasonLibrary { Code = 3, Name = "Wrong Intervention", IsActive = true },
+                new ExclusionReasonLibrary { Code = 4, Name = "Wrong Comparison", IsActive = true },
+                new ExclusionReasonLibrary { Code = 5, Name = "Wrong Outcome", IsActive = true },
+                new ExclusionReasonLibrary { Code = 6, Name = "Wrong Context", IsActive = true },
+                new ExclusionReasonLibrary { Code = 7, Name = "Not an Empirical Study", IsActive = true },
+                new ExclusionReasonLibrary { Code = 8, Name = "Wrong Language", IsActive = true },
+                new ExclusionReasonLibrary { Code = 9, Name = "Full Text Not Available", IsActive = true },
+                new ExclusionReasonLibrary { Code = 10, Name = "Irrelevant to Research Questions", IsActive = true },
+                new ExclusionReasonLibrary { Code = 11, Name = "Wrong Study Design", IsActive = true },
+                new ExclusionReasonLibrary { Code = 12, Name = "Insufficient Data", IsActive = true }
+            };
+
+            context.ExclusionReasonLibraries.AddRange(reasons);
             await context.SaveChangesAsync();
         }
     }

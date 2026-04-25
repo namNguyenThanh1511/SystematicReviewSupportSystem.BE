@@ -160,20 +160,7 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Project completed successfully.");
         }
 
-        /// <summary>
-        /// Archive a project (Active/Completed → Archived)
-        /// </summary>
-        /// <param name="id">Project ID</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>Updated project details</returns>
-        [HttpPost("{id}/archive")]
-        public async Task<ActionResult<ApiResponse<SystematicReviewProjectResponse>>> ArchiveProject(
-            [FromRoute] Guid id,
-            CancellationToken cancellationToken)
-        {
-            var result = await _projectService.ArchiveProjectAsync(id, cancellationToken);
-            return Ok(result, "Project archived successfully.");
-        }
+
 
         /// <summary>
         /// Delete a project

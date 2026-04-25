@@ -826,7 +826,32 @@ namespace SRSS.IAM.Repositories.PaperRepo
                         .Where(r => r.StudySelectionProcessId == studySelectionProcessId && r.Phase == phase)
                         .Select(r => r.FinalDecision == ScreeningDecisionType.Include ? "Included" : "Excluded")
                         .FirstOrDefault() ?? "NotScreened",
-                    IsAssigned = p.PaperAssignments.Any(pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == phase)
+                    IsAssigned = p.PaperAssignments.Any(pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == phase),
+                    AssignedReviewers = p.PaperAssignments
+                        .Where(pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == phase)
+                        .Select(pa => new ReviewerDecisionDto
+                        {
+                            ReviewerId = pa.ProjectMember.UserId,
+                            ReviewerName = pa.ProjectMember.User.FullName,
+                            ReviewerEmail = pa.ProjectMember.User.Email,
+                            Decision = p.ScreeningDecisions
+                                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase && sd.ReviewerId == pa.ProjectMember.UserId)
+                                .Select(sd => sd.Decision == ScreeningDecisionType.Include ? "Included" : "Excluded")
+                                .FirstOrDefault() ?? "Pending",
+                            ExclusionReasonCode = p.ScreeningDecisions
+                                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase && sd.ReviewerId == pa.ProjectMember.UserId && sd.Decision == ScreeningDecisionType.Exclude)
+                                .Select(sd => sd.ExclusionReason != null ? (int?)sd.ExclusionReason.Code : null)
+                                .FirstOrDefault(),
+                            ExclusionReasonName = p.ScreeningDecisions
+                                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase && sd.ReviewerId == pa.ProjectMember.UserId && sd.Decision == ScreeningDecisionType.Exclude)
+                                .Select(sd => sd.ExclusionReason != null ? sd.ExclusionReason.Name : null)
+                                .FirstOrDefault(),
+                            ExclusionNote = p.ScreeningDecisions
+                                .Where(sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase && sd.ReviewerId == pa.ProjectMember.UserId && sd.Decision == ScreeningDecisionType.Exclude)
+                                .Select(sd => sd.Reason)
+                                .FirstOrDefault()
+                        })
+                        .ToList()
                 })
                 .ToListAsync(cancellationToken);
 

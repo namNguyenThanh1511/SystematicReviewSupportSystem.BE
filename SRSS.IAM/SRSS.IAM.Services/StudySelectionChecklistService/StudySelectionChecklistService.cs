@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var createdTemplate = await _unitOfWork.StudySelectionChecklistTemplates.GetActiveWithDetailsAsync(projectId, cancellationToken);
+            var createdTemplate = await _unitOfWork.StudySelectionChecklistTemplates.GetByIdWithDetailsAsync(template.Id, projectId, cancellationToken);
             return createdTemplate!.MapToDto();
         }
 
@@ -163,13 +163,9 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
 
         public async Task<LiveReviewChecklistDto> GetLiveReviewChecklistByProcessAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default)
         {
-            // Load Study Selection Process with all related data needed for mapping
+            // Load Study Selection Process with criteria only
             var process = await _unitOfWork.StudySelectionProcesses.GetQueryable()
                 .AsNoTracking()
-                .Include(ssp => ssp.ReviewProcess)
-                    .ThenInclude(rp => rp.Project)
-                        .ThenInclude(p => p.ResearchQuestions)
-                            // .ThenInclude(rq => rq.PicocElements)
                 .Include(ssp => ssp.StudySelectionCriterias)
                     .ThenInclude(sc => sc.InclusionCriteria)
                 .Include(ssp => ssp.StudySelectionCriterias)
@@ -181,52 +177,26 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                 throw new NotFoundException($"Study Selection Process with ID {studySelectionProcessId} not found.");
             }
 
-            var project = process.ReviewProcess.Project;
-
             return MapToLiveReviewChecklist(process);
         }
 
         private LiveReviewChecklistDto MapToLiveReviewChecklist(StudySelectionProcess process)
         {
-            var project = process.ReviewProcess.Project;
-            // 2. Map to LiveReviewChecklistDto
             var result = new LiveReviewChecklistDto
             {
-                Title = "Study Selection Checklist",
-                Paragraphs = new List<LiveReviewParagraphDto>
-                {
-                    new LiveReviewParagraphDto { Text = "Basic info" }
-                },
+                Title = "Eligibility Checklist",
+                Paragraphs = new List<LiveReviewParagraphDto>(),
                 Sections = new List<LiveReviewSectionDto>()
             };
 
-            // 3. Map Research Questions
-            if (project.ResearchQuestions != null)
-            {
-                foreach (var rq in project.ResearchQuestions)
-                {
-                    // var picocItems = rq.PicocElements != null && rq.PicocElements.Any()
-                    //     ? MapPicocToItems(rq.PicocElements)
-                    //     : null;
-
-                    var section = new LiveReviewSectionDto
-                    {
-                        Title = rq.QuestionText ?? "Untitled Research Question",
-                        // Items = picocItems
-                    };
-
-                    result.Sections.Add(section);
-                }
-            }
-
-            // 4. Map Study Selection Criteria
+            // Map Study Selection Criteria groups
             if (process.StudySelectionCriterias != null && process.StudySelectionCriterias.Any())
             {
                 foreach (var ssc in process.StudySelectionCriterias)
                 {
                     var section = new LiveReviewSectionDto
                     {
-                        Title = ssc.Description ?? "Eligibility Criteria",
+                        Title = ssc.Description ?? "Criteria Group",
                         Items = new List<LiveReviewItemDto>()
                     };
 
@@ -234,7 +204,7 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                     {
                         foreach (var inc in ssc.InclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
                         {
-                            section.Items.Add(new LiveReviewItemDto { Text = $"Include: {inc.Rule!.Trim()}" });
+                            section.Items.Add(new LiveReviewItemDto { Text = inc.Rule.Trim() });
                         }
                     }
 
@@ -242,7 +212,7 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
                     {
                         foreach (var exc in ssc.ExclusionCriteria.Where(c => !string.IsNullOrWhiteSpace(c.Rule)))
                         {
-                            section.Items.Add(new LiveReviewItemDto { Text = $"Exclude: {exc.Rule!.Trim()}" });
+                            section.Items.Add(new LiveReviewItemDto { Text = exc.Rule.Trim() });
                         }
                     }
 
@@ -254,33 +224,6 @@ namespace SRSS.IAM.Services.StudySelectionChecklists
             }
 
             return result;
-        }
-
-        private List<LiveReviewItemDto>? MapPicocToItems(IEnumerable<PicocElement> elements)
-        {
-            var items = new List<LiveReviewItemDto>();
-            foreach (var element in elements)
-            {
-                var type = element.ElementType?.Trim().ToLower();
-                var desc = element.Description?.Trim();
-                if (string.IsNullOrWhiteSpace(desc)) continue;
-
-                var label = type switch
-                {
-                    "population" => "Population",
-                    "intervention" => "Intervention",
-                    "comparison" => "Comparison",
-                    "outcome" => "Outcome",
-                    "context" => "Context",
-                    _ => null
-                };
-
-                if (label != null)
-                {
-                    items.Add(new LiveReviewItemDto { Text = $"{label}: {desc}" });
-                }
-            }
-            return items.Any() ? items : null;
         }
     }
 }

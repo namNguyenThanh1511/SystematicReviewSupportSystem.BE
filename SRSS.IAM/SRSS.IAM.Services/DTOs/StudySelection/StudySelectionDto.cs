@@ -365,6 +365,12 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public string StatusText { get; set; } = string.Empty;
     }
 
+    public class PaperConflictStatusResponse
+    {
+        public Guid PaperId { get; set; }
+        public bool HasConflict { get; set; }
+    }
+
 
 
     public class SimplifiedPapersResponse : PaginatedResponse<SimplifiedPaperResponse>

@@ -209,6 +209,20 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get conflict statuses for all papers in a specific phase (bulk check)
+        /// Optimized for polling, returns only PaperId and HasConflict.
+        /// </summary>
+        [HttpGet("study-selection/{id}/papers/conflict-status")]
+        public async Task<ActionResult<ApiResponse<List<PaperConflictStatusResponse>>>> GetPaperConflictStatuses(
+            [FromRoute] Guid id,
+            [FromQuery] ScreeningPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetPaperConflictStatusesAsync(id, phase, cancellationToken);
+            return Ok(result, $"Conflict statuses retrieved for {result.Count} papers.");
+        }
+
+        /// <summary>
         /// Get detailed information of a conflicted paper for resolution
         /// Includes core metadata, metadata sources, decisions, and full-text links.
         /// Phase TitleAbstract: includes Abstract and Keywords.

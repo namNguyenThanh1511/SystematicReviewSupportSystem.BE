@@ -61,9 +61,7 @@ namespace SRSS.IAM.Repositories.StudySelectionChecklistRepo
             return await _context.StudySelectionChecklistTemplates
                 .Include(t => t.Sections.OrderBy(s => s.Order))
                     .ThenInclude(s => s.Items.OrderBy(i => i.Order))
-                .Where(t => t.ProjectId == projectId)
-                .OrderByDescending(t => t.IsActive)
-                .ThenByDescending(t => t.Version)
+                .Where(t => t.ProjectId == projectId && t.IsActive)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 

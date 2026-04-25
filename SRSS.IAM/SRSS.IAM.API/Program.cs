@@ -50,7 +50,7 @@ namespace SRSS.IAM.API
             builder.Logging.AddConsole();
 
 
- 
+
             // Database connection
             var connectionString = config.GetConnectionString("SRSS_IAM_DB")
                 ?? throw new InvalidOperationException("ConnectionStrings:SRSS_IAM_DB is required");
@@ -71,7 +71,7 @@ namespace SRSS.IAM.API
                     // BẮT BUỘC: Khai báo cho EF Core biết thư mục Migrations nằm ở project Repositories
                     o.MigrationsAssembly("SRSS.IAM.Repositories");
                 });
-                
+
                 var auditInterceptor = sp.GetRequiredService<AuditInterceptor>();
                 options.AddInterceptors(auditInterceptor);
             });

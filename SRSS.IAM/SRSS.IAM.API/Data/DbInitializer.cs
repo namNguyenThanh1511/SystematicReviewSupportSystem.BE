@@ -413,7 +413,11 @@ namespace SRSS.IAM.API.Data
 
         private static async Task SeedProjectsAsync(AppDbContext context)
         {
-            if (await context.SystematicReviewProjects.AnyAsync(x => x.Id == HarProjectId || x.Id == ScientificLiteracyProjectId))
+            if (await context.SystematicReviewProjects.AnyAsync(x =>
+                x.Id == HarProjectId ||
+                x.Id == ScientificLiteracyProjectId ||
+                x.Code == "SLR111111" ||
+                x.Code == "SLR222222"))
             {
                 return;
             }
@@ -422,6 +426,7 @@ namespace SRSS.IAM.API.Data
                 new SystematicReviewProject{
                     Id = HarProjectId,
                     Title = "AI-based Human Activity Recognition",
+                    Code = "SLR111111",
                     Domain = "Computer Science",
                     Description = "Systematic review of AI-based HAR approaches using deep learning and machine learning techniques",
                     Status = ProjectStatus.Active,
@@ -432,6 +437,7 @@ namespace SRSS.IAM.API.Data
                 new SystematicReviewProject{
                     Id = ScientificLiteracyProjectId,
                     Title = "Empowering Scientific Literacy of Science Teachers: A Systematic Literature Review",
+                    Code = "SLR222222",
                     Domain = "Science Education",
                     Description = "A systematic literature review investigating definitions, strategies, and research trends related to empowering scientific literacy among science teachers.",
                     Status = ProjectStatus.Completed,

@@ -20,6 +20,11 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("title")
                 .HasMaxLength(500)
                 .IsRequired();
+            
+            builder.Property(p => p.Code)
+                .HasColumnName("code")
+                .HasMaxLength(100)
+                .IsRequired();
 
             builder.Property(p => p.Domain)
                 .HasColumnName("domain")
@@ -78,6 +83,10 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.HasIndex(p => p.Title)
                 .HasDatabaseName("idx_project_title");
+
+            builder.HasIndex(p => p.Code)
+                .IsUnique()
+                .HasDatabaseName("idx_project_code");
         }
     }
 }

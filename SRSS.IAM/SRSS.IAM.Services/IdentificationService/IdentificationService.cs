@@ -673,6 +673,14 @@ namespace SRSS.IAM.Services.IdentificationService
                     ImportedBy = importBatch.ImportedBy,
                     CreatedAt = now,
                     ModifiedAt = now,
+
+                    // Extended Metadata
+                    ConferenceName = risPaper.ConferenceName,
+                    ConferenceLocation = risPaper.ConferenceLocation,
+                    ConferenceDate = risPaper.ConferenceDate,
+                    SecondaryTitle = risPaper.SecondaryTitle,
+                    BookTitle = risPaper.BookTitle,
+                    SourceRecordId = string.IsNullOrWhiteSpace(risPaper.Id) ? null : risPaper.Id
                 };
 
                 // Add embedding if exists

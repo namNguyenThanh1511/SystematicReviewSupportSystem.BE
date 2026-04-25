@@ -10,8 +10,37 @@ namespace SRSS.IAM.Services.Utils
             var papers = new List<RisPaperDto>();
             var currentPaper = new RisPaperDto();
             var currentRawReference = new StringBuilder();
-            var authors = new List<string>();
             var isFirstRecord = true;
+
+            // Local function to handle paper finalization and fallback logic
+            void FinalizePaper()
+            {
+                if (string.IsNullOrEmpty(currentPaper.Title)) return;
+
+                // --- Conference Name Priority Logic ---
+                // RIS tags vary by publisher (IEEE, ACM, Scopus). 
+                // Priority: C3 (Explicit) > T2 (Secondary Title) > BT (Book Title)
+                if (string.IsNullOrWhiteSpace(currentPaper.ConferenceName))
+                {
+                    if (!string.IsNullOrWhiteSpace(currentPaper.SecondaryTitle))
+                        currentPaper.ConferenceName = currentPaper.SecondaryTitle;
+                    else if (!string.IsNullOrWhiteSpace(currentPaper.BookTitle))
+                        currentPaper.ConferenceName = currentPaper.BookTitle;
+                }
+
+                // Final fallback for conference types: if still empty, use Journal field
+                if (currentPaper.PublicationType?.ToUpper() == "CONF" && string.IsNullOrWhiteSpace(currentPaper.ConferenceName))
+                {
+                    currentPaper.ConferenceName = currentPaper.Journal;
+                }
+
+                currentPaper.RawReference = currentRawReference.ToString();
+                papers.Add(currentPaper);
+
+                // Reset for next record
+                currentPaper = new RisPaperDto();
+                currentRawReference.Clear();
+            }
 
             using var reader = new StreamReader(fileStream, Encoding.UTF8);
             string? line;
@@ -24,36 +53,43 @@ namespace SRSS.IAM.Services.Utils
 
                 currentRawReference.AppendLine(line);
 
-                // RIS format: TAG  - VALUE
+                // RIS format: TAG  - VALUE (2-letter tag, 2 spaces, dash, space)
                 if (line.Length < 6 || line[2] != ' ' || line[3] != ' ' || line[4] != '-')
                     continue;
 
-                var tag = line.Substring(0, 2).Trim();
+                var tag = line.Substring(0, 2).Trim().ToUpper();
                 var value = line.Length > 6 ? line.Substring(6).Trim() : string.Empty;
+
+                if (string.IsNullOrEmpty(value)) continue;
 
                 switch (tag)
                 {
-                    case "TY": // Publication Type
-                        if (!isFirstRecord && !string.IsNullOrEmpty(currentPaper.Title))
-                        {
-                            // Save previous paper before starting a new one
-                            currentPaper.Authors = string.Join("; ", authors);
-                            papers.Add(currentPaper);
-                            currentPaper = new RisPaperDto();
-                            currentRawReference.Clear();
-                            authors.Clear();
-                        }
+                    case "TY": // Publication Type - Start of record
+                        if (!isFirstRecord) FinalizePaper();
                         isFirstRecord = false;
                         currentPaper.PublicationType = value;
                         break;
 
-                    case "TI": // Title
-                    case "T1": // Title (alternative)
+                    case "TI": // Primary Title
+                    case "T1": 
                         if (string.IsNullOrEmpty(currentPaper.Title))
                             currentPaper.Title = value;
                         break;
 
+                    case "AU": // Authors
+                    case "A1":
+                    case "A2":
+                        if (!currentPaper.AuthorList.Contains(value))
+                            currentPaper.AuthorList.Add(value);
+                        break;
+
+                    case "KW": // Keywords
+                        if (!currentPaper.KeywordList.Contains(value))
+                            currentPaper.KeywordList.Add(value);
+                        break;
+
                     case "AB": // Abstract
+                    case "N2":
                         currentPaper.Abstract = value;
                         break;
 
@@ -62,6 +98,7 @@ namespace SRSS.IAM.Services.Utils
                         break;
 
                     case "PY": // Publication Year
+                    case "Y1":
                         currentPaper.PublicationYear = value;
                         break;
 
@@ -71,13 +108,38 @@ namespace SRSS.IAM.Services.Utils
                                 new DateTimeOffset(DateTime.SpecifyKind(date, DateTimeKind.Utc));
                         break;
 
-                    case "JO": // Journal Name
-                    case "JF": // Journal Name (alternative)
+                    // --- Publication Venue Tags ---
+                    case "JO": // Journal
+                    case "JF":
                         if (string.IsNullOrEmpty(currentPaper.Journal))
                             currentPaper.Journal = value;
                         break;
 
-                    case "SN": // ISSN
+                    case "C3": // Conference Name (Primary for IEEE)
+                        currentPaper.ConferenceName = value;
+                        break;
+
+                    case "T2": // Secondary Title / Conference Name Fallback
+                        currentPaper.SecondaryTitle = value;
+                        break;
+
+                    case "BT": // Book Title / Proceedings Title
+                        currentPaper.BookTitle = value;
+                        // Some systems use BT for Journal if not specified elsewhere
+                        if (string.IsNullOrEmpty(currentPaper.Journal))
+                            currentPaper.Journal = value;
+                        break;
+
+                    case "CD": // Conference Date
+                    case "Y2":
+                        currentPaper.ConferenceDate = value;
+                        break;
+
+                    case "CY": // Conference Location
+                        currentPaper.ConferenceLocation = value;
+                        break;
+
+                    case "SN": // ISSN/ISBN
                         currentPaper.JournalIssn = value;
                         break;
 
@@ -86,6 +148,7 @@ namespace SRSS.IAM.Services.Utils
                         break;
 
                     case "IS": // Issue
+                    case "CP":
                         currentPaper.Issue = value;
                         break;
 
@@ -100,60 +163,31 @@ namespace SRSS.IAM.Services.Utils
                             currentPaper.Pages = value;
                         break;
 
-                    case "AU": // Author
-                    case "A1": // Author (alternative)
-                        if (!string.IsNullOrEmpty(value))
-                            authors.Add(value);
-                        break;
-
                     case "PB": // Publisher
                         currentPaper.Publisher = value;
-                        break;
-
-                    case "CY": // Conference Location
-                        currentPaper.ConferenceLocation = value;
-                        break;
-
-                    case "T2": // Conference Name or Secondary Title
-                        currentPaper.ConferenceName = value;
-                        break;
-
-                    case "KW": // Keywords
-                        if (string.IsNullOrEmpty(currentPaper.Keywords))
-                            currentPaper.Keywords = value;
-                        else
-                            currentPaper.Keywords += "; " + value;
                         break;
 
                     case "UR": // URL
                         currentPaper.Url = value;
                         break;
 
+                    case "ID": // Record Identifier
+                    case "AN": // Accession Number
+                        currentPaper.Id = value;
+                        break;
+
                     case "ER": // End of Record
-                        currentPaper.RawReference = currentRawReference.ToString();
-                        if (!string.IsNullOrEmpty(currentPaper.Title))
-                        {
-                            currentPaper.Authors = string.Join("; ", authors);
-                            papers.Add(currentPaper);
-                        }
-                        currentPaper = new RisPaperDto();
-                        currentRawReference.Clear();
-                        authors.Clear();
+                        FinalizePaper();
                         break;
 
                     default:
-                        // Ignore unknown tags safely
+                        // Ignore unknown or unhandled tags safely
                         break;
                 }
             }
 
-            // Handle case where file doesn't end with ER tag
-            if (!string.IsNullOrEmpty(currentPaper.Title))
-            {
-                currentPaper.RawReference = currentRawReference.ToString();
-                currentPaper.Authors = string.Join("; ", authors);
-                papers.Add(currentPaper);
-            }
+            // Final check for trailing record if ER was missing
+            FinalizePaper();
 
             return papers;
         }

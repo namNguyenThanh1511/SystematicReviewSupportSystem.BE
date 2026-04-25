@@ -35,6 +35,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? ConferenceName { get; set; }
         public string? ConferenceLocation { get; set; }
         public string? ConferenceCountry { get; set; }
+        public string? ConferenceDate { get; set; }
         public int? ConferenceYear { get; set; }
         public DateTimeOffset? ConferenceStartDate { get; set; }
         public DateTimeOffset? ConferenceEndDate { get; set; }
@@ -46,6 +47,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string? JournalIssn { get; set; }
         public string? JournalEIssn { get; set; }
         public string? JournalPublisher { get; set; }
+        public string? SecondaryTitle { get; set; }
+        public string? BookTitle { get; set; }
 
         // ============================================
         // IMPORT & SOURCE TRACKING (IDENTIFICATION PHASE)

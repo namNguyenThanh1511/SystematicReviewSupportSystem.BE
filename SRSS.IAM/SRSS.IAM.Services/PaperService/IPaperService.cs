@@ -2,6 +2,7 @@ using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Repositories.Entities.Enums;
+using SRSS.IAM.Services.DTOs.Identification;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -12,12 +13,63 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<PaperDetailsResponse> GetPaperByIdAsync(
+            Guid paperId,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperResponse>> GetPaperPoolAsync(
+            Guid projectId,
+            PaperPoolQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaperPoolFilterMetadataResponse> GetFilterMetadataAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<FilterSettingResponse>> GetFilterSettingsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> GetFilterSettingByIdAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> CreateFilterSettingAsync(
+            Guid projectId,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<FilterSettingResponse> UpdateFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            FilterSettingRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task DeleteFilterSettingAsync(
+            Guid projectId,
+            Guid id,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
-        /// Get duplicate papers for a specific identification process
-        /// Returns papers identified as duplicates in that process with deduplication metadata
+        /// Get papers for a project with advanced search and filtering capabilities
+        /// Supports filtering by search query, search strategy, search source, and publication year
         /// </summary>
-        Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByIdentificationProcessAsync(
-            Guid identificationProcessId,
+        /// <param name="projectId">The project ID</param>
+        /// <param name="query">Search query object containing search text, strategy ID, source ID, and year filters</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paginated list of papers matching the search criteria</returns>
+        Task<PaginatedResponse<PaperResponse>> SearchPapersByProjectAsync(
+            Guid projectId,
+            PaperSearchQuery query,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get duplicate papers for a specific project
+        /// Returns papers identified as duplicates in that project with deduplication metadata
+        /// </summary>
+        Task<PaginatedResponse<DuplicatePaperResponse>> GetDuplicatePapersByProjectAsync(
+            Guid projectId,
             DuplicatePapersRequest request,
             CancellationToken cancellationToken = default);
 
@@ -39,15 +91,11 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<PaperResponse> GetPaperByIdAsync(
-            Guid id,
-            CancellationToken cancellationToken = default);
-
         /// <summary>
         /// Resolve a duplicate detection result (confirm, reject)
         /// </summary>
         Task<DuplicatePaperResponse> ResolveDuplicateAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             Guid deduplicationResultId,
             ResolveDuplicateRequest request,
             CancellationToken cancellationToken = default);
@@ -56,7 +104,7 @@ namespace SRSS.IAM.Services.PaperService
         /// Get paginated duplicate pairs with both papers for side-by-side comparison
         /// </summary>
         Task<PaginatedResponse<DuplicatePairResponse>> GetDuplicatePairsAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             DuplicatePairsRequest request,
             CancellationToken cancellationToken = default);
 
@@ -64,9 +112,15 @@ namespace SRSS.IAM.Services.PaperService
         /// Resolve a duplicate pair with a specific decision (keep-original, keep-duplicate, keep-both)
         /// </summary>
         Task<ResolveDuplicatePairResponse> ResolveDuplicatePairAsync(
-            Guid identificationProcessId,
+            Guid projectId,
             Guid pairId,
             ResolveDuplicatePairRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task MarkAsDuplicateAsync(
+            Guid projectId,
+            Guid paperId,
+            MarkAsDuplicateRequest request,
             CancellationToken cancellationToken = default);
 
         Task<PaginatedResponse<PaperResponse>> SearchPapersAsync(
@@ -83,12 +137,12 @@ namespace SRSS.IAM.Services.PaperService
             ApplyMetadataRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<CheckedDuplicatePapersResponse> GetTitleAbstractEligiblePapersAsync(
+        Task<SimplifiedPapersResponse> GetTitleAbstractEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<CheckedDuplicatePapersResponse> GetFullTextEligiblePapersAsync(
+        Task<SimplifiedPapersResponse> GetFullTextEligiblePapersAsync(
             Guid studySelectionProcessId,
             EligiblePapersRequest request,
             CancellationToken cancellationToken = default);

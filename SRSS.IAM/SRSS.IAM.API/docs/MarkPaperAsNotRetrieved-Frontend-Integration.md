@@ -9,7 +9,7 @@ This document covers only one API:
 ## 1. Basic Info
 
 - Method: `POST`
-- Full route path: `/api/study-selection/{id}/papers/{paperId}/full-text/not-retrieved`
+- Full route path: `/api/papers/{paperId}/full-text/not-retrieved`
 - Purpose: Explicitly mark a paper as **NotRetrieved** for full-text retrieval tracking.
 
 Plain meaning for frontend:
@@ -32,7 +32,6 @@ Plain meaning for frontend:
 
 ```ts
 interface MarkPaperAsNotRetrievedPathParams {
-  id: string; // StudySelectionProcessId (GUID)
   paperId: string; // PaperId (GUID)
 }
 ```
@@ -57,7 +56,6 @@ type MarkPaperAsNotRetrievedRequestBody = never;
 ### Required vs Optional
 
 - Required:
-  - `id` (path)
   - `paperId` (path)
 - Optional:
   - None
@@ -66,10 +64,8 @@ type MarkPaperAsNotRetrievedRequestBody = never;
 
 Backend checks in this order:
 
-1. StudySelectionProcess exists by `id`.
-2. Paper exists by `paperId`.
-3. ReviewProcess for StudySelectionProcess exists.
-4. Paper belongs to same project as that ReviewProcess.
+1. Paper exists by `paperId`.
+
 
 If any check fails, backend throws exception.
 
@@ -148,7 +144,6 @@ What it actually does:
 
 Important conditions FE must know:
 
-- Paper must belong to the same project as the given study-selection process.
 - If paper is already `NotRetrieved`, endpoint is idempotent: returns success, no additional change.
 
 Side effects:

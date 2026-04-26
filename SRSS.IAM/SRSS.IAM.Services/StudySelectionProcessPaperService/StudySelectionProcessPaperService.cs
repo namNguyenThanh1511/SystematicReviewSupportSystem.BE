@@ -74,6 +74,22 @@ namespace SRSS.IAM.Services.StudySelectionProcessPaperService
             };
         }
 
+        public async Task<PaginatedResponse<IncludedPaperResponse>> GetIncludedPapersByReviewProcessIdAsync(Guid reviewProcessId, string? search, int pageNumber, int pageSize, CancellationToken cancellationToken)
+        {
+            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(ssp => ssp.ReviewProcessId == reviewProcessId);
+            if (process == null)
+            {
+                return new PaginatedResponse<IncludedPaperResponse>
+                {
+                    Items = new List<IncludedPaperResponse>(),
+                    TotalCount = 0,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            }
+            return await GetIncludedPapersByProcessIdAsync(process.Id, search, pageNumber, pageSize, cancellationToken);
+        }
+
         /// <summary>
         /// Validates and saves multiple included papers for FullText phase.
         /// Checks that each paper belongs to the study selection process and has an "Included" resolution in FullText phase.

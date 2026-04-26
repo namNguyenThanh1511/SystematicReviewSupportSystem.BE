@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Shared.Exceptions;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Identification;
-using SRSS.IAM.Services.DTOs.Protocol;
 using SRSS.IAM.Services.DTOs.ReviewProcess;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.Mappers;
@@ -13,6 +12,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.DataExtraction;
 using SRSS.IAM.Services.DTOs.QualityAssessment;
 using SRSS.IAM.Services.IdentificationService;
+using SRSS.IAM.Repositories.Entities.Enums;
 
 namespace SRSS.IAM.Services.ReviewProcessService
 {
@@ -55,29 +55,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            Console.WriteLine($"Check name: {request.Name}");
-
             try
             {
-                // Validate protocol if provided
-                ReviewProtocol? protocol = null;
-                Console.WriteLine($"Protocol ID: {request.ProtocolId}");
-                if (request.ProtocolId.HasValue)
-                {
-                    protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == request.ProtocolId.Value, cancellationToken: cancellationToken);
-                    if (protocol == null)
-                    {
-                        throw new InvalidOperationException($"Protocol with ID {request.ProtocolId.Value} not found.");
-                    }
-                    if (protocol.ProjectId != projectId)
-                    {
-                        throw new InvalidOperationException("The protocol must belong to the same project as the review process.");
-                    }
-                }
-
                 // Create ReviewProcess
-                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes, protocol);
-                Console.WriteLine($"Review process created: {reviewProcess}");
+                var reviewProcess = project.AddReviewProcess(request.Name, request.Notes);
 
                 await _unitOfWork.ReviewProcesses.AddAsync(reviewProcess, cancellationToken);
 
@@ -91,7 +72,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
-                //Auto create IdentificationProcessPaper snap
+
                 //Auto-create Study Selection Process for the new ReviewProcess
                 var studySelectionProcess = new Repositories.Entities.StudySelectionProcess
                 {
@@ -169,12 +150,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (reviewProcess.IdentificationProcess != null)
             {
                 response.IdentificationProcess!.PrismaStatistics =
-                    await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                    await GetPrismaStatisticsForIdentificationAsync(reviewProcess.Id, cancellationToken);
             }
 
             if (reviewProcess.StudySelectionProcess != null)
             {
-                // Optionally, you could add additional statistics for the StudySelectionProcess here
                 response.StudySelectionProcess!.SelectionStatistics = await _studySelectionService.GetSelectionStatisticsAsync(reviewProcess.StudySelectionProcess.Id, cancellationToken);
             }
 
@@ -182,11 +162,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
             {
                 response.QualityAssessmentProcess!.QualityStatistics = await _qualityAssessmentService.GetQualityStatisticsAsync(reviewProcess.QualityAssessmentProcess.Id);
             }
-
-            // if (reviewProcess.DataExtractionProcess != null)
-            // {
-            //     response.DataExtractionProcess!.DataExtractionStatistics = await _dataExtractionService.GetDataExtractionStatisticsAsync(reviewProcess.DataExtractionProcess.Id, cancellationToken);
-            // }
 
             return response;
         }
@@ -207,7 +182,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 if (reviewProcess.IdentificationProcess != null)
                 {
                     response.IdentificationProcess!.PrismaStatistics =
-                        await GetPrismaStatisticsForIdentificationAsync(reviewProcess.IdentificationProcess.Id, cancellationToken);
+                        await GetPrismaStatisticsForIdentificationAsync(reviewProcess.Id, cancellationToken);
                 }
 
                 if (reviewProcess.QualityAssessmentProcess != null)
@@ -239,6 +214,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
             if (request.Notes != null)
             {
                 reviewProcess.Notes = request.Notes;
+            }
+
+            if (request.Name != null)
+            {
+                reviewProcess.Name = request.Name;
             }
 
             reviewProcess.ModifiedAt = DateTimeOffset.UtcNow;
@@ -298,21 +278,11 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
             await EnsureLeaderPermissionAsync(reviewProcess.ProjectId);
 
-            // Load StudySelectionProcess for validation
-            var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
-                ssp => ssp.ReviewProcessId == id,
-                isTracking: false,
-                cancellationToken);
-
-            reviewProcess.StudySelectionProcess = studySelectionProcess;
-
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                //reviewProcess.Complete();
-                reviewProcess.CompletedAt = DateTimeOffset.UtcNow;
-                reviewProcess.Status = Repositories.Entities.ProcessStatus.Completed;
+                reviewProcess.Complete();
                 await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -381,64 +351,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return true;
         }
 
-        public async Task<ReviewProcessResponse> AssignProtocolAsync(
-            Guid processId,
-            Guid protocolId,
-            CancellationToken cancellationToken = default)
-        {
-            var reviewProcess = await _unitOfWork.ReviewProcesses
-                .FindSingleAsync(rp => rp.Id == processId, isTracking: true, cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
-            }
-
-            // Check if current user is the leader of the project
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, Guid.Parse(userId));
-            if (!isLeader)
-            {
-                throw new InvalidOperationException("Only the project leader can assign a protocol to a review process.");
-            }
-
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId, cancellationToken: cancellationToken);
-            if (protocol == null)
-            {
-                throw new NotFoundException($"Protocol with ID {protocolId} not found.");
-            }
-
-            reviewProcess.SetProtocol(protocol);
-
-            await _unitOfWork.ReviewProcesses.UpdateAsync(reviewProcess, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            return MapToResponse(reviewProcess);
-        }
-
-        public async Task<ProtocolDetailResponse?> GetProtocolByProcessIdAsync(
-            Guid processId,
-            CancellationToken cancellationToken = default)
-        {
-            var reviewProcess = await _unitOfWork.ReviewProcesses
-                .FindSingleAsync(rp => rp.Id == processId, cancellationToken: cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new NotFoundException($"ReviewProcess with ID {processId} not found.");
-            }
-
-            if (reviewProcess.ProtocolId == null)
-            {
-                return null;
-            }
-
-            var protocol = await _unitOfWork.Protocols
-                .GetByIdWithVersionsAsync(reviewProcess.ProtocolId.Value, cancellationToken);
-
-            return protocol?.ToDetailResponse();
-        }
-
         public async Task<ReviewProcessResponse> ReopenPhaseAsync(
             Guid reviewProcessId,
             ProcessPhase phase,
@@ -478,13 +390,238 @@ namespace SRSS.IAM.Services.ReviewProcessService
             return await GetReviewProcessByIdAsync(reviewProcessId, cancellationToken);
         }
 
+        public async Task<List<ReviewProcessSnapshotResponse>> GetReviewProcessSnapshotsByProjectIdAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcesses = await _unitOfWork.ReviewProcesses.GetByProjectIdAsync(projectId, cancellationToken);
+            var responses = new List<ReviewProcessSnapshotResponse>();
+
+            foreach (var process in reviewProcesses.OrderByDescending(x => x.CreatedAt))
+            {
+                var importedCount = 0;
+                var includeCount = 0;
+                var excludeCount = 0;
+
+                if (process.IdentificationProcess != null)
+                {
+                    var prismaStats = await _identificationService.GetPrismaStatisticsAsync(process.Id, cancellationToken);
+                    importedCount = prismaStats.UniqueRecords;
+                }
+
+                if (process.StudySelectionProcess != null)
+                {
+                    var selectionStats = await _studySelectionService.GetPhaseStatisticsAsync(process.StudySelectionProcess.Id, ScreeningPhase.FullText, cancellationToken);
+                    includeCount = selectionStats.IncludedCount;
+                    excludeCount = selectionStats.ExcludedCount;
+                }
+
+                responses.Add(new ReviewProcessSnapshotResponse
+                {
+                    ProcessId = process.Id,
+                    ProcessName = process.Name,
+                    StatusText = process.Status.ToString(),
+                    StartAt = process.StartedAt,
+                    CompletedAt = process.CompletedAt,
+                    ProgressPercent = CalculateProgressPercent(process),
+                    TotalPapersImported = importedCount,
+                    TotalIncludedPapers = includeCount,
+                    TotalExcludedPapers = excludeCount
+                });
+            }
+
+            return responses;
+        }
+
+        public async Task<AddPapersToReviewProcessResponse> AddSelectedPapersAsync(
+            Guid reviewProcessId,
+            AddSelectedPapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.PaperIds == null || request.PaperIds.Count == 0)
+            {
+                throw new ArgumentException("paperIds is required.");
+            }
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            var identificationProcess = reviewProcess.IdentificationProcess
+                ?? throw new NotFoundException("Identification process not found for this review process.");
+
+            var distinctPaperIds = request.PaperIds.Distinct().ToList();
+
+            var existingPapers = await _unitOfWork.Papers.FindAllAsync(
+                x => distinctPaperIds.Contains(x.Id) && x.ProjectId == reviewProcess.ProjectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var foundPaperIds = existingPapers.Select(x => x.Id).ToHashSet();
+            var missingPaperIds = distinctPaperIds.Where(x => !foundPaperIds.Contains(x)).ToList();
+            if (missingPaperIds.Count > 0)
+            {
+                throw new NotFoundException($"Some papers were not found in this project: {string.Join(", ", missingPaperIds)}");
+            }
+
+            var existingSnapshotPaperIds = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Where(x => x.IdentificationProcessId == identificationProcess.Id && distinctPaperIds.Contains(x.PaperId))
+                .Select(x => x.PaperId)
+                .ToListAsync(cancellationToken);
+
+            var existingSet = existingSnapshotPaperIds.ToHashSet();
+            var newPaperIds = distinctPaperIds.Where(x => !existingSet.Contains(x)).ToList();
+            var now = DateTimeOffset.UtcNow;
+            var newRecords = newPaperIds.Select(paperId => new Repositories.Entities.IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcess.Id,
+                PaperId = paperId,
+                IncludedAfterDedup = true,
+                SourceType = PaperSourceType.DatabaseSearch,
+                CreatedAt = now,
+                ModifiedAt = now
+            }).ToList();
+
+            if (newRecords.Count > 0)
+            {
+                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(newRecords, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return new AddPapersToReviewProcessResponse
+            {
+                Inserted = newRecords.Count,
+                SkippedAsDuplicate = distinctPaperIds.Count - newRecords.Count,
+                ReviewProcessSnapshot = new ReviewProcessProgressSnapshotResponse
+                {
+                    ReviewProcessId = reviewProcess.Id,
+                    ReviewProcessName = reviewProcess.Name,
+                    StatusText = reviewProcess.Status.ToString(),
+                    ProgressPercent = CalculateProgressPercent(reviewProcess)
+                }
+            };
+        }
+
+        public async Task<AddPapersFromFilterResponse> AddPapersFromFilterSettingAsync(
+            Guid reviewProcessId,
+            AddFromFilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var reviewProcess = await _unitOfWork.ReviewProcesses.GetByIdWithProjectAsync(reviewProcessId, cancellationToken);
+            if (reviewProcess == null)
+            {
+                throw new NotFoundException($"Review process with ID {reviewProcessId} not found.");
+            }
+
+            var identificationProcess = reviewProcess.IdentificationProcess
+                ?? throw new NotFoundException("Identification process not found for this review process.");
+
+            var filterSetting = await _unitOfWork.FilterSettings.FindSingleAsync(
+                x => x.Id == request.FilterSettingId && x.ProjectId == reviewProcess.ProjectId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            if (filterSetting == null)
+            {
+                throw new NotFoundException("Filter setting not found in this project.");
+            }
+
+            var (matchedPapers, matchedTotal) = await _unitOfWork.Papers.GetPaperPoolByProjectAsync(
+                reviewProcess.ProjectId,
+                filterSetting.SearchText,
+                filterSetting.Keyword,
+                filterSetting.YearFrom,
+                filterSetting.YearTo,
+                filterSetting.SearchSourceId,
+                filterSetting.ImportBatchId,
+                filterSetting.DoiState,
+                filterSetting.FullTextState,
+                filterSetting.OnlyUnused,
+                filterSetting.RecentlyImported,
+                pageNumber: 1,
+                pageSize: int.MaxValue,
+                cancellationToken: cancellationToken);
+
+            if (matchedTotal == 0)
+            {
+                throw new InvalidOperationException("No papers matched");
+            }
+
+            var matchedPaperIds = matchedPapers.Select(x => x.Id).Distinct().ToList();
+            var existingPaperIds = await _unitOfWork.IdentificationProcessPapers.GetQueryable()
+                .AsNoTracking()
+                .Where(x => x.IdentificationProcessId == identificationProcess.Id && matchedPaperIds.Contains(x.PaperId))
+                .Select(x => x.PaperId)
+                .ToListAsync(cancellationToken);
+
+            var existingSet = existingPaperIds.ToHashSet();
+            var newPaperIds = matchedPaperIds.Where(x => !existingSet.Contains(x)).ToList();
+            var now = DateTimeOffset.UtcNow;
+
+            var newRecords = newPaperIds.Select(paperId => new Repositories.Entities.IdentificationProcessPaper
+            {
+                Id = Guid.NewGuid(),
+                IdentificationProcessId = identificationProcess.Id,
+                PaperId = paperId,
+                IncludedAfterDedup = true,
+                SourceType = PaperSourceType.DatabaseSearch,
+                CreatedAt = now,
+                ModifiedAt = now
+            }).ToList();
+
+            if (newRecords.Count > 0)
+            {
+                await _unitOfWork.IdentificationProcessPapers.AddRangeAsync(newRecords, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+
+            return new AddPapersFromFilterResponse
+            {
+                Inserted = newRecords.Count,
+                SkippedAsDuplicate = matchedPaperIds.Count - newRecords.Count,
+                MatchedTotal = matchedPaperIds.Count,
+                ProcessSnapshot = new ProcessSnapshotWithExistingPapersResponse
+                {
+                    ProcessId = reviewProcess.Id,
+                    ProcessName = reviewProcess.Name,
+                    StatusText = reviewProcess.Status.ToString(),
+                    ProgressPercent = CalculateProgressPercent(reviewProcess),
+                    ExistingPaperIds = existingPaperIds
+                }
+            };
+        }
+
+        private static double CalculateProgressPercent(Repositories.Entities.ReviewProcess reviewProcess)
+        {
+            var completedFlags = new[]
+            {
+                reviewProcess.IdentificationProcess?.Status == IdentificationStatus.Completed,
+                reviewProcess.StudySelectionProcess?.Status == SelectionProcessStatus.Completed,
+                reviewProcess.QualityAssessmentProcess?.Status == QualityAssessmentProcessStatus.Completed,
+                reviewProcess.DataExtractionProcess?.Status == ExtractionProcessStatus.Completed,
+                reviewProcess.SynthesisProcess?.Status == SynthesisProcessStatus.Completed
+            };
+
+            var completedCount = completedFlags.Count(x => x);
+            return Math.Round((completedCount / 5d) * 100d, 2);
+        }
+
         private async Task EnsureLeaderPermissionAsync(Guid projectId)
         {
-            var (userId, _) = _currentUserService.GetCurrentUser();
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, Guid.Parse(userId));
+            var userIdString = _currentUserService.GetUserId();
+            if (string.IsNullOrEmpty(userIdString))
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+            var userId = Guid.Parse(userIdString);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
             if (!isLeader)
             {
-                throw new InvalidOperationException("Only the project leader can perform this operation.");
+                throw new ForbiddenException("Only the project leader can perform this operation.");
             }
         }
 
@@ -495,7 +632,6 @@ namespace SRSS.IAM.Services.ReviewProcessService
                 Id = reviewProcess.Id,
                 Name = reviewProcess.Name,
                 ProjectId = reviewProcess.ProjectId,
-                ProtocolId = reviewProcess.ProtocolId,
                 Status = reviewProcess.Status,
                 StatusText = reviewProcess.Status.ToString(),
                 CurrentPhase = reviewProcess.CurrentPhase,
@@ -570,10 +706,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
         }
 
         private async Task<PrismaStatisticsResponse> GetPrismaStatisticsForIdentificationAsync(
-            Guid identificationProcessId,
+            Guid reviewProcessId,
             CancellationToken cancellationToken)
         {
-            return await _identificationService.GetPrismaStatisticsAsync(identificationProcessId, cancellationToken);
+            return await _identificationService.GetPrismaStatisticsAsync(reviewProcessId, cancellationToken);
         }
     }
 }

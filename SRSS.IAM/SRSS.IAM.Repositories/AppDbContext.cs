@@ -38,10 +38,9 @@ namespace SRSS.IAM.Repositories
 		public DbSet<SystematicReviewProject> SystematicReviewProjects { get; set; } = default!;
 		public DbSet<ProjectMember> ProjectMembers { get; set; } = default!;
 		public DbSet<ProjectMemberInvitation> ProjectMemberInvitations { get; set; } = default!;
-		public DbSet<ReviewProtocol> ReviewProtocols { get; set; } = default!;
-		public DbSet<ProtocolVersion> ProtocolVersions { get; set; } = default!;
 		public DbSet<ResearchQuestion> ResearchQuestions { get; set; } = default!;
 		public DbSet<QuestionType> QuestionTypes { get; set; } = default!;
+		public DbSet<ProjectPicoc> ProjectPicocs { get; set; } = default!;
 		public DbSet<PicocElement> PicocElements { get; set; } = default!;
 		public DbSet<Population> Populations { get; set; } = default!;
 		public DbSet<Intervention> Interventions { get; set; } = default!;
@@ -53,12 +52,10 @@ namespace SRSS.IAM.Repositories
 		public DbSet<StudySelectionCriteria> StudySelectionCriterias { get; set; } = default!;
 		public DbSet<InclusionCriterion> InclusionCriteria { get; set; } = default!;
 		public DbSet<ExclusionCriterion> ExclusionCriteria { get; set; } = default!;
-		public DbSet<ProtocolReviewer> ProtocolReviewers { get; set; } = default!;
-		public DbSet<ProtocolEvaluation> ProtocolEvaluations { get; set; } = default!;
+		public DbSet<StudySelectionCriteriaAIResponse> StudySelectionCriteriaAIResponses { get; set; } = default!;
 		public DbSet<ReviewNeed> ReviewNeeds { get; set; } = default!;
 		public DbSet<ReviewObjective> ReviewObjectives { get; set; } = default!;
 		public DbSet<CommissioningDocument> CommissioningDocuments { get; set; } = default!;
-		public DbSet<StudySelectionProcedure> StudySelectionProcedures { get; set; } = default!;
 		public DbSet<QualityAssessmentStrategy> QualityAssessmentStrategies { get; set; } = default!;
 		public DbSet<QualityChecklist> QualityChecklists { get; set; } = default!;
 		public DbSet<QualityCriterion> QualityCriteria { get; set; } = default!;
@@ -66,7 +63,6 @@ namespace SRSS.IAM.Repositories
 		public DbSet<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = default!;
 		public DbSet<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = default!;
 		public DbSet<QualityAssessmentDecisionItem> QualityAssessmentDecisionItems { get; set; } = default!;
-		public DbSet<QualityAssessmentPaper> QualityAssessmentPapers { get; set; } = default!;
 		//public DbSet<DataExtractionStrategy> DataExtractionStrategies { get; set; } = default!;
 		//public DbSet<DataExtractionForm> DataExtractionForms { get; set; } = default!;
 		//public DbSet<DataItemDefinition> DataItemDefinitions { get; set; } = default!;
@@ -85,7 +81,8 @@ namespace SRSS.IAM.Repositories
 		public DbSet<ReviewProcess> ReviewProcesses { get; set; } = default!;
 		public DbSet<IdentificationProcess> IdentificationProcesses { get; set; } = default!;
 		public DbSet<DataExtractionProcess> DataExtractionProcesses { get; set; } = default!;
-		public DbSet<SearchExecution> SearchExecutions { get; set; } = default!;
+
+		public DbSet<FilterSetting> FilterSettings { get; set; } = default!;
 		public DbSet<Paper> Papers { get; set; } = default!;
 		public DbSet<ImportBatch> ImportBatches { get; set; } = default!;
 		public DbSet<PrismaReport> PrismaReports { get; set; } = default!;

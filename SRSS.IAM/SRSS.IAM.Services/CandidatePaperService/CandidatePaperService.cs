@@ -16,9 +16,11 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.CandidatePaperService.DTOs;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.GrobidClient.DTOs;
-using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.ReferenceMatchingService;
+using SRSS.IAM.Services.ReferenceMatchingService.DTOs;
 using SRSS.IAM.Services.ReferenceProcessingService;
 using SRSS.IAM.Services.Utils;
+using SRSS.IAM.Services.DTOs.Common;
 
 namespace SRSS.IAM.Services.CandidatePaperService
 {
@@ -28,6 +30,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
         private readonly IGrobidService _grobidService;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<CandidatePaperService> _logger;
+        private readonly IReferenceMatchingService _referenceMatchingService;
         private readonly System.Threading.Channels.Channel<ReferenceProcessingJob> _jobChannel;
 
         public CandidatePaperService(
@@ -35,16 +38,18 @@ namespace SRSS.IAM.Services.CandidatePaperService
             IGrobidService grobidService,
             IHttpClientFactory httpClientFactory,
             ILogger<CandidatePaperService> logger,
+            IReferenceMatchingService referenceMatchingService,
             System.Threading.Channels.Channel<ReferenceProcessingJob> jobChannel)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _referenceMatchingService = referenceMatchingService;
             _jobChannel = jobChannel;
         }
 
-        public async Task ExtractReferencesFromPaperAsync(Guid processId, Guid paperId, CancellationToken cancellationToken = default)
+        public async Task ExtractReferencesFromPaperAsync(Guid paperId, CancellationToken cancellationToken = default)
         {
             var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, isTracking: true, cancellationToken);
             if (paper == null)
@@ -111,22 +116,21 @@ namespace SRSS.IAM.Services.CandidatePaperService
                             paperId, hash, existingCandidates.Count(), existingPaperPdfWithRefs.PaperId);
 
                         // Chỉ xóa những Candidate chưa được Select và chưa bị Reject
-                        // Giữ lại những cái Status = Rejected hoặc IsSelectedInScreening = true
+                        // Giữ lại những cái Status = Rejected hoặc IsSelectedInProjectRepository = true
                         var removableCandidates = await _unitOfWork.CandidatePapers.FindAllAsync(
                             c => c.OriginPaperId == paperId
                                 && c.Status != CandidateStatus.Rejected
-                                && c.IsSelectedInScreening == false,
+                                && c.IsSelectedInProjectRepository == false,
                             isTracking: true, cancellationToken);
                         if (removableCandidates.Any())
                         {
                             await _unitOfWork.CandidatePapers.RemoveMultipleAsync(removableCandidates, cancellationToken);
                         }
-                        var needCloneCandidates = existingCandidates.Where(c => c.Status != CandidateStatus.Rejected && c.IsSelectedInScreening == false).ToList();
+                        var needCloneCandidates = existingCandidates.Where(c => c.Status != CandidateStatus.Rejected && c.IsSelectedInProjectRepository == false).ToList();
 
                         var clonedCandidates = needCloneCandidates.Select(c => new CandidatePaper
                         {
                             Id = Guid.NewGuid(),
-                            ReviewProcessId = processId,
                             OriginPaperId = paperId,
                             Title = c.Title,
                             Authors = c.Authors,
@@ -152,7 +156,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
 
                         await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
                         {
-                            ProcessId = processId,
+                            ProjectId = paper.ProjectId,
                             PaperId = paperId
                         }, cancellationToken);
 
@@ -189,7 +193,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         var newCandidates = extractedRefs.Select(r => new CandidatePaper
                         {
                             Id = Guid.NewGuid(),
-                            ReviewProcessId = processId,
                             OriginPaperId = paperId,
                             Title = r.Title,
                             Authors = r.Authors,
@@ -217,7 +220,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         // Converted to background job for performance
                         await _jobChannel.Writer.WriteAsync(new ReferenceProcessingJob
                         {
-                            ProcessId = processId,
+                            ProjectId = paper.ProjectId,
                             PaperId = paperId
                         }, cancellationToken);
                     }
@@ -233,7 +236,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to extract references for paper {PaperId} in process {ProcessId}.", paperId, processId);
+                _logger.LogError(ex, "Failed to extract references for paper {PaperId} in project {ProjectId}.", paperId, paper.ProjectId);
                 throw new InvalidOperationException("Failed to extract references due to PDF download or GROBID error.", ex);
             }
         }
@@ -279,9 +282,9 @@ namespace SRSS.IAM.Services.CandidatePaperService
             }
         }
 
-        public async Task<PaginatedResponse<CandidatePaperDto>> GetCandidatePapersAsync(Guid processId, GetCandidatePapersRequest request, CancellationToken cancellationToken = default)
+        public async Task<PaginatedResponse<CandidatePaperDto>> GetCandidatePapersAsync(Guid paperId, GetCandidatePapersRequest request, CancellationToken cancellationToken = default)
         {
-            var query = _unitOfWork.CandidatePapers.GetCandidatesQueryable(processId);
+            var query = _unitOfWork.CandidatePapers.GetCandidatesQueryable();
 
             // Filtering
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -314,7 +317,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 .Select(c => new CandidatePaperDto
                 {
                     CandidateId = c.Id,
-                    ReviewProcessId = c.ReviewProcessId,
                     OriginPaperId = c.OriginPaperId ?? Guid.Empty,
                     OriginPaperTitle = c.OriginPaper.Title,
                     OriginPaperAuthors = c.OriginPaper.Authors,
@@ -339,11 +341,11 @@ namespace SRSS.IAM.Services.CandidatePaperService
             };
         }
 
-        public async Task RejectCandidatePapersAsync(Guid processId, RejectCandidatePaperRequest request, CancellationToken cancellationToken = default)
+        public async Task RejectCandidatePapersAsync(RejectCandidatePaperRequest request, CancellationToken cancellationToken = default)
         {
             foreach (var candidateId in request.CandidateIds)
             {
-                var candidate = await _unitOfWork.CandidatePapers.FindSingleAsync(c => c.Id == candidateId && c.ReviewProcessId == processId, isTracking: true, cancellationToken);
+                var candidate = await _unitOfWork.CandidatePapers.FindSingleAsync(c => c.Id == candidateId, isTracking: true, cancellationToken);
                 if (candidate != null && (candidate.Status == CandidateStatus.Detected || candidate.Status == CandidateStatus.Matched))
                 {
                     candidate.Status = CandidateStatus.Rejected;
@@ -355,38 +357,23 @@ namespace SRSS.IAM.Services.CandidatePaperService
         }
 
         /// <summary>
-        /// Selects candidates for inclusion in the review process.
+        /// Selects candidates for inclusion in the project.
         /// Citations and papers are already created during processing — this method
-        /// only handles adding papers to the IdentificationProcess snapshot.
+        /// only handles adding papers to the Paper .
         /// </summary>
-        public async Task SelectCandidatePapersAsync(Guid processId, SelectCandidatePaperRequest request, Guid userId, CancellationToken cancellationToken = default)
+        public async Task SelectCandidatePapersAsync(SelectCandidatePaperRequest request, Guid userId, CancellationToken cancellationToken = default)
         {
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == processId, isTracking: false, cancellationToken);
-            if (reviewProcess == null)
-            {
-                throw new InvalidOperationException($"Review process {processId} not found.");
-            }
-
-            var idProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.ReviewProcessId == processId,
-                isTracking: false,
-                cancellationToken);
-
-            if (idProcess == null)
-            {
-                throw new InvalidOperationException($"No Identification Process found for review process {processId}. Papers must be part of an identification snapshot.");
-            }
 
             var candidates = new List<CandidatePaper>();
             foreach (var cId in request.CandidateIds)
             {
                 var c = await _unitOfWork.CandidatePapers.FindSingleAsync(
-                    x => x.Id == cId && x.ReviewProcessId == processId,
+                    x => x.Id == cId,
                     isTracking: true,
                     cancellationToken);
 
                 // Only allow selecting candidates that have not been selected before to prevent duplicates in the identification snapshot.
-                if (c != null && !c.IsSelectedInScreening)
+                if (c != null && !c.IsSelectedInProjectRepository)
                 {
                     candidates.Add(c);
                 }
@@ -399,40 +386,9 @@ namespace SRSS.IAM.Services.CandidatePaperService
             {
                 foreach (var candidate in candidates)
                 {
-                    // Step 1: Handle Delayed Paper Creation
-                    if (!candidate.TargetPaperId.HasValue)
-                    {
-                        var newPaper = new Paper
-                        {
-                            Id = Guid.NewGuid(),
-                            ProjectId = reviewProcess.ProjectId,
-                            Title = candidate.Title ?? string.Empty,
-                            Authors = candidate.Authors ?? string.Empty,
-                            DOI = candidate.DOI,
-                            PublicationYear = candidate.PublicationYear,
-                            SearchSourceId = null,
-                            SourceType = PaperSourceType.Snowballing,
-                            Source = "Snowballing (GROBID)",
-                            ImportedAt = DateTimeOffset.UtcNow,
-                            CreatedAt = DateTimeOffset.UtcNow,
-                            ModifiedAt = DateTimeOffset.UtcNow
-                        };
-
-                        if (int.TryParse(candidate.PublicationYear, out int year))
-                        {
-                            newPaper.PublicationYearInt = year;
-                        }
-
-                        await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
-
-                        // Save changes to ensure ID is generated (though we assigned Guid.NewGuid(), 
-                        // it's consistent with the requirement for citation link)
-                        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-                        candidate.TargetPaperId = newPaper.Id;
-                    }
-
-                    var targetPaperId = candidate.TargetPaperId.Value;
+                    // Step 1: Resolve existing Paper in project or create a new one
+                    var paper = await ResolveOrCreatePaperAsync(candidate, request.ProjectId, cancellationToken);
+                    var targetPaperId = paper.Id;
 
                     // Step 2: Handle Delayed Citation Creation
                     if (candidate.OriginPaperId.HasValue)
@@ -489,30 +445,8 @@ namespace SRSS.IAM.Services.CandidatePaperService
                         }
                     }
 
-                    // Step 3: Update Snapshot (IdentificationProcessPaper)
-                    var alreadyInSnapshot = await _unitOfWork.IdentificationProcessPapers.FindSingleAsync(
-                        ipp => ipp.IdentificationProcessId == idProcess.Id && ipp.PaperId == targetPaperId,
-                        isTracking: false,
-                        cancellationToken);
-
-                    if (alreadyInSnapshot == null)
-                    {
-                        var snapshotPaper = new IdentificationProcessPaper
-                        {
-                            Id = Guid.NewGuid(),
-                            IdentificationProcessId = idProcess.Id,
-                            PaperId = targetPaperId,
-                            IncludedAfterDedup = true,
-                            SourceType = PaperSourceType.Snowballing,
-                            CreatedAt = DateTimeOffset.UtcNow,
-                            ModifiedAt = DateTimeOffset.UtcNow
-                        };
-
-                        await _unitOfWork.IdentificationProcessPapers.AddAsync(snapshotPaper, cancellationToken);
-                    }
-
                     // Step 4: Finalize Candidate
-                    candidate.IsSelectedInScreening = true;
+                    candidate.IsSelectedInProjectRepository = true;
                     candidate.SelectedAt = DateTimeOffset.UtcNow;
                     candidate.ModifiedAt = DateTimeOffset.UtcNow;
 
@@ -530,42 +464,11 @@ namespace SRSS.IAM.Services.CandidatePaperService
         }
 
         public async Task<PaginatedResponse<PaperWithCandidateDto>> GetPapersWithCandidatesAsync(
-            Guid processId,
+            Guid projectId,
             GetPapersRequest request,
             CancellationToken cancellationToken = default)
         {
-            // Only papers that survived Identification (frozen snapshot) are eligible for Snowballing
-            var identificationProcess = await _unitOfWork.IdentificationProcesses.FindSingleAsync(
-                ip => ip.ReviewProcessId == processId,
-                cancellationToken: cancellationToken);
-
-            if (identificationProcess == null)
-            {
-                return new PaginatedResponse<PaperWithCandidateDto>
-                {
-                    Items = new List<PaperWithCandidateDto>(),
-                    TotalCount = 0,
-                    PageNumber = request.PageNumber,
-                    PageSize = request.PageSize
-                };
-            }
-
-            var eligiblePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(
-                identificationProcess.Id,
-                cancellationToken);
-
-            if (!eligiblePaperIds.Any())
-            {
-                return new PaginatedResponse<PaperWithCandidateDto>
-                {
-                    Items = new List<PaperWithCandidateDto>(),
-                    TotalCount = 0,
-                    PageNumber = request.PageNumber,
-                    PageSize = request.PageSize
-                };
-            }
-
-            var query = _unitOfWork.Papers.GetPapersQueryable(eligiblePaperIds);
+            var query = _unitOfWork.Papers.GetQueryable(p => p.ProjectId == projectId);
 
             // Filtering
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))
@@ -584,14 +487,14 @@ namespace SRSS.IAM.Services.CandidatePaperService
             }
 
             // Optimize count using GroupBy on CandidatePapers
-            var candidateStats = _unitOfWork.CandidatePapers.GetCandidatesQueryable(processId)
+            var candidateStats = _unitOfWork.CandidatePapers.GetCandidatesQueryable()
            .GroupBy(c => c.OriginPaperId)
            .Select(g => new
            {
                PaperId = g.Key,
                Count = (int?)g.Count(),
                SuggestedCount = (int?)g.Count(c => c.Status == CandidateStatus.Suggested),
-               DupCount = (int?)g.Count(c => c.Status == CandidateStatus.Matched && c.IsSelectedInScreening)
+               DupCount = (int?)g.Count(c => c.Status == CandidateStatus.Matched && c.IsSelectedInProjectRepository)
            });
 
 
@@ -637,12 +540,11 @@ namespace SRSS.IAM.Services.CandidatePaperService
         }
 
         public async Task<PaginatedResponse<CandidatePaperDto>> GetCandidatesByPaperIdAsync(
-            Guid processId,
             Guid paperId,
             GetCandidatePapersRequest request,
             CancellationToken cancellationToken = default)
         {
-            var query = _unitOfWork.CandidatePapers.GetCandidatesQueryable(processId)
+            var query = _unitOfWork.CandidatePapers.GetCandidatesQueryable()
                 .Where(c => c.OriginPaperId == paperId);
 
             // Filtering
@@ -676,7 +578,6 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 .Select(c => new CandidatePaperDto
                 {
                     CandidateId = c.Id,
-                    ReviewProcessId = c.ReviewProcessId,
                     OriginPaperId = c.OriginPaperId ?? Guid.Empty,
                     OriginPaperTitle = c.OriginPaper.Title,
                     OriginPaperAuthors = c.OriginPaper.Authors,
@@ -691,7 +592,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
                     ConfidenceScore = c.ConfidenceScore,
                     ExtractionQualityScore = c.ExtractionQualityScore,
                     MatchConfidenceScore = c.MatchConfidenceScore,
-                    IsSelectedInScreening = c.IsSelectedInScreening,
+                    IsSelectedInProjectRepository = c.IsSelectedInProjectRepository,
                     ValidationNote = c.ValidationNote
                 })
                 .ToListAsync(cancellationToken);
@@ -703,6 +604,73 @@ namespace SRSS.IAM.Services.CandidatePaperService
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
             };
+        }
+
+        private async Task<Paper> ResolveOrCreatePaperAsync(CandidatePaper candidate, Guid projectId, CancellationToken cancellationToken)
+        {
+            // 1. If TargetPaperId is already set, verify it exists
+            if (candidate.TargetPaperId.HasValue)
+            {
+                var existingPaper = await _unitOfWork.Papers.FindSingleAsync(
+                    p => p.Id == candidate.TargetPaperId.Value && p.ProjectId == projectId,
+                    isTracking: true,
+                    cancellationToken);
+
+                if (existingPaper != null)
+                {
+                    return existingPaper;
+                }
+            }
+
+            // 2. Last-minute check for project-level match (handles late arrivals)
+            var reference = new ExtractedReference
+            {
+                DOI = candidate.DOI,
+                Title = candidate.Title,
+                Authors = candidate.Authors,
+                PublishedYear = candidate.PublicationYear,
+                RawReference = candidate.RawReference
+            };
+
+            var match = await _referenceMatchingService.MatchAsync(reference, projectId, cancellationToken);
+            if (match.MatchedPaper != null && match.ConfidenceScore >= 0.7m) // Strict threshold for auto-reuse
+            {
+                _logger.LogInformation("Reusing existing paper {PaperId} for candidate {CandidateId} in project {ProjectId}.",
+                    match.MatchedPaper.Id, candidate.Id, projectId);
+
+                candidate.TargetPaperId = match.MatchedPaper.Id;
+                return match.MatchedPaper;
+            }
+
+            // 3. Create New Paper
+            var newPaper = new Paper
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                Title = candidate.Title ?? "Untitled Paper",
+                Authors = candidate.Authors ?? string.Empty,
+                DOI = candidate.DOI,
+                PublicationYear = candidate.PublicationYear,
+                SearchSourceId = null,
+                SourceType = PaperSourceType.Snowballing,
+                Source = "Snowballing (GROBID)",
+                ImportedAt = DateTimeOffset.UtcNow,
+                CreatedAt = DateTimeOffset.UtcNow,
+                ModifiedAt = DateTimeOffset.UtcNow
+            };
+
+            if (int.TryParse(candidate.PublicationYear, out int year))
+            {
+                newPaper.PublicationYearInt = year;
+            }
+
+            await _unitOfWork.Papers.AddAsync(newPaper, cancellationToken);
+
+            // We save changes here to ensure the paper exists before citation link
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            candidate.TargetPaperId = newPaper.Id;
+            return newPaper;
         }
     }
 }

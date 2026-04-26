@@ -12,7 +12,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplateDto
 			{
 				TemplateId = entity.Id,
-				ProtocolId = entity.ProtocolId,
+				DataExtractionProcessId = entity.DataExtractionProcessId,
 				Name = entity.Name,
 				Description = entity.Description,
 				Sections = entity.Sections != null
@@ -29,7 +29,7 @@ namespace SRSS.IAM.Services.Mappers
 			return new ExtractionTemplate
 			{
 				Id = dto.TemplateId ?? Guid.NewGuid(),
-				ProtocolId = dto.ProtocolId,
+				DataExtractionProcessId = dto.DataExtractionProcessId,
 				Name = dto.Name,
 				Description = dto.Description,
 				CreatedAt = DateTimeOffset.UtcNow,
@@ -43,7 +43,6 @@ namespace SRSS.IAM.Services.Mappers
 			entity.Name = dto.Name;
 			entity.Description = dto.Description;
 			entity.ModifiedAt = DateTimeOffset.UtcNow;
-			// Sections/Fields will be handled separately in service logic
 		}
 
 		// ==================== ExtractionSection ====================
@@ -57,6 +56,8 @@ namespace SRSS.IAM.Services.Mappers
 				Description = entity.Description,
 				SectionType = (int)entity.SectionType,
 				OrderIndex = entity.OrderIndex,
+				IsPicoc = entity.IsPicoc,
+				LinkedResearchQuestionId = entity.LinkedResearchQuestionId,
 				Fields = entity.Fields != null
 					? entity.Fields
 						.Where(f => f.ParentFieldId == null) // Only root fields
@@ -83,9 +84,22 @@ namespace SRSS.IAM.Services.Mappers
 				Description = dto.Description,
 				SectionType = (SectionType)dto.SectionType,
 				OrderIndex = dto.OrderIndex,
+				IsPicoc = dto.IsPicoc,
+				LinkedResearchQuestionId = dto.LinkedResearchQuestionId,
 				CreatedAt = DateTimeOffset.UtcNow,
 				ModifiedAt = DateTimeOffset.UtcNow
 			};
+		}
+
+		public static void UpdateEntity(this ExtractionSectionDto dto, ExtractionSection entity)
+		{
+			entity.Name = dto.Name;
+			entity.Description = dto.Description;
+			entity.SectionType = (SectionType)dto.SectionType;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.IsPicoc = dto.IsPicoc;
+			entity.LinkedResearchQuestionId = dto.LinkedResearchQuestionId;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
 		}
 
 		// ==================== ExtractionMatrixColumn ====================
@@ -113,6 +127,14 @@ namespace SRSS.IAM.Services.Mappers
 				CreatedAt = DateTimeOffset.UtcNow,
 				ModifiedAt = DateTimeOffset.UtcNow
 			};
+		}
+
+		public static void UpdateEntity(this ExtractionMatrixColumnDto dto, ExtractionMatrixColumn entity)
+		{
+			entity.Name = dto.Name;
+			entity.Description = dto.Description;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
 		}
 
 		// ==================== ExtractionField (Recursive) ====================
@@ -144,9 +166,6 @@ namespace SRSS.IAM.Services.Mappers
 			};
 		}
 
-		/// <summary>
-		/// Converts DTO to entities recursively (flattens tree structure)
-		/// </summary>
 		public static List<ExtractionField> ToEntitiesRecursive(
 			this ExtractionFieldDto dto,
 			Guid sectionId,
@@ -204,6 +223,16 @@ namespace SRSS.IAM.Services.Mappers
 			}
 
 			return entities;
+		}
+
+		public static void UpdateEntity(this ExtractionFieldDto dto, ExtractionField entity)
+		{
+			entity.Name = dto.Name;
+			entity.Instruction = dto.Instruction;
+			entity.FieldType = (FieldType)dto.FieldType;
+			entity.IsRequired = dto.IsRequired;
+			entity.OrderIndex = dto.OrderIndex;
+			entity.ModifiedAt = DateTimeOffset.UtcNow;
 		}
 
 		// ==================== FieldOption ====================

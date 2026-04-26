@@ -36,7 +36,7 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogError(ex, "Unhandled error processing candidates for Paper {PaperId} in Process {ProcessId}.", job.PaperId, job.ProcessId);
+                    _logger.LogError(ex, "Unhandled error processing candidates for Paper {PaperId} in Project {ProjectId}.", job.PaperId, job.ProjectId);
                 }
             }
 
@@ -48,11 +48,11 @@ namespace SRSS.IAM.Services.ReferenceProcessingService
             using var scope = _scopeFactory.CreateScope();
             var processingService = scope.ServiceProvider.GetRequiredService<IReferenceProcessingService>();
 
-            _logger.LogInformation("Background processing started for candidates of Paper {PaperId} in Process {ProcessId}.", job.PaperId, job.ProcessId);
-            
-            await processingService.ProcessCandidatesAsync(job.ProcessId, job.PaperId, ct);
+            _logger.LogInformation("Background processing started for candidates of Paper {PaperId} in Project {ProjectId}.", job.PaperId, job.ProjectId);
 
-            _logger.LogInformation("Background processing completed for candidates of Paper {PaperId} in Process {ProcessId}.", job.PaperId, job.ProcessId);
+            await processingService.ProcessCandidatesAsync(job.ProjectId, job.PaperId, ct);
+
+            _logger.LogInformation("Background processing completed for candidates of Paper {PaperId} in Project {ProjectId}.", job.PaperId, job.ProjectId);
         }
     }
 }

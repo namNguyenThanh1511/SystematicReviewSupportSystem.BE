@@ -10,7 +10,7 @@ namespace SRSS.IAM.Repositories.Entities
     {
         public Guid QualityAssessmentProcessId { get; set; }
         public Guid ResolvedBy { get; set; }
-        public Guid QualityAssessmentPaperId { get; set; }
+        public Guid PaperId { get; set; }
         public QualityAssessmentResolutionDecision FinalDecision { get; set; }
         public decimal? FinalScore { get; set; }
         public string? ResolutionNotes { get; set; }
@@ -18,7 +18,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         // Navigation Properties
         public QualityAssessmentProcess QualityAssessmentProcess { get; set; } = null!;
-        public QualityAssessmentPaper QualityAssessmentPaper { get; set; } = null!;
+        public Paper Paper { get; set; } = null!;
         public User ResolvedByUser { get; set; } = null!;
     }
 }

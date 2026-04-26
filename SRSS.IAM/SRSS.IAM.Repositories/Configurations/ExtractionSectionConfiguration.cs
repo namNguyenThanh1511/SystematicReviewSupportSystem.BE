@@ -18,12 +18,19 @@ namespace SRSS.IAM.Repositories.Configurations
 				.IsRequired()
 				.HasDefaultValue(SectionType.FlatForm);
 			builder.Property(x => x.OrderIndex).HasDefaultValue(0);
+			builder.Property(x => x.IsPicoc).HasColumnName("is_picoc").HasDefaultValue(false);
+			builder.Property(x => x.LinkedResearchQuestionId).HasColumnName("linked_research_question_id");
 
 			// Relationships
 			builder.HasOne(x => x.Template)
 				.WithMany(x => x.Sections)
 				.HasForeignKey(x => x.TemplateId)
 				.OnDelete(DeleteBehavior.Cascade);
+
+			builder.HasOne(x => x.LinkedResearchQuestion)
+				.WithMany()
+				.HasForeignKey(x => x.LinkedResearchQuestionId)
+				.OnDelete(DeleteBehavior.SetNull);
 
 			builder.HasMany(x => x.Fields)
 				.WithOne(x => x.Section)

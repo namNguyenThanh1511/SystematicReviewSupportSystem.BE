@@ -18,7 +18,7 @@ namespace SRSS.IAM.Services.SynthesisService
             _currentUserService = currentUserService;
         }
 
-        private async Task EnsureLeaderAsync(Guid protocolId)
+        private async Task EnsureLeaderAsync(Guid projectId)
         {
             var userIdString = _currentUserService.GetUserId();
             if (string.IsNullOrEmpty(userIdString))
@@ -26,11 +26,8 @@ namespace SRSS.IAM.Services.SynthesisService
                 throw new UnauthorizedException("User is not authenticated.");
             }
 
-            var protocol = await _unitOfWork.Protocols.FindSingleAsync(p => p.Id == protocolId)
-                ?? throw new KeyNotFoundException($"Protocol {protocolId} không tồn tại");
-
             var userId = Guid.Parse(userIdString);
-            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(protocol.ProjectId, userId);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(projectId, userId);
             if (!isLeader)
             {
                 throw new ForbiddenException("Only project leader can perform this action.");
@@ -40,7 +37,13 @@ namespace SRSS.IAM.Services.SynthesisService
         // ==================== Data Synthesis Strategies ====================
         public async Task<DataSynthesisStrategyDto> UpsertSynthesisStrategyAsync(DataSynthesisStrategyDto dto)
         {
-            await EnsureLeaderAsync(dto.ProtocolId);
+            var process = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.Id == dto.SynthesisProcessId)
+                ?? throw new KeyNotFoundException($"SynthesisProcess {dto.SynthesisProcessId} không tồn tại");
+
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException($"ReviewProcess {process.ReviewProcessId} không tồn tại");
+
+            await EnsureLeaderAsync(reviewProcess.ProjectId);
 
             DataSynthesisStrategy entity;
 
@@ -62,9 +65,9 @@ namespace SRSS.IAM.Services.SynthesisService
             return entity.ToDto();
         }
 
-        public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProtocolIdAsync(Guid protocolId)
+        public async Task<List<DataSynthesisStrategyDto>> GetSynthesisStrategiesByProcessIdAsync(Guid processId)
         {
-            var entities = await _unitOfWork.SynthesisStrategies.GetByProtocolIdAsync(protocolId);
+            var entities = await _unitOfWork.SynthesisStrategies.GetByProcessIdAsync(processId);
             return entities.ToDtoList();
         }
 
@@ -73,14 +76,16 @@ namespace SRSS.IAM.Services.SynthesisService
             var entity = await _unitOfWork.SynthesisStrategies.FindSingleAsync(s => s.Id == strategyId);
             if (entity != null)
             {
-                await EnsureLeaderAsync(entity.ProtocolId);
+                var process = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.Id == entity.SynthesisProcessId)
+                    ?? throw new KeyNotFoundException($"SynthesisProcess {entity.SynthesisProcessId} không tồn tại");
+
+                var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                    ?? throw new KeyNotFoundException($"ReviewProcess {process.ReviewProcessId} không tồn tại");
+
+                await EnsureLeaderAsync(reviewProcess.ProjectId);
                 await _unitOfWork.SynthesisStrategies.RemoveAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
             }
         }
-
-
-
-
     }
 }

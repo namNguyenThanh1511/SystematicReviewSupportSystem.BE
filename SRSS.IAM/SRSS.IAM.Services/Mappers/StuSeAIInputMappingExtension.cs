@@ -8,11 +8,9 @@ namespace SRSS.IAM.Services.Mappers
 {
     public static class StuSeAIInputMappingExtension
     {
-        public static StuSeAIInput BuildStuSeAIInput(this ReviewProtocol protocol, Paper paper)
+        public static StuSeAIInput BuildStuSeAIInput(this StudySelectionProcess process, Paper paper)
         {
-            var project = protocol.Project ?? protocol.ReviewProcess?.Project;
-            var criteriaEntity = protocol.SelectionCriterias?.FirstOrDefault();
-
+            var project = process.ReviewProcess.Project;
             var result = new StuSeAIInput
             {
                 Paper = new StuSePaperInput
@@ -29,26 +27,29 @@ namespace SRSS.IAM.Services.Mappers
                 result.Paper.PublicationYear = paper.PublicationYearInt.Value;
 
 
-            // 3. (PICOC removed - now per RQ)
-
             // 4. RESEARCH QUESTIONS (Hierarchical)
-            result.ResearchQuestions = project?.ResearchQuestions?
+            result.ResearchQuestions = project.ResearchQuestions?
                 .Select(rq => new StuSeRQInput
                 {
                     QuestionText = rq.QuestionText?.Trim() ?? string.Empty,
-                    PICOC = MapPicocFromElements(rq.PicocElements)
+                    // PICOC = MapPicocFromElements(rq.PicocElements)
                 })
                 .ToList() ?? new List<StuSeRQInput>();
 
             // 5. CRITERIA GROUPS
-            result.CriteriaGroups = protocol.SelectionCriterias?
-                .Select(cg => new StuSeCriteriaGroupInput
+            if (process.StudySelectionCriterias != null && process.StudySelectionCriterias.Any())
+            {
+                result.CriteriaGroups = process.StudySelectionCriterias.Select(cg => new StuSeCriteriaGroupInput
                 {
                     Description = cg.Description?.Trim(),
                     InclusionRules = MapCriteria(cg.InclusionCriteria?.Select(c => c.Rule)),
                     ExclusionRules = MapCriteria(cg.ExclusionCriteria?.Select(c => c.Rule))
-                })
-                .ToList() ?? new List<StuSeCriteriaGroupInput>();
+                }).ToList();
+            }
+            else
+            {
+                result.CriteriaGroups = new List<StuSeCriteriaGroupInput>();
+            }
 
 
             return result;

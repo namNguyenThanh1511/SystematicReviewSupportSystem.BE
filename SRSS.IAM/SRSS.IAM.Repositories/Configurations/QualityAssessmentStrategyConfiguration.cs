@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SRSS.IAM.Repositories.Entities;
 
@@ -15,16 +15,16 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("qa_strategy_id")
 				.IsRequired();
 
-			builder.Property(x => x.ProtocolId)
-				.HasColumnName("protocol_id")
+			builder.Property(x => x.ReviewProcessId)
+				.HasColumnName("review_process_id")
 				.IsRequired();
 
 			builder.Property(x => x.Description)
 				.HasColumnName("description");
 
-			builder.HasOne(x => x.Protocol)
+			builder.HasOne(x => x.ReviewProcess)
 				.WithMany(x => x.QualityStrategies)
-				.HasForeignKey(x => x.ProtocolId)
+				.HasForeignKey(x => x.ReviewProcessId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

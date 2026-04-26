@@ -92,6 +92,10 @@ namespace SRSS.IAM.API.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _studySelectionService.StartStudySelectionProcessAsync(id, cancellationToken);
+            if (!result.IsHaveCriteria)
+            {
+                return Ok(result, "Failed, Setup Study Selection Criteria first to start phase");
+            }
             return Ok(result, "Study Selection Process started successfully.");
         }
 
@@ -202,6 +206,20 @@ namespace SRSS.IAM.API.Controllers
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} conflicted papers (page {result.PageNumber}).";
 
             return Ok(result, message);
+        }
+
+        /// <summary>
+        /// Get conflict statuses for all papers in a specific phase (bulk check)
+        /// Optimized for polling, returns only PaperId and HasConflict.
+        /// </summary>
+        [HttpGet("study-selection/{id}/papers/conflict-status")]
+        public async Task<ActionResult<ApiResponse<List<PaperConflictStatusResponse>>>> GetPaperConflictStatuses(
+            [FromRoute] Guid id,
+            [FromQuery] ScreeningPhase phase,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetPaperConflictStatusesAsync(id, phase, cancellationToken);
+            return Ok(result, $"Conflict statuses retrieved for {result.Count} papers.");
         }
 
         /// <summary>
@@ -426,29 +444,16 @@ namespace SRSS.IAM.API.Controllers
         /// <summary>
         /// Update full-text link (PDF URL / web URL) for a paper (Issue 2)
         /// </summary>
-        [HttpPost("study-selection/{id}/papers/{paperId}/full-text")]
-        public async Task<ActionResult<ApiResponse<PaperWithDecisionsResponse>>> UpdatePaperFullText(
-            [FromRoute] Guid id,
+        [HttpPost("papers/{paperId}/full-text")]
+        public async Task<ActionResult<ApiResponse<PaperDetailsResponse>>> UpdatePaperFullText(
             [FromRoute] Guid paperId,
             [FromBody] UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _studySelectionService.UpdatePaperFullTextAsync(id, paperId, request, cancellationToken);
+            var result = await _studySelectionService.UpdatePaperFullTextAsync(paperId, request, cancellationToken);
             return Ok(result, "Paper full-text updated successfully.");
         }
 
-        /// <summary>
-        /// Mark a paper as not retrieved for full-text.
-        /// </summary>
-        [HttpPost("study-selection/{id}/papers/{paperId}/full-text/not-retrieved")]
-        public async Task<ActionResult<ApiResponse<bool>>> MarkPaperAsNotRetrieved(
-            [FromRoute] Guid id,
-            [FromRoute] Guid paperId,
-            CancellationToken cancellationToken)
-        {
-            await _studySelectionService.MarkPaperAsNotRetrievedAsync(id, paperId, cancellationToken);
-            return Ok(true, "Paper marked as not retrieved successfully.");
-        }
 
         /// <summary>
         /// Save multiple included papers for FullText phase
@@ -543,7 +548,7 @@ namespace SRSS.IAM.API.Controllers
         /// Get papers eligible for Title/Abstract screening (Step 1)
         /// </summary>
         [HttpGet("study-selection/{studySelectionProcessId}/title-abstract/papers")]
-        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetTitleAbstractEligiblePapers(
+        public async Task<ActionResult<ApiResponse<SimplifiedPapersResponse>>> GetTitleAbstractEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
             [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)
@@ -556,7 +561,7 @@ namespace SRSS.IAM.API.Controllers
         /// Get papers eligible for Full-Text screening (Step 2)
         /// </summary>
         [HttpGet("study-selection/{studySelectionProcessId}/full-text/papers")]
-        public async Task<ActionResult<ApiResponse<CheckedDuplicatePapersResponse>>> GetFullTextEligiblePapers(
+        public async Task<ActionResult<ApiResponse<SimplifiedPapersResponse>>> GetFullTextEligiblePapers(
             [FromRoute] Guid studySelectionProcessId,
             [FromQuery] EligiblePapersRequest request,
             CancellationToken cancellationToken)

@@ -1,4 +1,4 @@
-﻿using Shared.Repositories;
+using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 {
 	public interface IStudySelectionCriteriaRepository : IGenericRepository<StudySelectionCriteria, Guid, AppDbContext>
 	{
-		Task<IEnumerable<StudySelectionCriteria>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
+		Task<IEnumerable<StudySelectionCriteria>> GetByStudySelectionProcessIdAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default);
 	}
 
 	public interface IInclusionCriterionRepository : IGenericRepository<InclusionCriterion, Guid, AppDbContext>
@@ -21,5 +21,10 @@ namespace SRSS.IAM.Repositories.StudySelectionCriteriaRepo
 	public interface IExclusionCriterionRepository : IGenericRepository<ExclusionCriterion, Guid, AppDbContext>
 	{
 		Task<IEnumerable<ExclusionCriterion>> GetByCriteriaIdAsync(Guid criteriaId, CancellationToken cancellationToken = default);
+	}
+
+	public interface IStudySelectionCriteriaAIResponseRepository : IGenericRepository<StudySelectionCriteriaAIResponse, Guid, AppDbContext>
+	{
+		Task<IEnumerable<StudySelectionCriteriaAIResponse>> GetByStudySelectionProcessIdAsync(Guid studySelectionProcessId, CancellationToken cancellationToken = default);
 	}
 }

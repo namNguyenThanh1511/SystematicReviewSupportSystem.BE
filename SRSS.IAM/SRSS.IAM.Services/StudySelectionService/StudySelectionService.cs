@@ -15,6 +15,7 @@ using SRSS.IAM.Services.Utils;
 using SRSS.IAM.Services.PaperFullTextService;
 using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.DTOs.Paper;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -130,6 +131,19 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"StudySelectionProcess with ID {id} not found.");
             }
 
+            // Check if study selection criteria exists for this process
+            var hasCriteria = await _unitOfWork.SelectionCriterias.AnyAsync(
+                c => c.StudySelectionProcessId == id,
+                cancellationToken: cancellationToken);
+
+            if (!hasCriteria)
+            {
+                return new StudySelectionProcessResponse
+                {
+                    IsHaveCriteria = false
+                };
+            }
+
             // Load ReviewProcess with IdentificationProcess for validation
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
                 rp => rp.Id == process.ReviewProcessId,
@@ -156,7 +170,9 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(process);
+            var response = MapToResponse(process);
+            response.IsHaveCriteria = true;
+            return response;
         }
 
         public async Task<StudySelectionProcessResponse> CompleteStudySelectionProcessAsync(
@@ -569,6 +585,40 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+        }
+
+        public async Task<List<PaperConflictStatusResponse>> GetPaperConflictStatusesAsync(
+            Guid studySelectionProcessId,
+            ScreeningPhase phase,
+            CancellationToken cancellationToken = default)
+        {
+            // 1. Fetch resolved paper IDs separately to avoid correlated subqueries
+            var resolvedPaperIds = (await _unitOfWork.ScreeningResolutions.GetQueryable(
+                sr => sr.StudySelectionProcessId == studySelectionProcessId && sr.Phase == phase,
+                isTracking: false)
+                .Select(sr => sr.PaperId)
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
+            // 2. Query decision groupings (Include/Exclude flags per paper)
+            var decisionConflicts = await _unitOfWork.ScreeningDecisions.GetQueryable(
+                sd => sd.StudySelectionProcessId == studySelectionProcessId && sd.Phase == phase,
+                isTracking: false)
+                .GroupBy(sd => sd.PaperId)
+                .Select(g => new
+                {
+                    PaperId = g.Key,
+                    HasInclude = g.Any(d => d.Decision == ScreeningDecisionType.Include),
+                    HasExclude = g.Any(d => d.Decision == ScreeningDecisionType.Exclude)
+                })
+                .ToListAsync(cancellationToken);
+
+            // 3. Compute final conflict status using in-memory lookup
+            return decisionConflicts.Select(dc => new PaperConflictStatusResponse
+            {
+                PaperId = dc.PaperId,
+                HasConflict = !resolvedPaperIds.Contains(dc.PaperId) && dc.HasInclude && dc.HasExclude
+            }).ToList();
         }
 
         public async Task<ScreeningResolutionResponse> ResolveConflictAsync(
@@ -1137,12 +1187,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                 return PaperSelectionStatus.Pending;
             }
 
-            // 3. Với phase Full-Text: Chỉ cho phép status khi có resolution
-            // Nếu không có resolution, luôn coi là Conflict hoặc Pending quá trình resolution
-            if (phase == ScreeningPhase.FullText)
-            {
-                return PaperSelectionStatus.Conflict;
-            }
 
             // 4. Với phase Title-Abstract: Áp dụng quy tắc unanimous (tất cả các quyết định thống nhất)
             var includeCount = decisions.Count(d => d.Decision == ScreeningDecisionType.Include);
@@ -1814,13 +1858,13 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             if (process.TitleAbstractScreening != null)
             {
-                response.TitleAbstractScreening = MapToTAResponse(process.TitleAbstractScreening);
+                response.TitleAbstractScreening = MapToTAResponse(process.TitleAbstractScreening, process.PaperAssignments?.Any(pa => pa.Phase == ScreeningPhase.TitleAbstract) ?? false);
             }
 
             return response;
         }
 
-        private static TitleAbstractScreeningResponse MapToTAResponse(TitleAbstractScreening ta)
+        private static TitleAbstractScreeningResponse MapToTAResponse(TitleAbstractScreening ta, bool isAssigned = false)
         {
             return new TitleAbstractScreeningResponse
             {
@@ -1833,7 +1877,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 MinReviewersPerPaper = ta.MinReviewersPerPaper,
                 MaxReviewersPerPaper = ta.MaxReviewersPerPaper,
                 CreatedAt = ta.CreatedAt,
-                ModifiedAt = ta.ModifiedAt
+                ModifiedAt = ta.ModifiedAt,
+                IsAssigned = isAssigned
             };
         }
 
@@ -1875,7 +1920,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             await _unitOfWork.TitleAbstractScreenings.AddAsync(taScreening, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            return MapToTAResponse(taScreening, false);
         }
 
         public async Task<TitleAbstractScreeningResponse> StartTitleAbstractScreeningAsync(
@@ -1913,26 +1958,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException("ReviewProcess not found.");
             }
 
-            // Load protocol for validation (G-04, G-12)
-            if (reviewProcess.ProtocolId.HasValue)
-            {
-                var protocol = await _unitOfWork.Protocols.FindSingleAsync(
-                    p => p.Id == reviewProcess.ProtocolId.Value,
-                    isTracking: true,
-                    cancellationToken);
-
-                reviewProcess.Protocol = protocol;
-            }
-
             process.ReviewProcess = reviewProcess;
-
-
-
-            // Lock protocol once screening starts (G-04)
-            if (reviewProcess.Protocol != null && reviewProcess.Protocol.Status == ProtocolStatus.Approved)
-            {
-                reviewProcess.Protocol.Lock();
-            }
 
             // Validate paper metadata (G-07)
             var eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
@@ -1959,7 +1985,11 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         public async Task<TitleAbstractScreeningResponse> CompleteTitleAbstractScreeningAsync(
@@ -1995,7 +2025,11 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         public async Task<TitleAbstractScreeningResponse> GetTitleAbstractScreeningAsync(
@@ -2010,15 +2044,18 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"Title/Abstract screening not found for process {studySelectionProcessId}.");
             }
 
-            return MapToTAResponse(taScreening);
+            var isAssigned = await _unitOfWork.PaperAssignments.AnyAsync(
+                pa => pa.StudySelectionProcessId == studySelectionProcessId && pa.Phase == ScreeningPhase.TitleAbstract,
+                cancellationToken: cancellationToken);
+
+            return MapToTAResponse(taScreening, isAssigned);
         }
 
         // ============================================
         // Issue 2: Full-Text Upload/Link Management
         // ============================================
 
-        public async Task<PaperWithDecisionsResponse> UpdatePaperFullTextAsync(
-            Guid studySelectionProcessId,
+        public async Task<PaperDetailsResponse> UpdatePaperFullTextAsync(
             Guid paperId,
             UpdatePaperFullTextRequest request,
             CancellationToken cancellationToken = default)
@@ -2028,15 +2065,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new ArgumentException("At least one of PdfUrl or Url must be provided.");
             }
 
-            // Validate process exists
-            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
-                ssp => ssp.Id == studySelectionProcessId,
-                cancellationToken: cancellationToken);
-
-            if (process == null)
-            {
-                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
-            }
 
             // Validate paper exists and is eligible
             var paper = await _unitOfWork.Papers.FindSingleAsync(
@@ -2143,7 +2171,6 @@ namespace SRSS.IAM.Services.StudySelectionService
                         PaperPdfId = paperPdf.Id,
                         FileHash = fileHash,
                         PaperId = paperId,
-                        StudySelectionProcessId = studySelectionProcessId,
                         UserId = userId
                     });
                 }
@@ -2153,71 +2180,55 @@ namespace SRSS.IAM.Services.StudySelectionService
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
 
-            var status = await GetPaperSelectionStatusAsync(studySelectionProcessId, paperId, cancellationToken);
-            return await MapToPaperWithDecisionsResponseAsync(paper, studySelectionProcessId, status, cancellationToken, extractionSuggestion);
+
+            return MapToPaperResponseDetails(paper);
         }
 
-        public async Task MarkPaperAsNotRetrievedAsync(
-            Guid studySelectionProcessId,
-            Guid paperId,
-            CancellationToken cancellationToken = default)
+        private PaperDetailsResponse MapToPaperResponseDetails(Paper paper)
         {
-            _logger.LogInformation(
-                "Marking paper {PaperId} as not retrieved for study selection process {StudySelectionProcessId}.",
-                paperId,
-                studySelectionProcessId);
 
-            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
-                ssp => ssp.Id == studySelectionProcessId,
-                cancellationToken: cancellationToken);
-
-            if (process == null)
+            var response = new PaperDetailsResponse
             {
-                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
-            }
+                Id = paper.Id,
+                Title = paper.Title,
+                Authors = paper.Authors,
+                Abstract = paper.Abstract,
+                DOI = paper.DOI,
+                PublicationType = paper.PublicationType,
+                PublicationYear = paper.PublicationYear,
+                PublicationYearInt = paper.PublicationYearInt,
+                PublicationDate = paper.PublicationDate,
+                Volume = paper.Volume,
+                Issue = paper.Issue,
+                Pages = paper.Pages,
+                Publisher = paper.Publisher,
+                Language = paper.Language,
+                Keywords = paper.Keywords,
+                Url = paper.Url,
+                ConferenceName = paper.ConferenceName,
+                ConferenceLocation = paper.ConferenceLocation,
+                ConferenceCountry = paper.ConferenceCountry,
+                ConferenceYear = paper.ConferenceYear,
+                Journal = paper.Journal,
+                JournalIssn = paper.JournalIssn,
+                JournalEIssn = paper.JournalEIssn,
+                Md5 = paper.Md5,
+                Source = paper.Source,
+                SearchSourceId = paper.SearchSourceId,
+                ImportedAt = paper.ImportedAt,
+                ImportedBy = paper.ImportedBy,
+                PdfUrl = paper.PdfUrl,
+                FullTextAvailable = paper.FullTextAvailable,
+                FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
+                CreatedAt = paper.CreatedAt,
+                ModifiedAt = paper.ModifiedAt
+            };
 
-            var paper = await _unitOfWork.Papers.FindSingleAsync(
-                p => p.Id == paperId,
-                isTracking: true,
-                cancellationToken);
-
-            if (paper == null)
-            {
-                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
-            }
-
-            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(
-                rp => rp.Id == process.ReviewProcessId,
-                cancellationToken: cancellationToken);
-
-            if (reviewProcess == null)
-            {
-                throw new InvalidOperationException($"ReviewProcess with ID {process.ReviewProcessId} not found.");
-            }
-
-            if (paper.ProjectId != reviewProcess.ProjectId)
-            {
-                throw new InvalidOperationException("Paper does not belong to the same project as the study selection process.");
-            }
-
-            if (paper.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved)
-            {
-                _logger.LogInformation(
-                    "Paper {PaperId} is already marked as not retrieved. No state change applied.",
-                    paperId);
-                return;
-            }
-
-            paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
-            paper.ModifiedAt = DateTimeOffset.UtcNow;
-
-            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            _logger.LogInformation(
-                "Paper {PaperId} marked as not retrieved for study selection process {StudySelectionProcessId}.",
-                paperId,
-                studySelectionProcessId);
+            // Get Extraction Suggestion (G-11, G-12)
+            // response.ExtractionSuggestion = await _studySelectionService.GetExtractionSuggestionAsync(paper, cancellationToken);
+            response.ExtractionSuggestion = null;
+            return response;
         }
 
         public async Task ProcessGrobidExtractionAsync(GrobidWorkItem workItem, CancellationToken ct)
@@ -2386,7 +2397,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 paper.ModifiedAt = DateTimeOffset.UtcNow;
                 paper.PdfFileName = null;
                 paper.PdfUrl = null;
-                
+
 
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -2511,8 +2522,8 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             // 3. Smart SuggestedFields Tracking (Compare Consolidated Metadata vs Main Paper)
             // Recalculate what can be still updated based on current Paper state
-            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
-            sourceMeta.SuggestedFields = updatedFields;
+            var suggestedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+            sourceMeta.SuggestedFields = suggestedFields;
 
             paperPdf.ExtractedDoi = grobidDto.DOI;
             paperPdf.ValidationStatus = PdfValidationStatus.Valid;
@@ -2541,25 +2552,16 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Md5 = sourceMeta.Md5,
                 ISSN = sourceMeta.ISSN,
                 EISSN = sourceMeta.EISSN,
-                UpdatedFields = updatedFields
+                UpdatedFields = sourceMeta.AppliedFields,
+                SuggestedFields = suggestedFields
             };
         }
 
         public async Task<PaperWithDecisionsResponse> RetryMetadataExtractionAsync(
-            Guid studySelectionProcessId,
             Guid paperId,
             RetryExtractionRequest request,
             CancellationToken cancellationToken = default)
         {
-            var process = await _unitOfWork.StudySelectionProcesses.FindSingleAsync(
-                ssp => ssp.Id == studySelectionProcessId,
-                cancellationToken: cancellationToken);
-
-            if (process == null)
-            {
-                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
-            }
-
             var paper = await _unitOfWork.Papers.FindSingleAsync(
                 p => p.Id == paperId,
                 isTracking: true,
@@ -2707,8 +2709,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             var assignmentList = assignments.ToList();
             int assignedCount = assignmentList.Count;
 
-            // 3. Chỉ cho phép auto khi đúng 2 reviewers (initial round)
-            if (assignedCount != 2) return;
+            // 3. Chỉ cho phép auto khi có ít nhất 1 assignment
+            if (assignedCount < 1) return;
 
             // 4. Lấy decisions
             var decisions = await _unitOfWork.ScreeningDecisions.GetByPaperAsync(
@@ -2725,19 +2727,19 @@ namespace SRSS.IAM.Services.StudySelectionService
             bool hasConflict = includeCount > 0 && excludeCount > 0;
             if (hasConflict) return;
 
-            // 8. Chỉ auto khi unanimous (2/2)
+            // 8. Chỉ auto khi unanimous
             ScreeningDecisionType? autoDecision = null;
             string? autoNotes = null;
 
-            if (includeCount == 2)
+            if (includeCount == assignedCount)
             {
                 autoDecision = ScreeningDecisionType.Include;
-                autoNotes = "Auto-resolved: unanimous Include (2/2 reviewers).";
+                autoNotes = $"Auto-resolved: unanimous Include ({includeCount}/{assignedCount} reviewers).";
             }
-            else if (excludeCount == 2)
+            else if (excludeCount == assignedCount)
             {
                 autoDecision = ScreeningDecisionType.Exclude;
-                autoNotes = "Auto-resolved: unanimous Exclude (2/2 reviewers).";
+                autoNotes = $"Auto-resolved: unanimous Exclude ({excludeCount}/{assignedCount} reviewers).";
             }
             else
             {
@@ -2854,7 +2856,7 @@ namespace SRSS.IAM.Services.StudySelectionService
 
             if (sourceMeta == null) return null;
 
-            var updatedFields = GetUpdatedMetadataFields(paper, sourceMeta);
+            var suggestedFields = GetUpdatedMetadataFields(paper, sourceMeta);
 
             return new ExtractionSuggestionResponse
             {
@@ -2875,7 +2877,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Md5 = sourceMeta.Md5,
                 ISSN = sourceMeta.ISSN,
                 EISSN = sourceMeta.EISSN,
-                UpdatedFields = updatedFields
+                UpdatedFields = sourceMeta.AppliedFields,
+                SuggestedFields = suggestedFields
             };
         }
 

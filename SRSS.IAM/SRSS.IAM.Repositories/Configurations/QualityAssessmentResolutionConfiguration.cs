@@ -20,8 +20,8 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("quality_assessment_process_id")
                 .IsRequired();
 
-            builder.Property(r => r.QualityAssessmentPaperId)
-                .HasColumnName("quality_assessment_paper_id")
+            builder.Property(r => r.PaperId)
+                .HasColumnName("paper_id")
                 .IsRequired();
 
             builder.Property(r => r.ResolvedBy)
@@ -55,9 +55,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasForeignKey(r => r.QualityAssessmentProcessId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasOne(r => r.QualityAssessmentPaper)
-                .WithOne(r => r.QualityAssessmentResolution)
-                .HasForeignKey<QualityAssessmentResolution>(r => r.QualityAssessmentPaperId)
+            builder.HasOne(r => r.Paper)
+                .WithOne()
+                .HasForeignKey<QualityAssessmentResolution>(r => r.PaperId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasOne(r => r.ResolvedByUser)

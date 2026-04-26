@@ -10,22 +10,34 @@ namespace SRSS.IAM.Repositories.Entities
     public class SystematicReviewProject : BaseEntity<Guid>
     {
         public string Title { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
         public string? Domain { get; set; }
         public string? Description { get; set; }
+        public string? ResearchTopic { get; set; }
+        public string? ResearchObjective { get; set; }
         public ProjectStatus Status { get; set; } = ProjectStatus.Draft;
         public DateTimeOffset? StartDate { get; set; }
         public DateTimeOffset? EndDate { get; set; }
 
-        public Guid OwnerId { get; set; }
+        public DateTimeOffset? ActualStartDate { get; set; }
+        public DateTimeOffset? ActualEndDate { get; set; }
+
+        public bool IsDeleted { get; set; } = false;
+        public Guid CreatedByUserId { get; set; }
+        public Guid UpdatedByUserId { get; set; }
 
         // Navigation Properties
-        public ICollection<ReviewProtocol> Protocols { get; set; } = new List<ReviewProtocol>();
+        public ICollection<SearchSource> SearchSources { get; set; } = new List<SearchSource>();
+
         public ICollection<ResearchQuestion> ResearchQuestions { get; set; } = new List<ResearchQuestion>();
         public ICollection<ReviewNeed> ReviewNeeds { get; set; } = new List<ReviewNeed>();
         public ICollection<ReviewObjective> ReviewObjectives { get; set; } = new List<ReviewObjective>();
         public ICollection<CommissioningDocument> CommissioningDocuments { get; set; } = new List<CommissioningDocument>();
         public ICollection<ReviewProcess> ReviewProcesses { get; set; } = new List<ReviewProcess>();
         public ICollection<ReviewChecklist> ReviewChecklists { get; set; } = new List<ReviewChecklist>();
+        public ICollection<FilterSetting> FilterSettings { get; set; } = new List<FilterSetting>();
+        public ICollection<DeduplicationResult> DeduplicationResults { get; set; } = new List<DeduplicationResult>();
+        public ICollection<ProjectPicoc> ProjectPicocs { get; set; } = new List<ProjectPicoc>();
 
         public ICollection<Paper> Papers { get; set; } = new List<Paper>();
         public ICollection<StudySelectionChecklistTemplate> StudySelectionChecklistTemplates { get; set; } = new List<StudySelectionChecklistTemplate>();
@@ -65,28 +77,13 @@ namespace SRSS.IAM.Repositories.Entities
             ModifiedAt = DateTimeOffset.UtcNow;
         }
 
-        public void Archive()
-        {
-            if (Status != ProjectStatus.Active && Status != ProjectStatus.Completed)
-            {
-                throw new InvalidOperationException($"Cannot archive project from {Status} status.");
-            }
 
-            Status = ProjectStatus.Archived;
-            ModifiedAt = DateTimeOffset.UtcNow;
-        }
 
-        public ReviewProcess AddReviewProcess(string name, string? notes = null, ReviewProtocol? protocol = null)
+        public ReviewProcess AddReviewProcess(string name, string? notes = null)
         {
-            if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
+            if (Status == ProjectStatus.Completed)
             {
                 throw new InvalidOperationException($"Cannot add processes to project in {Status} status.");
-            }
-
-
-            if (ReviewProcesses.Any(rp => rp.Status == ProcessStatus.InProgress))
-            {
-                throw new InvalidOperationException("Cannot add a new process while another process is in progress.");
             }
 
             var reviewProcess = new ReviewProcess
@@ -94,17 +91,11 @@ namespace SRSS.IAM.Repositories.Entities
                 Id = Guid.NewGuid(),
                 Name = name,
                 ProjectId = Id,
-                ProtocolId = protocol?.Id, // Initialize directly
                 Status = ProcessStatus.NotStarted,
                 Notes = notes,
                 CreatedAt = DateTimeOffset.UtcNow,
                 ModifiedAt = DateTimeOffset.UtcNow
             };
-
-            if (protocol != null)
-            {
-                reviewProcess.SetProtocol(protocol);
-            }
 
             ReviewProcesses.Add(reviewProcess);
             ModifiedAt = DateTimeOffset.UtcNow;
@@ -114,7 +105,7 @@ namespace SRSS.IAM.Repositories.Entities
 
         public bool CanAddProcess()
         {
-            if (Status == ProjectStatus.Completed || Status == ProjectStatus.Archived)
+            if (Status == ProjectStatus.Completed)
             {
                 return false;
             }
@@ -130,7 +121,6 @@ namespace SRSS.IAM.Repositories.Entities
     {
         Draft = 0,
         Active = 1,
-        Completed = 2,
-        Archived = 3
+        Completed = 2
     }
 }

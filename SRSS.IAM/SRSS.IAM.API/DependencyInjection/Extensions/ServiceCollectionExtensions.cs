@@ -12,7 +12,6 @@ using SRSS.IAM.Services.Configurations;
 using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.JWTService;
 using SRSS.IAM.Services.Mappers;
-using SRSS.IAM.Services.ProtocolService;
 using SRSS.IAM.Services.QualityAssessmentService;
 using SRSS.IAM.Services.RefreshTokenService;
 using SRSS.IAM.Services.ResearchQuestionService;
@@ -60,8 +59,12 @@ using SRSS.IAM.Services.PaperFullTextService.Chunking;
 using SRSS.IAM.Services.PaperFullTextService.Embedding;
 using SRSS.IAM.Services.PaperFullTextService.Search;
 using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
+using SRSS.IAM.Services.AiSetupService;
+using SRSS.IAM.Services.OpenRouter;
 
 
+
+using SRSS.IAM.Services.StudySelectionCriteriaService;
 using SRSS.IAM.Services.RagService;
 using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
@@ -91,7 +94,6 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Planning Phase
             services.AddScoped<ICoreGovernService, CoreGovernService>();
-            services.AddScoped<IProtocolService, ProtocolService>();
             services.AddScoped<IResearchQuestionService, ResearchQuestionService>();
             services.AddScoped<ISearchStrategyService, SearchStrategyService>();
             services.AddScoped<ISelectionCriteriaService, SelectionCriteriaService>();
@@ -99,6 +101,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IDataExtractionService, DataExtractionService>();
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
             services.AddScoped<ISynthesisService, SynthesisService>();
+            services.AddScoped<IAiSetupService, AiSetupService>();
+
 
 
 
@@ -135,6 +139,10 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IReferenceClassificationService, ReferenceClassificationService>();
             services.AddScoped<IReferenceProcessingService, ReferenceProcessingService>();
             services.AddScoped<IEmbeddingService, GeminiEmbeddingService>();
+
+            // OpenRouter integration
+            services.Configure<OpenRouterOptions>(configuration.GetSection(OpenRouterOptions.SectionName));
+            services.AddHttpClient<IOpenRouterService, OpenRouterService>();
 
             // OpenAlex integration
             services.Configure<OpenAlexSettings>(configuration.GetSection(OpenAlexSettings.SectionName));
@@ -209,6 +217,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();
             services.AddScoped<IStudySelectionChecklistSubmissionService, StudySelectionChecklistSubmissionService>();
 
+            services.AddScoped<IStudySelectionCriteriaService, StudySelectionCriteriaService>();
             services.AddScoped<IAuditLogService, AuditLogService>();
             services.AddScoped<AuditInterceptor>();
         }

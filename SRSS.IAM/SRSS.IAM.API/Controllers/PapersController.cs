@@ -3,6 +3,7 @@ using Shared.Builder;
 using Shared.Models;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Services.DTOs.Common;
+using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.Paper;
 using SRSS.IAM.Services.PaperService;
 
@@ -22,46 +23,13 @@ namespace SRSS.IAM.API.Controllers
             _paperService = paperService;
         }
 
-        /// <summary>
-        /// Get all papers for a specific project with optional filtering and pagination
-        /// </summary>
-        [HttpGet("projects/{projectId}/papers")]
-        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetPapersByProject(
-            [FromRoute] Guid projectId,
-            [FromQuery] string? search,
-            [FromQuery] SelectionStatus? status,
-            [FromQuery] int? year,
-            [FromQuery] string? assignmentStatus,
-            [FromQuery] ScreeningStage? stage,
-            [FromQuery] int pageNumber = 1,
-            [FromQuery] int pageSize = 20,
-            CancellationToken cancellationToken = default)
-        {
-            var request = new PaperListRequest
-            {
-                Search = search,
-                Status = status,
-                Year = year,
-                AssignmentStatus = assignmentStatus,
-                Stage = stage,
-                PageNumber = pageNumber,
-                PageSize = pageSize
-            };
 
-            var result = await _paperService.GetPapersByProjectAsync(projectId, request, cancellationToken);
-
-            var message = result.TotalCount == 0
-                ? "No papers found for this project."
-                : $"Retrieved {result.Items.Count} of {result.TotalCount} papers.";
-
-            return Ok(result, message);
-        }
 
         /// <summary>
-        /// Get all duplicate papers for a specific identification process
-        /// Uses process-scoped deduplication results (not project-wide)
+        /// Get all duplicate papers for a specific project
+        /// Uses project-scoped deduplication results
         /// </summary>
-        /// <param name="identificationProcessId">Identification Process ID</param>
+        /// <param name="projectId">Project ID</param>
         /// <param name="search">Search in Title, DOI, or Authors</param>
         /// <param name="year">Filter by publication year</param>
         /// <param name="sortBy">Sort field: detectedAt (default), confidenceScore, title, method, reviewStatus</param>
@@ -71,9 +39,9 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="pageSize">Page size (default: 20, max: 100)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Paginated list of duplicate papers with deduplication metadata</returns>
-        [HttpGet("identification-processes/{identificationProcessId}/duplicates")]
-        public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePaperResponse>>>> GetDuplicatePapersByIdentificationProcess(
-            [FromRoute] Guid identificationProcessId,
+        [HttpGet("projects/{projectId}/duplicates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePaperResponse>>>> GetDuplicatePapersByProject(
+            [FromRoute] Guid projectId,
             [FromQuery] string? search,
             [FromQuery] int? year,
             [FromQuery] string? sortBy,
@@ -94,13 +62,13 @@ namespace SRSS.IAM.API.Controllers
                 PageSize = pageSize
             };
 
-            var result = await _paperService.GetDuplicatePapersByIdentificationProcessAsync(
-                identificationProcessId,
+            var result = await _paperService.GetDuplicatePapersByProjectAsync(
+                projectId,
                 request,
                 cancellationToken);
 
             var message = result.TotalCount == 0
-                ? "No duplicate papers found for this identification process."
+                ? "No duplicate papers found for this project."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} duplicate papers.";
 
             return Ok(result, message);
@@ -109,20 +77,20 @@ namespace SRSS.IAM.API.Controllers
         /// <summary>
         /// Resolve a duplicate detection result (confirm as duplicate or reject)
         /// </summary>
-        /// <param name="identificationProcessId">Identification Process ID</param>
+        /// <param name="projectId">Project ID</param>
         /// <param name="deduplicationResultId">Deduplication Result ID</param>
         /// <param name="request">Resolution details</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Updated duplicate paper with resolution status</returns>
-        [HttpPost("identification-processes/{identificationProcessId}/duplicates/{deduplicationResultId}/resolve")]
+        [HttpPost("projects/{projectId}/duplicates/{deduplicationResultId}/resolve")]
         public async Task<ActionResult<ApiResponse<DuplicatePaperResponse>>> ResolveDuplicate(
-            [FromRoute] Guid identificationProcessId,
+            [FromRoute] Guid projectId,
             [FromRoute] Guid deduplicationResultId,
             [FromBody] ResolveDuplicateRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.ResolveDuplicateAsync(
-                identificationProcessId,
+                projectId,
                 deduplicationResultId,
                 request,
                 cancellationToken);
@@ -200,7 +168,7 @@ namespace SRSS.IAM.API.Controllers
         /// Get paginated duplicate pairs with both papers for side-by-side comparison.
         /// Each pair contains the original paper and the duplicate paper with full metadata.
         /// </summary>
-        /// <param name="identificationProcessId">Identification Process ID</param>
+        /// <param name="projectId">Project ID</param>
         /// <param name="search">Search in title/DOI/authors of either paper in the pair</param>
         /// <param name="status">Filter by review status: 0=Pending, 1=Confirmed, 2=Rejected</param>
         /// <param name="minConfidence">Filter pairs with confidence >= value (0.0 to 1.0)</param>
@@ -210,9 +178,9 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="pageSize">Page size (default: 20, max: 100)</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Paginated list of duplicate pairs</returns>
-        [HttpGet("identification-processes/{identificationProcessId}/duplicate-pairs")]
+        [HttpGet("projects/{projectId}/duplicate-pairs")]
         public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePairResponse>>>> GetDuplicatePairs(
-            [FromRoute] Guid identificationProcessId,
+            [FromRoute] Guid projectId,
             [FromQuery] string? search,
             [FromQuery] DeduplicationReviewStatus? status,
             [FromQuery] decimal? minConfidence,
@@ -234,12 +202,12 @@ namespace SRSS.IAM.API.Controllers
             };
 
             var result = await _paperService.GetDuplicatePairsAsync(
-                identificationProcessId,
+                projectId,
                 request,
                 cancellationToken);
 
             var message = result.TotalCount == 0
-                ? "No duplicate pairs found for this identification process."
+                ? "No duplicate pairs found for this project."
                 : $"Retrieved {result.Items.Count} of {result.TotalCount} duplicate pairs.";
 
             return Ok(result, message);
@@ -248,25 +216,46 @@ namespace SRSS.IAM.API.Controllers
         /// <summary>
         /// Resolve a duplicate pair with a specific decision.
         /// </summary>
-        /// <param name="identificationProcessId">Identification Process ID</param>
+        /// <param name="projectId">Project ID</param>
         /// <param name="pairId">Deduplication Result ID (the pair ID)</param>
         /// <param name="request">Resolution decision: CANCEL (0) = exclude PaperId, KEEP_BOTH (1) = not a duplicate</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Resolution result with audit trail</returns>
-        [HttpPatch("identification-processes/{identificationProcessId}/duplicate-pairs/{pairId}/resolve")]
+        [HttpPatch("projects/{projectId}/duplicate-pairs/{pairId}/resolve")]
         public async Task<ActionResult<ApiResponse<ResolveDuplicatePairResponse>>> ResolveDuplicatePair(
-            [FromRoute] Guid identificationProcessId,
+            [FromRoute] Guid projectId,
             [FromRoute] Guid pairId,
             [FromBody] ResolveDuplicatePairRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _paperService.ResolveDuplicatePairAsync(
-                identificationProcessId,
+                projectId,
                 pairId,
                 request,
                 cancellationToken);
 
             return Ok(result, "Duplicate pair resolved successfully.");
         }
+
+        /// <summary>
+        /// Manually mark a paper as a duplicate of another paper within a project.
+        /// </summary>
+        /// <param name="projectId">Project ID</param>
+        /// <param name="paperId">ID of the paper to be marked as duplicate (will be soft-deleted)</param>
+        /// <param name="request">Request containing the original paper ID and reason</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpPost("projects/{projectId}/papers/{paperId}/mark-as-duplicate")]
+        public async Task<ActionResult<ApiResponse>> MarkAsDuplicate(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid paperId,
+            [FromBody] MarkAsDuplicateRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.MarkAsDuplicateAsync(projectId, paperId, request, cancellationToken);
+            return Ok("Paper marked as duplicate successfully.");
+        }
+
+
     }
 }

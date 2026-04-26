@@ -35,6 +35,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? ConferenceName { get; set; }
         public string? ConferenceLocation { get; set; }
         public string? ConferenceCountry { get; set; }
+        public string? ConferenceDate { get; set; }
         public int? ConferenceYear { get; set; }
         public DateTimeOffset? ConferenceStartDate { get; set; }
         public DateTimeOffset? ConferenceEndDate { get; set; }
@@ -46,6 +47,8 @@ namespace SRSS.IAM.Repositories.Entities
         public string? JournalIssn { get; set; }
         public string? JournalEIssn { get; set; }
         public string? JournalPublisher { get; set; }
+        public string? SecondaryTitle { get; set; }
+        public string? BookTitle { get; set; }
 
         // ============================================
         // IMPORT & SOURCE TRACKING (IDENTIFICATION PHASE)
@@ -54,6 +57,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? SourceRecordId { get; set; }
         public PaperSourceType SourceType { get; set; } = PaperSourceType.DatabaseSearch;
         public Guid? ImportBatchId { get; set; }
+        public Guid? CreatedFromImportBatchId { get; set; }
         public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
@@ -71,6 +75,9 @@ namespace SRSS.IAM.Repositories.Entities
         // AUDIT FIELDS (NO WORKFLOW STATE)
         // ============================================
         public string? InternalNotes { get; set; }
+        public bool IsDeleted { get; set; } = false;
+
+        public bool IsDuplicated { get; set; } = false;
 
         // ============================================
         // EXTERNAL METADATA (OPENALEX)

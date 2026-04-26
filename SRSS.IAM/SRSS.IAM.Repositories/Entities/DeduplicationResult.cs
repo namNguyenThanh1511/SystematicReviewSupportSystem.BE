@@ -3,15 +3,15 @@ using Shared.Entities.BaseEntity;
 namespace SRSS.IAM.Repositories.Entities
 {
     /// <summary>
-    /// Represents a duplicate detection result for a specific identification process.
-    /// Duplicates are NOT intrinsic properties of papers - they are contextual to a review process.
+    /// Represents a duplicate detection result at project scope.
+    /// Duplicates are NOT intrinsic properties of papers - they are contextual to a project dataset.
     /// </summary>
     public class DeduplicationResult : BaseEntity<Guid>
     {
         /// <summary>
-        /// The identification process that produced this deduplication result
+        /// The project that produced this deduplication result
         /// </summary>
-        public Guid IdentificationProcessId { get; set; }
+        public Guid ProjectId { get; set; }
 
         /// <summary>
         /// The paper identified as a duplicate
@@ -31,7 +31,7 @@ namespace SRSS.IAM.Repositories.Entities
         /// <summary>
         /// Confidence score of the duplicate match (0.0 to 1.0)
         /// </summary>
-        public decimal? ConfidenceScore { get; set; }
+        public decimal ConfidenceScore { get; set; }
 
         /// <summary>
         /// Optional notes about why this was marked as duplicate
@@ -61,7 +61,7 @@ namespace SRSS.IAM.Repositories.Entities
         public DuplicateResolutionDecision? ResolvedDecision { get; set; }
 
         // Navigation Properties
-        public IdentificationProcess IdentificationProcess { get; set; } = null!;
+        public SystematicReviewProject Project { get; set; } = null!;
         public Paper Paper { get; set; } = null!;
         public Paper DuplicateOfPaper { get; set; } = null!;
     }
@@ -113,14 +113,9 @@ namespace SRSS.IAM.Repositories.Entities
         Pending = 0,
 
         /// <summary>
-        /// Researcher confirmed this is a duplicate
+        /// Researcher has resolved this duplicate pair
         /// </summary>
-        Confirmed = 1,
-
-        /// <summary>
-        /// Researcher rejected — not actually a duplicate, keep both papers
-        /// </summary>
-        Rejected = 2
+        Resolved = 1
     }
 
     /// <summary>

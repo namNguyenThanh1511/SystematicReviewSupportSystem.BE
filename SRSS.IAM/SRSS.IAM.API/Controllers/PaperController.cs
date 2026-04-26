@@ -20,7 +20,7 @@ namespace SRSS.IAM.API.Controllers
         private readonly IIdentificationService _identificationService;
         private readonly IPaperService _paperService;
         private readonly ICurrentUserService _currentUserService;
- 
+
         public PaperController(IIdentificationService identificationService, IPaperService paperService, ICurrentUserService currentUserService)
         {
             _identificationService = identificationService;
@@ -34,17 +34,15 @@ namespace SRSS.IAM.API.Controllers
         /// <param name="file">RIS file (.ris extension)</param>
         /// <param name="searchSourceId">Source database ID (referencing SearchSource entity)</param>
         /// <param name="importedBy">User who performed the import</param>
-        /// <param name="searchExecutionId">Optional SearchExecution ID to associate papers with</param>
-        /// <param name="identificationProcessId">IdentificationProcess ID to associate the import with</param>
+        /// <param name="searchStrategyId">Optional search strategy ID used for this import</param>
+        /// <param name="projectId">Project ID that owns the paper pool</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Import summary with counts and any errors</returns>
         [HttpPost("import/ris")]
         public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportRisFile(
             IFormFile file,
             [FromForm] Guid? searchSourceId,
-            [FromForm] string? importedBy,
-            [FromForm] Guid? searchExecutionId,
-            [FromForm] Guid identificationProcessId,
+            [FromForm] Guid projectId,
             CancellationToken cancellationToken)
         {
             // Validate file presence
@@ -72,9 +70,7 @@ namespace SRSS.IAM.API.Controllers
                 stream,
                 file.FileName,
                 searchSourceId,
-                importedBy,
-                searchExecutionId,
-                identificationProcessId,
+                projectId,
                 cancellationToken);
 
             // Check if import was successful
@@ -91,17 +87,6 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
         }
 
-        /// <summary>
-        /// Import papers manually from JSON payload
-        /// </summary>
-        [HttpPost("import/manual")]
-        public async Task<ActionResult<ApiResponse<ImportPaperResponse>>> ImportManual(
-            [FromBody] ImportPaperRequest request,
-            CancellationToken cancellationToken)
-        {
-            var result = await _identificationService.ImportPaperAsync(request, cancellationToken);
-            return Ok(result, $"Successfully imported {result.TotalImported} papers.");
-        }
 
         /// <summary>
         /// Assign single/multiple papers to single/multiple project members.
@@ -177,5 +162,165 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, "Assigned papers for Full-Text screening retrieved successfully.");
         }
 
+        /// <summary>
+        /// Get papers for a project with advanced search and filtering
+        /// </summary>
+        /// <param name="projectId">The project ID</param>
+        /// <param name="search">Text to search in title, abstract, authors, keywords</param>
+        /// <param name="searchStrategyId">Optional search strategy ID to filter papers imported via specific strategy</param>
+        /// <param name="searchSourceId">Optional search source ID (e.g., PubMed, Scopus) to filter papers from specific database</param>
+        /// <param name="year">Optional publication year to filter papers</param>
+        /// <param name="pageNumber">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10, max: 100)</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paginated list of papers matching the search criteria</returns>
+        [HttpGet("project/{projectId}")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetPapersForProject(
+            [FromRoute] Guid projectId,
+            [FromQuery] string? search,
+            [FromQuery] Guid? searchStrategyId,
+            [FromQuery] Guid? searchSourceId,
+            [FromQuery] int? year,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var query = new PaperSearchQuery
+            {
+                Search = search,
+                SearchStrategyId = searchStrategyId,
+                SearchSourceId = searchSourceId,
+                Year = year,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+
+            var result = await _paperService.SearchPapersByProjectAsync(
+                projectId,
+                query,
+                cancellationToken);
+
+            return Ok(result, $"Retrieved {result.Items.Count} papers for project.");
+        }
+
+        [HttpGet("/api/projects/{projectId}/papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperResponse>>>> GetPaperPool(
+            [FromRoute] Guid projectId,
+            [FromQuery] PaperPoolQueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsValidState(request.DoiState))
+            {
+                return BadRequest<PaginatedResponse<PaperResponse>>("doiState must be one of: all, has, missing.");
+            }
+
+            if (!IsValidState(request.FullTextState))
+            {
+                return BadRequest<PaginatedResponse<PaperResponse>>("fullTextState must be one of: all, has, missing.");
+            }
+
+            if (request.YearFrom.HasValue && request.YearTo.HasValue && request.YearFrom.Value > request.YearTo.Value)
+            {
+                return BadRequest<PaginatedResponse<PaperResponse>>("yearFrom must be less than or equal to yearTo.");
+            }
+
+            var result = await _paperService.GetPaperPoolAsync(projectId, request, cancellationToken);
+            return Ok(result, "Paper pool retrieved successfully.");
+        }
+
+        [HttpGet("/api/projects/{projectId}/filter-metadata")]
+        public async Task<ActionResult<ApiResponse<PaperPoolFilterMetadataResponse>>> GetFilterMetadata(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _paperService.GetFilterMetadataAsync(projectId, cancellationToken);
+            return Ok(result, "Filter metadata retrieved successfully.");
+        }
+
+        [HttpGet("/api/projects/{projectId}/filter-settings")]
+        public async Task<ActionResult<ApiResponse<List<FilterSettingResponse>>>> GetFilterSettings(
+            [FromRoute] Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _paperService.GetFilterSettingsAsync(projectId, cancellationToken);
+            return Ok(result, "Filter settings retrieved successfully.");
+        }
+
+        [HttpGet("/api/projects/{projectId}/filter-settings/{id}")]
+        public async Task<ActionResult<ApiResponse<FilterSettingResponse>>> GetFilterSettingById(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _paperService.GetFilterSettingByIdAsync(projectId, id, cancellationToken);
+            return Ok(result, "Filter setting retrieved successfully.");
+        }
+
+        [HttpPost("/api/projects/{projectId}/filter-settings")]
+        public async Task<ActionResult<ApiResponse<FilterSettingResponse>>> CreateFilterSetting(
+            [FromRoute] Guid projectId,
+            [FromBody] FilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsValidState(request.Filters.DoiState))
+            {
+                return BadRequest<FilterSettingResponse>("doiState must be one of: all, has, missing.");
+            }
+
+            if (!IsValidState(request.Filters.FullTextState))
+            {
+                return BadRequest<FilterSettingResponse>("fullTextState must be one of: all, has, missing.");
+            }
+
+            var result = await _paperService.CreateFilterSettingAsync(projectId, request, cancellationToken);
+            return Created(result, "Filter setting created successfully.");
+        }
+
+        [HttpPut("/api/projects/{projectId}/filter-settings/{id}")]
+        public async Task<ActionResult<ApiResponse<FilterSettingResponse>>> UpdateFilterSetting(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid id,
+            [FromBody] FilterSettingRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (!IsValidState(request.Filters.DoiState))
+            {
+                return BadRequest<FilterSettingResponse>("doiState must be one of: all, has, missing.");
+            }
+
+            if (!IsValidState(request.Filters.FullTextState))
+            {
+                return BadRequest<FilterSettingResponse>("fullTextState must be one of: all, has, missing.");
+            }
+
+            var result = await _paperService.UpdateFilterSettingAsync(projectId, id, request, cancellationToken);
+            return Ok(result, "Filter setting updated successfully.");
+        }
+
+        [HttpDelete("/api/projects/{projectId}/filter-settings/{id}")]
+        public async Task<ActionResult<ApiResponse>> DeleteFilterSetting(
+            [FromRoute] Guid projectId,
+            [FromRoute] Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            await _paperService.DeleteFilterSettingAsync(projectId, id, cancellationToken);
+            return Ok("Filter setting deleted successfully.");
+        }
+
+        private static bool IsValidState(string? value)
+        {
+            return string.Equals(value, "all", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "has", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(value, "missing", StringComparison.OrdinalIgnoreCase);
+        }
+
+        [HttpGet("{paperId}")]
+        public async Task<ActionResult<ApiResponse<PaperDetailsResponse>>> GetPaperById(
+                [FromRoute] Guid paperId,
+                CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetPaperByIdAsync(paperId, cancellationToken);
+            return Ok(result, "Paper details retrieved successfully.");
+        }
     }
 }

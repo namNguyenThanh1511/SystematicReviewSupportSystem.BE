@@ -1,4 +1,4 @@
-﻿using Shared.Repositories;
+using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,6 @@ namespace SRSS.IAM.Repositories.SearchStrategyRepo
 {
 	public interface ISearchSourceRepository : IGenericRepository<SearchSource, Guid, AppDbContext>
 	{
-		Task<IEnumerable<SearchSource>> GetByProtocolIdAsync(Guid protocolId, CancellationToken cancellationToken = default);
+		Task<IEnumerable<SearchSource>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
 	}
 }

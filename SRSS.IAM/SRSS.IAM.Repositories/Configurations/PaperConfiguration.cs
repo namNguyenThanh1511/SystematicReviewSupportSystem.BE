@@ -22,68 +22,55 @@ namespace SRSS.IAM.Repositories.Configurations
             // ============================================
             builder.Property(p => p.Title)
                 .HasColumnName("title")
-                .HasMaxLength(500)
                 .IsRequired();
 
             builder.Property(p => p.Authors)
-                .HasColumnName("authors")
-                .HasMaxLength(1000);
+                .HasColumnName("authors");
 
             builder.Property(p => p.Abstract)
                 .HasColumnName("abstract");
 
             builder.Property(p => p.DOI)
-                .HasColumnName("doi")
-                .HasMaxLength(255);
+                .HasColumnName("doi");
+
 
             builder.HasIndex(p => p.DOI);
 
             builder.Property(p => p.PublicationYear)
-                .HasColumnName("publication_year")
-                .HasMaxLength(10);
+                .HasColumnName("publication_year");
 
             builder.Property(p => p.PublicationDate)
                 .HasColumnName("publication_date");
 
             builder.Property(p => p.Journal)
-                .HasColumnName("journal")
-                .HasMaxLength(255);
+                .HasColumnName("journal");
 
             builder.Property(p => p.JournalIssn)
-                .HasColumnName("journal_issn")
-                .HasMaxLength(50);
+                .HasColumnName("journal_issn");
 
             builder.Property(p => p.Volume)
-                .HasColumnName("volume")
-                .HasMaxLength(50);
+                .HasColumnName("volume");
 
             builder.Property(p => p.Issue)
-                .HasColumnName("issue")
-                .HasMaxLength(50);
+                .HasColumnName("issue");
 
             builder.Property(p => p.Pages)
-                .HasColumnName("pages")
-                .HasMaxLength(100);
+                .HasColumnName("pages");
 
             builder.Property(p => p.Publisher)
-                .HasColumnName("publisher")
-                .HasMaxLength(255);
+                .HasColumnName("publisher");
 
             builder.Property(p => p.ConferenceLocation)
-                .HasColumnName("conference_location")
-                .HasMaxLength(255);
+                .HasColumnName("conference_location");
 
             builder.Property(p => p.ConferenceName)
-                .HasColumnName("conference_name")
-                .HasMaxLength(255);
+                .HasColumnName("conference_name");
 
             builder.Property(p => p.PublicationType)
-                .HasColumnName("publication_type")
-                .HasMaxLength(50);
+                .HasColumnName("publication_type");
 
             builder.Property(p => p.Url)
-                .HasColumnName("url")
-                .HasMaxLength(500);
+                .HasColumnName("url");
 
             builder.Property(p => p.Keywords)
                 .HasColumnName("keywords");
@@ -95,22 +82,19 @@ namespace SRSS.IAM.Repositories.Configurations
             // NEW FIELDS - LANGUAGE & METADATA
             // ============================================
             builder.Property(p => p.Language)
-                .HasColumnName("language")
-                .HasMaxLength(50);
+                .HasColumnName("language");
 
             builder.Property(p => p.PublicationYearInt)
                 .HasColumnName("publication_year_int");
 
             builder.Property(p => p.AbstractLanguage)
-                .HasColumnName("abstract_language")
-                .HasMaxLength(50);
+                .HasColumnName("abstract_language");
 
             // ============================================
             // NEW FIELDS - EXTENDED CONFERENCE METADATA
             // ============================================
             builder.Property(p => p.ConferenceCountry)
-                .HasColumnName("conference_country")
-                .HasMaxLength(100);
+                .HasColumnName("conference_country");
 
             builder.Property(p => p.ConferenceStartDate)
                 .HasColumnName("conference_start_date");
@@ -125,26 +109,25 @@ namespace SRSS.IAM.Repositories.Configurations
             // NEW FIELDS - EXTENDED JOURNAL METADATA
             // ============================================
             builder.Property(p => p.JournalEIssn)
-                .HasColumnName("journal_e_issn")
-                .HasMaxLength(50);
+                .HasColumnName("journal_e_issn");
 
             builder.Property(p => p.JournalPublisher)
-                .HasColumnName("journal_publisher")
-                .HasMaxLength(255);
+                .HasColumnName("journal_publisher");
 
             // ============================================
             // NEW FIELDS - IMPORT TRACEABILITY
             // ============================================
             builder.Property(p => p.Source)
-                .HasColumnName("source")
-                .HasMaxLength(100);
+                .HasColumnName("source");
 
             builder.Property(p => p.SourceRecordId)
-                .HasColumnName("source_record_id")
-                .HasMaxLength(255);
+                .HasColumnName("source_record_id");
 
             builder.Property(p => p.ImportBatchId)
                 .HasColumnName("import_batch_id");
+
+            builder.Property(p => p.CreatedFromImportBatchId)
+                .HasColumnName("created_from_import_batch_id");
 
             builder.Property(p => p.SearchSourceId)
                 .HasColumnName("search_source_id");
@@ -181,6 +164,11 @@ namespace SRSS.IAM.Repositories.Configurations
             // ============================================
             builder.Property(p => p.InternalNotes)
                 .HasColumnName("internal_notes");
+
+            builder.Property(p => p.IsDeleted)
+                .HasColumnName("is_deleted")
+                .HasDefaultValue(false)
+                .IsRequired();
 
             // ============================================
             // EXTERNAL METADATA (OPENALEX)
@@ -226,6 +214,8 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(p => p.ModifiedAt)
                 .HasColumnName("modified_at")
                 .IsRequired();
+
+            builder.HasQueryFilter(p => !p.IsDeleted);
         }
     }
 }

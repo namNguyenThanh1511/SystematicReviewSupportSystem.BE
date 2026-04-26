@@ -21,6 +21,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
         private readonly IStudySelectionAIResultService _aiResultService;
         private readonly ILogger<StuSeFullTextAiEvaluationService> _logger;
         private readonly IOpenRouterService _openRouterService;
+        private readonly IStuSeFullTextAiEvaluationQueue _queue;
 
         private const int TopKPerQuery = 3; // Controls retrieval breadth per semantic query
         private const int MaxChunksInPrompt = 20; // Controls final prompt evidence count
@@ -34,7 +35,8 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             IStuSeProtocolRetrievalQueryBuilder queryBuilder,
             IStudySelectionAIResultService aiResultService,
             ILogger<StuSeFullTextAiEvaluationService> logger,
-            IOpenRouterService openRouterService)
+            IOpenRouterService openRouterService,
+            IStuSeFullTextAiEvaluationQueue queue)
         {
             _unitOfWork = unitOfWork;
             _retrievalService = retrievalService;
@@ -42,6 +44,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             _aiResultService = aiResultService;
             _logger = logger;
             _openRouterService = openRouterService;
+            _queue = queue;
         }
 
         public async Task<StuSeAIOutput> EvaluateFullTextAsync(
@@ -51,6 +54,18 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Starting Full-Text AI evaluation for StudySelection {Id}, Paper {PaperId}", studySelectionId, paperId);
+
+            // 0. Check background job and existing results
+            if (_queue.IsProcessing(studySelectionId, paperId))
+            {
+                throw new InvalidOperationException("AI analysis is running in background job. Please wait for the job to complete.");
+            }
+
+            var existingResult = await _aiResultService.GetByKeysAsync(studySelectionId, paperId, reviewerId, ScreeningPhase.FullText, cancellationToken);
+            if (existingResult != null)
+            {
+                throw new InvalidOperationException("AI result for this paper already exists. Please reload the page to view it.");
+            }
 
             // 1. Load Process and Paper (Reusing logic philosophy from Title/Abstract)
             var studySelectionProcess = await _unitOfWork.StudySelectionProcesses.GetForAiEvaluationAsync(studySelectionId);

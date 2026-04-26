@@ -3,11 +3,13 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 using Microsoft.Extensions.Logging;
+using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.PaperFullText;
 using SRSS.IAM.Services.DTOs.StudySelection;
 using SRSS.IAM.Services.Mappers;
+using SRSS.IAM.Services.OpenRouter;
 using SRSS.IAM.Services.StudySelectionAIService.Retrieval;
 
 namespace SRSS.IAM.Services.StudySelectionAIService
@@ -18,8 +20,7 @@ namespace SRSS.IAM.Services.StudySelectionAIService
         private readonly IStuSeProtocolChunkRetrievalService _retrievalService;
         private readonly IStudySelectionAIResultService _aiResultService;
         private readonly ILogger<StuSeFullTextAiEvaluationService> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IOpenRouterService _openRouterService;
 
         private const int TopKPerQuery = 3; // Controls retrieval breadth per semantic query
         private const int MaxChunksInPrompt = 20; // Controls final prompt evidence count
@@ -33,16 +34,14 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             IStuSeProtocolRetrievalQueryBuilder queryBuilder,
             IStudySelectionAIResultService aiResultService,
             ILogger<StuSeFullTextAiEvaluationService> logger,
-            IConfiguration configuration,
-            IHttpClientFactory httpClientFactory)
+            IOpenRouterService openRouterService)
         {
             _unitOfWork = unitOfWork;
             _retrievalService = retrievalService;
             _queryBuilder = queryBuilder;
             _aiResultService = aiResultService;
             _logger = logger;
-            _configuration = configuration;
-            _httpClientFactory = httpClientFactory;
+            _openRouterService = openRouterService;
         }
 
         public async Task<StuSeAIOutput> EvaluateFullTextAsync(
@@ -72,7 +71,11 @@ namespace SRSS.IAM.Services.StudySelectionAIService
                 throw new ArgumentException("Paper does not belong to the same project as the study selection process.");
             }
 
-            if (!paper.PaperAssignments.Any(a =>
+            // Check if user is assigned OR is a Project Leader
+            var isLeader = studySelectionProcess.ReviewProcess.Project.ProjectMembers
+                .Any(m => m.UserId == reviewerId && m.Role == ProjectRole.Leader);
+
+            if (!isLeader && !paper.PaperAssignments.Any(a =>
                 a.StudySelectionProcessId == studySelectionId &&
                 a.ProjectMember.UserId == reviewerId &&
                 a.Phase == ScreeningPhase.FullText))
@@ -148,58 +151,8 @@ namespace SRSS.IAM.Services.StudySelectionAIService
 
             var prompt = BuildFullTextPrompt(aiInput, promptChunks);
 
-            // 6. Call Custom Model
-            var baseUrl = _configuration["FullText:Model"];
-            var apiKey = _configuration["FullText:ModelKey"];
-            var modelName = _configuration["FullText:ModelId"] ?? "gpt-5.4";
-
-            if (string.IsNullOrEmpty(baseUrl) || string.IsNullOrEmpty(apiKey))
-            {
-                throw new InvalidOperationException("Full-Text AI Model configuration is missing (FullText__Model or FullText__ModelKey).");
-            }
-
-            using var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-
-            var requestBody = new
-            {
-                model = modelName,
-                messages = new[]
-                {
-                    new { role = "user", content = prompt }
-                },
-                temperature = 0.1
-            };
-
-            var httpResponse = await client.PostAsJsonAsync($"{baseUrl}/chat/completions", requestBody, cancellationToken);
-
-            if (!httpResponse.IsSuccessStatusCode)
-            {
-                var errorContent = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("AI Model error: {StatusCode} - {Error}", httpResponse.StatusCode, errorContent);
-                throw new InvalidOperationException($"AI Evaluation failed with status {httpResponse.StatusCode}: {errorContent}");
-            }
-
-            var jsonResponse = await httpResponse.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: cancellationToken);
-            var choice = jsonResponse.GetProperty("choices")[0];
-            var message = choice.GetProperty("message");
-            var content = message.GetProperty("content").GetString();
-
-            if (string.IsNullOrEmpty(content))
-            {
-                throw new InvalidOperationException("AI Evaluation failed: Received empty response content from model.");
-            }
-
-            // Cleanup potential markdown wrappers
-            var cleanJson = content.Trim();
-            if (cleanJson.StartsWith("```json")) cleanJson = cleanJson.Substring(7);
-            if (cleanJson.EndsWith("```")) cleanJson = cleanJson.Substring(0, cleanJson.Length - 3);
-            cleanJson = cleanJson.Trim();
-
-            var aiOutput = JsonSerializer.Deserialize<StuSeAIOutput>(cleanJson, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
+            // 6. Call AI Model via OpenRouter
+            var aiOutput = await _openRouterService.GenerateStructuredContentAsync<StuSeAIOutput>(prompt, ct: cancellationToken);
 
             if (aiOutput == null)
             {
@@ -223,114 +176,169 @@ namespace SRSS.IAM.Services.StudySelectionAIService
             var sb = new StringBuilder();
 
             sb.AppendLine("Act as a senior Systematic Literature Review (SLR) reviewer. Your task is to evaluate a paper for Full-Text screening using STRICT deterministic scoring based ON EXTRACTED EVIDENCE CHUNKS.");
-            sb.AppendLine("### EVIDENCE-BASED DECISION RULE (CRITICAL)");
+            sb.AppendLine();
+
+            sb.AppendLine("### EVIDENCE-BASED DECISION RULES (CRITICAL)");
             sb.AppendLine("1. ONLY use the provided 'Retrieved Evidence Chunks' as source text.");
-            sb.AppendLine("2. CHUNK PRIORITY: Evidence chunks are sorted by RELEVANCE (most relevant first). Prioritize information from higher-ranked chunks.");
+            sb.AppendLine("2. CHUNK PRIORITY: Evidence chunks are sorted by RELEVANCE. Prioritize information from higher-ranked chunks.");
             sb.AppendLine("3. RESOLVE CONFLICTS: If multiple chunks provide conflicting evidence, explicitly explain the conflict in the 'Reasoning' section.");
-            sb.AppendLine("4. DO NOT hallucinate evidence. If no chunk supports a PICOC element or criterion, mark it as 'Unknown'.");
+            sb.AppendLine("4. DO NOT hallucinate evidence. If no chunk supports a criterion, mark it as 'Unknown'.");
             sb.AppendLine("5. DO NOT force a 'Match' just to increase the score. Accuracy and traceability are paramount.");
-            sb.AppendLine("6. CITE EVIDENCE: In the 'Reasoning' section, ALWAYS cite the Section Title(s) of the evidence (e.g., Abstract, Methods, Results) that support your judgment.");
+            sb.AppendLine("6. CITE EVIDENCE: In the 'Reasoning' section, ALWAYS cite the Section Title(s) and Rank(s) of the evidence that support your judgment.");
+            sb.AppendLine();
+
             sb.AppendLine("### OUTPUT STRUCTURE ENFORCEMENT");
-            sb.AppendLine("1. RESEARCH QUESTION COUNT LOCK: EXACTLY match the number of RQs provided.");
-            sb.AppendLine("2. CRITERIA GROUP COUNT LOCK: EXACTLY match the number of Criteria Groups provided.");
-            sb.AppendLine("3. STRICT JSON: No markdown wrapper, no extra text.");
+            sb.AppendLine("1. CRITERIA GROUP COUNT LOCK: The number of objects inside \"CriteriaGroupResults\" MUST be EXACTLY the same as the number of CRITERIA GROUPS provided in the protocol input.");
+            sb.AppendLine("2. CRITERIA GROUP ORDER LOCK: CriteriaGroupResults MUST appear in the EXACT same order as the criteria groups listed in the protocol input.");
+            sb.AppendLine("3. EXCLUSION HIGHLIGHTS FORMAT: \"ExclusionHighlights\" MUST always be an array of strings.");
+            sb.AppendLine("4. STRICT JSON OUTPUT: The output MUST be a single valid JSON object. No markdown wrapper, no extra text.");
+            sb.AppendLine();
+
+            sb.AppendLine("### DATA INTEGRITY RULES");
+            sb.AppendLine("7. NO REASONING INSIDE STRUCTURED FIELDS: Rule, Highlight MUST contain ONLY structured values. Explanations MUST appear ONLY in the \"Reasoning\" section.");
+            sb.AppendLine("8. MATCH VALUES: Must be EXACTLY one of: \"Match\", \"NotMatch\", \"Unknown\". No variations.");
+            sb.AppendLine("9. UNKNOWN & NOTMATCH BEHAVIOR: 'Unknown' and 'NotMatch' do NOT count as Match. They contribute 0 to scoring. Only 'Match' increases the score.");
+            sb.AppendLine();
+
+            sb.AppendLine("10. REASONING COMPLETENESS RULE:");
+            sb.AppendLine("The Reasoning section MUST include ALL of the following sections in EXACT order:");
+            sb.AppendLine("## Criteria Groups Score");
+            sb.AppendLine("## Final Score Calculation");
+            sb.AppendLine("## Final Recommendation");
+            sb.AppendLine("If ANY section is missing, the output is INVALID.");
+            sb.AppendLine();
+
             sb.AppendLine("### REQUIRED JSON FORMAT");
-
             sb.AppendLine("{");
-            sb.AppendLine("  \"ResearchQuestionResults\": [");
-            sb.AppendLine("    {");
-            sb.AppendLine("      \"Question\": \"...\",");
-
-            sb.AppendLine("      \"Match\": \"Match|NotMatch|Unknown\",");
-            sb.AppendLine("      \"PicocMatching\": {");
-            sb.AppendLine("        \"Population\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("        \"Intervention\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("        \"Comparison\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("        \"Outcome\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" },");
-            sb.AppendLine("        \"Context\": { \"Value\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" }");
-            sb.AppendLine("      }");
-            sb.AppendLine("    }");
-            sb.AppendLine("  ],");
             sb.AppendLine("  \"CriteriaGroupResults\": [");
-
             sb.AppendLine("    {");
             sb.AppendLine("      \"Description\": \"...\",");
             sb.AppendLine("      \"InclusionResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\" } ],");
             sb.AppendLine("      \"ExclusionResults\": [ { \"Rule\": \"...\", \"Match\": \"Match|NotMatch|Unknown\", \"Highlight\": \"...\" } ]");
             sb.AppendLine("    }");
-
             sb.AppendLine("  ],");
-
             sb.AppendLine("  \"InclusionMatches\": 0,");
             sb.AppendLine("  \"ExclusionMatches\": 0,");
             sb.AppendLine("  \"ExclusionHighlights\": [],");
             sb.AppendLine("  \"RelevanceScore\": 0.0,");
             sb.AppendLine("  \"Recommendation\": \"Include|Exclude|Uncertain\",");
-            sb.AppendLine("  \"Reasoning\": \"Markdown formatted hierarchical scoring calculation with CHUNK CITATIONS\"");
+            sb.AppendLine("  \"Reasoning\": \"Markdown formatted hierarchical scoring calculation citing specific chunks\"");
             sb.AppendLine("}");
-            sb.AppendLine("---");
+            sb.AppendLine();
 
+            sb.AppendLine("---");
             sb.AppendLine("### PAPER INFORMATION");
             sb.AppendLine($"Title: {input.Paper.Title}");
+            sb.AppendLine();
 
-            sb.AppendLine("### RETRIEVED EVIDENCE CHUNKS");
-
+            sb.AppendLine("### RETRIEVED EVIDENCE CHUNKS (THE ONLY SOURCE)");
             foreach (var chunk in promptChunks)
             {
                 var sectionTitle = chunk.SectionTitle ?? "Unknown Section";
-                var sectionType = chunk.SectionType ?? "Unknown";
-                sb.AppendLine($"[Section: {sectionTitle} | Type: {sectionType}]");
+                sb.AppendLine($"[Source: {sectionTitle} (Rank: {promptChunks.IndexOf(chunk) + 1})]");
                 sb.AppendLine(chunk.Text);
                 sb.AppendLine();
             }
 
-            sb.AppendLine("---");
             sb.AppendLine("### REVIEW PROTOCOL");
-            if (input.ResearchQuestions.Any())
-            {
-                sb.AppendLine("#### RESEARCH QUESTIONS");
-                foreach (var rq in input.ResearchQuestions)
-                {
-                    sb.AppendLine($"- RQ: {rq.QuestionText}");
-                    if (rq.PICOC != null)
-                    {
-                        if (!string.IsNullOrEmpty(rq.PICOC.Population)) sb.AppendLine($"  - Population: {rq.PICOC.Population}");
-                        if (!string.IsNullOrEmpty(rq.PICOC.Intervention)) sb.AppendLine($"  - Intervention: {rq.PICOC.Intervention}");
-                        if (!string.IsNullOrEmpty(rq.PICOC.Comparison)) sb.AppendLine($"  - Comparison: {rq.PICOC.Comparison}");
-                        if (!string.IsNullOrEmpty(rq.PICOC.Outcome)) sb.AppendLine($"  - Outcome: {rq.PICOC.Outcome}");
-                        if (!string.IsNullOrEmpty(rq.PICOC.Context)) sb.AppendLine($"  - Context: {rq.PICOC.Context}");
-                    }
-                }
-                sb.AppendLine();
-            }
-
-            if (input.CriteriaGroups.Any())
+            if (input.CriteriaGroups != null && input.CriteriaGroups.Any())
             {
                 sb.AppendLine("#### CRITERIA GROUPS");
                 foreach (var group in input.CriteriaGroups)
                 {
                     sb.AppendLine($"- Group: {group.Description ?? "No description"}");
-                    foreach (var ir in group.InclusionRules) sb.AppendLine($"  - Inclusion: {ir}");
-                    foreach (var er in group.ExclusionRules) sb.AppendLine($"  - Exclusion: {er}");
+                    if (group.Inclusion != null && group.Inclusion.Any())
+                    {
+                        sb.AppendLine("  - Inclusion Rules:");
+                        foreach (var ir in group.Inclusion) sb.AppendLine($"    * {ir}");
+                    }
+                    if (group.Exclusion != null && group.Exclusion.Any())
+                    {
+                        sb.AppendLine("  - Exclusion Rules:");
+                        foreach (var er in group.Exclusion) sb.AppendLine($"    * {er}");
+                    }
                 }
                 sb.AppendLine();
             }
 
             sb.AppendLine("---");
             sb.AppendLine("### SCORING MODEL (Deterministic & Hierarchical)");
-            sb.AppendLine("RelevanceScore = (0.50 × PICOCMatchingScore) + (0.50 × CriteriaGroupsScore)");
+            sb.AppendLine("RelevanceScore ∈ [0, 1] (Final RelevanceScore MUST be clamped to [0, 1] and rounded to 2-4 decimal places).");
+            sb.AppendLine();
+            sb.AppendLine("1. Valid Scoring Groups (G) - 2-Phase Evaluation:");
+            sb.AppendLine("   - Step 1: Identify candidate groups (groups that have at least one inclusion rule).");
+            sb.AppendLine("   - Step 2: AFTER semantic clustering of rules against paper evidence, only groups with at least one valid inclusion cluster supported or addressed in evidence are considered ValidScoringGroups.");
+            sb.AppendLine("   - G = number of ValidScoringGroups.");
+            sb.AppendLine();
+            sb.AppendLine("   - Handling of non-scoring groups:");
+            sb.AppendLine("     * Groups with ONLY exclusion rules MUST be evaluated and included in CriteriaGroupResults, but they MUST NOT contribute to scoring (no GroupScore, no weight, no penalty applied to final score).");
+            sb.AppendLine("     * Groups with 0 inclusion clusters MUST be excluded from G and RelevanceScore.");
+            sb.AppendLine();
+            sb.AppendLine("2. Per-Group Scoring (GroupScore) for ValidScoringGroups:");
+            sb.AppendLine("   - All exclusion rules are treated as SOFT penalties. There is no 'Hard' exclusion override.");
+            sb.AppendLine("   - AI MUST explicitly determine for each group:");
+            sb.AppendLine("     * Total number of UNIQUE inclusion clusters.");
+            sb.AppendLine("     * Number of MATCHED inclusion clusters (supported by evidence).");
+            sb.AppendLine("     * Total number of UNIQUE exclusion clusters.");
+            sb.AppendLine("     * Number of VIOLATED exclusion clusters (evidence found for exclusion).");
+            sb.AppendLine("   - InclusionScore = (matched inclusion clusters) / (total unique inclusion clusters).");
+            sb.AppendLine("   - Penalty Calculation:");
+            sb.AppendLine("     * If total unique exclusion clusters == 0: Penalty = 0.");
+            sb.AppendLine("     * Else: Penalty = (violated exclusion clusters) / (total unique exclusion clusters).");
+            sb.AppendLine("   - GroupScore = InclusionScore × (1 - Penalty).");
+            sb.AppendLine();
+            sb.AppendLine("3. Final Aggregation:");
+            sb.AppendLine("   - RelevanceScore = average(GroupScore of all ValidScoringGroups).");
+            sb.AppendLine("   - If G == 0, RelevanceScore = 0 and Recommendation = 'Uncertain'.");
+            sb.AppendLine("   - Round final RelevanceScore to 2-4 decimal places.");
+            sb.AppendLine();
 
-            sb.AppendLine("1. PICOC Matching Score (0.50): Mean of RQ scores. RQScore = Mean of PICOC Match (Match=1, etc=0).");
-            sb.AppendLine("2. Criteria Groups Score (0.50): Mean of unique semantic cluster scores per group.");
+            sb.AppendLine("### FINAL RECOMMENDATION (Score-Only)");
+            sb.AppendLine("- IF RelevanceScore ≥ 0.7 -> Recommendation = 'Include'.");
+            sb.AppendLine("- IF RelevanceScore < 0.4 -> Recommendation = 'Exclude'.");
+            sb.AppendLine("- ELSE -> Recommendation = 'Uncertain'.");
+            sb.AppendLine();
 
-            sb.AppendLine("---");
-            sb.AppendLine("### FINAL RECOMMENDATION");
-            sb.AppendLine("- Include: RelevanceScore ≥ 0.7 AND NO exclusion violation.");
-            sb.AppendLine("- Exclude: RelevanceScore < 0.4 OR AT LEAST ONE exclusion violation.");
-            sb.AppendLine("- Uncertain: otherwise.");
-
-            sb.AppendLine("### REASONING FORMAT (Markdown)");
-            sb.AppendLine("The Reasoning section MUST include ALL of the following sections in EXACT order:");
+            sb.AppendLine("### REASONING FORMAT & EVIDENCE MAPPING (STRICT ENFORCEMENT)");
+            sb.AppendLine("The 'Reasoning' field MUST follow this structure for EACH Criteria Group:");
+            sb.AppendLine();
+            sb.AppendLine("## Group: <Group Description>");
+            sb.AppendLine("- Inclusion Cluster Evaluation:");
+            sb.AppendLine("  - Cluster 1: <description>");
+            sb.AppendLine("    - Rule: <rule text>");
+            sb.AppendLine("    - Match: Match | NotMatch | Unknown");
+            sb.AppendLine("    - Evidence: [Section: <Section Title>, Rank: <#>] \"<short snippet>\"");
+            sb.AppendLine("    - Match Explanation: How the evidence supports/contradicts this rule.");
+            sb.AppendLine("- Exclusion Cluster Evaluation:");
+            sb.AppendLine("  - Cluster 1: <description>");
+            sb.AppendLine("    - Rule: <rule text>");
+            sb.AppendLine("    - Match: Match | NotMatch | Unknown");
+            sb.AppendLine("    - Evidence: [Section: <Section Title>, Rank: <#>] \"<short snippet>\"");
+            sb.AppendLine("    - Violation Explanation: Why this exclusion rule is matched (violated) or not.");
+            sb.AppendLine();
+            sb.AppendLine("- Scoring Metrics:");
+            sb.AppendLine("  - Matched Clusters: <#> / <Total>");
+            sb.AppendLine("  - Violated Exclusions: <#> / <Total>");
+            sb.AppendLine("  - InclusionScore: <#>");
+            sb.AppendLine("  - Penalty: <#>");
+            sb.AppendLine("  - GroupScore: <#>");
+            sb.AppendLine();
+            sb.AppendLine("### CRITICAL EVIDENCE RULES:");
+            sb.AppendLine("1. EXPLICIT MAPPING: EVERY inclusion and exclusion rule MUST be explicitly listed. Do NOT skip any rule.");
+            sb.AppendLine("2. SOURCE TRACEABILITY: Evidence MUST use the exact format: [Section: ..., Rank: ...]. Do NOT just say 'based on text'.");
+            sb.AppendLine("3. NO HALLUCINATION: If no evidence is found for a rule:");
+            sb.AppendLine("   - Match MUST be 'Unknown'");
+            sb.AppendLine("   - Evidence MUST state: 'No relevant evidence found in retrieved chunks'");
+            sb.AppendLine("4. CONFLICT RESOLUTION: If multiple chunks contradict:");
+            sb.AppendLine("   - MUST list both [Section: ..., Rank: ...]");
+            sb.AppendLine("   - MUST explain resolution: which is trusted and why.");
+            sb.AppendLine("5. EXCLUSION EVIDENCE: Violated exclusions MUST have strong evidence snippets. Non-matched exclusions MUST explain why the evidence does NOT apply or is absent.");
+            sb.AppendLine("6. EVIDENCE DENSITY:");
+            sb.AppendLine("   - Prefer multiple evidence chunks when available.");
+            sb.AppendLine("   - Prioritize higher-ranked chunks (Rank 1-5). Lower-ranked chunks can support but not override stronger evidence.");
+            sb.AppendLine("7. SEMANTIC CLUSTERING: Explicitly state: 'Scoring is based on UNIQUE semantic clusters identified in evidence, not raw rule counts'.");
+            sb.AppendLine();
+            sb.AppendLine("IMPORTANT: RETURN ONLY VALID JSON. NO MARKDOWN WRAPPER. NO TEXT BEFORE/AFTER.");
 
             return sb.ToString();
         }
@@ -339,17 +347,12 @@ namespace SRSS.IAM.Services.StudySelectionAIService
         {
             if (output == null)
             {
-                throw new InvalidOperationException("AI Evaluation failed: Gemini returned null output.");
+                throw new InvalidOperationException("AI Evaluation failed: AI returned null output.");
             }
 
             if (string.IsNullOrWhiteSpace(output.Reasoning))
             {
                 throw new InvalidOperationException("AI Evaluation failed: Structured output reasoning is empty.");
-            }
-
-            if (output.ResearchQuestionResults == null || output.ResearchQuestionResults.Count != input.ResearchQuestions.Count)
-            {
-                throw new InvalidOperationException($"AI Evaluation failed: Research Question result count ({output.ResearchQuestionResults?.Count ?? 0}) does not match input count ({input.ResearchQuestions.Count}).");
             }
 
             if (output.CriteriaGroupResults == null || output.CriteriaGroupResults.Count != input.CriteriaGroups.Count)

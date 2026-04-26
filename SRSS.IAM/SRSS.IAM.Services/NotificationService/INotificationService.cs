@@ -1,4 +1,5 @@
 using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.Checklist;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Notification;
 using SRSS.IAM.Services.DTOs.StudySelection;
@@ -22,5 +23,6 @@ namespace SRSS.IAM.Services.NotificationService
         Task SendMessageToUserAsync(Guid userId, string message, CancellationToken cancellationToken = default);
         Task SendMessageToGroupAsync(string groupName, string message, CancellationToken cancellationToken = default);
         Task SendMetadataExtractedAsync(Guid userId, ExtractionSuggestionResponse suggestion);
+        Task SendChecklistAutoFillStatusAsync(Guid userId, ChecklistAutoFillStatusDto status);
     }
 }

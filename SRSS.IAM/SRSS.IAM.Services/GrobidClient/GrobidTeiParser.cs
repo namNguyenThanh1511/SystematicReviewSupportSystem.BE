@@ -269,5 +269,31 @@ namespace SRSS.IAM.Services.GrobidClient
 
             return dtos;
         }
+
+        public static string ParseBodyText(string teiXml)
+        {
+            if (string.IsNullOrWhiteSpace(teiXml))
+                return string.Empty;
+
+            try
+            {
+                var doc = XDocument.Parse(teiXml);
+                XNamespace tei = "http://www.tei-c.org/ns/1.0";
+
+                var body = doc.Descendants(tei + "body").FirstOrDefault();
+                if (body == null) return string.Empty;
+
+                // Extract text from all paragraphs in the body
+                var paragraphs = body.Descendants(tei + "p")
+                    .Select(p => p.Value.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v));
+
+                return string.Join("\n\n", paragraphs);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
     }
 }

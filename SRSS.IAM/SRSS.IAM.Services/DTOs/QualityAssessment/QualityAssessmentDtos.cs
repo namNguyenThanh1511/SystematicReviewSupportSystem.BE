@@ -20,6 +20,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public DateTimeOffset ModifiedAt { get; set; }
         
         public QualityAssessmentStatisticsResponse? QualityStatistics { get; set; }
+        public bool IsHaveCriteria { get; set; }
     }
 
     public class QualityAssessmentStatisticsResponse

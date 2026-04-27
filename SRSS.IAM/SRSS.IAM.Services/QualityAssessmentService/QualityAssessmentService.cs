@@ -292,6 +292,15 @@ namespace SRSS.IAM.Services.QualityAssessmentService
 
             await EnsureLeaderByReviewProcessIdAsync(entity.ReviewProcessId);
 
+            var hasCriteria = await _unitOfWork.QualityStrategies.AnyAsync(s => s.ReviewProcessId == entity.ReviewProcessId);
+            if (!hasCriteria)
+            {
+                return new QualityAssessmentProcessResponse
+                {
+                    IsHaveCriteria = false
+                };
+            }
+
             var studySelectionProcess = await _unitOfWork.StudySelectionProcesses
                 .FindSingleAsync(ssp => ssp.ReviewProcessId == entity.ReviewProcessId);
 
@@ -305,7 +314,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             await _unitOfWork.QualityAssessmentProcesses.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
-            return entity.ToResponse();
+            var response = entity.ToResponse();
+            response.IsHaveCriteria = true;
+            return response;
         }
 
         public async Task<QualityAssessmentProcessResponse> CompleteProcessAsync(Guid id)

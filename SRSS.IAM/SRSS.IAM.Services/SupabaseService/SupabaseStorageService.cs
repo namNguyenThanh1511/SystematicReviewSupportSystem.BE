@@ -77,6 +77,35 @@ namespace SRSS.IAM.Services.SupabaseService
             }
         }
 
+        public async Task<string> UploadPdfBytesAsync(byte[] pdfBytes, string fileName, string folder)
+        {
+            if (pdfBytes == null || pdfBytes.Length == 0)
+                throw new ArgumentException("PDF bytes must not be empty.");
+
+            try
+            {
+                await _supabaseClient.InitializeAsync();
+
+                var cleanFileName = Regex.Replace(Path.GetFileName(fileName), @"[^a-zA-Z0-9\._-]", "_");
+                var storagePath = $"{folder}/{Guid.NewGuid()}_{cleanFileName}";
+
+                var fileOptions = new Supabase.Storage.FileOptions
+                {
+                    ContentType = "application/pdf",
+                    Upsert = false
+                };
+
+                var storage = _supabaseClient.Storage.From(_bucketName);
+                await storage.Upload(pdfBytes, storagePath, fileOptions);
+
+                return storage.GetPublicUrl(storagePath);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to upload PDF bytes to Supabase: {ex.Message}", ex);
+            }
+        }
+
         public async Task<byte[]> DownloadFileAsync(string path)
         {
             try

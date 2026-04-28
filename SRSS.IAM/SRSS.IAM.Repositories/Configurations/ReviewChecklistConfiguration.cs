@@ -36,6 +36,9 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("last_updated_at")
                 .IsRequired();
 
+            builder.Property(x => x.PdfUrl)
+                .HasColumnName("pdf_url");
+
             builder.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();

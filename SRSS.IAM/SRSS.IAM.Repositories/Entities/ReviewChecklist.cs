@@ -9,6 +9,7 @@ namespace SRSS.IAM.Repositories.Entities
         public bool IsCompleted { get; set; }
         public double CompletionPercentage { get; set; }
         public DateTimeOffset LastUpdatedAt { get; set; }
+        public string? PdfUrl { get; set; }
 
         public SystematicReviewProject Project { get; set; } = null!;
         public ChecklistTemplate Template { get; set; } = null!;

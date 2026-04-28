@@ -9,6 +9,7 @@ namespace SRSS.IAM.Repositories.Entities
         public string? Location { get; set; }
         public bool IsReported { get; set; }
         public bool IsCompleted { get; set; }
+        public string? PdfCoordinates { get; set; }
         public DateTimeOffset LastUpdatedAt { get; set; }
 
         public ReviewChecklist ReviewChecklist { get; set; } = null!;

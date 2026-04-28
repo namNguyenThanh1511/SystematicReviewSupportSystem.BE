@@ -32,6 +32,13 @@ namespace SRSS.IAM.Repositories.Configurations
                 .HasColumnName("is_reported")
                 .IsRequired();
 
+            builder.Property(x => x.IsCompleted)
+                .HasColumnName("is_completed")
+                .IsRequired();
+
+            builder.Property(x => x.PdfCoordinates)
+                .HasColumnName("pdf_coordinates");
+
             builder.Property(x => x.LastUpdatedAt)
                 .HasColumnName("last_updated_at")
                 .IsRequired();

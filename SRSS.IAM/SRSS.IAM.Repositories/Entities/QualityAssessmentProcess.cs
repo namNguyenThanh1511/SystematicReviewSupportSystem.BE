@@ -16,6 +16,7 @@ namespace SRSS.IAM.Repositories.Entities
         public ICollection<QualityAssessmentDecision> QualityAssessmentDecisions { get; set; } = new List<QualityAssessmentDecision>();
         public ICollection<QualityAssessmentAssignment> QualityAssessmentAssignments { get; set; } = new List<QualityAssessmentAssignment>();
         public ICollection<QualityAssessmentResolution> QualityAssessmentResolutions { get; set; } = new List<QualityAssessmentResolution>();
+        public ICollection<QualityAssessmentStrategy> QualityStrategies { get; set; } = new List<QualityAssessmentStrategy>();
     
         public void Start()
         {

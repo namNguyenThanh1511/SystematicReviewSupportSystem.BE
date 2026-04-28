@@ -30,11 +30,20 @@ data:
         "AuthorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
         "Scope": "openid profile email"
       },
+      "Gemini": {
+        "ApiKey": "YOUR_GEMINI_API_KEY",
+        "ModelId": "gemini-1.5-pro"
+      },
       "SupabaseSettings": {
         "Url": "https://your-project.supabase.co",
         "Key": "your_supabase_key_here"
       },
       "Grobid": {
         "BaseUrl": "http://srss-grobid-service.amayakuro.svc.cluster.local:8070"
+      },
+      "FullText": {
+        "Model": "https://api.apipro.me/v1",
+        "ModelKey": "mmb",
+        "ModelId": "gpt-mmb"
       }
     }

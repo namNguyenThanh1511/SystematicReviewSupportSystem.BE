@@ -14,7 +14,7 @@ namespace SRSS.IAM.Services.Mappers
             return new QualityAssessmentStrategyDto
             {
                 QaStrategyId = entity.Id,
-                ReviewProcessId = entity.ReviewProcessId,
+                QualityAssessmentProcessId = entity.QualityAssessmentProcessId,
                 Description = entity.Description ?? string.Empty,
                 Checklists = entity.Checklists?.Select(c => c.ToDtoWithCriteria()).ToList() ?? new List<QualityAssessmentChecklistDto>()
             };
@@ -32,14 +32,14 @@ namespace SRSS.IAM.Services.Mappers
             return new QualityAssessmentStrategy
             {
                 Id = dto.QaStrategyId ?? Guid.Empty,
-                ReviewProcessId = dto.ReviewProcessId,
+                QualityAssessmentProcessId = dto.QualityAssessmentProcessId,
                 Description = dto.Description ?? string.Empty
             };
         }
 
         public static void UpdateEntity(this QualityAssessmentStrategyDto dto, QualityAssessmentStrategy entity)
         {
-            entity.ReviewProcessId = dto.ReviewProcessId;
+            entity.QualityAssessmentProcessId = dto.QualityAssessmentProcessId;
             entity.Description = dto.Description ?? string.Empty;
         }
 

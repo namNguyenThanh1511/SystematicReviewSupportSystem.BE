@@ -1,4 +1,4 @@
-﻿using Shared.Entities.BaseEntity;
+using Shared.Entities.BaseEntity;
 using System;
 using System.Collections.Generic;
 using System.Linq;

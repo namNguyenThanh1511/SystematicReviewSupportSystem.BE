@@ -12,6 +12,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SRSS.IAM.Services.DTOs.Identification;
 using System.Globalization;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -23,18 +24,22 @@ namespace SRSS.IAM.Services.PaperService
         private readonly ILogger<PaperService> _logger;
         private readonly IStudySelectionService _studySelectionService;
 
+        private readonly ICurrentUserService _currentUserService;
+
         public PaperService(
             IUnitOfWork unitOfWork,
             INotificationService notificationService,
             MetadataMergeService.IMetadataMergeService metadataMergeService,
             IStudySelectionService studySelectionService,
-            ILogger<PaperService> logger)
+            ILogger<PaperService> logger,
+            ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
             _notificationService = notificationService;
             _metadataMergeService = metadataMergeService;
             _studySelectionService = studySelectionService;
             _logger = logger;
+            _currentUserService = currentUserService;
         }
 
         public async Task<PaginatedResponse<PaperResponse>> GetPapersByProjectAsync(
@@ -733,6 +738,11 @@ namespace SRSS.IAM.Services.PaperService
             {
                 throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
+            var (userId, role) = _currentUserService.GetCurrentUser();
+
+
+
+
 
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
                 dr => dr.Id == deduplicationResultId && dr.ProjectId == projectId,
@@ -746,7 +756,7 @@ namespace SRSS.IAM.Services.PaperService
             }
 
             deduplicationResult.ResolvedDecision = request.Decision;
-            deduplicationResult.ReviewedBy = request.ReviewedBy;
+            deduplicationResult.ReviewedBy = userId;
             deduplicationResult.ReviewedAt = DateTimeOffset.UtcNow;
             deduplicationResult.ModifiedAt = DateTimeOffset.UtcNow;
 
@@ -763,13 +773,13 @@ namespace SRSS.IAM.Services.PaperService
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
-                duplicatePaper.IsDeleted = true;
+                duplicatePaper.IsDuplicated = false;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
             {
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
-                duplicatePaper.IsDeleted = false;
+                duplicatePaper.IsDuplicated = true;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
 
@@ -843,7 +853,7 @@ namespace SRSS.IAM.Services.PaperService
                 DetectedAt = deduplicationResult.CreatedAt,
                 ReviewStatus = deduplicationResult.ReviewStatus,
                 ReviewStatusText = deduplicationResult.ReviewStatus.ToString(),
-                ReviewedBy = deduplicationResult.ReviewedBy,
+                ReviewedBy = userId,
                 ReviewedAt = deduplicationResult.ReviewedAt
             };
         }
@@ -917,6 +927,16 @@ namespace SRSS.IAM.Services.PaperService
             {
                 throw new InvalidOperationException($"Project with ID {projectId} not found.");
             }
+            var (userId, role) = _currentUserService.GetCurrentUser();
+            var userIdGuid = Guid.Parse(userId);
+            //membership
+            var membership = await _unitOfWork.SystematicReviewProjects.GetMembershipQueryable(userIdGuid)
+                .FirstOrDefaultAsync(m => m.ProjectId == projectId, cancellationToken);
+
+            if (membership.Role != ProjectRole.Leader)
+            {
+                throw new InvalidOperationException($"User {userId} is not authorized to resolve duplicates in project {projectId}.");
+            }
 
             var deduplicationResult = await _unitOfWork.DeduplicationResults.FindSingleAsync(
                 dr => dr.Id == pairId && dr.ProjectId == projectId,
@@ -956,10 +976,9 @@ namespace SRSS.IAM.Services.PaperService
 
             if (request.Decision == DuplicateResolutionDecision.CANCEL)
             {
-                // Confirmed duplicate — soft-delete the duplicate paper.
+                // Confirmed duplicate
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDuplicated = true;
-                duplicatePaper.IsDeleted = true;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
             else
@@ -967,9 +986,11 @@ namespace SRSS.IAM.Services.PaperService
                 // Not a duplicate — both papers remain visible.
                 deduplicationResult.ReviewStatus = DeduplicationReviewStatus.Resolved;
                 duplicatePaper.IsDuplicated = false;
-                duplicatePaper.IsDeleted = false;
                 duplicatePaper.ModifiedAt = DateTimeOffset.UtcNow;
             }
+            deduplicationResult.ReviewedBy = userId;
+
+
 
             await _unitOfWork.DeduplicationResults.UpdateAsync(deduplicationResult, cancellationToken);
             await _unitOfWork.Papers.UpdateAsync(duplicatePaper, cancellationToken);
@@ -1138,7 +1159,11 @@ namespace SRSS.IAM.Services.PaperService
                 CreatedAt = paper.CreatedAt,
                 ModifiedAt = paper.ModifiedAt,
 
-                DecidedStatus = resolution != null ? resolution.FinalDecision.ToString() : "None"
+                DecidedStatus = resolution != null ? resolution.FinalDecision.ToString() : "None",
+                IsDeleted = paper.IsDeleted,
+                DeleteReason = paper.DeleteReason,
+                DeletedBy = paper.DeletedBy,
+                DeletedAt = paper.DeletedAt
             };
 
             // Get Extraction Suggestion (G-11, G-12)
@@ -1185,7 +1210,11 @@ namespace SRSS.IAM.Services.PaperService
                 FullTextRetrievalStatus = paper.FullTextRetrievalStatus,
                 FullTextRetrievalStatusText = paper.FullTextRetrievalStatus.ToString(),
                 CreatedAt = paper.CreatedAt,
-                ModifiedAt = paper.ModifiedAt
+                ModifiedAt = paper.ModifiedAt,
+                IsDeleted = paper.IsDeleted,
+                DeleteReason = paper.DeleteReason,
+                DeletedBy = paper.DeletedBy,
+                DeletedAt = paper.DeletedAt
             };
 
             // Get Extraction Suggestion (G-11, G-12)
@@ -1569,6 +1598,246 @@ namespace SRSS.IAM.Services.PaperService
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
             };
+        }
+        public async Task DeletePaperAsync(
+            Guid paperId,
+            DeletePaperRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            var (userId, _) = _currentUserService.GetCurrentUser();
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            }
+
+            paper.IsDeleted = true;
+            paper.DeleteReason = request.Reason;
+            paper.DeletedBy = userId;
+            paper.DeletedAt = DateTimeOffset.UtcNow;
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<PaginatedResponse<PaperDetailsResponse>> GetDeletedPapersAsync(
+            Guid projectId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            // Using IgnoreQueryFilters to get deleted papers
+            var query = _unitOfWork.Papers.GetQueryable()
+                .IgnoreQueryFilters()
+                .Where(p => p.ProjectId == projectId && p.IsDeleted);
+
+            // Apply search
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchLower = request.Search.ToLower();
+                query = query.Where(p =>
+                    (p.Title != null && p.Title.ToLower().Contains(searchLower)) ||
+                    (p.DOI != null && p.DOI.ToLower().Contains(searchLower)) ||
+                    (p.Authors != null && p.Authors.ToLower().Contains(searchLower)));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var papers = await query
+                .OrderByDescending(p => p.DeletedAt)
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
+            var items = new List<PaperDetailsResponse>();
+            foreach (var paper in papers)
+            {
+                items.Add(await MapToPaperResponseDetailsAsync(paper, cancellationToken));
+            }
+
+            return new PaginatedResponse<PaperDetailsResponse>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+        }
+
+        public async Task<PaginatedResponse<DuplicatePaperResponse>> GetConfirmedDuplicatePapersAsync(
+            Guid projectId,
+            DuplicatePapersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
+                p => p.Id == projectId,
+                cancellationToken: cancellationToken);
+
+            if (project == null)
+            {
+                throw new InvalidOperationException($"Project with ID {projectId} not found.");
+            }
+
+            // Confirmed duplicates are resolved as CANCEL
+            var query = _unitOfWork.DeduplicationResults.GetQueryable()
+                .AsNoTracking()
+                .Include(dr => dr.Paper)
+                .Include(dr => dr.DuplicateOfPaper)
+                .Where(dr => dr.ProjectId == projectId &&
+                             dr.ReviewStatus == DeduplicationReviewStatus.Resolved &&
+                             dr.ResolvedDecision == DuplicateResolutionDecision.CANCEL &&
+                             !dr.Paper.IsDeleted); // Not soft-deleted by user, but marked as duplicate
+
+            // Apply search filter on paper metadata
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchLower = request.Search.ToLower();
+                query = query.Where(dr =>
+                    (dr.Paper.Title != null && dr.Paper.Title.ToLower().Contains(searchLower)) ||
+                    (dr.Paper.DOI != null && dr.Paper.DOI.ToLower().Contains(searchLower)) ||
+                    (dr.Paper.Authors != null && dr.Paper.Authors.ToLower().Contains(searchLower)));
+            }
+
+            // Apply year filter
+            if (request.Year.HasValue)
+            {
+                query = query.Where(dr => dr.Paper.PublicationYearInt == request.Year.Value);
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var deduplicationResults = await query
+                .OrderByDescending(dr => dr.ReviewedAt)
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync(cancellationToken);
+
+            var duplicateResponses = deduplicationResults.Select(dr => new DuplicatePaperResponse
+            {
+                Id = dr.Paper.Id,
+                Title = dr.Paper.Title,
+                Authors = dr.Paper.Authors,
+                Abstract = dr.Paper.Abstract,
+                DOI = dr.Paper.DOI,
+                PublicationType = dr.Paper.PublicationType,
+                PublicationYear = dr.Paper.PublicationYear,
+                PublicationYearInt = dr.Paper.PublicationYearInt,
+                PublicationDate = dr.Paper.PublicationDate,
+                Volume = dr.Paper.Volume,
+                Issue = dr.Paper.Issue,
+                Pages = dr.Paper.Pages,
+                Publisher = dr.Paper.Publisher,
+                Language = dr.Paper.Language,
+                Keywords = dr.Paper.Keywords,
+                Url = dr.Paper.Url,
+                ConferenceName = dr.Paper.ConferenceName,
+                ConferenceLocation = dr.Paper.ConferenceLocation,
+                ConferenceCountry = dr.Paper.ConferenceCountry,
+                ConferenceYear = dr.Paper.ConferenceYear,
+                Journal = dr.Paper.Journal,
+                JournalIssn = dr.Paper.JournalIssn,
+                Source = dr.Paper.Source,
+                SearchSourceId = dr.Paper.SearchSourceId,
+                ImportedAt = dr.Paper.ImportedAt,
+                ImportedBy = dr.Paper.ImportedBy,
+                AssignmentStatus = dr.Paper.PaperAssignments?.Any() == true ? 1 : 0,
+                AssignmentStatusText = dr.Paper.PaperAssignments?.Any() == true ? "Assigned" : "Unassigned",
+                AssignedReviewers = dr.Paper.PaperAssignments?.Select(pa => new AssignedReviewerDto
+                {
+                    Id = pa.ProjectMember.UserId,
+                    Name = pa.ProjectMember.User?.FullName ?? "Unknown"
+                }).ToList() ?? new List<AssignedReviewerDto>(),
+                PdfUrl = dr.Paper.PdfUrl,
+                FullTextRetrievalStatus = dr.Paper.FullTextRetrievalStatus,
+                FullTextRetrievalStatusText = dr.Paper.FullTextRetrievalStatus.ToString(),
+                FullTextAvailable = dr.Paper.FullTextAvailable,
+                CreatedAt = dr.Paper.CreatedAt,
+                ModifiedAt = dr.Paper.ModifiedAt,
+                IsDuplicated = dr.Paper.IsDuplicated,
+                IsDeleted = dr.Paper.IsDeleted,
+                DeleteReason = dr.Paper.DeleteReason,
+                DeletedBy = dr.Paper.DeletedBy,
+                DeletedAt = dr.Paper.DeletedAt,
+
+                // Deduplication metadata
+                DuplicateOfPaperId = dr.DuplicateOfPaperId,
+                DuplicateOfTitle = dr.DuplicateOfPaper?.Title,
+                DuplicateOfAuthors = dr.DuplicateOfPaper?.Authors,
+                DuplicateOfYear = dr.DuplicateOfPaper?.PublicationYear,
+                DuplicateOfDoi = dr.DuplicateOfPaper?.DOI,
+                DuplicateOfSource = dr.DuplicateOfPaper?.Source,
+                DuplicateOfAbstract = dr.DuplicateOfPaper?.Abstract,
+                Method = dr.Method,
+                MethodText = dr.Method.ToString(),
+                ConfidenceScore = dr.ConfidenceScore,
+                DeduplicationNotes = dr.Notes,
+                DetectedAt = dr.CreatedAt,
+                ReviewStatus = dr.ReviewStatus,
+                ReviewStatusText = dr.ReviewStatus.ToString(),
+                ReviewedBy = dr.ReviewedBy,
+                ReviewedAt = dr.ReviewedAt
+            }).ToList();
+
+            return new PaginatedResponse<DuplicatePaperResponse>
+            {
+                Items = duplicateResponses,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+        }
+        public async Task RemovePdfAttachmentAsync(
+            Guid paperId,
+            CancellationToken cancellationToken = default)
+        {
+            var paper = await _unitOfWork.Papers.FindSingleAsync(
+                p => p.Id == paperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            if (paper == null)
+            {
+                throw new InvalidOperationException($"Paper with ID {paperId} not found.");
+            }
+
+            // Update paper fields
+            paper.PdfUrl = null;
+            paper.PdfFileName = null;
+            paper.FullTextRetrievalStatus = FullTextRetrievalStatus.NotRetrieved;
+            paper.FullTextAvailable = false;
+            paper.ModifiedAt = DateTimeOffset.UtcNow;
+
+            // Remove associated PaperPdf entities
+            var paperPdfs = await _unitOfWork.PaperPdfs.FindAllAsync(
+                pp => pp.PaperId == paperId,
+                isTracking: true,
+                cancellationToken: cancellationToken);
+
+            foreach (var pdf in paperPdfs)
+            {
+                await _unitOfWork.PaperPdfs.RemoveAsync(pdf, cancellationToken);
+            }
+
+            await _unitOfWork.Papers.UpdateAsync(paper, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 }

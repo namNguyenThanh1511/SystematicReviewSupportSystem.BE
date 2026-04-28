@@ -51,8 +51,10 @@ namespace SRSS.IAM.Services.DTOs.Paper
         // Audit
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }
-
-
+        public bool IsDeleted { get; set; }
+        public string? DeleteReason { get; set; }
+        public string? DeletedBy { get; set; }
+        public DateTimeOffset? DeletedAt { get; set; }
     }
 
 }

@@ -193,11 +193,11 @@ namespace SRSS.IAM.Services.PrismaReportService
                     cancellationToken: cancellationToken);
 
                 var papersForRetrieval = allResolutions
-                                                    .Where(r => r.Phase == ScreeningPhase.TitleAbstract 
+                                                    .Where(r => r.Phase == ScreeningPhase.TitleAbstract
                                                             && r.FinalDecision != ScreeningDecisionType.Exclude)
                                                     .Select(r => r.PaperId)
                                                     .ToHashSet();
-                                                    
+
                 var papers = await _unitOfWork.Papers.FindAllAsync(
                                                     p => papersForRetrieval.Contains(p.Id),
                                                     isTracking: false,

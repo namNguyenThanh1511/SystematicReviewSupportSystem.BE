@@ -79,6 +79,10 @@ namespace SRSS.IAM.Services.DTOs.Paper
 
         public string DecidedStatus { get; set; } = "None";
         public bool IsDuplicated { get; set; }
+        public bool IsDeleted { get; set; }
+        public string? DeleteReason { get; set; }
+        public string? DeletedBy { get; set; }
+        public DateTimeOffset? DeletedAt { get; set; }
     }
 
     public class AssignedReviewerDto

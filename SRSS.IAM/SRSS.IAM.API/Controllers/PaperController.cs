@@ -322,5 +322,65 @@ namespace SRSS.IAM.API.Controllers
             var result = await _paperService.GetPaperByIdAsync(paperId, cancellationToken);
             return Ok(result, "Paper details retrieved successfully.");
         }
+
+        /// <summary>
+        /// Soft delete a paper with a reason.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="request">The delete reason</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("{paperId}")]
+        public async Task<ActionResult<ApiResponse>> DeletePaper(
+            [FromRoute] Guid paperId,
+            [FromBody] DeletePaperRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.DeletePaperAsync(paperId, request, cancellationToken);
+            return Ok("Paper deleted successfully.");
+        }
+
+        /// <summary>
+        /// Get all soft-deleted papers for a project.
+        /// Includes deletion reason and audit info.
+        /// </summary>
+        [HttpGet("/api/projects/{projectId}/deleted-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperDetailsResponse>>>> GetDeletedPapers(
+            [FromRoute] Guid projectId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetDeletedPapersAsync(projectId, request, cancellationToken);
+            return Ok(result, "Deleted papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get all confirmed duplicate papers for a project.
+        /// Includes resolution info (who resolved, when).
+        /// </summary>
+        [HttpGet("/api/projects/{projectId}/confirmed-duplicates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePaperResponse>>>> GetConfirmedDuplicatePapers(
+            [FromRoute] Guid projectId,
+            [FromQuery] DuplicatePapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetConfirmedDuplicatePapersAsync(projectId, request, cancellationToken);
+            return Ok(result, "Confirmed duplicate papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Remove PDF attachment from a paper.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("{paperId}/pdf")]
+        public async Task<ActionResult<ApiResponse>> RemovePdfAttachment(
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.RemovePdfAttachmentAsync(paperId, cancellationToken);
+            return Ok("PDF attachment removed successfully.");
+        }
     }
 }

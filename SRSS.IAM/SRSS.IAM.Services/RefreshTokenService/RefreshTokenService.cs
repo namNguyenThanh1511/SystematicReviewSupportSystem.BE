@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Configuration;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Auth;
@@ -15,9 +16,9 @@ namespace SRSS.IAM.Services.RefreshTokenService
         private readonly IJwtService _jwtService;
         public RefreshTokenService(IConfiguration configuration, IUnitOfWork unitOfWork, IJwtService jwtService)
         {
-			var refreshTokenExpirationDaysString = configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] ?? "30";
+            var refreshTokenExpirationDaysString = configuration["JWT_REFRESH_TOKEN_EXPIRATION_DAYS"] ?? "30";
 
-			if (!long.TryParse(refreshTokenExpirationDaysString, out _refreshTokenLifetimeDays))
+            if (!long.TryParse(refreshTokenExpirationDaysString, out _refreshTokenLifetimeDays))
             {
                 _refreshTokenLifetimeDays = 30;
             }
@@ -56,7 +57,7 @@ namespace SRSS.IAM.Services.RefreshTokenService
         public async Task RevokeAsync(string refreshToken)
         {
             var user = await _unitOfWork.Users.FindSingleAsync(u => u.RefreshToken == refreshToken);
-            
+
             if (user == null) { return; }
 
             user.IsRefreshTokenRevoked = true;
@@ -102,7 +103,7 @@ namespace SRSS.IAM.Services.RefreshTokenService
             var randomBytes = new byte[64];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomBytes);
-            return Convert.ToBase64String(randomBytes);
+            return WebEncoders.Base64UrlEncode(randomBytes);
         }
     }
 }

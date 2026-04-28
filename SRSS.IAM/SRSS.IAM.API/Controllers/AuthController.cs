@@ -75,12 +75,12 @@ namespace SRSS.IAM.API.Controllers
             {
                 throw new UnauthorizedAccessException("Refresh token is missing");
             }
-            // Ur ass M$ .Net auto URL encode cookie (== => %3d%3d, + => " "), reconvert to use
-            var token = Uri.UnescapeDataString(refreshToken);
-            var validationResult = await _refreshTokenService.ValidateAsync(token);
+
+            Console.WriteLine("DCM: Refresh token: " + refreshToken);
+            var validationResult = await _refreshTokenService.ValidateAsync(refreshToken);
             if (validationResult == null)
             {
-                await ClearRefreshCookieAsync(token);
+                await ClearRefreshCookieAsync(refreshToken);
                 throw new UnauthorizedAccessException("Invalid refresh token");
             }
             var result = await _authService.RefreshAsync(validationResult.UserId);

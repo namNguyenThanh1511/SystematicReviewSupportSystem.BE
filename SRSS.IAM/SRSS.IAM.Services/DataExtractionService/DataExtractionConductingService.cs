@@ -851,7 +851,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             var valuesList = allValues.ToList();
 
             // 5. Build headers list and column map
-            var headers = new List<string> { "Study ID (System)", "Citation", "Title", "Authors", "Year" };
+            var columns = new List<ExtractionGridColumnMetaDto>();
             var colMap = new Dictionary<(Guid FieldId, Guid? MatrixColumnId), string>();
 
             Action<ExtractionField, List<ExtractionField>> flatten = null!;
@@ -879,7 +879,16 @@ namespace SRSS.IAM.Services.DataExtractionService
                     foreach (var f in sectionFields)
                     {
                         string headerName = $"{section.Name} - {f.Name}";
-                        headers.Add(headerName);
+                        var colMeta = new ExtractionGridColumnMetaDto
+                        {
+                            FieldId = f.Id,
+                            HeaderName = headerName,
+                            SectionName = section.Name,
+                            DisplayFieldName = f.Name,
+                            FieldType = f.FieldType.ToString(),
+                            Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
+                        };
+                        columns.Add(colMeta);
                         colMap[(f.Id, null)] = headerName;
                     }
                 }
@@ -891,7 +900,16 @@ namespace SRSS.IAM.Services.DataExtractionService
                         foreach (var f in sectionFields)
                         {
                             string headerName = $"{section.Name} - {mc.Name} - {f.Name}";
-                            headers.Add(headerName);
+                            var colMeta = new ExtractionGridColumnMetaDto
+                            {
+                                FieldId = f.Id,
+                                HeaderName = headerName,
+                                SectionName = section.Name,
+                                DisplayFieldName = $"{mc.Name} - {f.Name}",
+                                FieldType = f.FieldType.ToString(),
+                                Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
+                            };
+                            columns.Add(colMeta);
                             colMap[(f.Id, mc.Id)] = headerName;
                         }
                     }
@@ -1003,7 +1021,7 @@ namespace SRSS.IAM.Services.DataExtractionService
 
             return new ExtractionPreviewDto
             {
-                Headers = headers,
+                Columns = columns,
                 Rows = rows
             };
         }
@@ -1015,31 +1033,96 @@ namespace SRSS.IAM.Services.DataExtractionService
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("Extracted Data");
 
-            // Write headers
-            for (int i = 0; i < data.Headers.Count; i++)
+            // --- Row 1: Group Headers ---
+            // A: Study ID, B: Citation, C: Title, D: Authors, E: Year
+            var staticHeaders = new[] { "Study ID (System)", "Citation", "Title", "Authors", "Year" };
+            for (int i = 0; i < staticHeaders.Length; i++)
             {
-                worksheet.Cell(1, i + 1).Value = data.Headers[i];
+                var cell = worksheet.Cell(1, i + 1);
+                cell.Value = staticHeaders[i];
+                worksheet.Range(1, i + 1, 2, i + 1).Merge().Style
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+                    .Alignment.SetVertical(XLAlignmentVerticalValues.Center)
+                    .Font.SetBold(true)
+                    .Fill.SetBackgroundColor(XLColor.FromHtml("#EFEFEF"));
             }
 
-            // Style headers
-            var headerRow = worksheet.Row(1);
-            headerRow.Style.Font.Bold = true;
+            // Dynamic Section Headers
+            int currentCol = staticHeaders.Length + 1;
+            var sections = data.Columns
+                .GroupBy(c => c.SectionName)
+                .Select(g => new { Name = g.Key, Count = g.Count() })
+                .ToList();
 
-            // Write rows
+            foreach (var section in sections)
+            {
+                int startCol = currentCol;
+                int endCol = currentCol + section.Count - 1;
+
+                var cell = worksheet.Cell(1, startCol);
+                cell.Value = section.Name;
+
+                if (startCol != endCol)
+                {
+                    worksheet.Range(1, startCol, 1, endCol).Merge();
+                }
+
+                var range = worksheet.Range(1, startCol, 1, endCol);
+                range.Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center)
+                    .Alignment.SetVertical(XLAlignmentVerticalValues.Center)
+                    .Font.SetBold(true)
+                    .Fill.SetBackgroundColor(XLColor.FromHtml("#D9EAD3")); // Light green for sections
+
+                currentCol = endCol + 1;
+            }
+
+            // --- Row 2: Field Headers ---
+            currentCol = staticHeaders.Length + 1;
+            foreach (var col in data.Columns)
+            {
+                var cell = worksheet.Cell(2, currentCol);
+                cell.Value = col.DisplayFieldName;
+                cell.Style.Font.Bold = true;
+                cell.Style.Alignment.SetWrapText(true);
+                cell.Style.Fill.SetBackgroundColor(XLColor.FromHtml("#F4F4F4"));
+                currentCol++;
+            }
+
+            // --- Row 3+: Data ---
             for (int r = 0; r < data.Rows.Count; r++)
             {
-                var row = data.Rows[r];
-                for (int c = 0; c < data.Headers.Count; c++)
+                var rowData = data.Rows[r];
+                int excelRow = r + 3;
+
+                // Static data
+                worksheet.Cell(excelRow, 1).Value = rowData.GetValueOrDefault("Study ID (System)");
+                worksheet.Cell(excelRow, 2).Value = rowData.GetValueOrDefault("Citation");
+                worksheet.Cell(excelRow, 3).Value = rowData.GetValueOrDefault("Title");
+                worksheet.Cell(excelRow, 4).Value = rowData.GetValueOrDefault("Authors");
+                worksheet.Cell(excelRow, 5).Value = rowData.GetValueOrDefault("Year");
+
+                // Dynamic data
+                for (int c = 0; c < data.Columns.Count; c++)
                 {
-                    var header = data.Headers[c];
-                    if (row.TryGetValue(header, out var value))
+                    var col = data.Columns[c];
+                    if (rowData.TryGetValue(col.HeaderName, out var val))
                     {
-                        worksheet.Cell(r + 2, c + 1).Value = value;
+                        worksheet.Cell(excelRow, staticHeaders.Length + c + 1).Value = val;
                     }
                 }
             }
 
+            // Final Polish
             worksheet.Columns().AdjustToContents();
+            // Cap width for very long titles/authors
+            foreach (var col in worksheet.Columns(3, 4)) 
+            {
+                if (col.Width > 50) col.Width = 50;
+            }
+
+            // Freeze Panes: 2 rows and 2 columns (Study ID and Citation)
+            worksheet.SheetView.FreezeRows(2);
+            worksheet.SheetView.FreezeColumns(2);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -1051,15 +1134,18 @@ namespace SRSS.IAM.Services.DataExtractionService
             var data = await GetPivotedExtractionDataAsync(extractionProcessId);
 
             var sb = new System.Text.StringBuilder();
+            var staticHeaders = new List<string> { "Study ID (System)", "Citation", "Title", "Authors", "Year" };
+            var dynamicHeaders = data.Columns.Select(c => c.HeaderName).ToList();
+            var allHeaders = staticHeaders.Concat(dynamicHeaders).ToList();
 
             // Write headers
-            var headerLine = string.Join(",", data.Headers.Select(EscapeCsvValue));
+            var headerLine = string.Join(",", allHeaders.Select(EscapeCsvValue));
             sb.AppendLine(headerLine);
 
             // Write rows
             foreach (var row in data.Rows)
             {
-                var rowValues = data.Headers.Select(h => row.TryGetValue(h, out var val) ? EscapeCsvValue(val) : "");
+                var rowValues = allHeaders.Select(h => row.TryGetValue(h, out var val) ? EscapeCsvValue(val) : "");
                 sb.AppendLine(string.Join(",", rowValues));
             }
 
@@ -1375,9 +1461,10 @@ Your task is to extract the correct answers from the PAPER TEXT according to the
 
 ### EXTRACTION RULES
 1. For SingleSelect or MultiSelect fields, you MUST map your answer to the exact 'OptionId' (GUID) provided in the schema.
-2. For Text, Integer, or Decimal fields, provide the value in 'StringValue', 'NumericValue' as appropriate.
-3. If a field is not found in the text, you can omit it or set its values to null.
-4. For Matrix Grid sections, you MUST provide both 'FieldId', 'MatrixColumnId' (GUID), and 'MatrixRowIndex' (0-indexed).
+2. For MultiSelect fields, if multiple options are selected, you MUST return a separate object for EACH selected option (each with the same FieldId but different OptionId).
+3. For Text, Integer, or Decimal fields, provide the value in 'StringValue', 'NumericValue' as appropriate.
+4. If a field is not found in the text, you can omit it or set its values to null.
+5. For Matrix Grid sections, you MUST provide both 'FieldId', 'MatrixColumnId' (GUID), and 'MatrixRowIndex' (0-indexed).
 
 ### OUTPUT ENFORCEMENT
 - Return ONLY a JSON object with a property named ""ExtractedData"" which is an array of objects.
@@ -1806,6 +1893,8 @@ Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
                         {
                             FieldId = f.Id,
                             HeaderName = headerName,
+                            SectionName = section.Name,
+                            DisplayFieldName = f.Name,
                             FieldType = f.FieldType.ToString(),
                             Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
                         };
@@ -1825,6 +1914,8 @@ Your task is to extract a SINGLE specific field from the provided PAPER CONTEXT.
                             {
                                 FieldId = f.Id,
                                 HeaderName = headerName,
+                                SectionName = section.Name,
+                                DisplayFieldName = $"{mc.Name} - {f.Name}",
                                 FieldType = f.FieldType.ToString(),
                                 Options = f.Options?.OrderBy(o => o.DisplayOrder).Select(o => new GridFieldOptionDto { OptionId = o.Id, Value = o.Value }).ToList() ?? new List<GridFieldOptionDto>()
                             };

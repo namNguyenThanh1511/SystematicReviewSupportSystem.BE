@@ -188,6 +188,7 @@ public class OpenRouterService : IOpenRouterService
                 NumberHandling = JsonNumberHandling.AllowReadingFromString
             };
             deserializedOptions.Converters.Add(new FlexibleStringConverter());
+            deserializedOptions.Converters.Add(new FlexibleGuidConverter());
 
             try
             {
@@ -278,8 +279,8 @@ public class FlexibleStringConverter : JsonConverter<string>
             return reader.GetString();
         }
 
-        if (reader.TokenType == JsonTokenType.Number || 
-            reader.TokenType == JsonTokenType.True || 
+        if (reader.TokenType == JsonTokenType.Number ||
+            reader.TokenType == JsonTokenType.True ||
             reader.TokenType == JsonTokenType.False)
         {
             return Encoding.UTF8.GetString(reader.ValueSpan);
@@ -296,5 +297,50 @@ public class FlexibleStringConverter : JsonConverter<string>
     public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value);
+    }
+}
+
+public class FlexibleGuidConverter : JsonConverter<Guid?>
+{
+    public override Guid? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            if (Guid.TryParse(reader.GetString(), out var guid))
+                return guid;
+            return null;
+        }
+
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            Guid? firstGuid = null;
+            reader.Read(); // Move to first element
+
+            while (reader.TokenType != JsonTokenType.EndArray)
+            {
+                if (firstGuid == null && reader.TokenType == JsonTokenType.String)
+                {
+                    if (Guid.TryParse(reader.GetString(), out var guid))
+                        firstGuid = guid;
+                }
+                reader.Read();
+            }
+            return firstGuid;
+        }
+
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Guid? value, JsonSerializerOptions options)
+    {
+        if (value.HasValue)
+            writer.WriteStringValue(value.Value.ToString());
+        else
+            writer.WriteNullValue();
     }
 }

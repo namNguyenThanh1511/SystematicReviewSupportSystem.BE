@@ -23,6 +23,8 @@ namespace SRSS.IAM.Services.DTOs.SynthesisExecution
         public Guid? OptionId { get; set; }
         public string DisplayValue { get; set; } = string.Empty;
         public string? Notes { get; set; }
+        public decimal? QaScore { get; set; }
+        public bool IsHighQuality { get; set; }
         public Guid CreatedById { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }

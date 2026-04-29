@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260429135141_SearchStrats")]
+    partial class SearchStrats
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3732,16 +3735,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<string[]>("ComparisonKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("comparison_keywords");
-
-                    b.Property<string[]>("ContextKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("context_keywords");
-
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -3759,11 +3752,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("jsonb")
                         .HasColumnName("filters_json");
 
-                    b.Property<string[]>("InterventionKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("intervention_keywords");
-
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("modified_at");
@@ -3771,16 +3759,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text")
                         .HasColumnName("notes");
-
-                    b.Property<string[]>("OutcomeKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("outcome_keywords");
-
-                    b.Property<string[]>("PopulationKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("population_keywords");
 
                     b.Property<string>("Query")
                         .IsRequired()

@@ -11,5 +11,6 @@ namespace SRSS.IAM.Repositories.SearchStrategyRepo
 	public interface ISearchSourceRepository : IGenericRepository<SearchSource, Guid, AppDbContext>
 	{
 		Task<IEnumerable<SearchSource>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
+		Task<SearchSource?> GetByIdWithStrategiesAsync(Guid id, CancellationToken cancellationToken = default);
 	}
 }

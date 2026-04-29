@@ -102,6 +102,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
             services.AddScoped<ISynthesisService, SynthesisService>();
             services.AddScoped<IAiSetupService, AiSetupService>();
+            services.AddScoped<ISearchStrategyAiService, SearchStrategyAiService>();
 
 
 

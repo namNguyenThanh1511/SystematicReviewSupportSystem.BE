@@ -38,65 +38,158 @@ namespace SRSS.IAM.Services.SearchStrategyService
 		// ==================== Search Source ====================
 		public async Task<List<SearchSourceDto>> BulkUpsertSearchSourcesAsync(List<SearchSourceDto> dtos)
 		{
-			if (dtos.Any())
+			if (dtos == null || !dtos.Any())
 			{
-				await EnsureLeaderAsync(dtos.First().ProjectId);
+				return new List<SearchSourceDto>();
 			}
+
+			await EnsureLeaderAsync(dtos.First().ProjectId);
 
 			var results = new List<SearchSource>();
 
 			foreach (var dto in dtos)
 			{
-				if (dto.MasterSourceId.HasValue)
-				{
-					// Validate master source existence
-					var masterSource = await _unitOfWork.MasterSearchSources.FindSingleOrDefaultAsync(m => m.Id == dto.MasterSourceId.Value);
-					if (masterSource == null)
-					{
-						throw new InvalidOperationException($"Master source with ID {dto.MasterSourceId} not found.");
-					}
-
-					// Use master source name if not provided
-					if (string.IsNullOrWhiteSpace(dto.Name))
-					{
-						dto.Name = masterSource.SourceName;
-					}
-				}
-
-				SearchSource entity;
-
-				if (dto.SourceId.HasValue && dto.SourceId.Value != Guid.Empty)
-				{
-					entity = await _unitOfWork.SearchSources.FindSingleAsync(s => s.Id == dto.SourceId.Value);
-
-					if (entity != null)
-					{
-						dto.UpdateEntity(entity);  
-						await _unitOfWork.SearchSources.UpdateAsync(entity);
-					}
-					else
-					{
-						entity = dto.ToEntity();  
-						await _unitOfWork.SearchSources.AddAsync(entity);
-					}
-				}
-				else
-				{
-					entity = dto.ToEntity();  
-					await _unitOfWork.SearchSources.AddAsync(entity);
-				}
-
+				var entity = await ProcessUpsertSourceAsync(dto);
 				results.Add(entity);
 			}
 
 			await _unitOfWork.SaveChangesAsync();
-			return results.ToDtoList();  
+			return results.ToDtoList();
+		}
+
+		public async Task<SearchSourceDto> AddSearchSourceAsync(SearchSourceDto dto)
+		{
+			await EnsureLeaderAsync(dto.ProjectId);
+			var entity = await ProcessUpsertSourceAsync(dto);
+			await _unitOfWork.SaveChangesAsync();
+			return entity.ToDto();
+		}
+
+		public async Task<SearchSourceDto> UpdateSearchStrategiesAsync(Guid sourceId, List<SearchStrategyDto> strategies)
+		{
+			var entity = await _unitOfWork.SearchSources.GetByIdWithStrategiesAsync(sourceId);
+			if (entity == null)
+			{
+				throw new InvalidOperationException($"Search source with ID {sourceId} not found.");
+			}
+
+			await EnsureLeaderAsync(entity.ProjectId);
+
+			// 1. Remove strategies not in the incoming list
+			var incomingIds = strategies
+				.Where(s => s.Id.HasValue && s.Id != Guid.Empty)
+				.Select(s => s.Id!.Value)
+				.ToList();
+
+			var toRemove = entity.Strategies
+				.Where(s => !incomingIds.Contains(s.Id))
+				.ToList();
+
+			foreach (var s in toRemove)
+			{
+				entity.Strategies.Remove(s);
+			}
+
+			// 2. Add or Update
+			foreach (var sDto in strategies)
+			{
+				if (sDto.Id.HasValue && sDto.Id != Guid.Empty)
+				{
+					var sEntity = entity.Strategies.FirstOrDefault(x => x.Id == sDto.Id);
+					if (sEntity != null)
+					{
+						sDto.UpdateEntity(sEntity);
+					}
+				}
+				else
+				{
+					var newStrategy = sDto.ToEntity();
+					entity.Strategies.Add(newStrategy);
+				}
+			}
+
+			await _unitOfWork.SearchSources.UpdateAsync(entity);
+			await _unitOfWork.SaveChangesAsync();
+
+			// Reload to get master source info if needed for response mapping
+			if (entity.MasterSourceId.HasValue && entity.MasterSource == null)
+			{
+				entity.MasterSource = await _unitOfWork.MasterSearchSources.FindSingleOrDefaultAsync(m => m.Id == entity.MasterSourceId.Value);
+			}
+
+			return entity.ToDto();
+		}
+
+		private async Task<SearchSource> ProcessUpsertSourceAsync(SearchSourceDto dto)
+		{
+			MasterSearchSources? masterSource = null;
+			if (dto.MasterSourceId.HasValue)
+			{
+				masterSource = await _unitOfWork.MasterSearchSources.FindSingleOrDefaultAsync(m => m.Id == dto.MasterSourceId.Value);
+				if (masterSource == null)
+				{
+					throw new InvalidOperationException($"Master source with ID {dto.MasterSourceId} not found.");
+				}
+
+				if (string.IsNullOrWhiteSpace(dto.Name))
+				{
+					dto.Name = masterSource.SourceName;
+				}
+			}
+
+			SearchSource? entity = null;
+
+			if (dto.SourceId.HasValue && dto.SourceId.Value != Guid.Empty)
+			{
+				entity = await _unitOfWork.SearchSources.GetByIdWithStrategiesAsync(dto.SourceId.Value);
+
+				if (entity != null)
+				{
+					dto.UpdateEntity(entity);
+
+					// Sync strategies
+					if (dto.Strategies != null)
+					{
+						foreach (var sDto in dto.Strategies)
+						{
+							if (sDto.Id.HasValue && sDto.Id != Guid.Empty)
+							{
+								var sEntity = entity.Strategies.FirstOrDefault(x => x.Id == sDto.Id);
+								if (sEntity != null)
+								{
+									sDto.UpdateEntity(sEntity);
+								}
+							}
+							else
+							{
+								var newStrategy = sDto.ToEntity();
+								entity.Strategies.Add(newStrategy);
+							}
+						}
+					}
+					await _unitOfWork.SearchSources.UpdateAsync(entity);
+				}
+			}
+
+			if (entity == null)
+			{
+				entity = dto.ToEntity();
+				await _unitOfWork.SearchSources.AddAsync(entity);
+			}
+
+			// Ensure master source is attached for URL mapping in response
+			if (masterSource != null)
+			{
+				entity.MasterSource = masterSource;
+			}
+
+			return entity;
 		}
 
 		public async Task<List<SearchSourceDto>> GetSearchSourcesByProjectIdAsync(Guid projectId)
 		{
 			var entities = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId);
-			return entities.ToDtoList();  
+			return entities.ToDtoList();
 		}
 	}
 }

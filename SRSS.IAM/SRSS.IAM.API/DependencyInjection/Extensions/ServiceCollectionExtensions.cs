@@ -212,6 +212,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+            services.AddSingleton<IChecklistAutoFillQueue, ChecklistAutoFillQueue>();
+            services.AddHostedService<ChecklistAutoFillBackgroundService>();
 
             // Study Selection Checklist
             services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();

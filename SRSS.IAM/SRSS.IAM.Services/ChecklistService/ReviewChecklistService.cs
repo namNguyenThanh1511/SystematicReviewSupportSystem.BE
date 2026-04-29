@@ -4,16 +4,37 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Checklist;
+using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.NotificationService;
+using Microsoft.AspNetCore.Http;
+using SRSS.IAM.Services.UserService;
 
 namespace SRSS.IAM.Services.ChecklistService
 {
     public class ReviewChecklistService : IReviewChecklistService
     {
         private readonly IUnitOfWork _unitOfWork;
-
-        public ReviewChecklistService(IUnitOfWork unitOfWork)
+        private readonly IGrobidService _grobidService;
+        private readonly IGeminiService _geminiService;
+        private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IChecklistAutoFillQueue _autoFillQueue;
+        
+        public ReviewChecklistService(
+            IUnitOfWork unitOfWork,
+            IGrobidService grobidService,
+            IGeminiService geminiService,
+            INotificationService notificationService,
+            ICurrentUserService currentUserService,
+            IChecklistAutoFillQueue autoFillQueue)
         {
             _unitOfWork = unitOfWork;
+            _grobidService = grobidService;
+            _geminiService = geminiService;
+            _notificationService = notificationService;
+            _currentUserService = currentUserService;
+            _autoFillQueue = autoFillQueue;
         }
 
         public async Task<List<ReviewChecklistSummaryDto>> GetReviewChecklistsAsync(Guid reviewId, CancellationToken cancellationToken = default)
@@ -236,6 +257,46 @@ namespace SRSS.IAM.Services.ChecklistService
             return stream.ToArray();
         }
 
+        public async Task<ChecklistAutoFillStatusDto> QueueAutoFillChecklist(Guid checkListId, IFormFile file, CancellationToken cancellationToken = default)
+        {
+            if (file == null || file.Length == 0)
+            {
+                throw new ArgumentException("PDF file is required.");
+            }
+
+            var userIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdStr, out var userId))
+            {
+                throw new InvalidOperationException("Unable to determine the current user.");
+            }
+
+            // Buffer PDF bytes so the work item outlives the HTTP request
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream);
+            var pdfBytes = memoryStream.ToArray();
+
+            var workItem = new ChecklistAutoFillWorkItem
+            {
+                ReviewChecklistId = checkListId,
+                UserId = userId,
+                FileName = file.FileName,
+                PdfBytes = pdfBytes
+            };
+
+            if (!_autoFillQueue.TryWrite(workItem))
+            {
+                throw new InvalidOperationException("Auto-fill queue is full. Please try again later.");
+            }
+
+            return new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checkListId,
+                Status = AutoFillStatus.Queued,
+                Message = "Auto-fill job has been queued. Listen for 'OnChecklistAutoFillStatus' SignalR events for progress.",
+                Timestamp = DateTimeOffset.UtcNow
+            };
+        }
+
         private static bool IsItemCompleted(ChecklistItemResponseDto item)
         {
             if (item.IsReported)
@@ -413,6 +474,132 @@ namespace SRSS.IAM.Services.ChecklistService
             return new Paragraph(
                 new ParagraphProperties(new Indentation { Left = leftIndent }),
                 new Run(runProps, new Text(text)));
+        }
+
+        public async Task AutoFillChecklistFromPdfAsync(Guid checkListId, Stream pdfStream, string fileName, Guid userId, CancellationToken cancellationToken = default)
+        {
+            // 1. Get Checklist Details
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.ExtractingText, "Extracting text from PDF via GROBID...");
+
+            var checklist = await _unitOfWork.ReviewChecklists.GetByIdWithDetailsAsync(checkListId, cancellationToken)
+                ?? throw new InvalidOperationException("Review checklist not found.");
+
+            // 2. Extract Fulltext via GROBID
+            using var ms = new MemoryStream();
+            await pdfStream.CopyToAsync(ms, cancellationToken);
+            ms.Position = 0;
+
+            var teiXml = await _grobidService.ProcessFulltextDocumentAsync(ms, cancellationToken);
+            if (string.IsNullOrWhiteSpace(teiXml))
+            {
+                throw new InvalidOperationException("Failed to extract text from PDF via GROBID.");
+            }
+
+            var fullText = GrobidTeiParser.ParseBodyText(teiXml);
+            if (string.IsNullOrWhiteSpace(fullText))
+            {
+                throw new InvalidOperationException("Extracted text is empty.");
+            }
+
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.TextExtracted, "Text extracted successfully. Preparing AI analysis...");
+
+            // 3. Prepare Items for Gemini
+            var view = ChecklistViewMapper.MapReviewChecklist(checklist);
+            var respondableItems = view.Items.Where(x => x.CanRespond).ToList();
+            var itemsToMap = respondableItems
+                .Select(x => new { x.ItemNumber, x.Topic, x.Description })
+                .ToList();
+
+            // 4. Construct Prompt for Gemini
+            var itemsJson = System.Text.Json.JsonSerializer.Serialize(itemsToMap);
+            var prompt = $@"
+You are a Systematic Literature Review expert assistant. 
+Your task is to analyze the provided full text of a research paper and map it to the PRISMA 2020 checklist items.
+
+For each checklist item provided below, identify:
+1. 'location': Where in the paper this item is discussed (e.g., 'Methods section, page 4', 'Introduction, paragraph 2').
+2. 'isReported': Boolean, true if the item is explicitly addressed in the text.
+3. 'reasoning': A brief explanation of why you think this item is addressed or not.
+
+PAPER TEXT:
+---
+{fullText}
+---
+
+CHECKLIST ITEMS:
+{itemsJson}
+
+Return the results as a JSON object with a 'mappings' array containing objects with 'itemNumber', 'location', 'isReported', and 'reasoning'.
+";
+
+            // 5. Call Gemini
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.AnalyzingWithAI,
+                $"Analyzing {respondableItems.Count} checklist items with AI...",
+                totalItems: respondableItems.Count);
+
+            var geminiResponse = await _geminiService.GenerateStructuredContentAsync<GeminiChecklistMappingResponse>(prompt);
+
+            // 6. Update Database
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
+                $"AI analysis complete. Saving {geminiResponse.Mappings.Count} mapped results...",
+                totalItems: respondableItems.Count,
+                mappedItems: geminiResponse.Mappings.Count);
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var mapping in geminiResponse.Mappings)
+            {
+                var item = checklist.Template.ItemTemplates.FirstOrDefault(x => x.ItemNumber == mapping.ItemNumber);
+                if (item == null) continue;
+
+                var response = await _unitOfWork.ChecklistItemResponses.GetByReviewChecklistAndItemAsync(checkListId, item.Id, cancellationToken);
+                if (response == null)
+                {
+                    response = new ChecklistItemResponse
+                    {
+                        Id = Guid.NewGuid(),
+                        ReviewChecklistId = checkListId,
+                        ItemTemplateId = item.Id,
+                        CreatedAt = now
+                    };
+                    await _unitOfWork.ChecklistItemResponses.AddAsync(response, cancellationToken);
+                }
+
+                response.Location = mapping.Location;
+                response.IsReported = mapping.IsReported;
+                response.IsCompleted = true;
+                response.LastUpdatedAt = now;
+                response.ModifiedAt = now;
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var completion = await CalculateCompletionPercentageAsync(checkListId, cancellationToken);
+
+            // 7. Send final completion status with full details
+            await _notificationService.SendChecklistAutoFillStatusAsync(userId, new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checkListId,
+                Status = AutoFillStatus.Completed,
+                Message = "Checklist auto-fill completed successfully.",
+                CompletionPercentage = completion.CompletionPercentage,
+                TotalItems = respondableItems.Count,
+                MappedItems = geminiResponse.Mappings.Count,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+        }
+
+        private async Task SendAutoFillStatus(Guid userId, Guid checklistId, string status, string message,
+            double? completionPercentage = null, int? totalItems = null, int? mappedItems = null)
+        {
+            await _notificationService.SendChecklistAutoFillStatusAsync(userId, new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checklistId,
+                Status = status,
+                Message = message,
+                CompletionPercentage = completionPercentage,
+                TotalItems = totalItems,
+                MappedItems = mappedItems,
+                Timestamp = DateTimeOffset.UtcNow
+            });
         }
     }
 

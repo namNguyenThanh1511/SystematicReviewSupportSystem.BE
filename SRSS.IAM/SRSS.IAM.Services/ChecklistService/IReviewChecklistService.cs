@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using SRSS.IAM.Services.DTOs.Checklist;
 
 namespace SRSS.IAM.Services.ChecklistService
@@ -10,5 +11,7 @@ namespace SRSS.IAM.Services.ChecklistService
         Task<ChecklistCompletionDto> CalculateCompletionPercentageAsync(Guid reviewChecklistId, CancellationToken cancellationToken = default);
         Task<ReviewChecklistDto?> GetChecklistForReportAsync(Guid checkListId, CancellationToken cancellationToken = default);
         Task<byte[]> GenerateReportAsync(Guid checkListId, GenerateReportRequest request, CancellationToken cancellationToken = default);
+        Task<ChecklistAutoFillStatusDto> QueueAutoFillChecklist(Guid checkListId, IFormFile file, CancellationToken cancellationToken = default);
+        Task AutoFillChecklistFromPdfAsync(Guid checkListId, Stream pdfStream, string fileName, Guid userId, CancellationToken cancellationToken = default);
     }
 }

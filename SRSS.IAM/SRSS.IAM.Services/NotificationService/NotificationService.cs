@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.NotificationRepo;
 using SRSS.IAM.Repositories.UnitOfWork;
+using SRSS.IAM.Services.DTOs.Checklist;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.Notification;
 using SRSS.IAM.Services.DTOs.StudySelection;
@@ -162,6 +163,21 @@ namespace SRSS.IAM.Services.NotificationService
                 suggestion
             });
             _logger.LogInformation("SignalR metadata update sent to user {UserId} on {ConnectionCount} connection(s).", userId, connections.Count);
+        }
+
+        public async Task SendChecklistAutoFillStatusAsync(Guid userId, ChecklistAutoFillStatusDto status)
+        {
+            var connections = await _userConnectionRepository.GetConnectionsAsync(userId);
+            if (connections.Count == 0)
+            {
+                _logger.LogWarning("No active SignalR connections found for user {UserId} to send checklist auto-fill status.", userId);
+                return;
+            }
+
+            await _hubContext.Clients.Clients(connections).SendAsync("OnChecklistAutoFillStatus", status);
+            _logger.LogInformation(
+                "SignalR checklist auto-fill status '{Status}' sent to user {UserId} for checklist {ChecklistId}.",
+                status.Status, userId, status.ReviewChecklistId);
         }
 
         // Internal Mapper class for simplicity or use existing Mapper pattern if found.

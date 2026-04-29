@@ -103,5 +103,17 @@ namespace SRSS.IAM.API.Controllers
             var file = await _reviewChecklistService.GenerateReportAsync(checkListId, request, cancellationToken);
             return File(file, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", $"checklist-report-{checkListId}.docx");
         }
+
+        /// <summary>
+        /// Queues an auto-fill job that extracts text from the uploaded PDF via GROBID,
+        /// maps it to checklist items via Gemini AI, and sends real-time status updates via SignalR.
+        /// Listen for the "OnChecklistAutoFillStatus" SignalR event for progress.
+        /// </summary>
+        [HttpPost("checklist/{checkListId:guid}/auto-fill")]
+        public async Task<ActionResult<ApiResponse<ChecklistAutoFillStatusDto>>> AutoFillChecklist([FromRoute] Guid checkListId, IFormFile file, CancellationToken cancellationToken)
+        {
+            var result = await _reviewChecklistService.QueueAutoFillChecklist(checkListId, file, cancellationToken);
+            return Accepted(result, "Auto-fill job queued successfully.");
+        }
     }
 }

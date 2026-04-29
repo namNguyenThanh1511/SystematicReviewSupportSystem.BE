@@ -21,5 +21,10 @@ namespace SRSS.IAM.Services.PrismaReportService
         Task<PrismaReportResponse> GetLatestReportByReviewProcessAsync(
             Guid reviewProcessId,
             CancellationToken cancellationToken = default);
+
+        Task<byte[]> ExportPrismaFlowDiagramAsync(
+            Guid reviewProcessId,
+            string templatePath,
+            CancellationToken cancellationToken = default);
     }
 }

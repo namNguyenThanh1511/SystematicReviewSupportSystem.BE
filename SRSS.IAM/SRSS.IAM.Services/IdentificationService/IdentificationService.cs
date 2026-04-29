@@ -222,7 +222,7 @@ namespace SRSS.IAM.Services.IdentificationService
             var searchSourceIds = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId, cancellationToken);
 
             var paperToSearchSource = await _unitOfWork.Papers.GetQueryable()
-                .Where(p => uniquePaperIds.Contains(p.Id))
+                .Where(p => p.ProjectId == projectId)
                 .Select(p => new { p.Id, p.SearchSourceId })
                 .ToListAsync(cancellationToken);
 

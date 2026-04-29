@@ -8,6 +8,10 @@ using SRSS.IAM.Services.IdentificationService;
 using SRSS.IAM.Services.UserService;
 using System.Linq;
 using System.Text.Json;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using System.Text;
+using DocumentFormat.OpenXml;
 
 namespace SRSS.IAM.Services.PrismaReportService
 {
@@ -125,6 +129,185 @@ namespace SRSS.IAM.Services.PrismaReportService
             }
 
             return MapToResponse(report);
+        }
+
+        public async Task<byte[]> ExportPrismaFlowDiagramAsync(
+            Guid reviewProcessId,
+            string templatePath,
+            CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(templatePath))
+            {
+                throw new FileNotFoundException("PRISMA template file not found.", templatePath);
+            }
+
+            var report = await GetLatestReportByReviewProcessAsync(reviewProcessId, cancellationToken);
+
+            var placeholders = PreparePlaceholders(report);
+
+            byte[] templateBytes = await File.ReadAllBytesAsync(templatePath, cancellationToken);
+            using (var ms = new MemoryStream())
+            {
+                await ms.WriteAsync(templateBytes, 0, templateBytes.Length, cancellationToken);
+                ms.Position = 0;
+
+                using (WordprocessingDocument doc = WordprocessingDocument.Open(ms, true))
+                {
+                    ReplaceAllPlaceholders(doc, placeholders);
+                    doc.MainDocumentPart?.Document.Save();
+                }
+
+                return ms.ToArray();
+            }
+        }
+
+        private Dictionary<string, string> PreparePlaceholders(PrismaReportResponse report)
+        {
+            var placeholders = new Dictionary<string, string>
+            {
+                { "{{RecordsIdentified}}", report.Nodes[0].Total.ToString() },
+                { "{{DuplicateRecordsRemoved}}", report.Nodes[0].SideBox?.Total.ToString() ?? "0" },
+                { "{{RecordsScreened}}", report.Nodes[1].Total.ToString() },
+                { "{{RecordsExcluded}}", report.Nodes[1].SideBox?.Total.ToString() ?? "0" },
+                { "{{ReportsSoughtForRetrieval}}", report.Nodes[2].Total.ToString() },
+                { "{{ReportsNotRetrieved}}", report.Nodes[2].SideBox?.Total.ToString() ?? "0" },
+                { "{{ReportsAssessed}}", report.Nodes[3].Total.ToString() },
+                { "{{ReportsExcludedFT}}", report.Nodes[3].SideBox?.Total.ToString() ?? "0" },
+                { "{{StudiesIncluded}}", report.Included?.Total.ToString() ?? "0" }
+            };
+
+            // Breakdown for Identified
+            if (report.Nodes[0].Breakdown != null)
+            {
+                var sb = new StringBuilder();
+                foreach (var item in report.Nodes[0].Breakdown)
+                {
+                    sb.AppendLine($"{item.Label} (n = {item.Count})");
+                }
+                placeholders.Add("{{IdentifiedBreakdown}}", sb.ToString().TrimEnd());
+            }
+            else
+            {
+                placeholders.Add("{{IdentifiedBreakdown}}", "");
+            }
+
+            // Reasons for TA Excluded
+            if (report.Nodes[1].SideBox?.Reasons != null)
+            {
+                var sb = new StringBuilder();
+                foreach (var item in report.Nodes[1].SideBox.Reasons)
+                {
+                    sb.AppendLine($"{item.Label} (n = {item.Count})");
+                }
+                placeholders.Add("{{ExclusionReasonsTA}}", sb.ToString().TrimEnd());
+            }
+            else
+            {
+                placeholders.Add("{{ExclusionReasonsTA}}", "");
+            }
+
+            // Reasons for FT Excluded
+            if (report.Nodes[3].SideBox?.Reasons != null)
+            {
+                var sb = new StringBuilder();
+                foreach (var item in report.Nodes[3].SideBox.Reasons)
+                {
+                    sb.AppendLine($"{item.Label} (n = {item.Count})");
+                }
+                placeholders.Add("{{ExclusionReasonsFT}}", sb.ToString().TrimEnd());
+            }
+            else
+            {
+                placeholders.Add("{{ExclusionReasonsFT}}", "");
+            }
+
+            return placeholders;
+        }
+
+        private void ReplaceAllPlaceholders(WordprocessingDocument doc, Dictionary<string, string> placeholders)
+        {
+            var mainPart = doc.MainDocumentPart;
+            if (mainPart == null) return;
+
+            // 1. Process Main Document Body
+            ProcessElementForPlaceholders(mainPart.Document.Body, placeholders);
+
+            // 2. Process Headers
+            foreach (var headerPart in mainPart.HeaderParts)
+            {
+                ProcessElementForPlaceholders(headerPart.Header, placeholders);
+            }
+
+            // 3. Process Footers
+            foreach (var footerPart in mainPart.FooterParts)
+            {
+                ProcessElementForPlaceholders(footerPart.Footer, placeholders);
+            }
+        }
+
+        private void ProcessElementForPlaceholders(OpenXmlElement? element, Dictionary<string, string> placeholders)
+        {
+            if (element == null) return;
+
+            foreach (var placeholder in placeholders)
+            {
+                // Process normal paragraphs and runs
+                ReplacePlaceholderText(element, placeholder.Key, placeholder.Value);
+
+                // Process text boxes (DrawingML and VML)
+                foreach (var txbx in element.Descendants<TextBoxContent>())
+                {
+                    ReplacePlaceholderText(txbx, placeholder.Key, placeholder.Value);
+                }
+            }
+        }
+
+        private void ReplacePlaceholderText(OpenXmlElement element, string placeholder, string value)
+        {
+            // First try simple replacement for non-split runs (most common)
+            if (!value.Contains("\n"))
+            {
+                var texts = element.Descendants<Text>().ToList();
+                foreach (var text in texts.Where(t => t.Text.Contains(placeholder)))
+                {
+                    text.Text = text.Text.Replace(placeholder, value);
+                }
+            }
+
+            // For split runs OR if we have newlines, we use the paragraph-based approach
+            // We search for paragraphs within this specific element (could be Body, Header, or a TextBoxContent)
+            foreach (var paragraph in element.Descendants<Paragraph>())
+            {
+                string fullText = paragraph.InnerText;
+                if (fullText.Contains(placeholder))
+                {
+                    string replacedText = fullText.Replace(placeholder, value);
+                    
+                    var firstRun = paragraph.GetFirstChild<Run>();
+                    var runProperties = firstRun?.RunProperties?.CloneNode(true) as RunProperties;
+                    
+                    paragraph.RemoveAllChildren<Run>();
+                    
+                    var newRun = new Run();
+                    if (runProperties != null)
+                    {
+                        newRun.AppendChild(runProperties);
+                    }
+
+                    // Handle newlines by adding Break elements
+                    string[] lines = replacedText.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                    for (int i = 0; i < lines.Length; i++)
+                    {
+                        newRun.AppendChild(new Text(lines[i]));
+                        if (i < lines.Length - 1)
+                        {
+                            newRun.AppendChild(new Break());
+                        }
+                    }
+                    
+                    paragraph.AppendChild(newRun);
+                }
+            }
         }
 
         private async Task EnsureCurrentUserIsProjectLeaderAsync(Guid projectId, CancellationToken cancellationToken)
@@ -467,6 +650,8 @@ namespace SRSS.IAM.Services.PrismaReportService
 
             return node;
         }
+
+        
 
         private static PrismaReportListResponse MapToListResponse(PrismaReport report)
         {

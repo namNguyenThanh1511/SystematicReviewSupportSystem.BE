@@ -87,5 +87,24 @@ namespace SRSS.IAM.API.Controllers
             var result = await _prismaReportService.GetLatestReportByReviewProcessAsync(reviewProcessId, cancellationToken);
             return Ok(result, "Latest PRISMA report retrieved successfully.");
         }
+
+        /// <summary>
+        /// Download the latest PRISMA flow diagram for a specific review process
+        /// </summary>
+        /// <param name="reviewProcessId">Review Process ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Filled PRISMA flow diagram (.docx)</returns>
+        [HttpGet("review-processes/{reviewProcessId}/prisma-report/download")]
+        public async Task<IActionResult> DownloadPrismaFlowDiagram(
+            [FromRoute] Guid reviewProcessId,
+            CancellationToken cancellationToken)
+        {
+            var templatePath = Path.Combine(AppContext.BaseDirectory, "docs", "specs", "PRISMA_2020_flow_diagram_new_SRs_v1.docx");
+
+            var fileBytes = await _prismaReportService.ExportPrismaFlowDiagramAsync(reviewProcessId, templatePath, cancellationToken);
+
+            var fileName = $"PRISMA_Flow_Diagram_{DateTime.UtcNow:yyyyMMdd}.docx";
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", fileName);
+        }
     }
 }

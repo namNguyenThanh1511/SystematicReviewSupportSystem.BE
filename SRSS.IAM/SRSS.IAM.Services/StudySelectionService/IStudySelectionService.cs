@@ -171,5 +171,10 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             GetResolutionsRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<FinalResolutionProgressResponse> GetFinalResolutionPaperProgressAsync(
+            Guid studySelectionProcessId,
+            FinalResolutionProgressRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

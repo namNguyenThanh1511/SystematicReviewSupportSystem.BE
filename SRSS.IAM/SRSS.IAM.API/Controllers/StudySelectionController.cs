@@ -705,5 +705,18 @@ namespace SRSS.IAM.API.Controllers
             await _exclusionCodeService.DeleteAsync(id);
             return Ok("Exclusion reason deleted successfully.");
         }
+
+        /// <summary>
+        /// Get final resolution paper progress data for the Decision Matrix UI
+        /// </summary>
+        [HttpGet("study-selection/{id}/final-resolution-progress")]
+        public async Task<ActionResult<ApiResponse<FinalResolutionProgressResponse>>> GetFinalResolutionPaperProgress(
+            [FromRoute] Guid id,
+            [FromQuery] FinalResolutionProgressRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetFinalResolutionPaperProgressAsync(id, request, cancellationToken);
+            return Ok(result, "Final resolution paper progress retrieved successfully.");
+        }
     }
 }

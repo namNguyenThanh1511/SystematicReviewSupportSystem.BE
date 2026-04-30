@@ -16,6 +16,7 @@ namespace SRSS.IAM.Services.DTOs.SynthesisExecution
     public class SynthesisWorkspaceDto
     {
         public SynthesisProcessDto Process { get; set; } = null!;
+        public int TotalExtractedPapers { get; set; }
         public List<SynthesisThemeDto> Themes { get; set; } = new();
         public List<ResearchQuestionFindingDto> Findings { get; set; } = new();
     }

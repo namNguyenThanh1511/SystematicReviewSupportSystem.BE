@@ -36,7 +36,9 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
     public class ExtractionGridColumnMetaDto
     {
         public Guid FieldId { get; set; }
-        public string HeaderName { get; set; } = string.Empty;
+        public string HeaderName { get; set; } = string.Empty; // Keep this as the unique key for Dictionary lookup
+        public string SectionName { get; set; } = string.Empty;
+        public string DisplayFieldName { get; set; } = string.Empty;
         public string FieldType { get; set; } = string.Empty;
         public List<GridFieldOptionDto> Options { get; set; } = new();
     }

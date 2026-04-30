@@ -20,6 +20,8 @@ namespace SRSS.IAM.Services.DTOs.SynthesisExecution
         public bool? BooleanValue { get; set; }
         public Guid? OptionId { get; set; }
         public string DisplayValue { get; set; } = string.Empty;
+        public decimal? QaScore { get; set; }
+        public bool IsHighQuality { get; set; }
     }
 
     public class SourceDataGroupDto

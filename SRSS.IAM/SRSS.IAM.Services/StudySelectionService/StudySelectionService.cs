@@ -112,7 +112,9 @@ namespace SRSS.IAM.Services.StudySelectionService
             };
 
             // Maintain legacy field for backward compatibility
-            studySelectionProcessResponse.SelectionStatistics = studySelectionProcessResponse.PhaseStatistics.TitleAbstract;
+            studySelectionProcessResponse.SelectionStatistics = process.CurrentPhase == ScreeningPhase.FullText
+                ? studySelectionProcessResponse.PhaseStatistics.FullText
+                : studySelectionProcessResponse.PhaseStatistics.TitleAbstract;
 
             return studySelectionProcessResponse;
         }
@@ -1057,8 +1059,15 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default)
         {
-            // Legacy wrapper - defaults to TitleAbstract
-            return await GetPhaseStatisticsAsync(studySelectionProcessId, ScreeningPhase.TitleAbstract, cancellationToken);
+            var process = await _unitOfWork.StudySelectionProcesses.GetByIdAsync(studySelectionProcessId,
+                cancellationToken: cancellationToken);
+
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            return await GetPhaseStatisticsAsync(studySelectionProcessId, ScreeningPhase.FullText, cancellationToken);
         }
 
         public async Task<SelectionStatisticsResponse> GetPhaseStatisticsAsync(

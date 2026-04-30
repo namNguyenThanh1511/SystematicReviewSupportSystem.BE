@@ -665,7 +665,7 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
             IQueryable<Paper> query = _context.Papers.Include(p => p.TitleEmbedding);
 
-            query = query.Where(p => !p.IsDeleted);
+            query = query.Where(p => !p.IsDeleted || !p.IsDuplicated);
 
             if (!isTracking)
                 query = query.AsNoTracking();

@@ -475,7 +475,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                     breakdown = new[] {
                         new { label = "Duplicate records removed", count = details.DuplicateRecordsRemoved },
                         // new { label = "Records marked ineligible", count = 0 },
-                        new { label = "Records removed other reasons", count = details.PendingSelectionCount }
+                        new { label = "Remaining records in repository", count = details.PendingSelectionCount }
                     }
                 }),
                 DisplayOrder = 2,

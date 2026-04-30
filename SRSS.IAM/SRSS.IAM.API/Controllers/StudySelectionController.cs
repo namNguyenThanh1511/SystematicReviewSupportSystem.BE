@@ -609,7 +609,7 @@ namespace SRSS.IAM.API.Controllers
             var isExist = _fullTextAiEvaluationQueue.IsProcessing(studySelectionId, paperId);
             if (isExist)
             {
-                return Ok("AI evaluation is already in progress for this paper.", "Evaluation already exists.");
+                throw new InvalidOperationException("AI evaluation is already in progress for this paper. Please wait for the background job to complete.");
             }
 
             var enqueued = _fullTextAiEvaluationQueue.Enqueue(new StuSeFullTextAiEvaluationTask(studySelectionId, paperId, reviewerId));

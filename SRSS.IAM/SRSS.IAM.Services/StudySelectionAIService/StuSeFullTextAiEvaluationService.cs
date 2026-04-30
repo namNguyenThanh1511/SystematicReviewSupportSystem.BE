@@ -55,13 +55,10 @@ namespace SRSS.IAM.Services.StudySelectionAIService
         {
             _logger.LogInformation("Starting Full-Text AI evaluation for StudySelection {Id}, Paper {PaperId}", studySelectionId, paperId);
 
-            // 0. Check background job and existing results
-            if (_queue.IsProcessing(studySelectionId, paperId))
-            {
-                throw new InvalidOperationException("AI analysis is running in background job. Please wait for the job to complete.");
-            }
+            // 0. Check existing results (Job check moved to Controller/Queue level)
 
-            var existingResult = await _aiResultService.GetByKeysAsync(studySelectionId, paperId, reviewerId, ScreeningPhase.FullText, cancellationToken);
+
+            var existingResult = await _unitOfWork.StudySelectionAIResults.GetByKeysAsync(studySelectionId, paperId, reviewerId, ScreeningPhase.FullText, cancellationToken);
             if (existingResult != null)
             {
                 throw new InvalidOperationException("AI result for this paper already exists. Please reload the page to view it.");

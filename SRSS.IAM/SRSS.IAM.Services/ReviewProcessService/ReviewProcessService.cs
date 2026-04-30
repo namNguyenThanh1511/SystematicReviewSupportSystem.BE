@@ -411,7 +411,7 @@ namespace SRSS.IAM.Services.ReviewProcessService
 
                 if (process.StudySelectionProcess != null)
                 {
-                    var selectionStats = await _studySelectionService.GetPhaseStatisticsAsync(process.StudySelectionProcess.Id, ScreeningPhase.FullText, cancellationToken);
+                    var selectionStats = await _studySelectionService.GetSelectionStatisticsAsync(process.StudySelectionProcess.Id, cancellationToken);
                     includeCount = selectionStats.IncludedCount;
                     excludeCount = selectionStats.ExcludedCount;
                 }

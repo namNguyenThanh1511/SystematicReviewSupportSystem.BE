@@ -14,11 +14,6 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public byte[] PdfBytes { get; set; } = Array.Empty<byte>();
     }
 
-    public class GeminiChecklistMappingResponse
-    {
-        public List<GeminiChecklistItemMapping> Mappings { get; set; } = new();
-    }
-
     public class GeminiChecklistItemMapping
     {
         public string ItemNumber { get; set; } = string.Empty;
@@ -26,6 +21,7 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public string Location { get; set; } = string.Empty;
         public bool IsReported { get; set; }
         public string Reasoning { get; set; } = string.Empty;
+        public string PdfCoordinates { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -39,6 +35,7 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public double? CompletionPercentage { get; set; }
         public int? TotalItems { get; set; }
         public int? MappedItems { get; set; }
+        public string? PdfUrl { get; set; }
         public DateTimeOffset Timestamp { get; set; }
     }
 

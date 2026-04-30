@@ -10,6 +10,7 @@ namespace SRSS.IAM.Services.SupabaseService
 	public interface ISupabaseStorageService
 	{
 		Task<string> UploadArticlePdfAsync(IFormFile file, Guid projectId);
+		Task<string> UploadPdfBytesAsync(byte[] pdfBytes, string fileName, string folder);
 		Task<byte[]> DownloadFileAsync(string path);
 	}
 }

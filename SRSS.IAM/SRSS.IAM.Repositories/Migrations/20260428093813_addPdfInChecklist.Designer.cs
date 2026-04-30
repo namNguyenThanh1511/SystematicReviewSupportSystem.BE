@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -13,9 +14,11 @@ using SRSS.IAM.Repositories;
 namespace SRSS.IAM.Repositories.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260428093813_addPdfInChecklist")]
+    partial class addPdfInChecklist
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1869,15 +1872,6 @@ namespace SRSS.IAM.Repositories.Migrations
                         .HasColumnType("text")
                         .HasColumnName("doi");
 
-                    b.Property<string>("DeleteReason")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
                     b.Property<int>("EnrichmentStatus")
                         .HasColumnType("integer");
 
@@ -1915,7 +1909,7 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<int>("FullTextRetrievalStatus")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasDefaultValue(2)
+                        .HasDefaultValue(0)
                         .HasColumnName("full_text_retrieval_status");
 
                     b.Property<Guid?>("ImportBatchId")
@@ -3184,13 +3178,13 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Property<DateTimeOffset>("ModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("QualityAssessmentProcessId")
+                    b.Property<Guid>("ReviewProcessId")
                         .HasColumnType("uuid")
-                        .HasColumnName("quality_assessment_process_id");
+                        .HasColumnName("review_process_id");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("QualityAssessmentProcessId");
+                    b.HasIndex("ReviewProcessId");
 
                     b.ToTable("quality_assessment_strategy", (string)null);
                 });
@@ -3732,84 +3726,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("search_source", (string)null);
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchStrategy", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string[]>("ComparisonKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("comparison_keywords");
-
-                    b.Property<string[]>("ContextKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("context_keywords");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset?>("DateSearched")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("date_searched");
-
-                    b.Property<string[]>("Fields")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("fields");
-
-                    b.Property<string>("FiltersJson")
-                        .HasColumnType("jsonb")
-                        .HasColumnName("filters_json");
-
-                    b.Property<string[]>("InterventionKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("intervention_keywords");
-
-                    b.Property<DateTimeOffset>("ModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("modified_at");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text")
-                        .HasColumnName("notes");
-
-                    b.Property<string[]>("OutcomeKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("outcome_keywords");
-
-                    b.Property<string[]>("PopulationKeywords")
-                        .IsRequired()
-                        .HasColumnType("text[]")
-                        .HasColumnName("population_keywords");
-
-                    b.Property<string>("Query")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("query");
-
-                    b.Property<Guid>("SearchSourceId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("search_source_id");
-
-                    b.Property<string>("Version")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("version");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SearchSourceId");
-
-                    b.ToTable("search_strategy", (string)null);
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionAIResult", b =>
@@ -5605,13 +5521,13 @@ namespace SRSS.IAM.Repositories.Migrations
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentStrategy", b =>
                 {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.QualityAssessmentProcess", "QualityAssessmentProcess")
+                    b.HasOne("SRSS.IAM.Repositories.Entities.ReviewProcess", "ReviewProcess")
                         .WithMany("QualityStrategies")
-                        .HasForeignKey("QualityAssessmentProcessId")
+                        .HasForeignKey("ReviewProcessId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("QualityAssessmentProcess");
+                    b.Navigation("ReviewProcess");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityChecklist", b =>
@@ -5808,17 +5724,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("MasterSource");
 
                     b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchStrategy", b =>
-                {
-                    b.HasOne("SRSS.IAM.Repositories.Entities.SearchSource", "SearchSource")
-                        .WithMany("Strategies")
-                        .HasForeignKey("SearchSourceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("SearchSource");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionAIResult", b =>
@@ -6257,8 +6162,6 @@ namespace SRSS.IAM.Repositories.Migrations
                     b.Navigation("QualityAssessmentDecisions");
 
                     b.Navigation("QualityAssessmentResolutions");
-
-                    b.Navigation("QualityStrategies");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.QualityAssessmentStrategy", b =>
@@ -6291,14 +6194,11 @@ namespace SRSS.IAM.Repositories.Migrations
 
                     b.Navigation("QualityAssessmentProcess");
 
+                    b.Navigation("QualityStrategies");
+
                     b.Navigation("StudySelectionProcess");
 
                     b.Navigation("SynthesisProcess");
-                });
-
-            modelBuilder.Entity("SRSS.IAM.Repositories.Entities.SearchSource", b =>
-                {
-                    b.Navigation("Strategies");
                 });
 
             modelBuilder.Entity("SRSS.IAM.Repositories.Entities.StudySelectionChecklistSubmission", b =>

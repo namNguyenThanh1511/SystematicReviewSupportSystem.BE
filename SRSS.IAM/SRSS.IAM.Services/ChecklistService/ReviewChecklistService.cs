@@ -9,6 +9,7 @@ using SRSS.IAM.Services.GeminiService;
 using SRSS.IAM.Services.NotificationService;
 using Microsoft.AspNetCore.Http;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.SupabaseService;
 
 namespace SRSS.IAM.Services.ChecklistService
 {
@@ -20,14 +21,16 @@ namespace SRSS.IAM.Services.ChecklistService
         private readonly INotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IChecklistAutoFillQueue _autoFillQueue;
-        
+        private readonly ISupabaseStorageService _storageService;
+
         public ReviewChecklistService(
             IUnitOfWork unitOfWork,
             IGrobidService grobidService,
             IGeminiService geminiService,
             INotificationService notificationService,
             ICurrentUserService currentUserService,
-            IChecklistAutoFillQueue autoFillQueue)
+            IChecklistAutoFillQueue autoFillQueue,
+            ISupabaseStorageService storageService)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
@@ -35,6 +38,7 @@ namespace SRSS.IAM.Services.ChecklistService
             _notificationService = notificationService;
             _currentUserService = currentUserService;
             _autoFillQueue = autoFillQueue;
+            _storageService = storageService;
         }
 
         public async Task<List<ReviewChecklistSummaryDto>> GetReviewChecklistsAsync(Guid reviewId, CancellationToken cancellationToken = default)
@@ -292,7 +296,7 @@ namespace SRSS.IAM.Services.ChecklistService
             {
                 ReviewChecklistId = checkListId,
                 Status = AutoFillStatus.Queued,
-                Message = "Auto-fill job has been queued. Listen for 'OnChecklistAutoFillStatus' SignalR events for progress.",
+                Message = "Processing...",
                 Timestamp = DateTimeOffset.UtcNow
             };
         }
@@ -487,6 +491,7 @@ namespace SRSS.IAM.Services.ChecklistService
             // 2. Extract Fulltext via GROBID
             using var ms = new MemoryStream();
             await pdfStream.CopyToAsync(ms, cancellationToken);
+            var pdfBytes = ms.ToArray();
             ms.Position = 0;
 
             var teiXml = await _grobidService.ProcessFulltextDocumentAsync(ms, cancellationToken);
@@ -494,12 +499,7 @@ namespace SRSS.IAM.Services.ChecklistService
             {
                 throw new InvalidOperationException("Failed to extract text from PDF via GROBID.");
             }
-
-            var fullText = GrobidTeiParser.ParseBodyText(teiXml);
-            if (string.IsNullOrWhiteSpace(fullText))
-            {
-                throw new InvalidOperationException("Extracted text is empty.");
-            }
+            var fullText = teiXml;
 
             await SendAutoFillStatus(userId, checkListId, AutoFillStatus.TextExtracted, "Text extracted successfully. Preparing AI analysis...");
 
@@ -519,7 +519,7 @@ Your task is to analyze the provided full text of a research paper and map it to
 For each checklist item provided below, identify:
 1. 'location': Where in the paper this item is discussed (e.g., 'Methods section, page 4', 'Introduction, paragraph 2').
 2. 'isReported': Boolean, true if the item is explicitly addressed in the text.
-3. 'reasoning': A brief explanation of why you think this item is addressed or not.
+3. 'pdfCoordinates': The PDF bounding box coordinates from inside paper text section that correspond to the relevant text. Copy coordinates from PaperText for text regions that directly support the checklist item.
 
 PAPER TEXT:
 ---
@@ -529,7 +529,7 @@ PAPER TEXT:
 CHECKLIST ITEMS:
 {itemsJson}
 
-Return the results as a JSON object with a 'mappings' array containing objects with 'itemNumber', 'location', 'isReported', and 'reasoning'.
+Return the results as a JSON object with a 'mappings' array containing objects with 'itemNumber', 'location', 'isReported', 'pdfCoordinates', and 'reasoning'.
 ";
 
             // 5. Call Gemini
@@ -537,44 +537,75 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 $"Analyzing {respondableItems.Count} checklist items with AI...",
                 totalItems: respondableItems.Count);
 
-            var geminiResponse = await _geminiService.GenerateStructuredContentAsync<GeminiChecklistMappingResponse>(prompt);
+            var geminiResponse = await _geminiService.GenerateStructuredContentAsync<List<GeminiChecklistItemMapping>>(prompt);
 
             // 6. Update Database
             await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
-                $"AI analysis complete. Saving {geminiResponse.Mappings.Count} mapped results...",
+                $"AI analysis complete. Saving {geminiResponse.Count} mapped results...",
                 totalItems: respondableItems.Count,
-                mappedItems: geminiResponse.Mappings.Count);
+                mappedItems: geminiResponse.Count);
 
             var now = DateTimeOffset.UtcNow;
-            foreach (var mapping in geminiResponse.Mappings)
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
             {
-                var item = checklist.Template.ItemTemplates.FirstOrDefault(x => x.ItemNumber == mapping.ItemNumber);
-                if (item == null) continue;
+                var existingResponses = await _unitOfWork.ChecklistItemResponses.FindAllAsync(
+                    x => x.ReviewChecklistId == checkListId,
+                    isTracking: true,
+                    cancellationToken: cancellationToken);
 
-                var response = await _unitOfWork.ChecklistItemResponses.GetByReviewChecklistAndItemAsync(checkListId, item.Id, cancellationToken);
-                if (response == null)
+                var responsesList = existingResponses.ToList();
+                if (responsesList.Count > 0)
                 {
-                    response = new ChecklistItemResponse
+                    await _unitOfWork.ChecklistItemResponses.RemoveMultipleAsync(responsesList, cancellationToken);
+                }
+
+                foreach (var mapping in geminiResponse)
+                {
+                    var item = checklist.Template.ItemTemplates.FirstOrDefault(x => x.ItemNumber == mapping.ItemNumber);
+                    if (item == null) continue;
+
+                    var response = new ChecklistItemResponse
                     {
                         Id = Guid.NewGuid(),
                         ReviewChecklistId = checkListId,
                         ItemTemplateId = item.Id,
-                        CreatedAt = now
+                        Location = mapping.Location,
+                        IsReported = mapping.IsReported,
+                        IsCompleted = true,
+                        PdfCoordinates = string.IsNullOrWhiteSpace(mapping.PdfCoordinates) ? null : mapping.PdfCoordinates.Trim(),
+                        CreatedAt = now,
+                        LastUpdatedAt = now,
+                        ModifiedAt = now
                     };
                     await _unitOfWork.ChecklistItemResponses.AddAsync(response, cancellationToken);
                 }
 
-                response.Location = mapping.Location;
-                response.IsReported = mapping.IsReported;
-                response.IsCompleted = true;
-                response.LastUpdatedAt = now;
-                response.ModifiedAt = now;
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
             }
+            catch (Exception)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            // 7. Upload PDF to Supabase and save URL
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
+                "Uploading PDF to storage...");
+
+            var pdfUrl = await _storageService.UploadPdfBytesAsync(
+                pdfBytes,
+                fileName,
+                $"checklists/{checkListId}");
+
+            checklist.PdfUrl = pdfUrl;
+            checklist.ModifiedAt = DateTimeOffset.UtcNow;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             var completion = await CalculateCompletionPercentageAsync(checkListId, cancellationToken);
 
-            // 7. Send final completion status with full details
+            // 8. Send final completion status with full details
             await _notificationService.SendChecklistAutoFillStatusAsync(userId, new ChecklistAutoFillStatusDto
             {
                 ReviewChecklistId = checkListId,
@@ -582,7 +613,8 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 Message = "Checklist auto-fill completed successfully.",
                 CompletionPercentage = completion.CompletionPercentage,
                 TotalItems = respondableItems.Count,
-                MappedItems = geminiResponse.Mappings.Count,
+                MappedItems = geminiResponse.Count,
+                PdfUrl = pdfUrl,
                 Timestamp = DateTimeOffset.UtcNow
             });
         }
@@ -697,6 +729,7 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 IsCompleted = checklist.IsCompleted,
                 CompletionPercentage = checklist.CompletionPercentage,
                 LastUpdatedAt = checklist.LastUpdatedAt,
+                PdfUrl = checklist.PdfUrl,
                 Sections = sections,
                 Items = items
             };
@@ -716,7 +749,8 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 IsCompleted = checklist.IsCompleted,
                 CompletionPercentage = checklist.CompletionPercentage,
                 ItemCount = checklist.Template.ItemTemplates.Count,
-                LastUpdatedAt = checklist.LastUpdatedAt
+                LastUpdatedAt = checklist.LastUpdatedAt,
+                PdfUrl = checklist.PdfUrl
             };
         }
 
@@ -741,6 +775,7 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 Children = new List<ChecklistItemResponseDto>(),
                 Location = response?.Location,
                 IsReported = response?.IsReported ?? false,
+                PdfCoordinates = response?.PdfCoordinates,
                 LastUpdatedAt = response?.LastUpdatedAt
             };
         }
@@ -767,6 +802,7 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 Location = response?.Location,
                 IsReported = response?.IsReported ?? false,
                 IsCompleted = response?.IsCompleted ?? false,
+                PdfCoordinates = response?.PdfCoordinates,
                 LastUpdatedAt = response?.LastUpdatedAt
             };
         }

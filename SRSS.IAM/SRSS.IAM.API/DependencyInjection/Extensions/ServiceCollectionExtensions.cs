@@ -54,6 +54,8 @@ using SRSS.IAM.Services.ExclusionReasonLibraryService;
 using SRSS.IAM.Services.StuSeExclusionCodeService;
 using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
+using SRSS.IAM.Services.Parsers;
+using SRSS.IAM.Services.DTOs.Crossref;
 using SRSS.IAM.Services.PaperFullTextService.Parser;
 using SRSS.IAM.Services.PaperFullTextService.Chunking;
 using SRSS.IAM.Services.PaperFullTextService.Embedding;
@@ -110,6 +112,11 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IIdentificationService, IdentificationService>();
+
+            // Parser abstraction layer
+            services.AddScoped<IRisParser, RisFileParser>();
+            services.AddScoped<IDoiParser, CrossrefDoiParser>();
+            services.AddScoped<IApiParser<CrossrefQueryParameters>, CrossrefApiParser>();
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();

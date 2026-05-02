@@ -1573,7 +1573,8 @@ namespace SRSS.IAM.API.Data
                 new MasterSearchSources { SourceName = "Scopus", BaseUrl = "https://www.scopus.com/", IsActive = true },
                 new MasterSearchSources { SourceName = "Web of Science", BaseUrl = "https://www.webofscience.com/", IsActive = true },
                 new MasterSearchSources { SourceName = "UCI ML Repository", BaseUrl = "https://archive.ics.uci.edu/", IsActive = true },
-                new MasterSearchSources { SourceName = "Kaggle Datasets", BaseUrl = "https://www.kaggle.com/datasets", IsActive = true }
+                new MasterSearchSources { SourceName = "Kaggle Datasets", BaseUrl = "https://www.kaggle.com/datasets", IsActive = true },
+                new MasterSearchSources { SourceName = "Crossref", BaseUrl = "https://www.crossref.org/site-search/", IsActive = true }
             };
 
             context.MasterSearchSources.AddRange(sources);

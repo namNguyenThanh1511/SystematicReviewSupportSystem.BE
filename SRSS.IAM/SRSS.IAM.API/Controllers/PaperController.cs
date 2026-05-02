@@ -87,6 +87,42 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
         }
 
+        /// <summary>
+        /// Import a single paper by resolving its DOI via Crossref
+        /// </summary>
+        [HttpPost("import/doi")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportFromDoi(
+            [FromBody] DoiImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ImportFromDoiAsync(
+                request.Doi,
+                request.SearchSourceId,
+                request.ProjectId,
+                cancellationToken);
+
+            return Ok(result, "Successfully imported record from DOI.");
+        }
+
+        /// <summary>
+        /// Import multiple papers by querying Crossref API
+        /// </summary>
+        [HttpPost("import/cross-ref")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportFromApi(
+            [FromBody] ApiImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ImportFromApiAsync(
+                request.Query,
+                request.SearchSourceId,
+                request.ProjectId,
+                cancellationToken);
+
+            return Ok(result, $"Successfully imported {result.ImportedRecords} records from API.");
+        }
+
 
         /// <summary>
         /// Assign single/multiple papers to single/multiple project members.

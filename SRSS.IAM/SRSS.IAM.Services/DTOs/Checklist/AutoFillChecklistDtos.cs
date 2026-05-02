@@ -14,13 +14,16 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public byte[] PdfBytes { get; set; } = Array.Empty<byte>();
     }
 
-    public class GeminiChecklistItemMapping
+    public class ChecklistMappingsResponse
+    {
+        public List<AIChecklistItemMapping> Mappings { get; set; } = new();
+    }
+
+    public class AIChecklistItemMapping
     {
         public string ItemNumber { get; set; } = string.Empty;
-        public string Topic { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
         public bool IsReported { get; set; }
-        public string Reasoning { get; set; } = string.Empty;
         public string PdfCoordinates { get; set; } = string.Empty;
     }
 

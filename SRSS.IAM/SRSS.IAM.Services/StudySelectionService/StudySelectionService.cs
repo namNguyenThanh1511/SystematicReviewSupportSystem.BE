@@ -111,10 +111,36 @@ namespace SRSS.IAM.Services.StudySelectionService
                 FullText = await GetPhaseStatisticsAsync(id, ScreeningPhase.FullText, cancellationToken)
             };
 
-            // Maintain legacy field for backward compatibility
-            studySelectionProcessResponse.SelectionStatistics = process.CurrentPhase == ScreeningPhase.FullText
-                ? studySelectionProcessResponse.PhaseStatistics.FullText
-                : studySelectionProcessResponse.PhaseStatistics.TitleAbstract;
+            // Maintain legacy field for backward compatibility - now represents Overall statistics
+            var overallIncluded = studySelectionProcessResponse.PhaseStatistics.FullText.IncludedCount;
+            var overallExcluded = studySelectionProcessResponse.PhaseStatistics.TitleAbstract.ExcludedCount + studySelectionProcessResponse.PhaseStatistics.FullText.ExcludedCount;
+            var overallConflict = studySelectionProcessResponse.PhaseStatistics.TitleAbstract.ConflictCount + studySelectionProcessResponse.PhaseStatistics.FullText.ConflictCount;
+            var overallPending = studySelectionProcessResponse.PhaseStatistics.TitleAbstract.PendingCount + studySelectionProcessResponse.PhaseStatistics.FullText.PendingCount;
+
+            var decided = overallIncluded + overallExcluded + overallConflict;
+            var total = studySelectionProcessResponse.PhaseStatistics.TitleAbstract.TotalPapers;
+
+            studySelectionProcessResponse.SelectionStatistics = new SelectionStatisticsResponse
+            {
+                StudySelectionProcessId = id,
+                TotalPapers = total,
+                IncludedCount = overallIncluded,
+                ExcludedCount = overallExcluded,
+                ConflictCount = overallConflict,
+                PendingCount = overallPending,
+                CompletionPercentage = total > 0 ? Math.Round((double)decided / total * 100, 2) : 0,
+                ExclusionReasonBreakdown = studySelectionProcessResponse.PhaseStatistics.TitleAbstract.ExclusionReasonBreakdown
+                    .Concat(studySelectionProcessResponse.PhaseStatistics.FullText.ExclusionReasonBreakdown)
+                    .GroupBy(x => new { x.ReasonCode, x.ReasonText })
+                    .Select(g => new ExclusionReasonBreakdownItem
+                    {
+                        ReasonCode = g.Key.ReasonCode,
+                        ReasonText = g.Key.ReasonText,
+                        Count = g.Sum(x => x.Count)
+                    })
+                    .OrderByDescending(x => x.Count)
+                    .ToList()
+            };
 
             return studySelectionProcessResponse;
         }
@@ -1059,15 +1085,42 @@ namespace SRSS.IAM.Services.StudySelectionService
             Guid studySelectionProcessId,
             CancellationToken cancellationToken = default)
         {
-            var process = await _unitOfWork.StudySelectionProcesses.GetByIdAsync(studySelectionProcessId,
-                cancellationToken: cancellationToken);
+            var taStats = await GetPhaseStatisticsAsync(studySelectionProcessId, ScreeningPhase.TitleAbstract, cancellationToken);
+            var ftStats = await GetPhaseStatisticsAsync(studySelectionProcessId, ScreeningPhase.FullText, cancellationToken);
 
-            if (process == null)
+            var overallIncluded = ftStats.IncludedCount;
+            var overallExcluded = taStats.ExcludedCount + ftStats.ExcludedCount;
+            var overallConflict = taStats.ConflictCount + ftStats.ConflictCount;
+            var overallPending = taStats.PendingCount + ftStats.PendingCount;
+
+            var decidedCount = overallIncluded + overallExcluded + overallConflict;
+            var completionPercentage = taStats.TotalPapers > 0
+                ? (double)decidedCount / taStats.TotalPapers * 100
+                : 0;
+
+            var exclusionBreakdown = taStats.ExclusionReasonBreakdown
+                .Concat(ftStats.ExclusionReasonBreakdown)
+                .GroupBy(x => new { x.ReasonCode, x.ReasonText })
+                .Select(g => new ExclusionReasonBreakdownItem
+                {
+                    ReasonCode = g.Key.ReasonCode,
+                    ReasonText = g.Key.ReasonText,
+                    Count = g.Sum(x => x.Count)
+                })
+                .OrderByDescending(x => x.Count)
+                .ToList();
+
+            return new SelectionStatisticsResponse
             {
-                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
-            }
-
-            return await GetPhaseStatisticsAsync(studySelectionProcessId, ScreeningPhase.FullText, cancellationToken);
+                StudySelectionProcessId = studySelectionProcessId,
+                TotalPapers = taStats.TotalPapers,
+                IncludedCount = overallIncluded,
+                ExcludedCount = overallExcluded,
+                ConflictCount = overallConflict,
+                PendingCount = overallPending,
+                CompletionPercentage = Math.Round(completionPercentage, 2),
+                ExclusionReasonBreakdown = exclusionBreakdown
+            };
         }
 
         public async Task<SelectionStatisticsResponse> GetPhaseStatisticsAsync(

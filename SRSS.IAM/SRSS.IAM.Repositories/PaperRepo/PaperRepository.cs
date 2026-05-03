@@ -202,10 +202,6 @@ namespace SRSS.IAM.Repositories.PaperRepo
         {
             var query = _context.Papers
                 .AsNoTracking()
-                .Include(p => p.PaperAssignments)
-                    .ThenInclude(pa => pa.ProjectMember)
-                        .ThenInclude(pm => pm.User)
-                .Include(p => p.ScreeningResolutions)
                 .Where(p => p.ProjectId == projectId && !p.IsDeleted && p.IsDuplicated == false);
 
             if (!string.IsNullOrWhiteSpace(searchText))
@@ -258,11 +254,11 @@ namespace SRSS.IAM.Repositories.PaperRepo
 
             if (string.Equals(fullTextState, "has", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(p => p.FullTextAvailable == true);
+                query = query.Where(p => p.FullTextRetrievalStatus == FullTextRetrievalStatus.Retrieved);
             }
             else if (string.Equals(fullTextState, "missing", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(p => p.FullTextAvailable != true);
+                query = query.Where(p => p.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved);
             }
 
             if (onlyUnused)
@@ -867,6 +863,43 @@ namespace SRSS.IAM.Repositories.PaperRepo
                     .ThenInclude(pa => pa.ProjectMember)
                 .Include(p => p.PaperPdfs)
                 .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
+        }
+
+        public async Task<List<string>> GetExistingDoisByProjectAsync(
+            IEnumerable<string> dois,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            if (dois == null || !dois.Any())
+                return new List<string>();
+
+            var normalizedDois = dois
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Select(d => d.Trim().ToLower())
+                .ToList();
+
+            if (!normalizedDois.Any())
+                return new List<string>();
+
+            return await _context.Papers
+                .AsNoTracking()
+                .Where(p => p.ProjectId == projectId && !p.IsDeleted && p.DOI != null)
+                .Where(p => normalizedDois.Contains(p.DOI!.ToLower()))
+                .Select(p => p.DOI!)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<int> CountAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Paper> query = _context.Papers;
+
+            if (predicate != null)
+                query = query.Where(predicate);
+
+            return await query.CountAsync(cancellationToken);
         }
     }
 }

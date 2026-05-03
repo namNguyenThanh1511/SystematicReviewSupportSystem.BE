@@ -13,6 +13,8 @@ using Shared.Cache;
 using Shared.Exceptions;
 using SRSS.IAM.Services.Configurations;
 using SRSS.IAM.Services.DTOs.Crossref;
+using SRSS.IAM.Repositories.UnitOfWork;
+using SRSS.IAM.Services.Utils;
 
 namespace SRSS.IAM.Services.Crossref;
 
@@ -22,6 +24,7 @@ public class CrossrefService : ICrossrefService
     private readonly CrossrefSettings _settings;
     private readonly ILogger<CrossrefService> _logger;
     private readonly IRedisCacheService _cacheService;
+    private readonly IUnitOfWork _unitOfWork;
 
     private const string CacheKeyPrefix = "crossref:work:";
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(24);
@@ -30,12 +33,14 @@ public class CrossrefService : ICrossrefService
         HttpClient httpClient,
         IOptions<CrossrefSettings> options,
         ILogger<CrossrefService> logger,
-        IRedisCacheService cacheService)
+        IRedisCacheService cacheService,
+        IUnitOfWork unitOfWork)
     {
         _httpClient = httpClient;
         _settings = options.Value;
         _logger = logger;
         _cacheService = cacheService;
+        _unitOfWork = unitOfWork;
     }
 
     // ─── GET /works ───────────────────────────────────────────────────────────
@@ -55,8 +60,39 @@ public class CrossrefService : ICrossrefService
             var result = await response.Content
                 .ReadFromJsonAsync<CrossrefResponse<CrossrefMessageList<CrossrefWorkDto>>>(cancellationToken: ct);
 
-            return result?.Message
+            var messageList = result?.Message
                 ?? throw new InvalidOperationException("Failed to deserialize Crossref works list.");
+
+            // Mark already imported works if ProjectId is provided
+            if (parameters.ProjectId.HasValue && messageList.Items.Any())
+            {
+                var dois = messageList.Items
+                    .Where(w => !string.IsNullOrEmpty(w.Doi))
+                    .Select(w => DoiHelper.Normalize(w.Doi))
+                    .Where(d => d != null)
+                    .Cast<string>()
+                    .ToList();
+
+                if (dois.Any())
+                {
+                    var existingDois = await _unitOfWork.Papers.GetExistingDoisByProjectAsync(dois, parameters.ProjectId.Value, ct);
+                    var existingSet = existingDois
+                        .Select(d => DoiHelper.Normalize(d))
+                        .Where(d => d != null)
+                        .ToHashSet();
+
+                    foreach (var work in messageList.Items)
+                    {
+                        var normalizedDoi = DoiHelper.Normalize(work.Doi);
+                        if (normalizedDoi != null && existingSet.Contains(normalizedDoi))
+                        {
+                            work.IsImported = true;
+                        }
+                    }
+                }
+            }
+
+            return messageList;
         }
         catch (Exception ex) when (ex is not BaseDomainException)
         {

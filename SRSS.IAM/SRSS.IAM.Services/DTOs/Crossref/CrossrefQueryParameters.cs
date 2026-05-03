@@ -108,4 +108,12 @@ public class CrossrefQueryParameters
     /// access to Crossref's "polite" pool with higher rate limits.
     /// </summary>
     public string? Mailto { get; set; }
+
+    // ─── Project Context ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Optional project ID. If provided, the service will mark works that 
+    /// have already been imported into this project.
+    /// </summary>
+    public Guid? ProjectId { get; set; }
 }

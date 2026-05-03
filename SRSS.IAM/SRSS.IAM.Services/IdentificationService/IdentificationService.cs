@@ -225,7 +225,7 @@ namespace SRSS.IAM.Services.IdentificationService
             }
 
             var importBatchList = await _unitOfWork.ImportBatches.GetByProjectIdsAsync(projectId, cancellationToken);
-            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
+            var totalRecordsImported = await _unitOfWork.Papers.CountAsync(p => p.ProjectId == projectId, cancellationToken);
 
             // Query actual unique paper count from the frozen snapshot
             var uniquePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(identificationProcess.Id, cancellationToken);
@@ -582,16 +582,16 @@ namespace SRSS.IAM.Services.IdentificationService
             {
                 var importBatch = new ImportBatch
                 {
-                    Id            = Guid.NewGuid(),
-                    ProjectId     = projectId,
-                    FileName      = fileName,
-                    FileType      = fileType,
-                    Source        = resolvedSource,
-                    TotalRecords  = papers.Count,
-                    ImportedBy    = importedBy,
-                    ImportedAt    = DateTimeOffset.UtcNow,
-                    CreatedAt     = DateTimeOffset.UtcNow,
-                    ModifiedAt    = DateTimeOffset.UtcNow
+                    Id = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    FileName = fileName,
+                    FileType = fileType,
+                    Source = resolvedSource,
+                    TotalRecords = papers.Count,
+                    ImportedBy = importedBy,
+                    ImportedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
                 };
 
                 await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
@@ -602,7 +602,7 @@ namespace SRSS.IAM.Services.IdentificationService
 
                 // Update batch totals after processing
                 importBatch.TotalRecords = result.TotalRecords;
-                importBatch.ModifiedAt   = DateTimeOffset.UtcNow;
+                importBatch.ModifiedAt = DateTimeOffset.UtcNow;
                 await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
 
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);

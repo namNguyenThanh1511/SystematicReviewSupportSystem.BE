@@ -280,6 +280,9 @@ public class CrossrefWorkDto
 
     [JsonPropertyName("standards-body")]
     public CrossrefStandardsBodyDto? StandardsBody { get; set; }
+
+    // ── Internal status ──────────────────────────────────────────────────────
+    public bool IsImported { get; set; }
 }
 
 // ─── Contributor ─────────────────────────────────────────────────────────────

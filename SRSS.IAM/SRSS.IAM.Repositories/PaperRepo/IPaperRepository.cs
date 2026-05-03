@@ -164,5 +164,14 @@ namespace SRSS.IAM.Repositories.PaperRepo
         Task<Paper?> GetForAiEvaluationAsync(
             Guid id,
             CancellationToken cancellationToken = default);
+
+        Task<List<string>> GetExistingDoisByProjectAsync(
+            IEnumerable<string> dois,
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        Task<int> CountAsync(
+            System.Linq.Expressions.Expression<Func<Paper, bool>>? predicate = null,
+            CancellationToken cancellationToken = default);
     }
 }

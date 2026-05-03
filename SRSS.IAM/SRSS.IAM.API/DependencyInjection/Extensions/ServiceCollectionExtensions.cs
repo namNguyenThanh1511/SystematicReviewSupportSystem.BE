@@ -22,6 +22,7 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
 using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.PaperStatisticsService;
 using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
@@ -120,6 +121,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();
+            services.AddScoped<IPaperStatisticsService, PaperStatisticsService>();
             services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddSingleton<IGeminiService, GeminiService>();

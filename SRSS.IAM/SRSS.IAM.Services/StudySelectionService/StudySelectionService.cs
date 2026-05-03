@@ -3505,6 +3505,27 @@ namespace SRSS.IAM.Services.StudySelectionService
                 filteredItems = filteredItems.Where(p => p.ExclusionReason?.Code == request.ExclusionReasonCode.Value);
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchTerm = request.Search.Trim().ToLowerInvariant();
+                filteredItems = filteredItems.Where(p =>
+                    p.Title.ToLowerInvariant().Contains(searchTerm) ||
+                    p.Authors.ToLowerInvariant().Contains(searchTerm) ||
+                    (p.DOI != null && p.DOI.ToLowerInvariant().Contains(searchTerm)));
+            }
+
+            if (request.FromYear.HasValue)
+            {
+                filteredItems = filteredItems.Where(p =>
+                    int.TryParse(p.PublicationYear, out var year) && year >= request.FromYear.Value);
+            }
+
+            if (request.ToYear.HasValue)
+            {
+                filteredItems = filteredItems.Where(p =>
+                    int.TryParse(p.PublicationYear, out var year) && year <= request.ToYear.Value);
+            }
+
             result.TotalCount = filteredItems.Count();
 
             // Apply Pagination

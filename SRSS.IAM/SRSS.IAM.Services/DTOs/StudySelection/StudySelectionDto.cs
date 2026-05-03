@@ -489,6 +489,9 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
     {
         public FinalResolutionStatusFilter Status { get; set; } = FinalResolutionStatusFilter.All;
         public int? ExclusionReasonCode { get; set; }
+        public string? Search { get; set; }
+        public int? FromYear { get; set; }
+        public int? ToYear { get; set; }
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 20;
     }

@@ -4,16 +4,53 @@ using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.User;
 using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Repositories.Entities;
+using Microsoft.AspNetCore.Identity;
+using Shared.Exceptions;
 
 namespace SRSS.IAM.Services.UserService
 {
     public class UserService : IUserService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IPasswordHasher<User> _passwordHasher;
 
-        public UserService(IUnitOfWork unitOfWork)
+        public UserService(IUnitOfWork unitOfWork, IPasswordHasher<User> passwordHasher)
         {
             _unitOfWork = unitOfWork;
+            _passwordHasher = passwordHasher;
+        }
+
+        public async Task<UserResponse> GetUserByIdAsync(Guid userId)
+        {
+            var user = await _unitOfWork.Users.FindSingleAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                throw new NotFoundException($"User with ID {userId} not found.");
+            }
+
+            return user.ToUserResponse();
+        }
+
+        public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
+        {
+            var user = await _unitOfWork.Users.FindSingleAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                throw new NotFoundException($"User with ID {userId} not found.");
+            }
+
+            // Verify old password
+            var verifyResult = _passwordHasher.VerifyHashedPassword(user, user.Password ?? string.Empty, request.OldPassword);
+            if (verifyResult == PasswordVerificationResult.Failed)
+            {
+                throw new InvalidCredentialsException("Invalid credentials.");
+            }
+
+            // Hash and update new password
+            user.Password = _passwordHasher.HashPassword(user, request.NewPassword);
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<UserSearchResponse>> SearchUsersAsync(Guid projectId, string keyword, int limit = 15)

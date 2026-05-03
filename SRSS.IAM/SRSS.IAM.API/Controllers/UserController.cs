@@ -23,6 +23,31 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Get the profile of the currently authenticated user.
+        /// </summary>
+        /// <returns>Profile information of the current user</returns>
+        [HttpGet("me")]
+        public async Task<ActionResult<ApiResponse<UserResponse>>> GetProfile()
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            var result = await _userService.GetUserByIdAsync(userId);
+            return Ok(result, "Profile retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Change the password of the currently authenticated user.
+        /// </summary>
+        /// <param name="request">Old and new password information</param>
+        /// <returns>Success message</returns>
+        [HttpPost("change-password")]
+        public async Task<ActionResult<ApiResponse>> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var userId = Guid.Parse(_currentUserService.GetUserId());
+            await _userService.ChangePasswordAsync(userId, request);
+            return Ok("Password changed successfully.");
+        }
+
+        /// <summary>
         /// Search for users by keyword (Email or Username) to invite to a project.
         /// Matches if keyword is at least 3 characters.
         /// </summary>

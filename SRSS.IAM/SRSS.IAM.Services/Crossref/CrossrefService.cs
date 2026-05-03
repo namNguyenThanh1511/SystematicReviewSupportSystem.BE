@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
@@ -39,7 +38,11 @@ public class CrossrefService : ICrossrefService
         _cacheService = cacheService;
     }
 
-    public async Task<CrossrefMessageList<CrossrefWorkDto>> GetWorksAsync(CrossrefQueryParameters parameters, CancellationToken ct = default)
+    // ─── GET /works ───────────────────────────────────────────────────────────
+
+    public async Task<CrossrefMessageList<CrossrefWorkDto>> GetWorksAsync(
+        CrossrefQueryParameters parameters,
+        CancellationToken ct = default)
     {
         var url = BuildWorksUrl(parameters);
         _logger.LogInformation("Fetching works from Crossref: {Url}", url);
@@ -49,8 +52,11 @@ public class CrossrefService : ICrossrefService
             var response = await _httpClient.GetAsync(url, ct);
             await EnsureSuccessAsync(response);
 
-            var result = await response.Content.ReadFromJsonAsync<CrossrefResponse<CrossrefMessageList<CrossrefWorkDto>>>(cancellationToken: ct);
-            return result?.Message ?? throw new InvalidOperationException("Failed to deserialize Crossref works list.");
+            var result = await response.Content
+                .ReadFromJsonAsync<CrossrefResponse<CrossrefMessageList<CrossrefWorkDto>>>(cancellationToken: ct);
+
+            return result?.Message
+                ?? throw new InvalidOperationException("Failed to deserialize Crossref works list.");
         }
         catch (Exception ex) when (ex is not BaseDomainException)
         {
@@ -58,6 +64,8 @@ public class CrossrefService : ICrossrefService
             throw;
         }
     }
+
+    // ─── GET /works/{doi} ────────────────────────────────────────────────────
 
     public async Task<CrossrefWorkDto> GetWorkByDoiAsync(string doi, CancellationToken ct = default)
     {
@@ -70,6 +78,11 @@ public class CrossrefService : ICrossrefService
         }
 
         var url = $"works/{WebUtility.UrlEncode(doi)}";
+
+        // Append mailto to polite pool if configured
+        if (!string.IsNullOrWhiteSpace(_settings.Mailto))
+            url = QueryHelpers.AddQueryString(url, "mailto", _settings.Mailto);
+
         _logger.LogInformation("Fetching work detail from Crossref for DOI: {Doi}", doi);
 
         try
@@ -77,11 +90,15 @@ public class CrossrefService : ICrossrefService
             var response = await _httpClient.GetAsync(url, ct);
             await EnsureSuccessAsync(response);
 
-            var result = await response.Content.ReadFromJsonAsync<CrossrefResponse<CrossrefWorkDto>>(cancellationToken: ct);
-            var work = result?.Message ?? throw new InvalidOperationException($"Failed to deserialize Crossref work detail for DOI: {doi}");
+            var result = await response.Content
+                .ReadFromJsonAsync<CrossrefResponse<CrossrefWorkDto>>(cancellationToken: ct);
+
+            var work = result?.Message
+                ?? throw new InvalidOperationException(
+                    $"Failed to deserialize Crossref work detail for DOI: {doi}");
 
             await _cacheService.SetAsync(cacheKey, JsonSerializer.Serialize(work), CacheExpiry);
-            
+
             return work;
         }
         catch (Exception ex) when (ex is not BaseDomainException)
@@ -90,6 +107,8 @@ public class CrossrefService : ICrossrefService
             throw;
         }
     }
+
+    // ─── GET /works/{doi}/agency ─────────────────────────────────────────────
 
     public async Task<CrossrefAgencyDto> GetAgencyByDoiAsync(string doi, CancellationToken ct = default)
     {
@@ -101,8 +120,12 @@ public class CrossrefService : ICrossrefService
             var response = await _httpClient.GetAsync(url, ct);
             await EnsureSuccessAsync(response);
 
-            var result = await response.Content.ReadFromJsonAsync<CrossrefResponse<CrossrefAgencyDto>>(cancellationToken: ct);
-            return result?.Message ?? throw new InvalidOperationException($"Failed to deserialize Crossref agency info for DOI: {doi}");
+            var result = await response.Content
+                .ReadFromJsonAsync<CrossrefResponse<CrossrefAgencyDto>>(cancellationToken: ct);
+
+            return result?.Message
+                ?? throw new InvalidOperationException(
+                    $"Failed to deserialize Crossref agency info for DOI: {doi}");
         }
         catch (Exception ex) when (ex is not BaseDomainException)
         {
@@ -111,26 +134,53 @@ public class CrossrefService : ICrossrefService
         }
     }
 
-    private string BuildWorksUrl(CrossrefQueryParameters parameters)
+    // ─── URL builder ─────────────────────────────────────────────────────────
+
+    private string BuildWorksUrl(CrossrefQueryParameters p)
     {
-        var queryParams = new Dictionary<string, string?>();
+        var q = new Dictionary<string, string?>();
 
-        if (!string.IsNullOrEmpty(parameters.Query)) queryParams.Add("query", parameters.Query);
-        if (!string.IsNullOrEmpty(parameters.QueryAuthor)) queryParams.Add("query.author", parameters.QueryAuthor);
-        if (!string.IsNullOrEmpty(parameters.QueryTitle)) queryParams.Add("query.title", parameters.QueryTitle);
-        if (!string.IsNullOrEmpty(parameters.QueryBibliographic)) queryParams.Add("query.bibliographic", parameters.QueryBibliographic);
-        if (!string.IsNullOrEmpty(parameters.Filter)) queryParams.Add("filter", parameters.Filter);
-        if (!string.IsNullOrEmpty(parameters.Sort)) queryParams.Add("sort", parameters.Sort);
-        if (!string.IsNullOrEmpty(parameters.Order)) queryParams.Add("order", parameters.Order);
-        if (!string.IsNullOrEmpty(parameters.Facet)) queryParams.Add("facet", parameters.Facet);
-        if (!string.IsNullOrEmpty(parameters.Select)) queryParams.Add("select", parameters.Select);
-        if (parameters.Rows.HasValue) queryParams.Add("rows", parameters.Rows.Value.ToString());
-        if (parameters.Offset.HasValue) queryParams.Add("offset", parameters.Offset.Value.ToString());
-        if (!string.IsNullOrEmpty(parameters.Cursor)) queryParams.Add("cursor", parameters.Cursor);
-        if (parameters.Sample.HasValue) queryParams.Add("sample", parameters.Sample.Value.ToString());
+        // General query
+        if (!string.IsNullOrEmpty(p.Query)) q["query"] = p.Query;
 
-        return QueryHelpers.AddQueryString("works", queryParams);
+        // Field queries
+        if (!string.IsNullOrEmpty(p.QueryAuthor)) q["query.author"] = p.QueryAuthor;
+        if (!string.IsNullOrEmpty(p.QueryTitle)) q["query.title"] = p.QueryTitle;
+        if (!string.IsNullOrEmpty(p.QueryBibliographic)) q["query.bibliographic"] = p.QueryBibliographic;
+        if (!string.IsNullOrEmpty(p.QueryAffiliation)) q["query.affiliation"] = p.QueryAffiliation;
+        if (!string.IsNullOrEmpty(p.QueryEditor)) q["query.editor"] = p.QueryEditor;
+        if (!string.IsNullOrEmpty(p.QueryContributor)) q["query.contributor"] = p.QueryContributor;
+        if (!string.IsNullOrEmpty(p.QueryContainerTitle)) q["query.container-title"] = p.QueryContainerTitle;
+        if (!string.IsNullOrEmpty(p.QueryEventName)) q["query.event-name"] = p.QueryEventName;
+        if (!string.IsNullOrEmpty(p.QueryEventLocation)) q["query.event-location"] = p.QueryEventLocation;
+        if (!string.IsNullOrEmpty(p.QueryEventSponsor)) q["query.event-sponsor"] = p.QueryEventSponsor;
+        if (!string.IsNullOrEmpty(p.QueryPublisherName)) q["query.publisher-name"] = p.QueryPublisherName;
+        if (!string.IsNullOrEmpty(p.QueryPublisherLocation)) q["query.publisher-location"] = p.QueryPublisherLocation;
+        if (!string.IsNullOrEmpty(p.QueryFunderName)) q["query.funder-name"] = p.QueryFunderName;
+
+        // Pagination
+        if (p.Rows.HasValue) q["rows"] = p.Rows.Value.ToString();
+        // if (p.Offset.HasValue)                                  q["offset"]                     = p.Offset.Value.ToString();
+        if (!string.IsNullOrEmpty(p.Cursor)) q["cursor"] = p.Cursor;
+
+        // Sorting
+        if (!string.IsNullOrEmpty(p.Sort)) q["sort"] = p.Sort;
+        if (!string.IsNullOrEmpty(p.Order)) q["order"] = p.Order;
+
+        // Filter / select / facet / sample
+        if (!string.IsNullOrEmpty(p.Filter)) q["filter"] = p.Filter;
+        if (!string.IsNullOrEmpty(p.Select)) q["select"] = p.Select;
+        if (!string.IsNullOrEmpty(p.Facet)) q["facet"] = p.Facet;
+        if (p.Sample.HasValue) q["sample"] = p.Sample.Value.ToString();
+
+        // Polite pool — use param value first, fall back to global config
+        var mailto = !string.IsNullOrEmpty(p.Mailto) ? p.Mailto : _settings.Mailto;
+        if (!string.IsNullOrEmpty(mailto)) q["mailto"] = mailto;
+
+        return QueryHelpers.AddQueryString("works", q);
     }
+
+    // ─── Error handling ───────────────────────────────────────────────────────
 
     private async Task EnsureSuccessAsync(HttpResponseMessage response)
     {

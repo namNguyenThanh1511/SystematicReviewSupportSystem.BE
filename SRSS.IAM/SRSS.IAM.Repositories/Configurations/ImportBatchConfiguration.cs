@@ -17,8 +17,7 @@ namespace SRSS.IAM.Repositories.Configurations
                 .IsRequired();
 
             builder.Property(ib => ib.FileName)
-                .HasColumnName("file_name")
-                .HasMaxLength(255);
+                .HasColumnName("file_name");
 
             builder.Property(ib => ib.FileType)
                 .HasColumnName("file_type")

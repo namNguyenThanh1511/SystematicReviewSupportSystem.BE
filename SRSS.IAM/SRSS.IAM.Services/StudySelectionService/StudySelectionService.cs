@@ -684,6 +684,28 @@ namespace SRSS.IAM.Services.StudySelectionService
             };
 
             await _unitOfWork.ScreeningResolutions.AddAsync(resolution, cancellationToken);
+
+            // Create StudySelectionProcessPaper if included in Full-Text phase
+            if (request.Phase == ScreeningPhase.FullText && request.FinalDecision == ScreeningDecisionType.Include)
+            {
+                var existingProcessPaper = await _unitOfWork.StudySelectionProcessPapers.FindSingleAsync(
+                    pp => pp.StudySelectionProcessId == studySelectionProcessId && pp.PaperId == paperId,
+                    cancellationToken: cancellationToken);
+                if (existingProcessPaper == null)
+                {
+                    var processPaper = new StudySelectionProcessPaper
+                    {
+                        Id = Guid.NewGuid(),
+                        StudySelectionProcessId = studySelectionProcessId,
+                        PaperId = paperId,
+                        IsAddedToDataset = true,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    };
+                    await _unitOfWork.StudySelectionProcessPapers.AddAsync(processPaper, cancellationToken);
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, cancellationToken: cancellationToken);
@@ -809,6 +831,31 @@ namespace SRSS.IAM.Services.StudySelectionService
 
                 await _unitOfWork.ScreeningResolutions.AddAsync(resolution, cancellationToken);
                 results.Add(await MapToResolutionResponse(resolution, paperMap.TryGetValue(paperId, out var p) ? p.Title : string.Empty, new Dictionary<Guid, string>(), cancellationToken: cancellationToken));
+            }
+
+            // Create StudySelectionProcessPaper for bulk included papers in Full-Text phase
+            if (request.Phase == ScreeningPhase.FullText && request.FinalDecision == ScreeningDecisionType.Include)
+            {
+                var existingProcessPapers = await _unitOfWork.StudySelectionProcessPapers.FindAllAsync(
+                    pp => pp.StudySelectionProcessId == studySelectionProcessId && paperIdsToProcess.Contains(pp.PaperId),
+                    isTracking: false,
+                    cancellationToken: cancellationToken);
+
+                var existingPaperIdsInProcess = existingProcessPapers.Select(pp => pp.PaperId).ToHashSet();
+                var papersToAdd = paperIdsToProcess.Where(pid => !existingPaperIdsInProcess.Contains(pid)).ToList();
+
+                foreach (var pid in papersToAdd)
+                {
+                    await _unitOfWork.StudySelectionProcessPapers.AddAsync(new StudySelectionProcessPaper
+                    {
+                        Id = Guid.NewGuid(),
+                        StudySelectionProcessId = studySelectionProcessId,
+                        PaperId = pid,
+                        IsAddedToDataset = true,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    }, cancellationToken);
+                }
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -2825,9 +2872,32 @@ namespace SRSS.IAM.Services.StudySelectionService
             };
 
             await _unitOfWork.ScreeningResolutions.AddAsync(resolution, cancellationToken);
+
+            // 10. Create StudySelectionProcessPaper if included in Full-Text phase
+            if (phase == ScreeningPhase.FullText && resolution.FinalDecision == ScreeningDecisionType.Include)
+            {
+                var existingProcessPaper = await _unitOfWork.StudySelectionProcessPapers.FindSingleAsync(
+                    pp => pp.StudySelectionProcessId == studySelectionProcessId && pp.PaperId == paperId,
+                    cancellationToken: cancellationToken);
+
+                if (existingProcessPaper == null)
+                {
+                    var processPaper = new StudySelectionProcessPaper
+                    {
+                        Id = Guid.NewGuid(),
+                        StudySelectionProcessId = studySelectionProcessId,
+                        PaperId = paperId,
+                        IsAddedToDataset = true,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        ModifiedAt = DateTimeOffset.UtcNow
+                    };
+                    await _unitOfWork.StudySelectionProcessPapers.AddAsync(processPaper, cancellationToken);
+                }
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 10. Send notifications
+            // 11. Send notifications
             try
             {
                 var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == paperId, cancellationToken: cancellationToken);
@@ -3277,6 +3347,228 @@ namespace SRSS.IAM.Services.StudySelectionService
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+        }
+        public async Task<FinalResolutionProgressResponse> GetFinalResolutionPaperProgressAsync(
+            Guid studySelectionProcessId,
+            FinalResolutionProgressRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var process = await _unitOfWork.StudySelectionProcesses.GetPhaseStatusAsync(studySelectionProcessId, cancellationToken);
+            if (process == null)
+            {
+                throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
+            }
+
+            // 1. Get all eligible papers
+            var eligiblePaperIds = await GetEligiblePapersAsync(studySelectionProcessId, cancellationToken);
+            if (!eligiblePaperIds.Any())
+            {
+                return new FinalResolutionProgressResponse { PageSize = request.PageSize, PageNumber = request.PageNumber };
+            }
+
+            // 2. Fetch papers with metadata
+            var papers = await _unitOfWork.Papers.FindAllAsync(
+                p => eligiblePaperIds.Contains(p.Id),
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            // 3. Fetch all decisions and resolutions for both phases
+            var allDecisions = await _unitOfWork.ScreeningDecisions.FindAllAsync(
+                d => d.StudySelectionProcessId == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            var allResolutions = await _unitOfWork.ScreeningResolutions.FindAllAsync(
+                r => r.StudySelectionProcessId == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+
+            // Fetch exclusion reasons to map codes/names
+            var exclusionReasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(
+                r => r.StudySelectionProcessId == studySelectionProcessId,
+                isTracking: false,
+                cancellationToken: cancellationToken);
+            var reasonMap = exclusionReasons.ToDictionary(r => r.Id);
+
+            // 4. Group data by PaperId and Phase
+            var decisionMap = allDecisions.GroupBy(d => new { d.PaperId, d.Phase })
+                .ToDictionary(g => g.Key, g => g.ToList());
+            var resolutionMap = allResolutions.ToDictionary(r => new { r.PaperId, r.Phase });
+
+            // 5. Determine required reviewers for each phase
+            int taRequired = process.TitleAbstractScreening?.MinReviewersPerPaper ?? 2;
+            int ftRequired = process.FullTextScreening?.MinReviewersPerPaper ?? 2;
+
+            var allItems = new List<PaperResolutionProgressItem>();
+
+            foreach (var paper in papers.OrderBy(p => p.Title))
+            {
+                var item = new PaperResolutionProgressItem
+                {
+                    PaperId = paper.Id,
+                    Title = paper.Title,
+                    Authors = paper.Authors ?? string.Empty,
+                    Journal = paper.Journal ?? string.Empty,
+                    PublicationYear = paper.PublicationYear ?? string.Empty,
+                    DOI = paper.DOI
+                };
+
+                // Compute Title/Abstract Phase Status
+                var taDecisions = decisionMap.GetValueOrDefault(new { PaperId = paper.Id, Phase = ScreeningPhase.TitleAbstract });
+                var taResolution = resolutionMap.GetValueOrDefault(new { PaperId = paper.Id, Phase = ScreeningPhase.TitleAbstract });
+                var taStatus = ComputePaperStatus(taDecisions, taResolution, taRequired, ScreeningPhase.TitleAbstract);
+
+                item.TitleAbstractStatus = MapToPhaseStatusResponse(taStatus, ScreeningPhase.TitleAbstract, taDecisions, taResolution != null);
+
+                // Compute Full-Text Phase Status
+                if (taStatus == PaperSelectionStatus.Included)
+                {
+                    var ftDecisions = decisionMap.GetValueOrDefault(new { PaperId = paper.Id, Phase = ScreeningPhase.FullText });
+                    var ftResolution = resolutionMap.GetValueOrDefault(new { PaperId = paper.Id, Phase = ScreeningPhase.FullText });
+                    var ftStatus = ComputePaperStatus(ftDecisions, ftResolution, ftRequired, ScreeningPhase.FullText);
+
+                    item.FullTextStatus = MapToPhaseStatusResponse(ftStatus, ScreeningPhase.FullText, ftDecisions, ftResolution != null);
+
+                    // Final Decision and Exclusion Reason from FT
+                    if (ftStatus == PaperSelectionStatus.Included)
+                    {
+                        item.FinalDecision = "INCLUDED";
+                    }
+                    else if (ftStatus == PaperSelectionStatus.Excluded)
+                    {
+                        item.FinalDecision = "EXCLUDED";
+                        var exclusionReasonId = ftResolution?.ExclusionReasonId ?? ftDecisions?.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonId;
+                        if (exclusionReasonId != null && reasonMap.TryGetValue(exclusionReasonId.Value, out var reason))
+                        {
+                            item.ExclusionReason = new ExclusionReasonDetailResponse { Code = reason.Code, Name = reason.Name };
+                        }
+                    }
+                    else
+                    {
+                        item.FinalDecision = "PENDING";
+                    }
+                }
+                else if (taStatus == PaperSelectionStatus.Excluded)
+                {
+                    item.FullTextStatus = new PhaseStatusResponse { Status = "NOT_REACHED" };
+                    item.FinalDecision = "EXCLUDED";
+                    
+                    var exclusionReasonId = taResolution?.ExclusionReasonId ?? taDecisions?.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonId;
+                    if (exclusionReasonId != null && reasonMap.TryGetValue(exclusionReasonId.Value, out var reason))
+                    {
+                        item.ExclusionReason = new ExclusionReasonDetailResponse { Code = reason.Code, Name = reason.Name };
+                    }
+                }
+                else
+                {
+                    item.FullTextStatus = new PhaseStatusResponse { Status = "NOT_REACHED" };
+                    item.FinalDecision = "PENDING";
+                }
+
+                allItems.Add(item);
+            }
+
+            var result = new FinalResolutionProgressResponse
+            {
+                TotalPapers = allItems.Count,
+                IncludedCount = allItems.Count(p => p.FinalDecision == "INCLUDED"),
+                ExcludedCount = allItems.Count(p => p.FinalDecision == "EXCLUDED"),
+                PendingCount = allItems.Count(p => p.FinalDecision == "PENDING"),
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
+
+            // Calculate Top Exclusion Reason from all items
+            result.TopExclusionReason = allItems
+                .Where(p => p.ExclusionReason != null)
+                .GroupBy(p => new { p.ExclusionReason!.Code, p.ExclusionReason!.Name })
+                .Select(g => new TopExclusionReasonResponse
+                {
+                    Code = g.Key.Code,
+                    Name = g.Key.Name,
+                    Count = g.Count()
+                })
+                .OrderByDescending(r => r.Count)
+                .FirstOrDefault();
+
+            // Apply Filters to the list
+            IEnumerable<PaperResolutionProgressItem> filteredItems = allItems;
+
+            if (request.Status != FinalResolutionStatusFilter.All)
+            {
+                var statusStr = request.Status.ToString().ToUpper();
+                filteredItems = filteredItems.Where(p => p.FinalDecision.Equals(statusStr, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (request.ExclusionReasonCode.HasValue)
+            {
+                filteredItems = filteredItems.Where(p => p.ExclusionReason?.Code == request.ExclusionReasonCode.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchTerm = request.Search.Trim().ToLowerInvariant();
+                filteredItems = filteredItems.Where(p =>
+                    p.Title.ToLowerInvariant().Contains(searchTerm) ||
+                    p.Authors.ToLowerInvariant().Contains(searchTerm) ||
+                    (p.DOI != null && p.DOI.ToLowerInvariant().Contains(searchTerm)));
+            }
+
+            if (request.FromYear.HasValue)
+            {
+                filteredItems = filteredItems.Where(p =>
+                    int.TryParse(p.PublicationYear, out var year) && year >= request.FromYear.Value);
+            }
+
+            if (request.ToYear.HasValue)
+            {
+                filteredItems = filteredItems.Where(p =>
+                    int.TryParse(p.PublicationYear, out var year) && year <= request.ToYear.Value);
+            }
+
+            result.TotalCount = filteredItems.Count();
+
+            // Apply Pagination
+            result.Papers = filteredItems
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToList();
+
+            return result;
+        }
+
+        private PhaseStatusResponse MapToPhaseStatusResponse(PaperSelectionStatus status, ScreeningPhase phase, List<ScreeningDecision>? decisions, bool hasResolution)
+        {
+            var response = new PhaseStatusResponse();
+
+            // If resolved, always use the status from resolution (Included/Excluded)
+            if (hasResolution)
+            {
+                response.Status = status.ToString().ToUpper();
+                return response;
+            }
+
+            // If not resolved, check for conflict
+            if (status == PaperSelectionStatus.Conflict)
+            {
+                response.Status = "CONFLICTED";
+                return response;
+            }
+
+            // "Manual" conflict detection for cases where status might be Pending but decisions already conflict
+            if (decisions != null)
+            {
+                var hasInclude = decisions.Any(d => d.Decision == ScreeningDecisionType.Include);
+                var hasExclude = decisions.Any(d => d.Decision == ScreeningDecisionType.Exclude);
+                if (hasInclude && hasExclude)
+                {
+                    response.Status = "CONFLICTED";
+                    return response;
+                }
+            }
+
+            response.Status = status.ToString().ToUpper();
+            return response;
         }
     }
 }

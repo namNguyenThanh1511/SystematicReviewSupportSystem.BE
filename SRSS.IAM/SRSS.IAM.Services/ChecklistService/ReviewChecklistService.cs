@@ -5,7 +5,7 @@ using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Checklist;
 using SRSS.IAM.Services.GrobidClient;
-using SRSS.IAM.Services.GeminiService;
+using SRSS.IAM.Services.OpenRouter;
 using SRSS.IAM.Services.NotificationService;
 using Microsoft.AspNetCore.Http;
 using SRSS.IAM.Services.UserService;
@@ -17,7 +17,7 @@ namespace SRSS.IAM.Services.ChecklistService
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IGrobidService _grobidService;
-        private readonly IGeminiService _geminiService;
+        private readonly IOpenRouterService _openRouterService;
         private readonly INotificationService _notificationService;
         private readonly ICurrentUserService _currentUserService;
         private readonly IChecklistAutoFillQueue _autoFillQueue;
@@ -26,7 +26,7 @@ namespace SRSS.IAM.Services.ChecklistService
         public ReviewChecklistService(
             IUnitOfWork unitOfWork,
             IGrobidService grobidService,
-            IGeminiService geminiService,
+            IOpenRouterService openRouterService,
             INotificationService notificationService,
             ICurrentUserService currentUserService,
             IChecklistAutoFillQueue autoFillQueue,
@@ -34,7 +34,7 @@ namespace SRSS.IAM.Services.ChecklistService
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
-            _geminiService = geminiService;
+            _openRouterService = openRouterService;
             _notificationService = notificationService;
             _currentUserService = currentUserService;
             _autoFillQueue = autoFillQueue;
@@ -519,7 +519,7 @@ Your task is to analyze the provided full text of a research paper and map it to
 For each checklist item provided below, identify:
 1. 'location': Where in the paper this item is discussed (e.g., 'Methods section, page 4', 'Introduction, paragraph 2').
 2. 'isReported': Boolean, true if the item is explicitly addressed in the text.
-3. 'pdfCoordinates': The PDF bounding box coordinates from inside paper text section that correspond to the relevant text. Copy coordinates from PaperText for text regions that directly support the checklist item.
+3. 'pdfCoordinates': A string containing the PDF highlight coordinates corresponding to the relevant text with the format 'p,x,y,h,w' separated by semicolons. Copy the full coords attribute from Paper Text of the text regions that directly support the checklist item.
 
 PAPER TEXT:
 ---
@@ -529,21 +529,21 @@ PAPER TEXT:
 CHECKLIST ITEMS:
 {itemsJson}
 
-Return the results as a JSON object with a 'mappings' array containing objects with 'itemNumber', 'location', 'isReported', 'pdfCoordinates', and 'reasoning'.
+Return the results as an array containing objects with 'itemNumber', 'location', 'isReported', 'pdfCoordinates'.
 ";
 
-            // 5. Call Gemini
+            // 5. Call OpenRouter
             await SendAutoFillStatus(userId, checkListId, AutoFillStatus.AnalyzingWithAI,
                 $"Analyzing {respondableItems.Count} checklist items with AI...",
                 totalItems: respondableItems.Count);
 
-            var geminiResponse = await _geminiService.GenerateStructuredContentAsync<List<GeminiChecklistItemMapping>>(prompt);
+            var aiResponse = await _openRouterService.GenerateStructuredContentAsync<ChecklistMappingsResponse>(prompt);
 
             // 6. Update Database
             await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
-                $"AI analysis complete. Saving {geminiResponse.Count} mapped results...",
+                $"AI analysis complete. Saving {aiResponse.Mappings.Count} mapped results...",
                 totalItems: respondableItems.Count,
-                mappedItems: geminiResponse.Count);
+                mappedItems: aiResponse.Mappings.Count);
 
             var now = DateTimeOffset.UtcNow;
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -560,7 +560,7 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                     await _unitOfWork.ChecklistItemResponses.RemoveMultipleAsync(responsesList, cancellationToken);
                 }
 
-                foreach (var mapping in geminiResponse)
+                foreach (var mapping in aiResponse.Mappings)
                 {
                     var item = checklist.Template.ItemTemplates.FirstOrDefault(x => x.ItemNumber == mapping.ItemNumber);
                     if (item == null) continue;
@@ -613,7 +613,7 @@ Return the results as a JSON object with a 'mappings' array containing objects w
                 Message = "Checklist auto-fill completed successfully.",
                 CompletionPercentage = completion.CompletionPercentage,
                 TotalItems = respondableItems.Count,
-                MappedItems = geminiResponse.Count,
+                MappedItems = aiResponse.Mappings.Count,
                 PdfUrl = pdfUrl,
                 Timestamp = DateTimeOffset.UtcNow
             });

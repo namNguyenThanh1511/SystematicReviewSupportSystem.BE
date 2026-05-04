@@ -470,5 +470,71 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         /// <summary>Issue 3: Sort by decision count descending (most-reviewed first)</summary>
         RelevanceDesc = 4
     }
+
+    public class FinalResolutionProgressResponse
+    {
+        public int TotalPapers { get; set; }
+        public int IncludedCount { get; set; }
+        public int ExcludedCount { get; set; }
+        public int PendingCount { get; set; }
+        public TopExclusionReasonResponse? TopExclusionReason { get; set; }
+        public List<PaperResolutionProgressItem> Papers { get; set; } = new();
+        public int TotalCount { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    }
+
+    public class FinalResolutionProgressRequest
+    {
+        public FinalResolutionStatusFilter Status { get; set; } = FinalResolutionStatusFilter.All;
+        public int? ExclusionReasonCode { get; set; }
+        public string? Search { get; set; }
+        public int? FromYear { get; set; }
+        public int? ToYear { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+    }
+
+    public enum FinalResolutionStatusFilter
+    {
+        All = 0,
+        Included = 1,
+        Excluded = 2,
+        Pending = 3
+    }
+
+    public class TopExclusionReasonResponse
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Code { get; set; }
+        public int Count { get; set; }
+    }
+
+    public class PaperResolutionProgressItem
+    {
+        public Guid PaperId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Authors { get; set; } = string.Empty;
+        public string Journal { get; set; } = string.Empty;
+        public string PublicationYear { get; set; } = string.Empty;
+        public string? DOI { get; set; }
+
+        public PhaseStatusResponse TitleAbstractStatus { get; set; } = new();
+        public PhaseStatusResponse FullTextStatus { get; set; } = new();
+        public string FinalDecision { get; set; } = "PENDING"; // INCLUDED, EXCLUDED, PENDING
+        public ExclusionReasonDetailResponse? ExclusionReason { get; set; }
+    }
+
+    public class PhaseStatusResponse
+    {
+        public string Status { get; set; } = "NOT_REACHED"; // INCLUDED, EXCLUDED, CONFLICTED, PENDING, NOT_REACHED
+    }
+
+    public class ExclusionReasonDetailResponse
+    {
+        public int Code { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
 }
 

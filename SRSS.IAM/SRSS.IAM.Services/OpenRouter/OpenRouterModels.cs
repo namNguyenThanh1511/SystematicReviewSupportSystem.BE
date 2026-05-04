@@ -15,9 +15,34 @@ public record OpenRouterChatRequest(
     [property: JsonPropertyName("response_format")] OpenRouterResponseFormat? ResponseFormat = null
 );
 
-public record OpenRouterResponseFormat(
-    [property: JsonPropertyName("type")] string Type
-);
+public class OpenRouterResponseFormat
+{
+    [JsonPropertyName("type")]
+    public string Type { get; set; }
+
+    [JsonPropertyName("json_schema")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OpenRouterJsonSchema? JsonSchema { get; set; }
+
+    public OpenRouterResponseFormat() { }
+
+    public OpenRouterResponseFormat(string type)
+    {
+        Type = type;
+    }
+}
+
+public class OpenRouterJsonSchema
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "schema";
+
+    [JsonPropertyName("strict")]
+    public bool Strict { get; set; } = true;
+
+    [JsonPropertyName("schema")]
+    public object Schema { get; set; }
+}
 
 public record OpenRouterChatResponse(
     [property: JsonPropertyName("id")] string Id,

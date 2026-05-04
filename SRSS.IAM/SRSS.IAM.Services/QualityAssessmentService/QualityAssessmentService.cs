@@ -717,31 +717,42 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
-            // Validate and find assignment
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
+                ?? throw new KeyNotFoundException("Process not found");
 
-            var qaPaper = assignment.Papers?.FirstOrDefault(x => x.Id == dto.PaperId);
-            if (qaPaper == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException("Review process not found");
 
-            // Check if resolution exists
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaper.Id);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
 
-            if (resolution != null)
+            // Validate and find assignment if not leader
+            if (!isLeader)
             {
-                throw new InvalidOperationException("Cannot add decision because a final resolution has already been made for this paper.");
+                var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
+                if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+                var paperInAssignment = assignment.Papers?.FirstOrDefault(x => x.Id == dto.PaperId);
+                if (paperInAssignment == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+
+                // Check if resolution exists
+                var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                    r => r.QualityAssessmentProcessId == process.Id && r.PaperId == dto.PaperId);
+
+                if (resolution != null)
+                {
+                    throw new InvalidOperationException("Cannot add decision because a final resolution has already been made for this paper.");
+                }
             }
 
             // Check existing decision
             var existing = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                d => d.ReviewerId == userId && d.PaperId == qaPaper.Id);
+                d => d.ReviewerId == userId && d.PaperId == dto.PaperId);
 
             if (existing != null)
                 throw new InvalidOperationException("Decision for this paper already exists. Use update instead.");
 
             // Construct new decision
-            var decision = dto.ToEntity(userId, qaPaper.Id);
+            var decision = dto.ToEntity(userId, dto.PaperId);
 
             if (dto.DecisionItems != null && dto.DecisionItems.Any())
             {
@@ -778,12 +789,9 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (decision.ReviewerId != userId)
                 throw new UnauthorizedAccessException("You can only update your own decisions.");
 
-            // Get assignment (to get process ID for resolution check)
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndQaPaperAsync(userId, qaPaper.Id);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found");
-
+            // Check if resolution exists
             var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaperId);
+                r => r.QualityAssessmentProcessId == decision.QualityAssessmentProcessId && r.PaperId == qaPaperId);
 
             if (resolution != null)
             {
@@ -1010,25 +1018,35 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
-            // Validate and find assignment
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
-
-            // Check if resolution exists
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == request.PaperId);
-
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId);
-            if (paper == null) throw new KeyNotFoundException("Paper Not Found");
-
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Process not found");
 
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
                 ?? throw new KeyNotFoundException("Review process not found");
 
-            if (reviewProcess == null)
-                throw new InvalidOperationException("Review process not found");
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId);
+            if (paper == null) throw new KeyNotFoundException("Paper Not Found");
+
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
+
+            // Validate and find assignment if not leader
+            if (!isLeader)
+            {
+                var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
+                if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+                var qaPaperInAssignment = assignment.Papers?.FirstOrDefault(x => x.Id == request.PaperId);
+                if (qaPaperInAssignment == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+            }
+
+            // Check if resolution exists
+            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                r => r.QualityAssessmentProcessId == process.Id && r.PaperId == paper.Id);
+
+            if (resolution != null)
+            {
+                throw new InvalidOperationException("Cannot automate assessment because a final resolution has already been made for this paper.");
+            }
 
             var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByReviewProcessIdAsync(reviewProcess.Id);
 

@@ -7,7 +7,9 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         public Guid PaperId { get; set; }
         public Guid TemplateId { get; set; }
         public Guid Reviewer1Id { get; set; }
+        public string Reviewer1Username { get; set; } = string.Empty;
         public Guid Reviewer2Id { get; set; }
+        public string Reviewer2Username { get; set; } = string.Empty;
         public List<ConsensusSectionDto> Sections { get; set; } = new();
     }
 

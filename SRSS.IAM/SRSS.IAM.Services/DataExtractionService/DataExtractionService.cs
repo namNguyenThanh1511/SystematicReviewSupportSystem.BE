@@ -5,6 +5,7 @@ using SRSS.IAM.Services.Mappers;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.OpenRouter;
 using Shared.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace SRSS.IAM.Services.DataExtractionService
 {
@@ -170,6 +171,22 @@ namespace SRSS.IAM.Services.DataExtractionService
             var sectionsToDelete = existingSections.Where(s => !incomingSections.Any(dto => dto.SectionId == s.Id)).ToList();
             foreach (var section in sectionsToDelete)
             {
+                if (section.Fields != null)
+                {
+                    foreach (var field in section.Fields)
+                    {
+                        await EnsureFieldHasNoDataRecursiveAsync(field);
+                    }
+                }
+
+                if (section.MatrixColumns != null)
+                {
+                    foreach (var column in section.MatrixColumns)
+                    {
+                        await EnsureMatrixColumnHasNoDataAsync(column);
+                    }
+                }
+
                 await _unitOfWork.ExtractionSections.RemoveAsync(section);
             }
         }
@@ -206,6 +223,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             var fieldsToDelete = existingFields.Where(f => !incomingFields.Any(dto => dto.FieldId == f.Id)).ToList();
             foreach (var field in fieldsToDelete)
             {
+                await EnsureFieldHasNoDataRecursiveAsync(field);
                 await _unitOfWork.ExtractionFields.RemoveAsync(field);
             }
         }
@@ -236,6 +254,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             var optionsToDelete = existingOptions.Where(o => !incomingOptions.Any(dto => dto.OptionId == o.Id)).ToList();
             foreach (var option in optionsToDelete)
             {
+                await EnsureOptionHasNoDataAsync(option);
                 await _unitOfWork.FieldOptions.RemoveAsync(option);
             }
         }
@@ -264,6 +283,7 @@ namespace SRSS.IAM.Services.DataExtractionService
             var columnsToDelete = existingColumns.Where(c => !incomingColumns.Any(dto => dto.ColumnId == c.Id)).ToList();
             foreach (var column in columnsToDelete)
             {
+                await EnsureMatrixColumnHasNoDataAsync(column);
                 await _unitOfWork.ExtractionMatrixColumns.RemoveAsync(column);
             }
         }
@@ -546,6 +566,47 @@ For select types (4 or 5), provide 2-4 standard Options.";
 
                 // Delete section
                 await _unitOfWork.ExtractionSections.RemoveAsync(section);
+            }
+        }
+
+        private async Task EnsureFieldHasNoDataRecursiveAsync(ExtractionField field)
+        {
+            var hasData = await _unitOfWork.ExtractedDataValues.GetQueryable()
+                .AnyAsync(ev => ev.FieldId == field.Id);
+
+            if (hasData)
+            {
+                throw new InvalidOperationException($"Cannot modify/delete field '{field.Name}' because it already has extracted data.");
+            }
+
+            if (field.SubFields != null)
+            {
+                foreach (var subField in field.SubFields)
+                {
+                    await EnsureFieldHasNoDataRecursiveAsync(subField);
+                }
+            }
+        }
+
+        private async Task EnsureMatrixColumnHasNoDataAsync(ExtractionMatrixColumn column)
+        {
+            var hasData = await _unitOfWork.ExtractedDataValues.GetQueryable()
+                .AnyAsync(ev => ev.MatrixColumnId == column.Id);
+
+            if (hasData)
+            {
+                throw new InvalidOperationException($"Cannot delete matrix column '{column.Name}' because it already has extracted data.");
+            }
+        }
+
+        private async Task EnsureOptionHasNoDataAsync(FieldOption option)
+        {
+            var hasData = await _unitOfWork.ExtractedDataValues.GetQueryable()
+                .AnyAsync(ev => ev.OptionId == option.Id);
+
+            if (hasData)
+            {
+                throw new InvalidOperationException($"Cannot delete option '{option.Value}' because it already has extracted data.");
             }
         }
     }

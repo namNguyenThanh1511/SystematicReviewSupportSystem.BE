@@ -16,6 +16,7 @@ using SRSS.IAM.Services.PaperFullTextService;
 using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 
 namespace SRSS.IAM.Services.StudySelectionService
 {
@@ -32,6 +33,7 @@ namespace SRSS.IAM.Services.StudySelectionService
         private readonly ICurrentUserService _currentUserService;
         private readonly ILogger<StudySelectionService> _logger;
         private readonly SRSS.IAM.Services.RagService.IRagIngestionQueue _ragQueue;
+        private readonly IPaperFullTextService _paperFullTextService;
 
         public StudySelectionService(
             IUnitOfWork unitOfWork,
@@ -44,7 +46,8 @@ namespace SRSS.IAM.Services.StudySelectionService
             ISupabaseStorageService storageService,
             ICurrentUserService currentUserService,
             ILogger<StudySelectionService> logger,
-            SRSS.IAM.Services.RagService.IRagIngestionQueue ragQueue)
+            SRSS.IAM.Services.RagService.IRagIngestionQueue ragQueue,
+            IPaperFullTextService paperFullTextService)
         {
             _unitOfWork = unitOfWork;
             _grobidService = grobidService;
@@ -57,6 +60,7 @@ namespace SRSS.IAM.Services.StudySelectionService
             _currentUserService = currentUserService;
             _logger = logger;
             _ragQueue = ragQueue;
+            _paperFullTextService = paperFullTextService;
         }
 
         public async Task<StudySelectionProcessResponse> CreateStudySelectionProcessAsync(
@@ -1757,6 +1761,19 @@ namespace SRSS.IAM.Services.StudySelectionService
             var citationCount = await _unitOfWork.PaperCitations.CountByTargetAsync(paper.Id, cancellationToken);
             var referenceCount = await _unitOfWork.PaperCitations.CountBySourceAsync(paper.Id, cancellationToken);
 
+            // Fetch FullTextSections if available
+            List<ParsedSectionDto>? fullTextSections = null;
+            var latestProcessedPdf = paper.PaperPdfs?
+                .Where(pdf => pdf.FullTextProcessed)
+                .OrderByDescending(pdf => pdf.FullTextProcessedAt)
+                .FirstOrDefault();
+
+            if (latestProcessedPdf != null)
+            {
+                var parsedFullText = await _paperFullTextService.GetParsedFullTextAsync(latestProcessedPdf.Id, cancellationToken);
+                fullTextSections = parsedFullText.Sections;
+            }
+
             // Batch-resolve user names for decisions + resolution
             var allUserIds = decisions.Select(d => d.ReviewerId).ToList();
             if (resolution != null) allUserIds.Add(resolution.ResolvedBy);
@@ -1822,7 +1839,8 @@ namespace SRSS.IAM.Services.StudySelectionService
                 Extraction = await GetExtractionStatusAsync(paper.Id, cancellationToken),
                 MetadataSources = await GetMetadataSourcesAsync(paper.Id, cancellationToken),
                 ExtractionResult = await GetExtractionResultAsync(paper, cancellationToken),
-                ExtractionSuggestion = extractionSuggestion
+                ExtractionSuggestion = extractionSuggestion,
+                FullTextSections = fullTextSections
             };
         }
 
@@ -2954,10 +2972,9 @@ namespace SRSS.IAM.Services.StudySelectionService
                 throw new InvalidOperationException($"StudySelectionProcess with ID {studySelectionProcessId} not found.");
             }
 
-            var paper = await _unitOfWork.Papers.FindSingleAsync(
-                p => p.Id == paperId,
-                isTracking: false,
-                cancellationToken);
+            var paper = await _unitOfWork.Papers.GetQueryable(p => p.Id == paperId, isTracking: false)
+                .Include(p => p.PaperPdfs)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (paper == null)
             {

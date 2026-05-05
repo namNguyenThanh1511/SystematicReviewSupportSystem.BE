@@ -3,6 +3,7 @@ using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.Common;
 
 using SRSS.IAM.Repositories.PaperRepo;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 
 namespace SRSS.IAM.Services.DTOs.StudySelection
 {
@@ -240,6 +241,7 @@ namespace SRSS.IAM.Services.DTOs.StudySelection
         public MetadataSourcesResponse? MetadataSources { get; set; }
         public ExtractionResultResponse? ExtractionResult { get; set; }
         public ExtractionSuggestionResponse? ExtractionSuggestion { get; set; }
+        public List<ParsedSectionDto>? FullTextSections { get; set; }
     }
 
     public class ExtractionSuggestionResponse

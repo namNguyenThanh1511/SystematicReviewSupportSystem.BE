@@ -315,14 +315,14 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             // Fix #1: Leader authorization
             await EnsureLeaderOfSynthesisProcessAsync(process);
 
-            if (process.Status != SynthesisProcessStatus.InProgress)
-                throw new InvalidOperationException("Process must be InProgress to complete.");
+            if (process.Status == SynthesisProcessStatus.NotStarted)
+                throw new InvalidOperationException("Process must be InProgress or Reopened to complete.");
 
-            var findings = await _unitOfWork.ResearchQuestionFindings.FindAllAsync(f => f.SynthesisProcessId == process.Id);
-            if (findings.Any(f => f.Status == FindingStatus.Draft))
-            {
-                throw new InvalidOperationException("Cannot complete Synthesis Phase while some Research Question findings are still drafts.");
-            }
+            // var findings = await _unitOfWork.ResearchQuestionFindings.FindAllAsync(f => f.SynthesisProcessId == process.Id);
+            // if (findings.Any(f => f.Status == FindingStatus.Draft))
+            // {
+            //     throw new InvalidOperationException("Cannot complete Synthesis Phase while some Research Question findings are still drafts.");
+            // }
 
             process.Status = SynthesisProcessStatus.Completed;
             process.CompletedAt = DateTimeOffset.UtcNow;

@@ -382,6 +382,10 @@ namespace SRSS.IAM.Services.ReviewProcessService
                     if (reviewProcess.DataExtractionProcess == null) throw new NotFoundException("Data extraction process not found.");
                     reviewProcess.DataExtractionProcess.Reopen();
                     break;
+                case ProcessPhase.Synthesis:
+                    if (reviewProcess.SynthesisProcess == null) throw new NotFoundException("Synthesis process not found.");
+                    reviewProcess.SynthesisProcess.Reopen();
+                    break;
                 default:
                     throw new ArgumentException($"Phase {phase} does not support reopening or is not recognized.", nameof(phase));
             }

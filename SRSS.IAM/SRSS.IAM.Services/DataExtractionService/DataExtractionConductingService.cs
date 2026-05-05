@@ -532,12 +532,17 @@ namespace SRSS.IAM.Services.DataExtractionService
                 .Where(c => c.ExtractionPaperTaskId == task.Id)
                 .ToListAsync();
 
+            var r1User = task.Reviewer1Id.HasValue ? await _unitOfWork.Users.FindSingleAsync(u => u.Id.Equals(task.Reviewer1Id.Value)) : null;
+            var r2User = task.Reviewer2Id.HasValue ? await _unitOfWork.Users.FindSingleAsync(u => u.Id.Equals(task.Reviewer2Id.Value)) : null;
+
             var dto = new ConsensusWorkspaceDto
             {
                 PaperId = paperId,
                 TemplateId = template.Id,
                 Reviewer1Id = r1Id,
+                Reviewer1Username = r1User?.Username ?? (task.Reviewer1Id.HasValue ? "Unknown" : string.Empty),
                 Reviewer2Id = r2Id,
+                Reviewer2Username = r2User?.Username ?? (task.Reviewer2Id.HasValue ? "Unknown" : string.Empty),
                 Sections = template.Sections.OrderBy(s => s.OrderIndex).Select(s => new ConsensusSectionDto
                 {
                     SectionId = s.Id,

@@ -30,6 +30,8 @@ namespace SRSS.IAM.Repositories.Configurations
          builder.Property(x => x.MetadataProcessedAt);
          builder.Property(x => x.MetadataValidatedAt);
          builder.Property(x => x.FullTextProcessedAt);
+         builder.Property(x => x.PageWidth);
+         builder.Property(x => x.PageHeight);
 
             builder.HasOne(x => x.Paper)
                    .WithMany(p => p.PaperPdfs)

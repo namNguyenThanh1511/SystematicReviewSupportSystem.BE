@@ -20,6 +20,8 @@ namespace SRSS.IAM.Repositories.Entities
         public DateTimeOffset? MetadataProcessedAt { get; set; }
         public DateTimeOffset? MetadataValidatedAt { get; set; }
         public DateTimeOffset? FullTextProcessedAt { get; set; }
+        public double? PageWidth { get; set; }
+        public double? PageHeight { get; set; }
 
         public Paper? Paper { get; set; }
         public GrobidHeaderResult? GrobidHeaderResult { get; set; }

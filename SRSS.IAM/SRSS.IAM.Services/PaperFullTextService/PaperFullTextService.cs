@@ -152,7 +152,14 @@ namespace SRSS.IAM.Services.PaperFullTextService
 
                 await _unitOfWork.PaperFullTexts.AddAsync(paperFullText, cancellationToken);
 
-                // 4. Update status
+                // 4. Extract page dimensions from TEI facsimile surface
+                var (pageWidth, pageHeight) = GrobidTeiParser.ParseSurfaceSize(teiXml);
+                if (pageWidth.HasValue)
+                    paperPdf.PageWidth = pageWidth.Value;
+                if (pageHeight.HasValue)
+                    paperPdf.PageHeight = pageHeight.Value;
+
+                // 5. Update status
                 paperPdf.FullTextProcessed = true;
                 paperPdf.ProcessingStatus = PdfProcessingStatus.Completed;
                 paperPdf.FullTextProcessedAt = DateTimeOffset.UtcNow;

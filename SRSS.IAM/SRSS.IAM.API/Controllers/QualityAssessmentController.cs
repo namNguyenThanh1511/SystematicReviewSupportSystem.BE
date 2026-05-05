@@ -190,7 +190,7 @@ namespace SRSS.IAM.API.Controllers
 		}
 		
 		[HttpPost("decisions/ai")]
-		public async Task<ActionResult<ApiResponse<List<QualityAssessmentDecisionItemAIResponse>>>> AutomateQualityAssessment([FromBody] AutomateQualityAssessmentRequest request)
+		public async Task<ActionResult<ApiResponse<AutomateQualityAssessmentResponse>>> AutomateQualityAssessment([FromBody] AutomateQualityAssessmentRequest request)
 		{
 			var result = await _service.AutomateQualityAssessmentAsync(request);
 			return Ok(result, "Thực hiện tự động đánh giá chất lượng thành công");

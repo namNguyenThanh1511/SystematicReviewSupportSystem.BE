@@ -717,31 +717,42 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
 
-            // Validate and find assignment
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == dto.QualityAssessmentProcessId)
+                ?? throw new KeyNotFoundException("Process not found");
 
-            var qaPaper = assignment.Papers?.FirstOrDefault(x => x.Id == dto.PaperId);
-            if (qaPaper == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
+                ?? throw new KeyNotFoundException("Review process not found");
 
-            // Check if resolution exists
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaper.Id);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
 
-            if (resolution != null)
+            // Validate and find assignment if not leader
+            if (!isLeader)
             {
-                throw new InvalidOperationException("Cannot add decision because a final resolution has already been made for this paper.");
+                var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(dto.QualityAssessmentProcessId, userId);
+                if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+                var paperInAssignment = assignment.Papers?.FirstOrDefault(x => x.Id == dto.PaperId);
+                if (paperInAssignment == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+
+                // Check if resolution exists
+                var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                    r => r.QualityAssessmentProcessId == process.Id && r.PaperId == dto.PaperId);
+
+                if (resolution != null)
+                {
+                    throw new InvalidOperationException("Cannot add decision because a final resolution has already been made for this paper.");
+                }
             }
 
             // Check existing decision
             var existing = await _unitOfWork.QualityAssessmentDecisions.FindSingleAsync(
-                d => d.ReviewerId == userId && d.PaperId == qaPaper.Id);
+                d => d.ReviewerId == userId && d.PaperId == dto.PaperId);
 
             if (existing != null)
                 throw new InvalidOperationException("Decision for this paper already exists. Use update instead.");
 
             // Construct new decision
-            var decision = dto.ToEntity(userId, qaPaper.Id);
+            var decision = dto.ToEntity(userId, dto.PaperId);
 
             if (dto.DecisionItems != null && dto.DecisionItems.Any())
             {
@@ -778,16 +789,20 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             if (decision.ReviewerId != userId)
                 throw new UnauthorizedAccessException("You can only update your own decisions.");
 
-            // Get assignment (to get process ID for resolution check)
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetByUserAndQaPaperAsync(userId, qaPaper.Id);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found");
+            var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == decision.QualityAssessmentProcessId);
+            var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process!.ReviewProcessId);
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess!.ProjectId, userId);
 
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == qaPaperId);
-
-            if (resolution != null)
+            if (!isLeader)
             {
-                throw new InvalidOperationException("Cannot update decision because a final resolution has already been made for this paper.");
+                // Check if resolution exists
+                var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                    r => r.QualityAssessmentProcessId == decision.QualityAssessmentProcessId && r.PaperId == qaPaperId);
+
+                if (resolution != null)
+                {
+                    throw new InvalidOperationException("Cannot update decision because a final resolution has already been made for this paper.");
+                }
             }
 
             dto.UpdateEntity(decision);
@@ -1005,21 +1020,10 @@ namespace SRSS.IAM.Services.QualityAssessmentService
         }
 
         // ==================== Quality Assessment Automate ====================
-        public async Task<List<QualityAssessmentDecisionItemAIResponse>> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request)
+        public async Task<AutomateQualityAssessmentResponse> AutomateQualityAssessmentAsync(AutomateQualityAssessmentRequest request)
         {
             var (currentUserIdStr, _) = _currentUserService.GetCurrentUser();
             var userId = Guid.Parse(currentUserIdStr);
-
-            // Validate and find assignment
-            var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
-            if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
-
-            // Check if resolution exists
-            var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
-                r => r.QualityAssessmentProcessId == assignment.QualityAssessmentProcessId && r.PaperId == request.PaperId);
-
-            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId);
-            if (paper == null) throw new KeyNotFoundException("Paper Not Found");
 
             var process = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.Id == request.QualityAssessmentProcessId)
                 ?? throw new KeyNotFoundException("Process not found");
@@ -1027,22 +1031,42 @@ namespace SRSS.IAM.Services.QualityAssessmentService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(rp => rp.Id == process.ReviewProcessId)
                 ?? throw new KeyNotFoundException("Review process not found");
 
-            if (reviewProcess == null)
-                throw new InvalidOperationException("Review process not found");
+            var paper = await _unitOfWork.Papers.FindSingleAsync(p => p.Id == request.PaperId);
+            if (paper == null) throw new KeyNotFoundException("Paper Not Found");
+
+            var isLeader = await _unitOfWork.SystematicReviewProjects.IsProjectLeaderAsync(reviewProcess.ProjectId, userId);
+
+            // Validate and find assignment if not leader
+            if (!isLeader)
+            {
+                var assignment = await _unitOfWork.QualityAssessmentAssignments.GetWithPapersByProcessAndUserAsync(request.QualityAssessmentProcessId, userId);
+                if (assignment == null) throw new KeyNotFoundException("Assignment not found for this user in this process");
+
+                var qaPaperInAssignment = assignment.Papers?.FirstOrDefault(x => x.Id == request.PaperId);
+                if (qaPaperInAssignment == null) throw new KeyNotFoundException("Assignment not found for this user and QA paper");
+
+                // Check if resolution exists
+                var resolution = await _unitOfWork.QualityAssessmentResolutions.FindSingleAsync(
+                    r => r.QualityAssessmentProcessId == process.Id && r.PaperId == paper.Id);
+
+                if (resolution != null)
+                {
+                    throw new InvalidOperationException("Cannot automate assessment because a final resolution has already been made for this paper.");
+                }
+            }
 
             var strategy = await _unitOfWork.QualityStrategies.GetFullStrategyByReviewProcessIdAsync(reviewProcess.Id);
 
             var criteriaQuestions = strategy.SelectMany(s => s.Checklists.SelectMany(c => c.Criteria)).Select(c => new { c.Id, c.Question }).ToList();
 
-            // RAG Integration: Instead of loading full pdf and extracting via Grobid, fetch relevant semantic chunks for each criterion.
-            var relevantChunksByCriterion = new Dictionary<string, string>();
-            foreach (var c in criteriaQuestions)
+            var paperPdf = await _unitOfWork.PaperPdfs.GetQueryable(pp => pp.PaperId == paper.Id)
+                .Include(pp => pp.PaperFullText)
+                .Include(pp => pp.GrobidHeaderResult)
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrWhiteSpace(paperPdf?.PaperFullText?.RawXml) || string.IsNullOrWhiteSpace(paperPdf?.GrobidHeaderResult?.RawXml))
             {
-                var chunks = await _ragRetrievalService.GetRelevantChunksAsync(paper.Id, c.Question, topK: 10);
-                var formattedChunks = string.Join("\n\n---\n\n", chunks.Select(chunk =>
-                    $"[Source Chunk coordinates: {chunk.CoordinatesJson}]\n{chunk.TextContent}"
-                ));
-                relevantChunksByCriterion.Add(c.Question, string.IsNullOrWhiteSpace(formattedChunks) ? "No relevant chunk found." : formattedChunks);
+                throw new InvalidOperationException("Failed to get full text for the paper.");
             }
 
             var prompt = $@"
@@ -1050,28 +1074,26 @@ Assume you are an expert reviewer conducting a quality assessment of a scientifi
 
 Note: 
 - For each question, decide if the answer is Yes (0), No (1), or Unclear (2), and provide a brief comment explaining your reasoning.
-- Also give pdfHighlightCoordinates based on the [Source Chunk coordinates: ...] provided alongside the evidence for each criterion. Keep precise format `page,x,y,height,width` for example: `'1,72.0,103.0,174.0,20.0'` (semicolon separated for multiple). Ensure the bounding boxes match where you drew your evidence.
+- Also give pdfHighlightCoordinates based on the `coords` attribute from the raw XML provided. Keep precise format `page,x,y,height,width` for example: `'1,72.0,103.0,174.0,20.0'` (semicolon separated for multiple). Ensure the bounding boxes match where you drew your evidence.
 
 -------------------------
 
-Criteria Questions and retrieved relevant excerpts from abstract/full text:
+Criteria Questions:
 
 {string.Join("\n\n", criteriaQuestions.Select(c =>
    $"--- CRITERION START ---\n" +
    $"ID: {c.Id}\n" +
    $"Question: {c.Question}\n" +
-   $"Retrieved Evidence Chunks:\n{relevantChunksByCriterion[c.Question]}\n" +
    $"--- CRITERION END ---"
 ))}
 
 --------------------------------
 
-Here are the paper details:
-- Title: {paper.Title}
-- Authors: {paper.Authors}
-- Publication Year: {paper.PublicationYear}
-- Journal/Conference: {(!string.IsNullOrWhiteSpace(paper.Journal) ? paper.Journal : paper.ConferenceName)}
-- Abstract: {paper.Abstract}
+Here is the paper in TEI XML format (with `coords` attributes for bounding boxes):
+```xml
+{$"Header: \n {paperPdf.GrobidHeaderResult.RawXml}\n" +
+   $"Full Text: \n {paperPdf.PaperFullText.RawXml}\n"}
+```
 ";
 
             var result = await _geminiService.GenerateStructuredContentAsync<List<QualityAssessmentDecisionItemAIResponse>>(prompt);
@@ -1090,7 +1112,12 @@ Here are the paper details:
                 newValue: new { GeneratedDecisionsCount = result.Count, PaperTitle = paper.Title }
             );
 
-            return result;
+            return new AutomateQualityAssessmentResponse
+            {
+                PageWidth = paperPdf.PageWidth,
+                PageHeight = paperPdf.PageHeight,
+                DecisionItems = result
+            };
         }
         // ==================== Export Excel ====================
         public async Task<byte[]> ExportProcessToExcelAsync(Guid processId)

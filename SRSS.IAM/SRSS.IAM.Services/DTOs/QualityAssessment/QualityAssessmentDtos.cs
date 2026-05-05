@@ -289,4 +289,11 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public string? Comment { get; set; }
         public string? PdfHighlightCoordinates { get; set; }
     }
+
+    public class AutomateQualityAssessmentResponse
+    {
+        public double? PageWidth { get; set; }
+        public double? PageHeight { get; set; }
+        public List<QualityAssessmentDecisionItemAIResponse> DecisionItems { get; set; } = new();
+    }
 }

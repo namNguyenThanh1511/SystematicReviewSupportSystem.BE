@@ -15,16 +15,16 @@ namespace SRSS.IAM.Repositories.Configurations
 				.HasColumnName("qa_strategy_id")
 				.IsRequired();
 
-			builder.Property(x => x.ReviewProcessId)
-				.HasColumnName("review_process_id")
+			builder.Property(x => x.QualityAssessmentProcessId)
+				.HasColumnName("quality_assessment_process_id")
 				.IsRequired();
 
 			builder.Property(x => x.Description)
 				.HasColumnName("description");
 
-			builder.HasOne(x => x.ReviewProcess)
+			builder.HasOne(x => x.QualityAssessmentProcess)
 				.WithMany(x => x.QualityStrategies)
-				.HasForeignKey(x => x.ReviewProcessId)
+				.HasForeignKey(x => x.QualityAssessmentProcessId)
 				.OnDelete(DeleteBehavior.Cascade);
 		}
 	}

@@ -22,6 +22,7 @@ using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.SystematicReviewProjectService;
 using SRSS.IAM.Services.ReviewProcessService;
 using SRSS.IAM.Services.PaperService;
+using SRSS.IAM.Services.PaperStatisticsService;
 using SRSS.IAM.Services.PrismaReportService;
 using SRSS.IAM.Services.SelectionStatusService;
 using SRSS.IAM.Services.StudySelectionService;
@@ -54,6 +55,8 @@ using SRSS.IAM.Services.ExclusionReasonLibraryService;
 using SRSS.IAM.Services.StuSeExclusionCodeService;
 using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
+using SRSS.IAM.Services.Parsers;
+using SRSS.IAM.Services.DTOs.Crossref;
 using SRSS.IAM.Services.PaperFullTextService.Parser;
 using SRSS.IAM.Services.PaperFullTextService.Chunking;
 using SRSS.IAM.Services.PaperFullTextService.Embedding;
@@ -102,6 +105,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IDataExtractionConductingService, DataExtractionConductingService>();
             services.AddScoped<ISynthesisService, SynthesisService>();
             services.AddScoped<IAiSetupService, AiSetupService>();
+            services.AddScoped<ISearchStrategyAiService, SearchStrategyAiService>();
 
 
 
@@ -109,9 +113,16 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IIdentificationService, IdentificationService>();
+
+            // Parser abstraction layer
+            services.AddScoped<IRisParser, RisFileParser>();
+            services.AddScoped<IBibTexParser, BibTexFileParser>();
+            services.AddScoped<IDoiParser, CrossrefDoiParser>();
+            services.AddScoped<IApiParser<CrossrefQueryParameters>, CrossrefApiParser>();
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();
             services.AddScoped<IReviewProcessService, ReviewProcessService>();
             services.AddScoped<IPaperService, PaperService>();
+            services.AddScoped<IPaperStatisticsService, PaperStatisticsService>();
             services.AddScoped<ICandidatePaperService, CandidatePaperService>();
             services.AddScoped<IPrismaReportService, PrismaReportService>();
             services.AddSingleton<IGeminiService, GeminiService>();
@@ -212,6 +223,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             // Checklist
             services.AddScoped<IChecklistTemplateService, ChecklistTemplateService>();
             services.AddScoped<IReviewChecklistService, ReviewChecklistService>();
+            services.AddSingleton<IChecklistAutoFillQueue, ChecklistAutoFillQueue>();
+            services.AddHostedService<ChecklistAutoFillBackgroundService>();
 
             // Study Selection Checklist
             services.AddScoped<IStudySelectionChecklistService, StudySelectionChecklistService>();

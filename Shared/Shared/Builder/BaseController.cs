@@ -30,6 +30,18 @@ namespace Shared.Builder
             return StatusCode(201, response);
         }
 
+        protected ActionResult<ApiResponse<T>> Accepted<T>(T data, string message = "Đã chấp nhận yêu cầu xử lý")
+        {
+            var response = ResponseBuilder.SuccessWithData(data, message);
+            return StatusCode(202, response);
+        }
+
+        protected ActionResult<ApiResponse> Accepted(string message = "Đã chấp nhận yêu cầu xử lý")
+        {
+            var response = ResponseBuilder.SuccessWithMessage(message);
+            return StatusCode(202, response);
+        }
+
         // Error responses
         protected ActionResult<ApiResponse> BadRequest(string message = "Yêu cầu không hợp lệ", List<ApiError>? errors = null)
         {

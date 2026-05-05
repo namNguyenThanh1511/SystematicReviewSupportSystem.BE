@@ -1,5 +1,6 @@
 using SRSS.IAM.Services.DTOs.Identification;
 using SRSS.IAM.Services.DTOs.Paper;
+using SRSS.IAM.Services.DTOs.Crossref;
 using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities.Enums;
 
@@ -19,9 +20,34 @@ namespace SRSS.IAM.Services.IdentificationService
         Task<List<ImportBatchResponse>> GetImportBatchesByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default);
         Task<List<PaperResponse>> GetPapersByImportBatchIdAsync(Guid importBatchId, CancellationToken cancellationToken = default);
 
+        // ── Import entry points ───────────────────────────────────────────────────
+
+        /// <summary>Parses a RIS file stream and runs the full import pipeline.</summary>
         Task<RisImportResultDto> ImportRisFileAsync(
-            Stream fileStream, 
+            Stream fileStream,
             string fileName,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Parses a BibTeX file stream and runs the full import pipeline.</summary>
+        Task<RisImportResultDto> ImportBibTexFileAsync(
+            Stream fileStream,
+            string fileName,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Resolves a single DOI via Crossref and runs the full import pipeline.</summary>
+        Task<RisImportResultDto> ImportFromDoiAsync(
+            string doi,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>Queries Crossref with the given parameters and runs the full import pipeline.</summary>
+        Task<RisImportResultDto> ImportFromApiAsync(
+            CrossrefQueryParameters query,
             Guid? searchSourceId,
             Guid projectId,
             CancellationToken cancellationToken = default);

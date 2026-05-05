@@ -20,6 +20,7 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public DateTimeOffset ModifiedAt { get; set; }
         
         public QualityAssessmentStatisticsResponse? QualityStatistics { get; set; }
+        public bool IsHaveCriteria { get; set; }
     }
 
     public class QualityAssessmentStatisticsResponse
@@ -287,5 +288,12 @@ namespace SRSS.IAM.Services.DTOs.QualityAssessment
         public QualityAssessmentDecisionValue? Value { get; set; }
         public string? Comment { get; set; }
         public string? PdfHighlightCoordinates { get; set; }
+    }
+
+    public class AutomateQualityAssessmentResponse
+    {
+        public double? PageWidth { get; set; }
+        public double? PageHeight { get; set; }
+        public List<QualityAssessmentDecisionItemAIResponse> DecisionItems { get; set; } = new();
     }
 }

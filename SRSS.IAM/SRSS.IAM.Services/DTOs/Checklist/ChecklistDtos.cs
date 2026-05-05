@@ -134,6 +134,7 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public string? Location { get; set; }
         public bool IsReported { get; set; }
         public bool IsCompleted { get; set; }
+        public string? PdfCoordinates { get; set; }
         public DateTimeOffset? LastUpdatedAt { get; set; }
     }
 
@@ -149,6 +150,7 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public bool IsCompleted { get; set; }
         public double CompletionPercentage { get; set; }
         public int ItemCount { get; set; }
+        public string? PdfUrl { get; set; }
         public DateTimeOffset LastUpdatedAt { get; set; }
     }
 
@@ -171,6 +173,7 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public string TemplateName { get; set; } = string.Empty;
         public bool IsCompleted { get; set; }
         public double CompletionPercentage { get; set; }
+        public string? PdfUrl { get; set; }
         public DateTimeOffset LastUpdatedAt { get; set; }
         public List<ChecklistSectionDto> Sections { get; set; } = new();
         public List<ChecklistItemResponseDto> Items { get; set; } = new();

@@ -468,7 +468,7 @@ namespace SRSS.IAM.Services.CandidatePaperService
             GetPapersRequest request,
             CancellationToken cancellationToken = default)
         {
-            var query = _unitOfWork.Papers.GetQueryable(p => p.ProjectId == projectId);
+            var query = _unitOfWork.Papers.GetQueryable(p => p.ProjectId == projectId && !p.IsDeleted && !p.IsDuplicated);
 
             // Filtering
             if (!string.IsNullOrWhiteSpace(request.SearchTerm))

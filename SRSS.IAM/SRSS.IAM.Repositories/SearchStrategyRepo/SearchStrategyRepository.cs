@@ -10,7 +10,19 @@ namespace SRSS.IAM.Repositories.SearchStrategyRepo
 
 		public async Task<IEnumerable<SearchSource>> GetByProjectIdAsync(Guid projectId, CancellationToken cancellationToken = default)
 		{
-			return await FindAllAsync(s => s.ProjectId == projectId, isTracking: false, cancellationToken);
+			return await _context.SearchSources
+				.Include(s => s.MasterSource)
+				.Include(s => s.Strategies)
+				.Where(s => s.ProjectId == projectId)
+				.AsNoTracking()
+				.ToListAsync(cancellationToken);
+		}
+
+		public async Task<SearchSource?> GetByIdWithStrategiesAsync(Guid id, CancellationToken cancellationToken = default)
+		{
+			return await _context.SearchSources
+				.Include(s => s.Strategies)
+				.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 		}
 	}
 }

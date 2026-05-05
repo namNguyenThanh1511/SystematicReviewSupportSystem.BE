@@ -65,6 +65,34 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
                 throw new UnauthorizedAccessException("You are not a member of this project.");
         }
 
+        private async Task<Dictionary<Guid, (decimal? Score, bool IsHighQuality)>> GetPaperQaInfoAsync(Guid reviewProcessId)
+        {
+            var info = new Dictionary<Guid, (decimal? Score, bool IsHighQuality)>();
+
+            var qaProcess = await _unitOfWork.QualityAssessmentProcesses.FindSingleAsync(p => p.ReviewProcessId == reviewProcessId);
+            if (qaProcess == null) return info;
+
+            // 1. Get individual decisions (fallback), default to IsHighQuality = true
+            var decisions = await _unitOfWork.QualityAssessmentDecisions.GetQueryable()
+                .Where(d => d.QualityAssessmentProcessId == qaProcess.Id)
+                .OrderBy(d => d.CreatedAt)
+                .ToListAsync();
+
+            foreach (var dec in decisions)
+            {
+                info[dec.PaperId] = (dec.Score, true);
+            }
+
+            // 2. Get resolutions (priority)
+            var resolutions = await _unitOfWork.QualityAssessmentResolutions.FindAllAsync(r => r.QualityAssessmentProcessId == qaProcess.Id);
+            foreach (var res in resolutions)
+            {
+                info[res.PaperId] = (res.FinalScore, res.FinalDecision == QualityAssessmentResolutionDecision.HighQuality);
+            }
+
+            return info;
+        }
+
         // ── Workspace ─────────────────────────────────────────────────────
 
         public async Task<SynthesisWorkspaceDto> GetSynthesisWorkspaceAsync(Guid reviewProcessId)
@@ -79,21 +107,32 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
                 throw new InvalidOperationException($"SynthesisProcess for ReviewProcess {reviewProcessId} not found.");
             }
 
+            var extractionProcess = await _unitOfWork.DataExtractionProcesses
+                .FindSingleAsync(dp => dp.ReviewProcessId == reviewProcessId);
+
+            int totalExtractedPapers = 0;
+            if (extractionProcess != null)
+            {
+                totalExtractedPapers = await _unitOfWork.ExtractionPaperTasks.GetQueryable()
+                    .CountAsync(t => t.DataExtractionProcessId == extractionProcess.Id
+                                && t.Status == PaperExtractionStatus.Completed);
+            }
+
             var themes = await _unitOfWork.SynthesisThemes.FindAllAsync(t => t.SynthesisProcessId == process.Id);
             var themesList = themes.ToList();
             var themeIds = themesList.Select(t => t.Id).ToList();
-            
+
             var evidences = await _unitOfWork.ThemeEvidences.FindAllAsync(e => themeIds.Contains(e.ThemeId));
             var evidencesList = evidences.ToList();
 
             var extractedDataValueIds = evidencesList.Select(e => e.ExtractedDataValueId).Distinct().ToList();
             var extractedValues = await _unitOfWork.ExtractedDataValues.FindAllAsync(v => extractedDataValueIds.Contains(v.Id));
             var extractedValuesList = extractedValues.ToList();
-            
+
             var paperIds = extractedValuesList.Select(v => v.PaperId).Distinct().ToList();
             var papers = await _unitOfWork.Papers.FindAllAsync(p => paperIds.Contains(p.Id));
             var papersDict = papers.ToDictionary(p => p.Id, p => p.Title);
-            
+
             var optionIds = extractedValuesList.Where(v => v.OptionId.HasValue).Select(v => v.OptionId!.Value).Distinct().ToList();
             var fieldOptions = await _unitOfWork.FieldOptions.FindAllAsync(o => optionIds.Contains(o.Id));
             var optionsDict = fieldOptions.ToDictionary(o => o.Id, o => o.Value);
@@ -115,13 +154,18 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             var fields = await _unitOfWork.ExtractionFields.FindAllAsync(f => fieldIds.Contains(f.Id));
             var fieldDict = fields.ToDictionary(f => f.Id, f => f.Name);
 
+            var qaInfo = await GetPaperQaInfoAsync(reviewProcessId);
+
             var extractedValuesDict = extractedValuesList.ToDictionary(
-                v => v.Id, 
-                v => new { 
-                    Raw = v, 
-                    PaperTitle = papersDict.ContainsKey(v.PaperId) ? papersDict[v.PaperId] : "Unknown Paper", 
+                v => v.Id,
+                v => new
+                {
+                    Raw = v,
+                    PaperTitle = papersDict.ContainsKey(v.PaperId) ? papersDict[v.PaperId] : "Unknown Paper",
                     FieldName = fieldDict.ContainsKey(v.FieldId) ? fieldDict[v.FieldId] : "Unknown Field",
-                    DisplayValue = GetDisplayValue(v) 
+                    DisplayValue = GetDisplayValue(v),
+                    QaScore = qaInfo.ContainsKey(v.PaperId) ? qaInfo[v.PaperId].Score : null,
+                    IsHighQuality = qaInfo.ContainsKey(v.PaperId) ? qaInfo[v.PaperId].IsHighQuality : true
                 });
 
             var findings = await _unitOfWork.ResearchQuestionFindings.FindAllAsync(f => f.SynthesisProcessId == process.Id);
@@ -162,6 +206,8 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
                     OptionId = extractedValuesDict.ContainsKey(e.ExtractedDataValueId) ? extractedValuesDict[e.ExtractedDataValueId].Raw.OptionId : null,
                     DisplayValue = extractedValuesDict.ContainsKey(e.ExtractedDataValueId) ? extractedValuesDict[e.ExtractedDataValueId].DisplayValue : string.Empty,
                     Notes = e.Notes,
+                    QaScore = extractedValuesDict.ContainsKey(e.ExtractedDataValueId) ? extractedValuesDict[e.ExtractedDataValueId].QaScore : null,
+                    IsHighQuality = extractedValuesDict.ContainsKey(e.ExtractedDataValueId) ? extractedValuesDict[e.ExtractedDataValueId].IsHighQuality : true,
                     CreatedById = e.CreatedById,
                     CreatedAt = e.CreatedAt,
                     ModifiedAt = e.ModifiedAt
@@ -183,6 +229,7 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             return new SynthesisWorkspaceDto
             {
                 Process = processDto,
+                TotalExtractedPapers = totalExtractedPapers,
                 Themes = themeDtos,
                 Findings = findingDtos
             };
@@ -193,8 +240,8 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             var reviewProcess = await _unitOfWork.ReviewProcesses.FindSingleAsync(r => r.Id == reviewProcessId)
                 ?? throw new InvalidOperationException($"ReviewProcess with ID {reviewProcessId} not found.");
 
-             // Protocol checks removed as Protocol module is deprecated.
-             // Research questions will be loaded from the project below.
+            // Protocol checks removed as Protocol module is deprecated.
+            // Research questions will be loaded from the project below.
 
             var synthesisProcess = await _unitOfWork.SynthesisProcesses.FindSingleAsync(p => p.ReviewProcessId == reviewProcessId)
                 ?? throw new InvalidOperationException("Synthesis process has not been initialized for this review process.");
@@ -229,7 +276,7 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
                 throw new InvalidOperationException("No target research questions selected in synthesis strategy.");
             }
 
-            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq => 
+            var researchQuestions = await _unitOfWork.ResearchQuestions.FindAllAsync(rq =>
                 rq.ProjectId == reviewProcess.ProjectId && targetQuestionIds.Contains(rq.Id));
 
             foreach (var rq in researchQuestions)
@@ -268,14 +315,14 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             // Fix #1: Leader authorization
             await EnsureLeaderOfSynthesisProcessAsync(process);
 
-            if (process.Status != SynthesisProcessStatus.InProgress)
-                throw new InvalidOperationException("Process must be InProgress to complete.");
+            if (process.Status == SynthesisProcessStatus.NotStarted)
+                throw new InvalidOperationException("Process must be InProgress or Reopened to complete.");
 
-            var findings = await _unitOfWork.ResearchQuestionFindings.FindAllAsync(f => f.SynthesisProcessId == process.Id);
-            if (findings.Any(f => f.Status == FindingStatus.Draft))
-            {
-                throw new InvalidOperationException("Cannot complete Synthesis Phase while some Research Question findings are still drafts.");
-            }
+            // var findings = await _unitOfWork.ResearchQuestionFindings.FindAllAsync(f => f.SynthesisProcessId == process.Id);
+            // if (findings.Any(f => f.Status == FindingStatus.Draft))
+            // {
+            //     throw new InvalidOperationException("Cannot complete Synthesis Phase while some Research Question findings are still drafts.");
+            // }
 
             process.Status = SynthesisProcessStatus.Completed;
             process.CompletedAt = DateTimeOffset.UtcNow;
@@ -294,13 +341,13 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
 
             var paperTasks = await _unitOfWork.ExtractionPaperTasks
                 .FindAllAsync(pt => pt.DataExtractionProcessId == extractionProcess.Id);
-                
+
             var paperIds = paperTasks.Select(pt => pt.PaperId).Distinct().ToList();
             if (!paperIds.Any()) return new List<SourceDataGroupDto>();
 
             var rawValues = await _unitOfWork.ExtractedDataValues
                 .FindAllAsync(v => paperIds.Contains(v.PaperId) && v.IsConsensusFinal);
-            
+
             var consensusList = rawValues.ToList();
             if (!consensusList.Any()) return new List<SourceDataGroupDto>();
 
@@ -329,6 +376,8 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
             var papers = await _unitOfWork.Papers.FindAllAsync(p => reqPaperIds.Contains(p.Id));
             var paperDict = papers.ToDictionary(p => p.Id, p => p.Title);
 
+            var qaInfo = await GetPaperQaInfoAsync(reviewProcessId);
+
             var groups = consensusList
                 .Where(v => fieldDict.ContainsKey(v.FieldId) && paperDict.ContainsKey(v.PaperId))
                 .GroupBy(v => v.FieldId)
@@ -345,7 +394,9 @@ namespace SRSS.IAM.Services.SynthesisExecutionService
                         NumericValue = v.NumericValue,
                         BooleanValue = v.BooleanValue,
                         OptionId = v.OptionId,
-                        DisplayValue = GetDataDisplayValue(v)
+                        DisplayValue = GetDataDisplayValue(v),
+                        QaScore = qaInfo.ContainsKey(v.PaperId) ? qaInfo[v.PaperId].Score : null,
+                        IsHighQuality = qaInfo.ContainsKey(v.PaperId) ? qaInfo[v.PaperId].IsHighQuality : true
                     }).ToList()
                 }).ToList();
 

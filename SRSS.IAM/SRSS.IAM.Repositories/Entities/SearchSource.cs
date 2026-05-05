@@ -15,5 +15,6 @@ namespace SRSS.IAM.Repositories.Entities
 		// Navigation properties
 		public SystematicReviewProject Project { get; set; } = null!;
 		public MasterSearchSources? MasterSource { get; set; }
+		public ICollection<SearchStrategy> Strategies { get; set; } = new List<SearchStrategy>();
 	}
 }

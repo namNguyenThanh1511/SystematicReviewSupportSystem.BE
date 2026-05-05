@@ -269,5 +269,76 @@ namespace SRSS.IAM.Services.GrobidClient
 
             return dtos;
         }
+
+        /// <summary>
+        /// Extracts page dimensions from TEI facsimile surface element.
+        /// Returns (PageWidth, PageHeight) from lrx and lry attributes of the first surface element.
+        /// </summary>
+        public static (double? PageWidth, double? PageHeight) ParseSurfaceSize(string teiXml)
+        {
+            if (string.IsNullOrWhiteSpace(teiXml))
+                return (null, null);
+
+            try
+            {
+                var doc = XDocument.Parse(teiXml);
+                XNamespace tei = "http://www.tei-c.org/ns/1.0";
+
+                var surface = doc.Descendants(tei + "facsimile")
+                    .Elements(tei + "surface")
+                    .FirstOrDefault();
+
+                if (surface == null)
+                    return (null, null);
+
+                double? pageWidth = null;
+                double? pageHeight = null;
+
+                var lrxAttr = (string?)surface.Attribute("lrx");
+                var lryAttr = (string?)surface.Attribute("lry");
+
+                if (!string.IsNullOrWhiteSpace(lrxAttr) && double.TryParse(lrxAttr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lrx))
+                {
+                    pageWidth = lrx;
+                }
+
+                if (!string.IsNullOrWhiteSpace(lryAttr) && double.TryParse(lryAttr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lry))
+                {
+                    pageHeight = lry;
+                }
+
+                return (pageWidth, pageHeight);
+            }
+            catch
+            {
+                return (null, null);
+            }
+        }
+
+        public static string ParseBodyText(string teiXml)
+        {
+            if (string.IsNullOrWhiteSpace(teiXml))
+                return string.Empty;
+
+            try
+            {
+                var doc = XDocument.Parse(teiXml);
+                XNamespace tei = "http://www.tei-c.org/ns/1.0";
+
+                var body = doc.Descendants(tei + "body").FirstOrDefault();
+                if (body == null) return string.Empty;
+
+                // Extract text from all paragraphs in the body
+                var paragraphs = body.Descendants(tei + "p")
+                    .Select(p => p.Value.Trim())
+                    .Where(v => !string.IsNullOrEmpty(v));
+
+                return string.Join("\n\n", paragraphs);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
     }
 }

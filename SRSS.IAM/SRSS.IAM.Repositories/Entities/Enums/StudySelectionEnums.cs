@@ -56,7 +56,6 @@ namespace SRSS.IAM.Repositories.Entities.Enums
     /// </summary>
     public enum FullTextRetrievalStatus
     {
-        Unknown = 0,
         Retrieved = 1,
         NotRetrieved = 2
     }

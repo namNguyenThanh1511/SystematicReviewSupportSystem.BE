@@ -961,7 +961,7 @@ namespace SRSS.IAM.API.Data
         {
             if (!await context.QualityAssessmentStrategies.AnyAsync(x => x.Id == Har2QualityStrategy1Id))
             {
-                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, ReviewProcessId = HarReviewProcessId, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
+                await context.QualityAssessmentStrategies.AddAsync(new QualityAssessmentStrategy { Id = Har2QualityStrategy1Id, QualityAssessmentProcessId = HarQualityAssessmentProcessId, Description = "Custom checklist for Protocol 2", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.QualityChecklists.AddAsync(new QualityChecklist { Id = Har2QualityChecklist1Id, QaStrategyId = Har2QualityStrategy1Id, Name = "HAR Protocol 2 Checklist", CreatedAt = DateTimeOffset.UtcNow, ModifiedAt = DateTimeOffset.UtcNow });
                 await context.QualityCriteria.AddRangeAsync(new List<QualityCriterion>
                 {
@@ -1573,7 +1573,8 @@ namespace SRSS.IAM.API.Data
                 new MasterSearchSources { SourceName = "Scopus", BaseUrl = "https://www.scopus.com/", IsActive = true },
                 new MasterSearchSources { SourceName = "Web of Science", BaseUrl = "https://www.webofscience.com/", IsActive = true },
                 new MasterSearchSources { SourceName = "UCI ML Repository", BaseUrl = "https://archive.ics.uci.edu/", IsActive = true },
-                new MasterSearchSources { SourceName = "Kaggle Datasets", BaseUrl = "https://www.kaggle.com/datasets", IsActive = true }
+                new MasterSearchSources { SourceName = "Kaggle Datasets", BaseUrl = "https://www.kaggle.com/datasets", IsActive = true },
+                new MasterSearchSources { SourceName = "Crossref", BaseUrl = "https://www.crossref.org/site-search/", IsActive = true }
             };
 
             context.MasterSearchSources.AddRange(sources);

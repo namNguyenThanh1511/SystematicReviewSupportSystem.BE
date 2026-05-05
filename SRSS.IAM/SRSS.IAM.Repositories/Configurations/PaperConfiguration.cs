@@ -150,7 +150,7 @@ namespace SRSS.IAM.Repositories.Configurations
 
             builder.Property(p => p.FullTextRetrievalStatus)
                 .HasColumnName("full_text_retrieval_status")
-                .HasDefaultValue(FullTextRetrievalStatus.Unknown);
+                .HasDefaultValue(FullTextRetrievalStatus.NotRetrieved);
 
             builder.Property(p => p.FullTextAvailable)
                 .HasColumnName("full_text_available");

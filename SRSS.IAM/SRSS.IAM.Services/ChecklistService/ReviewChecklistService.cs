@@ -4,16 +4,41 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.DTOs.Checklist;
+using SRSS.IAM.Services.GrobidClient;
+using SRSS.IAM.Services.OpenRouter;
+using SRSS.IAM.Services.NotificationService;
+using Microsoft.AspNetCore.Http;
+using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.SupabaseService;
 
 namespace SRSS.IAM.Services.ChecklistService
 {
     public class ReviewChecklistService : IReviewChecklistService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IGrobidService _grobidService;
+        private readonly IOpenRouterService _openRouterService;
+        private readonly INotificationService _notificationService;
+        private readonly ICurrentUserService _currentUserService;
+        private readonly IChecklistAutoFillQueue _autoFillQueue;
+        private readonly ISupabaseStorageService _storageService;
 
-        public ReviewChecklistService(IUnitOfWork unitOfWork)
+        public ReviewChecklistService(
+            IUnitOfWork unitOfWork,
+            IGrobidService grobidService,
+            IOpenRouterService openRouterService,
+            INotificationService notificationService,
+            ICurrentUserService currentUserService,
+            IChecklistAutoFillQueue autoFillQueue,
+            ISupabaseStorageService storageService)
         {
             _unitOfWork = unitOfWork;
+            _grobidService = grobidService;
+            _openRouterService = openRouterService;
+            _notificationService = notificationService;
+            _currentUserService = currentUserService;
+            _autoFillQueue = autoFillQueue;
+            _storageService = storageService;
         }
 
         public async Task<List<ReviewChecklistSummaryDto>> GetReviewChecklistsAsync(Guid reviewId, CancellationToken cancellationToken = default)
@@ -236,6 +261,46 @@ namespace SRSS.IAM.Services.ChecklistService
             return stream.ToArray();
         }
 
+        public async Task<ChecklistAutoFillStatusDto> QueueAutoFillChecklist(Guid checkListId, IFormFile file, CancellationToken cancellationToken = default)
+        {
+            if (file == null || file.Length == 0)
+            {
+                throw new ArgumentException("PDF file is required.");
+            }
+
+            var userIdStr = _currentUserService.GetUserId();
+            if (!Guid.TryParse(userIdStr, out var userId))
+            {
+                throw new InvalidOperationException("Unable to determine the current user.");
+            }
+
+            // Buffer PDF bytes so the work item outlives the HTTP request
+            using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream);
+            var pdfBytes = memoryStream.ToArray();
+
+            var workItem = new ChecklistAutoFillWorkItem
+            {
+                ReviewChecklistId = checkListId,
+                UserId = userId,
+                FileName = file.FileName,
+                PdfBytes = pdfBytes
+            };
+
+            if (!_autoFillQueue.TryWrite(workItem))
+            {
+                throw new InvalidOperationException("Auto-fill queue is full. Please try again later.");
+            }
+
+            return new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checkListId,
+                Status = AutoFillStatus.Queued,
+                Message = "Processing...",
+                Timestamp = DateTimeOffset.UtcNow
+            };
+        }
+
         private static bool IsItemCompleted(ChecklistItemResponseDto item)
         {
             if (item.IsReported)
@@ -414,6 +479,160 @@ namespace SRSS.IAM.Services.ChecklistService
                 new ParagraphProperties(new Indentation { Left = leftIndent }),
                 new Run(runProps, new Text(text)));
         }
+
+        public async Task AutoFillChecklistFromPdfAsync(Guid checkListId, Stream pdfStream, string fileName, Guid userId, CancellationToken cancellationToken = default)
+        {
+            // 1. Get Checklist Details
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.ExtractingText, "Extracting text from PDF via GROBID...");
+
+            var checklist = await _unitOfWork.ReviewChecklists.GetByIdWithDetailsAsync(checkListId, cancellationToken)
+                ?? throw new InvalidOperationException("Review checklist not found.");
+
+            // 2. Extract Fulltext via GROBID
+            using var ms = new MemoryStream();
+            await pdfStream.CopyToAsync(ms, cancellationToken);
+            var pdfBytes = ms.ToArray();
+            ms.Position = 0;
+
+            var teiXml = await _grobidService.ProcessFulltextDocumentAsync(ms, cancellationToken);
+            if (string.IsNullOrWhiteSpace(teiXml))
+            {
+                throw new InvalidOperationException("Failed to extract text from PDF via GROBID.");
+            }
+            var fullText = teiXml;
+
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.TextExtracted, "Text extracted successfully. Preparing AI analysis...");
+
+            // 3. Prepare Items for Gemini
+            var view = ChecklistViewMapper.MapReviewChecklist(checklist);
+            var respondableItems = view.Items.Where(x => x.CanRespond).ToList();
+            var itemsToMap = respondableItems
+                .Select(x => new { x.ItemNumber, x.Topic, x.Description })
+                .ToList();
+
+            // 4. Construct Prompt for Gemini
+            var itemsJson = System.Text.Json.JsonSerializer.Serialize(itemsToMap);
+            var prompt = $@"
+You are a Systematic Literature Review expert assistant. 
+Your task is to analyze the provided full text of a research paper and map it to the PRISMA 2020 checklist items.
+
+For each checklist item provided below, identify:
+1. 'location': Where in the paper this item is discussed (e.g., 'Methods section, page 4', 'Introduction, paragraph 2').
+2. 'isReported': Boolean, true if the item is explicitly addressed in the text.
+3. 'pdfCoordinates': A string containing the PDF highlight coordinates corresponding to the relevant text with the format 'p,x,y,h,w' separated by semicolons. Copy the full coords attribute from Paper Text of the text regions that directly support the checklist item.
+
+PAPER TEXT:
+---
+{fullText}
+---
+
+CHECKLIST ITEMS:
+{itemsJson}
+
+Return the results as an array containing objects with 'itemNumber', 'location', 'isReported', 'pdfCoordinates'.
+";
+
+            // 5. Call OpenRouter
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.AnalyzingWithAI,
+                $"Analyzing {respondableItems.Count} checklist items with AI...",
+                totalItems: respondableItems.Count);
+
+            var aiResponse = await _openRouterService.GenerateStructuredContentAsync<ChecklistMappingsResponse>(prompt);
+
+            // 6. Update Database
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
+                $"AI analysis complete. Saving {aiResponse.Mappings.Count} mapped results...",
+                totalItems: respondableItems.Count,
+                mappedItems: aiResponse.Mappings.Count);
+
+            var now = DateTimeOffset.UtcNow;
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var existingResponses = await _unitOfWork.ChecklistItemResponses.FindAllAsync(
+                    x => x.ReviewChecklistId == checkListId,
+                    isTracking: true,
+                    cancellationToken: cancellationToken);
+
+                var responsesList = existingResponses.ToList();
+                if (responsesList.Count > 0)
+                {
+                    await _unitOfWork.ChecklistItemResponses.RemoveMultipleAsync(responsesList, cancellationToken);
+                }
+
+                foreach (var mapping in aiResponse.Mappings)
+                {
+                    var item = checklist.Template.ItemTemplates.FirstOrDefault(x => x.ItemNumber == mapping.ItemNumber);
+                    if (item == null) continue;
+
+                    var response = new ChecklistItemResponse
+                    {
+                        Id = Guid.NewGuid(),
+                        ReviewChecklistId = checkListId,
+                        ItemTemplateId = item.Id,
+                        Location = mapping.Location,
+                        IsReported = mapping.IsReported,
+                        IsCompleted = true,
+                        PdfCoordinates = string.IsNullOrWhiteSpace(mapping.PdfCoordinates) ? null : mapping.PdfCoordinates.Trim(),
+                        CreatedAt = now,
+                        LastUpdatedAt = now,
+                        ModifiedAt = now
+                    };
+                    await _unitOfWork.ChecklistItemResponses.AddAsync(response, cancellationToken);
+                }
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch (Exception)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            // 7. Upload PDF to Supabase and save URL
+            await SendAutoFillStatus(userId, checkListId, AutoFillStatus.SavingResults,
+                "Uploading PDF to storage...");
+
+            var pdfUrl = await _storageService.UploadPdfBytesAsync(
+                pdfBytes,
+                fileName,
+                $"checklists/{checkListId}");
+
+            checklist.PdfUrl = pdfUrl;
+            checklist.ModifiedAt = DateTimeOffset.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var completion = await CalculateCompletionPercentageAsync(checkListId, cancellationToken);
+
+            // 8. Send final completion status with full details
+            await _notificationService.SendChecklistAutoFillStatusAsync(userId, new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checkListId,
+                Status = AutoFillStatus.Completed,
+                Message = "Checklist auto-fill completed successfully.",
+                CompletionPercentage = completion.CompletionPercentage,
+                TotalItems = respondableItems.Count,
+                MappedItems = aiResponse.Mappings.Count,
+                PdfUrl = pdfUrl,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+        }
+
+        private async Task SendAutoFillStatus(Guid userId, Guid checklistId, string status, string message,
+            double? completionPercentage = null, int? totalItems = null, int? mappedItems = null)
+        {
+            await _notificationService.SendChecklistAutoFillStatusAsync(userId, new ChecklistAutoFillStatusDto
+            {
+                ReviewChecklistId = checklistId,
+                Status = status,
+                Message = message,
+                CompletionPercentage = completionPercentage,
+                TotalItems = totalItems,
+                MappedItems = mappedItems,
+                Timestamp = DateTimeOffset.UtcNow
+            });
+        }
     }
 
     internal static class ChecklistViewMapper
@@ -510,6 +729,7 @@ namespace SRSS.IAM.Services.ChecklistService
                 IsCompleted = checklist.IsCompleted,
                 CompletionPercentage = checklist.CompletionPercentage,
                 LastUpdatedAt = checklist.LastUpdatedAt,
+                PdfUrl = checklist.PdfUrl,
                 Sections = sections,
                 Items = items
             };
@@ -529,7 +749,8 @@ namespace SRSS.IAM.Services.ChecklistService
                 IsCompleted = checklist.IsCompleted,
                 CompletionPercentage = checklist.CompletionPercentage,
                 ItemCount = checklist.Template.ItemTemplates.Count,
-                LastUpdatedAt = checklist.LastUpdatedAt
+                LastUpdatedAt = checklist.LastUpdatedAt,
+                PdfUrl = checklist.PdfUrl
             };
         }
 
@@ -554,6 +775,7 @@ namespace SRSS.IAM.Services.ChecklistService
                 Children = new List<ChecklistItemResponseDto>(),
                 Location = response?.Location,
                 IsReported = response?.IsReported ?? false,
+                PdfCoordinates = response?.PdfCoordinates,
                 LastUpdatedAt = response?.LastUpdatedAt
             };
         }
@@ -580,6 +802,7 @@ namespace SRSS.IAM.Services.ChecklistService
                 Location = response?.Location,
                 IsReported = response?.IsReported ?? false,
                 IsCompleted = response?.IsCompleted ?? false,
+                PdfCoordinates = response?.PdfCoordinates,
                 LastUpdatedAt = response?.LastUpdatedAt
             };
         }

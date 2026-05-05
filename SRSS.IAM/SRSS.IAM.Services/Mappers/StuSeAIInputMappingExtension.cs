@@ -10,7 +10,6 @@ namespace SRSS.IAM.Services.Mappers
     {
         public static StuSeAIInput BuildStuSeAIInput(this StudySelectionProcess process, Paper paper)
         {
-            var project = process.ReviewProcess.Project;
             var result = new StuSeAIInput
             {
                 Paper = new StuSePaperInput
@@ -26,24 +25,14 @@ namespace SRSS.IAM.Services.Mappers
             if (paper.PublicationYearInt.HasValue)
                 result.Paper.PublicationYear = paper.PublicationYearInt.Value;
 
-
-            // 4. RESEARCH QUESTIONS (Hierarchical)
-            result.ResearchQuestions = project.ResearchQuestions?
-                .Select(rq => new StuSeRQInput
-                {
-                    QuestionText = rq.QuestionText?.Trim() ?? string.Empty,
-                    // PICOC = MapPicocFromElements(rq.PicocElements)
-                })
-                .ToList() ?? new List<StuSeRQInput>();
-
-            // 5. CRITERIA GROUPS
+            // 2. CRITERIA GROUPS
             if (process.StudySelectionCriterias != null && process.StudySelectionCriterias.Any())
             {
                 result.CriteriaGroups = process.StudySelectionCriterias.Select(cg => new StuSeCriteriaGroupInput
                 {
                     Description = cg.Description?.Trim(),
-                    InclusionRules = MapCriteria(cg.InclusionCriteria?.Select(c => c.Rule)),
-                    ExclusionRules = MapCriteria(cg.ExclusionCriteria?.Select(c => c.Rule))
+                    Inclusion = MapCriteria(cg.InclusionCriteria?.Select(c => c.Rule)),
+                    Exclusion = MapCriteria(cg.ExclusionCriteria?.Select(c => c.Rule))
                 }).ToList();
             }
             else
@@ -51,36 +40,8 @@ namespace SRSS.IAM.Services.Mappers
                 result.CriteriaGroups = new List<StuSeCriteriaGroupInput>();
             }
 
-
             return result;
         }
-
-        private static StuSePicocInput? MapPicocFromElements(IEnumerable<PicocElement> elements)
-        {
-            if (elements == null || !elements.Any()) return null;
-
-            var picoc = new StuSePicocInput();
-            var hasValue = false;
-
-            foreach (var element in elements)
-            {
-                var type = element.ElementType?.Trim().ToLower();
-                var desc = element.Description?.Trim();
-                if (string.IsNullOrWhiteSpace(desc)) continue;
-
-                switch (type)
-                {
-                    case "population": picoc.Population = desc; hasValue = true; break;
-                    case "intervention": picoc.Intervention = desc; hasValue = true; break;
-                    case "comparison": picoc.Comparison = desc; hasValue = true; break;
-                    case "outcome": picoc.Outcome = desc; hasValue = true; break;
-                    case "context": picoc.Context = desc; hasValue = true; break;
-                }
-            }
-
-            return hasValue ? picoc : null;
-        }
-
 
         private static List<string> MapCriteria(IEnumerable<string?>? rules)
         {

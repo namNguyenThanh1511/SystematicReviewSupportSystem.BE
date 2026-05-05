@@ -61,13 +61,15 @@ namespace SRSS.IAM.Repositories.Entities
         public Guid? SearchSourceId { get; set; }
         public DateTimeOffset? ImportedAt { get; set; }
         public string? ImportedBy { get; set; }
+        public string? DeletedBy { get; set; }
+        public DateTimeOffset? DeletedAt { get; set; }
 
         // ============================================
         // ACCESS & FULL-TEXT AVAILABILITY
         // ============================================
         public string? PdfUrl { get; set; }
         public string? PdfFileName { get; set; }
-        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; } = FullTextRetrievalStatus.Unknown;
+        public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; } = FullTextRetrievalStatus.NotRetrieved;
         public bool? FullTextAvailable { get; set; }
         public AccessType? AccessType { get; set; }
 
@@ -75,6 +77,7 @@ namespace SRSS.IAM.Repositories.Entities
         // AUDIT FIELDS (NO WORKFLOW STATE)
         // ============================================
         public string? InternalNotes { get; set; }
+        public string? DeleteReason { get; set; }
         public bool IsDeleted { get; set; } = false;
 
         public bool IsDuplicated { get; set; } = false;

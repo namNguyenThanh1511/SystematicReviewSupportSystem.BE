@@ -87,6 +87,99 @@ namespace SRSS.IAM.API.Controllers
             return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
         }
 
+        /// <summary>
+        /// Import bibliographic records from a BibTeX file
+        /// </summary>
+        /// <param name="file">BibTeX file (.bib extension)</param>
+        /// <param name="searchSourceId">Source database ID (referencing SearchSource entity)</param>
+        /// <param name="projectId">Project ID that owns the paper pool</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Import summary with counts and any errors</returns>
+        [HttpPost("import/bibtex")]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportBibTexFile(
+            IFormFile file,
+            [FromForm] Guid? searchSourceId,
+            [FromForm] Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            // Validate file presence
+            if (file == null || file.Length == 0)
+            {
+                throw new ArgumentException("No file uploaded.");
+            }
+
+            // Validate file extension
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".bib")
+            {
+                throw new ArgumentException("Invalid file format. Only .bib files are accepted.");
+            }
+
+            // Validate file size (e.g., max 10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (file.Length > maxFileSize)
+            {
+                throw new ArgumentException("File size exceeds the maximum allowed size of 10MB.");
+            }
+
+            using var stream = file.OpenReadStream();
+            var result = await _identificationService.ImportBibTexFileAsync(
+                stream,
+                file.FileName,
+                searchSourceId,
+                projectId,
+                cancellationToken);
+
+            // Check if import was successful
+            if (result.TotalRecords == 0 && result.Errors.Any())
+            {
+                throw new InvalidOperationException("Failed to import BibTeX file.");
+            }
+
+            if (result.ImportedRecords == 0 && result.UpdatedRecords == 0)
+            {
+                return Ok(result, "No new records imported. All records were duplicates or skipped.");
+            }
+
+            return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
+        }
+
+        /// <summary>
+        /// Import a single paper by resolving its DOI via Crossref
+        /// </summary>
+        [HttpPost("import/doi")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportFromDoi(
+            [FromBody] DoiImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ImportFromDoiAsync(
+                request.Doi,
+                request.SearchSourceId,
+                request.ProjectId,
+                cancellationToken);
+
+            return Ok(result, "Successfully imported record from DOI.");
+        }
+
+        /// <summary>
+        /// Import multiple papers by querying Crossref API
+        /// </summary>
+        [HttpPost("import/cross-ref")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportFromApi(
+            [FromBody] ApiImportRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _identificationService.ImportFromApiAsync(
+                request.Query,
+                request.SearchSourceId,
+                request.ProjectId,
+                cancellationToken);
+
+            return Ok(result, $"Successfully imported {result.ImportedRecords} records from API.");
+        }
+
 
         /// <summary>
         /// Assign single/multiple papers to single/multiple project members.
@@ -321,6 +414,66 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _paperService.GetPaperByIdAsync(paperId, cancellationToken);
             return Ok(result, "Paper details retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Soft delete a paper with a reason.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="request">The delete reason</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("{paperId}")]
+        public async Task<ActionResult<ApiResponse>> DeletePaper(
+            [FromRoute] Guid paperId,
+            [FromBody] DeletePaperRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.DeletePaperAsync(paperId, request, cancellationToken);
+            return Ok("Paper deleted successfully.");
+        }
+
+        /// <summary>
+        /// Get all soft-deleted papers for a project.
+        /// Includes deletion reason and audit info.
+        /// </summary>
+        [HttpGet("/api/projects/{projectId}/deleted-papers")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<PaperDetailsResponse>>>> GetDeletedPapers(
+            [FromRoute] Guid projectId,
+            [FromQuery] PaperListRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetDeletedPapersAsync(projectId, request, cancellationToken);
+            return Ok(result, "Deleted papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Get all confirmed duplicate papers for a project.
+        /// Includes resolution info (who resolved, when).
+        /// </summary>
+        [HttpGet("/api/projects/{projectId}/confirmed-duplicates")]
+        public async Task<ActionResult<ApiResponse<PaginatedResponse<DuplicatePaperResponse>>>> GetConfirmedDuplicatePapers(
+            [FromRoute] Guid projectId,
+            [FromQuery] DuplicatePapersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _paperService.GetConfirmedDuplicatePapersAsync(projectId, request, cancellationToken);
+            return Ok(result, "Confirmed duplicate papers retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Remove PDF attachment from a paper.
+        /// </summary>
+        /// <param name="paperId">The Paper ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Success message</returns>
+        [HttpDelete("{paperId}/pdf")]
+        public async Task<ActionResult<ApiResponse>> RemovePdfAttachment(
+            [FromRoute] Guid paperId,
+            CancellationToken cancellationToken)
+        {
+            await _paperService.RemovePdfAttachmentAsync(paperId, cancellationToken);
+            return Ok("PDF attachment removed successfully.");
         }
     }
 }

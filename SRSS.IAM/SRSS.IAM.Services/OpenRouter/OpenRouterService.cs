@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -143,18 +144,24 @@ public class OpenRouterService : IOpenRouterService
             Messages: new[] { new OpenRouterMessage("user", prompt) },
             Temperature: temperature,
             Stream: false,
-            ResponseFormat: new OpenRouterResponseFormat("json_object")
+            ResponseFormat: new OpenRouterResponseFormat
+            {
+                Type = "json_schema",
+                JsonSchema = new OpenRouterJsonSchema
+                {
+                    Name = typeof(T).Name.ToLowerInvariant(),
+                    Strict = true,
+                    Schema = GenerateJsonSchema(typeof(T))
+                }
+            }
         );
 
         try
         {
-            _logger.LogInformation("OpenRouter API request: {Prompt}", JsonSerializer.Serialize(request));
-
             var response = await _httpClient.PostAsJsonAsync("chat/completions", request, ct);
 
             // BƯỚC 1: Đọc content vào biến string DUY NHẤT
             var rawJsonResponse = await response.Content.ReadAsStringAsync(ct);
-            _logger.LogInformation("OpenRouter API response: {Response}", rawJsonResponse);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -175,36 +182,84 @@ public class OpenRouterService : IOpenRouterService
                 throw new InvalidOperationException("OpenRouter returned an empty response.");
             }
 
-            // ROBUST CLEANING: Extract only the JSON part
-            var cleanedContent = CleanJsonString(content);
-            _logger.LogInformation("Cleaned Content for Deserialization: {Content}", cleanedContent);
+            // // ROBUST CLEANING: Extract only the JSON part
+            // var cleanedContent = CleanJsonString(content);
+            // _logger.LogInformation("Cleaned Content for Deserialization: {Content}", cleanedContent);
 
-            // BƯỚC 3: Deserialize nội dung AI vào kiểu T (ví dụ: GenerateRqsResponse)
-            var deserializedOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                AllowTrailingCommas = true,
-                ReadCommentHandling = JsonCommentHandling.Skip,
-                NumberHandling = JsonNumberHandling.AllowReadingFromString
-            };
-            deserializedOptions.Converters.Add(new FlexibleStringConverter());
+            // // BƯỚC 3: Deserialize nội dung AI vào kiểu T (ví dụ: GenerateRqsResponse)
+            // var deserializedOptions = new JsonSerializerOptions
+            // {
+            //     PropertyNameCaseInsensitive = true,
+            //     AllowTrailingCommas = true,
+            //     ReadCommentHandling = JsonCommentHandling.Skip,
+            //     NumberHandling = JsonNumberHandling.AllowReadingFromString
+            // };
+            // deserializedOptions.Converters.Add(new FlexibleStringConverter());
+            // deserializedOptions.Converters.Add(new FlexibleGuidConverter());
 
-            try
+            // try
+            // {
+            //     var deserialized = JsonSerializer.Deserialize<T>(cleanedContent, deserializedOptions);
+            //     return deserialized ?? throw new InvalidOperationException($"Failed to deserialize to type {typeof(T).Name}");
+            // }
+            // catch (JsonException jex)
+            // {
+            //     _logger.LogError(jex, "Failed to map JSON to type {Type}. JSON Content: {Json}", typeof(T).Name, cleanedContent);
+            //     throw new InvalidOperationException($"Mapping error for {typeof(T).Name}: {jex.Message}");
+            // }
+
+            return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
             {
-                var deserialized = JsonSerializer.Deserialize<T>(cleanedContent, deserializedOptions);
-                return deserialized ?? throw new InvalidOperationException($"Failed to deserialize to type {typeof(T).Name}");
-            }
-            catch (JsonException jex)
-            {
-                _logger.LogError(jex, "Failed to map JSON to type {Type}. JSON Content: {Json}", typeof(T).Name, cleanedContent);
-                throw new InvalidOperationException($"Mapping error for {typeof(T).Name}: {jex.Message}");
-            }
+                PropertyNameCaseInsensitive = true
+            })!;
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
             _logger.LogError(ex, "Exception occurred while calling OpenRouter for structured content");
             throw;
         }
+    }
+
+    private static object GenerateJsonSchema(System.Type type)
+    {
+        var underlyingType = Nullable.GetUnderlyingType(type);
+        var actualType = underlyingType ?? type;
+
+        if (actualType == typeof(string) || actualType == typeof(Guid)) return new { type = "string" };
+        if (actualType == typeof(int) || actualType == typeof(long) || actualType == typeof(short)) return new { type = "integer" };
+        if (actualType.IsEnum) return new { type = "integer" };
+        if (actualType == typeof(float) || actualType == typeof(double) || actualType == typeof(decimal)) return new { type = "number" };
+        if (actualType == typeof(bool)) return new { type = "boolean" };
+
+        if (typeof(System.Collections.IEnumerable).IsAssignableFrom(actualType) && actualType != typeof(string))
+        {
+            var elementType = actualType.IsArray ? actualType.GetElementType() : actualType.GetGenericArguments()[0];
+            return new
+            {
+                type = "array",
+                items = GenerateJsonSchema(elementType)
+            };
+        }
+
+        var properties = new Dictionary<string, object>();
+        var required = new List<string>();
+
+        foreach (var prop in actualType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+        {
+            var attr = prop.GetCustomAttribute<JsonPropertyNameAttribute>();
+            string propName = attr?.Name ?? char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1);
+
+            properties[propName] = GenerateJsonSchema(prop.PropertyType);
+            required.Add(propName);
+        }
+
+        return new
+        {
+            type = "object",
+            properties = properties,
+            required = required,
+            additionalProperties = false
+        };
     }
 
     private static string CleanJsonString(string content)
@@ -278,8 +333,8 @@ public class FlexibleStringConverter : JsonConverter<string>
             return reader.GetString();
         }
 
-        if (reader.TokenType == JsonTokenType.Number || 
-            reader.TokenType == JsonTokenType.True || 
+        if (reader.TokenType == JsonTokenType.Number ||
+            reader.TokenType == JsonTokenType.True ||
             reader.TokenType == JsonTokenType.False)
         {
             return Encoding.UTF8.GetString(reader.ValueSpan);
@@ -296,5 +351,50 @@ public class FlexibleStringConverter : JsonConverter<string>
     public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value);
+    }
+}
+
+public class FlexibleGuidConverter : JsonConverter<Guid?>
+{
+    public override Guid? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            if (Guid.TryParse(reader.GetString(), out var guid))
+                return guid;
+            return null;
+        }
+
+        if (reader.TokenType == JsonTokenType.StartArray)
+        {
+            Guid? firstGuid = null;
+            reader.Read(); // Move to first element
+
+            while (reader.TokenType != JsonTokenType.EndArray)
+            {
+                if (firstGuid == null && reader.TokenType == JsonTokenType.String)
+                {
+                    if (Guid.TryParse(reader.GetString(), out var guid))
+                        firstGuid = guid;
+                }
+                reader.Read();
+            }
+            return firstGuid;
+        }
+
+        if (reader.TokenType == JsonTokenType.Null)
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Guid? value, JsonSerializerOptions options)
+    {
+        if (value.HasValue)
+            writer.WriteStringValue(value.Value.ToString());
+        else
+            writer.WriteNullValue();
     }
 }

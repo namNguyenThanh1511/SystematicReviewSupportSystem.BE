@@ -609,7 +609,7 @@ namespace SRSS.IAM.API.Controllers
             var isExist = _fullTextAiEvaluationQueue.IsProcessing(studySelectionId, paperId);
             if (isExist)
             {
-                return Ok("AI evaluation is already in progress for this paper.", "Evaluation already exists.");
+                throw new InvalidOperationException("AI evaluation is already in progress for this paper. Please wait for the background job to complete.");
             }
 
             var enqueued = _fullTextAiEvaluationQueue.Enqueue(new StuSeFullTextAiEvaluationTask(studySelectionId, paperId, reviewerId));
@@ -704,6 +704,19 @@ namespace SRSS.IAM.API.Controllers
         {
             await _exclusionCodeService.DeleteAsync(id);
             return Ok("Exclusion reason deleted successfully.");
+        }
+
+        /// <summary>
+        /// Get final resolution paper progress data for the Decision Matrix UI
+        /// </summary>
+        [HttpGet("study-selection/{id}/final-resolution-progress")]
+        public async Task<ActionResult<ApiResponse<FinalResolutionProgressResponse>>> GetFinalResolutionPaperProgress(
+            [FromRoute] Guid id,
+            [FromQuery] FinalResolutionProgressRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _studySelectionService.GetFinalResolutionPaperProgressAsync(id, request, cancellationToken);
+            return Ok(result, "Final resolution paper progress retrieved successfully.");
         }
     }
 }

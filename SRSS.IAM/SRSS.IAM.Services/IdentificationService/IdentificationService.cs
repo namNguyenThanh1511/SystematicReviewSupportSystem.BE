@@ -13,6 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.PrismaReport;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.DTOs.Crossref;
+using SRSS.IAM.Services.Parsers;
+using Microsoft.Extensions.Logging;
 
 namespace SRSS.IAM.Services.IdentificationService
 {
@@ -23,19 +26,34 @@ namespace SRSS.IAM.Services.IdentificationService
         private readonly ILocalEmbeddingService _embeddingService;
         private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRisParser _risParser;
+        private readonly IBibTexParser _bibTexParser;
+        private readonly IDoiParser _doiParser;
+        private readonly IApiParser<CrossrefQueryParameters> _apiParser;
+        private readonly ILogger<IdentificationService> _logger;
 
         public IdentificationService(
             IUnitOfWork unitOfWork,
             IReferenceMatchingService matchingService,
             ILocalEmbeddingService embeddingService,
             IPaperEnrichmentOrchestrator enrichmentOrchestrator,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IRisParser risParser,
+            IBibTexParser bibTexParser,
+            IDoiParser doiParser,
+            IApiParser<CrossrefQueryParameters> apiParser,
+            ILogger<IdentificationService> logger)
         {
             _unitOfWork = unitOfWork;
             _matchingService = matchingService;
             _embeddingService = embeddingService;
             _enrichmentOrchestrator = enrichmentOrchestrator;
             _currentUserService = currentUserService;
+            _risParser = risParser;
+            _bibTexParser = bibTexParser;
+            _doiParser = doiParser;
+            _apiParser = apiParser;
+            _logger = logger;
         }
 
         public async Task<IdentificationProcessResponse> CreateIdentificationProcessAsync(
@@ -210,7 +228,7 @@ namespace SRSS.IAM.Services.IdentificationService
             }
 
             var importBatchList = await _unitOfWork.ImportBatches.GetByProjectIdsAsync(projectId, cancellationToken);
-            var totalRecordsImported = importBatchList.Sum(ib => ib.TotalRecords);
+            var totalRecordsImported = await _unitOfWork.Papers.CountAsync(p => p.ProjectId == projectId, cancellationToken);
 
             // Query actual unique paper count from the frozen snapshot
             var uniquePaperIds = await _unitOfWork.IdentificationProcessPapers.GetIncludedPaperIdsByProcessAsync(identificationProcess.Id, cancellationToken);
@@ -222,7 +240,7 @@ namespace SRSS.IAM.Services.IdentificationService
             var searchSourceIds = await _unitOfWork.SearchSources.GetByProjectIdAsync(projectId, cancellationToken);
 
             var paperToSearchSource = await _unitOfWork.Papers.GetQueryable()
-                .Where(p => uniquePaperIds.Contains(p.Id))
+                .Where(p => p.ProjectId == projectId)
                 .Select(p => new { p.Id, p.SearchSourceId })
                 .ToListAsync(cancellationToken);
 
@@ -436,6 +454,8 @@ namespace SRSS.IAM.Services.IdentificationService
         }
 
 
+        // ─── Import entry points ────────────────────────────────────────────────────
+
         public async Task<RisImportResultDto> ImportRisFileAsync(
             Stream fileStream,
             string fileName,
@@ -443,124 +463,195 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid projectId,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("Starting RIS file import. File: {FileName}, Project: {ProjectId}", fileName, projectId);
+
+            List<RisPaperDto> papers;
+            try
+            {
+                papers = _risParser.Parse(fileStream);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to parse RIS file '{fileName}': {ex.Message}", ex);
+            }
+
+            return await ImportAsync(
+                papers,
+                sourceName: null,      // resolved inside ImportAsync from searchSource.Name
+                fileName: fileName,
+                fileType: "RIS",
+                searchSourceId: searchSourceId,
+                projectId: projectId,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<RisImportResultDto> ImportBibTexFileAsync(
+            Stream fileStream,
+            string fileName,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting BibTeX file import. File: {FileName}, Project: {ProjectId}", fileName, projectId);
+
+            List<RisPaperDto> papers;
+            try
+            {
+                papers = _bibTexParser.Parse(fileStream);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to parse BibTeX file '{fileName}': {ex.Message}", ex);
+            }
+
+            return await ImportAsync(
+                papers,
+                sourceName: null,      // resolved inside ImportAsync from searchSource.Name
+                fileName: fileName,
+                fileType: "BIBTEX",
+                searchSourceId: searchSourceId,
+                projectId: projectId,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<RisImportResultDto> ImportFromDoiAsync(
+            string doi,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting DOI import. DOI: {Doi}, Project: {ProjectId}", doi, projectId);
+
+            var papers = await _doiParser.ParseAsync(doi, cancellationToken);
+
+            return await ImportAsync(
+                papers,
+                sourceName: "Crossref DOI",
+                fileName: $"doi:{doi}",
+                fileType: "DOI",
+                searchSourceId: searchSourceId,
+                projectId: projectId,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<RisImportResultDto> ImportFromApiAsync(
+            CrossrefQueryParameters query,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting Crossref API import. Query: {@Query}, Project: {ProjectId}", query, projectId);
+
+            var papers = await _apiParser.ParseAsync(query, cancellationToken);
+
+            return await ImportAsync(
+                papers,
+                sourceName: "Crossref API",
+                fileName: $"crossref-query:{query.Query ?? query.QueryTitle ?? "custom"}",
+                fileType: "API",
+                searchSourceId: searchSourceId,
+                projectId: projectId,
+                cancellationToken: cancellationToken);
+        }
+
+        // ─── Shared import core ─────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Creates an <see cref="ImportBatch"/>, runs <see cref="ProcessPapersAsync"/>,
+        /// and wraps everything in a database transaction.
+        /// All import entry points (RIS, DOI, API) converge here.
+        /// </summary>
+        private async Task<RisImportResultDto> ImportAsync(
+            List<RisPaperDto> papers,
+            string? sourceName,
+            string fileName,
+            string fileType,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken)
+        {
             var result = new RisImportResultDto();
+
+            // Resolve current user
             var currentUser = _currentUserService.GetCurrentUser();
             var user = await _unitOfWork.Users.FindSingleAsync(
                 u => u.Id == Guid.Parse(currentUser.userId),
                 cancellationToken: cancellationToken);
+
             if (user == null)
-            {
                 throw new NotFoundException($"User with ID {currentUser.userId} not found.");
-            }
+
             var importedBy = user.Username;
+
+            // Validate project
             var project = await _unitOfWork.SystematicReviewProjects.FindSingleAsync(
                 p => p.Id == projectId,
                 isTracking: false,
                 cancellationToken);
 
             if (project == null)
-            {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw new InvalidOperationException($"Project with ID {projectId} not found.");
+
+            // Optionally resolve search source
+            SearchSource? searchSource = null;
+            if (searchSourceId.HasValue)
+            {
+                searchSource = await _unitOfWork.SearchSources.FindSingleAsync(
+                    s => s.Id == searchSourceId.Value,
+                    cancellationToken: cancellationToken);
+
+                if (searchSource == null)
+                    throw new InvalidOperationException($"SearchSource with ID {searchSourceId.Value} not found.");
             }
+
+            var resolvedSource = searchSource?.Name ?? sourceName ?? "Manual Upload";
+
+            result.TotalRecords = papers.Count;
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
             try
             {
-                // Begin transaction to ensure atomicity
-                await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-                try
+                var importBatch = new ImportBatch
                 {
-                    SearchSource? searchSource = null;
-                    if (searchSourceId.HasValue)
-                    {
-                        searchSource = await _unitOfWork.SearchSources.FindSingleAsync(
-                            s => s.Id == searchSourceId.Value,
-                            cancellationToken: cancellationToken);
+                    Id = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    FileName = fileName,
+                    FileType = fileType,
+                    Source = resolvedSource,
+                    TotalRecords = papers.Count,
+                    ImportedBy = importedBy,
+                    ImportedAt = DateTimeOffset.UtcNow,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    ModifiedAt = DateTimeOffset.UtcNow
+                };
 
-                        if (searchSource == null)
-                        {
-                            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                            throw new InvalidOperationException($"SearchSource with ID {searchSourceId.Value} not found.");
-                        }
-                    }
+                await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                result.ImportBatchId = importBatch.Id;
 
-                    // Parse RIS file before creating ImportBatch
-                    List<RisPaperDto> risPapers;
-                    try
-                    {
-                        risPapers = RisParser.Parse(fileStream);
-                    }
-                    catch (Exception ex)
-                    {
+                await ProcessPapersAsync(papers, projectId, importBatch, result, searchSource, cancellationToken);
 
-                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                        throw new InvalidOperationException($"Failed to parse RIS file: {ex.Message}", ex);
+                // Update batch totals after processing
+                importBatch.TotalRecords = result.TotalRecords;
+                importBatch.ModifiedAt = DateTimeOffset.UtcNow;
+                await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
 
-                    }
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                    if (!risPapers.Any())
-                    {
-
-                        await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                        throw new InvalidOperationException("No valid records found in the RIS file.");
-
-                    }
-
-                    result.TotalRecords = risPapers.Count;
-
-                    // Create ImportBatch to track this import
-                    var importBatch = new ImportBatch
-                    {
-                        Id = Guid.NewGuid(),
-                        ProjectId = projectId,
-                        FileName = fileName,
-                        FileType = "RIS",
-                        Source = searchSource?.Name ?? "Manual Upload",
-                        TotalRecords = risPapers.Count,
-                        ImportedBy = importedBy,
-                        ImportedAt = DateTimeOffset.UtcNow,
-                        CreatedAt = DateTimeOffset.UtcNow,
-                        ModifiedAt = DateTimeOffset.UtcNow
-                    };
-
-                    await _unitOfWork.ImportBatches.AddAsync(importBatch, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                    result.ImportBatchId = importBatch.Id;
-
-                    // Process each paper
-                    await ProcessPapersAsync(
-                        risPapers,
-                        projectId,
-                        importBatch,
-                        result,
-                        searchSource,
-                        cancellationToken);
-
-                    // Update ImportBatch with final statistics
-                    importBatch.TotalRecords = result.TotalRecords;
-                    importBatch.ModifiedAt = DateTimeOffset.UtcNow;
-                    await _unitOfWork.ImportBatches.UpdateAsync(importBatch, cancellationToken);
-
-                    // Commit transaction - all changes persisted atomically
-                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    // Rollback transaction on any error
-                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    throw new Exception(ex.Message, ex);
-
-                }
+                _logger.LogInformation(
+                    "Import completed. Source: {Source}, Total: {Total}, Imported: {Imported}, Duplicates: {Dup}",
+                    resolvedSource, result.TotalRecords, result.ImportedRecords, result.DuplicateRecords);
             }
-            catch (Exception ex)
+            catch
             {
-                throw new Exception(ex.Message, ex);
-
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
             }
 
             return result;
         }
+
         private async Task ProcessPapersAsync(
             List<RisPaperDto> risPapers,
             Guid projectId,

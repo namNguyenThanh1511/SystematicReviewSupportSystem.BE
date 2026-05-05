@@ -154,5 +154,23 @@ namespace SRSS.IAM.Services.PaperService
             PaperListRequest request,
             CancellationToken cancellationToken = default);
 
+        Task DeletePaperAsync(
+            Guid paperId,
+            DeletePaperRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<PaperDetailsResponse>> GetDeletedPapersAsync(
+            Guid projectId,
+            PaperListRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedResponse<DuplicatePaperResponse>> GetConfirmedDuplicatePapersAsync(
+            Guid projectId,
+            DuplicatePapersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task RemovePdfAttachmentAsync(
+            Guid paperId,
+            CancellationToken cancellationToken = default);
     }
 }

@@ -60,7 +60,7 @@ namespace SRSS.IAM.Repositories.DeduplicationResultRepo
                 .AsNoTracking()
                 .Include(dr => dr.Paper)
                 .Include(dr => dr.DuplicateOfPaper)
-                .Where(dr => dr.ProjectId == projectId && !dr.Paper.IsDeleted && !dr.DuplicateOfPaper.IsDeleted && dr.ReviewStatus == DeduplicationReviewStatus.Pending);
+                .Where(dr => dr.ProjectId == projectId && !dr.Paper.IsDeleted && !dr.DuplicateOfPaper.IsDeleted);
 
             // Filter by review status
             if (status.HasValue)

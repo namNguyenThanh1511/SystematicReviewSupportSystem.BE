@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using SRSS.IAM.Services.DTOs.Identification;
 using System.Globalization;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.PaperFullTextService;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 
 namespace SRSS.IAM.Services.PaperService
 {
@@ -23,6 +25,7 @@ namespace SRSS.IAM.Services.PaperService
         private readonly MetadataMergeService.IMetadataMergeService _metadataMergeService;
         private readonly ILogger<PaperService> _logger;
         private readonly IStudySelectionService _studySelectionService;
+        private readonly IPaperFullTextService _paperFullTextService;
 
         private readonly ICurrentUserService _currentUserService;
 
@@ -31,6 +34,7 @@ namespace SRSS.IAM.Services.PaperService
             INotificationService notificationService,
             MetadataMergeService.IMetadataMergeService metadataMergeService,
             IStudySelectionService studySelectionService,
+            IPaperFullTextService paperFullTextService,
             ILogger<PaperService> logger,
             ICurrentUserService currentUserService)
         {
@@ -38,6 +42,7 @@ namespace SRSS.IAM.Services.PaperService
             _notificationService = notificationService;
             _metadataMergeService = metadataMergeService;
             _studySelectionService = studySelectionService;
+            _paperFullTextService = paperFullTextService;
             _logger = logger;
             _currentUserService = currentUserService;
         }
@@ -599,9 +604,9 @@ namespace SRSS.IAM.Services.PaperService
             Guid id,
             CancellationToken cancellationToken = default)
         {
-            var paper = await _unitOfWork.Papers.FindSingleAsync(
-                p => p.Id == id,
-                cancellationToken: cancellationToken);
+            var paper = await _unitOfWork.Papers.GetQueryable(p => p.Id == id, isTracking: false)
+                .Include(p => p.PaperPdfs)
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (paper == null)
             {
@@ -1174,7 +1179,6 @@ namespace SRSS.IAM.Services.PaperService
 
         private async Task<PaperDetailsResponse> MapToPaperResponseDetailsAsync(Paper paper, CancellationToken cancellationToken = default)
         {
-
             var response = new PaperDetailsResponse
             {
                 Id = paper.Id,
@@ -1216,6 +1220,18 @@ namespace SRSS.IAM.Services.PaperService
                 DeletedBy = paper.DeletedBy,
                 DeletedAt = paper.DeletedAt
             };
+
+            // Fetch parsed full text if available
+            var latestProcessedPdf = paper.PaperPdfs?
+                .Where(pdf => pdf.FullTextProcessed)
+                .OrderByDescending(pdf => pdf.FullTextProcessedAt)
+                .FirstOrDefault();
+
+            if (latestProcessedPdf != null)
+            {
+                var parsedFullText = await _paperFullTextService.GetParsedFullTextAsync(latestProcessedPdf.Id, cancellationToken);
+                response.FullTextSections = parsedFullText.Sections;
+            }
 
             // Get Extraction Suggestion (G-11, G-12)
             response.ExtractionSuggestion = await _studySelectionService.GetExtractionSuggestionAsync(paper, cancellationToken);

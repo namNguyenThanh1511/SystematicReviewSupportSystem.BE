@@ -27,6 +27,7 @@ namespace SRSS.IAM.Services.IdentificationService
         private readonly IPaperEnrichmentOrchestrator _enrichmentOrchestrator;
         private readonly ICurrentUserService _currentUserService;
         private readonly IRisParser _risParser;
+        private readonly IBibTexParser _bibTexParser;
         private readonly IDoiParser _doiParser;
         private readonly IApiParser<CrossrefQueryParameters> _apiParser;
         private readonly ILogger<IdentificationService> _logger;
@@ -38,6 +39,7 @@ namespace SRSS.IAM.Services.IdentificationService
             IPaperEnrichmentOrchestrator enrichmentOrchestrator,
             ICurrentUserService currentUserService,
             IRisParser risParser,
+            IBibTexParser bibTexParser,
             IDoiParser doiParser,
             IApiParser<CrossrefQueryParameters> apiParser,
             ILogger<IdentificationService> logger)
@@ -48,6 +50,7 @@ namespace SRSS.IAM.Services.IdentificationService
             _enrichmentOrchestrator = enrichmentOrchestrator;
             _currentUserService = currentUserService;
             _risParser = risParser;
+            _bibTexParser = bibTexParser;
             _doiParser = doiParser;
             _apiParser = apiParser;
             _logger = logger;
@@ -477,6 +480,35 @@ namespace SRSS.IAM.Services.IdentificationService
                 sourceName: null,      // resolved inside ImportAsync from searchSource.Name
                 fileName: fileName,
                 fileType: "RIS",
+                searchSourceId: searchSourceId,
+                projectId: projectId,
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<RisImportResultDto> ImportBibTexFileAsync(
+            Stream fileStream,
+            string fileName,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Starting BibTeX file import. File: {FileName}, Project: {ProjectId}", fileName, projectId);
+
+            List<RisPaperDto> papers;
+            try
+            {
+                papers = _bibTexParser.Parse(fileStream);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to parse BibTeX file '{fileName}': {ex.Message}", ex);
+            }
+
+            return await ImportAsync(
+                papers,
+                sourceName: null,      // resolved inside ImportAsync from searchSource.Name
+                fileName: fileName,
+                fileType: "BIBTEX",
                 searchSourceId: searchSourceId,
                 projectId: projectId,
                 cancellationToken: cancellationToken);

@@ -282,12 +282,12 @@ namespace SRSS.IAM.Services.PrismaReportService
                 if (fullText.Contains(placeholder))
                 {
                     string replacedText = fullText.Replace(placeholder, value);
-                    
+
                     var firstRun = paragraph.GetFirstChild<Run>();
                     var runProperties = firstRun?.RunProperties?.CloneNode(true) as RunProperties;
-                    
+
                     paragraph.RemoveAllChildren<Run>();
-                    
+
                     var newRun = new Run();
                     if (runProperties != null)
                     {
@@ -304,7 +304,7 @@ namespace SRSS.IAM.Services.PrismaReportService
                             newRun.AppendChild(new Break());
                         }
                     }
-                    
+
                     paragraph.AppendChild(newRun);
                 }
             }
@@ -388,24 +388,39 @@ namespace SRSS.IAM.Services.PrismaReportService
 
                 // Phase 1: Title/Abstract Exclusions
                 var taExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.TitleAbstract && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
-                details.RecordsExcluded = taExclusions.Count;
+                var taResolvedCount = allResolutions.Count(r => r.Phase == ScreeningPhase.TitleAbstract);
+                var taPendingCount = Math.Max(0, details.RecordsScreened - taResolvedCount);
+
+                details.RecordsExcluded = taExclusions.Count + taPendingCount;
 
                 // Phase 2: Retrieval
                 details.ReportsSoughtForRetrieval = details.RecordsScreened - details.RecordsExcluded;
-                // TODO: Implement logic for "Reports not retrieved" if needed
+
                 details.ReportsNotRetrieved = papers.Count(p => p.FullTextRetrievalStatus == FullTextRetrievalStatus.NotRetrieved);
                 details.ReportsAssessedForEligibility = details.ReportsSoughtForRetrieval - details.ReportsNotRetrieved;
 
                 // Phase 3: Full-Text Exclusions
                 var ftExclusions = allResolutions.Where(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Exclude).ToList();
-                details.ReportsExcluded = ftExclusions.Count;
+                var ftResolvedCount = allResolutions.Count(r => r.Phase == ScreeningPhase.FullText);
+                var ftPendingCount = Math.Max(0, details.ReportsAssessedForEligibility - ftResolvedCount);
+
+                details.ReportsExcluded = ftExclusions.Count + ftPendingCount;
 
                 // Load exclusion reasons for labels
                 var reasons = await _unitOfWork.StuSeExclusionCodes.FindAllAsync(x => x.StudySelectionProcessId == sspId, isTracking: false, cancellationToken: cancellationToken);
                 var reasonMap = reasons.ToDictionary(x => x.Id);
 
                 details.ExclusionReasonsTA = GetExclusionReasonBreakdown(taExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.TitleAbstract, allResolutions, reasonMap);
+                if (taPendingCount > 0)
+                {
+                    details.ExclusionReasonsTA.Add(new PrismaBreakdownResponse { Label = "Pending screening", Count = taPendingCount });
+                }
+
                 details.ExclusionReasonsFT = GetExclusionReasonBreakdown(ftExclusions.Select(x => x.PaperId).ToHashSet(), ScreeningPhase.FullText, allResolutions, reasonMap);
+                if (ftPendingCount > 0)
+                {
+                    details.ExclusionReasonsFT.Add(new PrismaBreakdownResponse { Label = "Pending screening", Count = ftPendingCount });
+                }
 
                 // Final Included
                 details.StudiesIncluded = allResolutions.Count(r => r.Phase == ScreeningPhase.FullText && r.FinalDecision == ScreeningDecisionType.Include);
@@ -651,7 +666,7 @@ namespace SRSS.IAM.Services.PrismaReportService
             return node;
         }
 
-        
+
 
         private static PrismaReportListResponse MapToListResponse(PrismaReport report)
         {

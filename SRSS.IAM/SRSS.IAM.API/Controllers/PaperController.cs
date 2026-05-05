@@ -88,6 +88,63 @@ namespace SRSS.IAM.API.Controllers
         }
 
         /// <summary>
+        /// Import bibliographic records from a BibTeX file
+        /// </summary>
+        /// <param name="file">BibTeX file (.bib extension)</param>
+        /// <param name="searchSourceId">Source database ID (referencing SearchSource entity)</param>
+        /// <param name="projectId">Project ID that owns the paper pool</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Import summary with counts and any errors</returns>
+        [HttpPost("import/bibtex")]
+        public async Task<ActionResult<ApiResponse<RisImportResultDto>>> ImportBibTexFile(
+            IFormFile file,
+            [FromForm] Guid? searchSourceId,
+            [FromForm] Guid projectId,
+            CancellationToken cancellationToken)
+        {
+            // Validate file presence
+            if (file == null || file.Length == 0)
+            {
+                throw new ArgumentException("No file uploaded.");
+            }
+
+            // Validate file extension
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (extension != ".bib")
+            {
+                throw new ArgumentException("Invalid file format. Only .bib files are accepted.");
+            }
+
+            // Validate file size (e.g., max 10MB)
+            const long maxFileSize = 10 * 1024 * 1024; // 10MB
+            if (file.Length > maxFileSize)
+            {
+                throw new ArgumentException("File size exceeds the maximum allowed size of 10MB.");
+            }
+
+            using var stream = file.OpenReadStream();
+            var result = await _identificationService.ImportBibTexFileAsync(
+                stream,
+                file.FileName,
+                searchSourceId,
+                projectId,
+                cancellationToken);
+
+            // Check if import was successful
+            if (result.TotalRecords == 0 && result.Errors.Any())
+            {
+                throw new InvalidOperationException("Failed to import BibTeX file.");
+            }
+
+            if (result.ImportedRecords == 0 && result.UpdatedRecords == 0)
+            {
+                return Ok(result, "No new records imported. All records were duplicates or skipped.");
+            }
+
+            return Ok(result, $"Successfully imported {result.ImportedRecords} records.");
+        }
+
+        /// <summary>
         /// Import a single paper by resolving its DOI via Crossref
         /// </summary>
         [HttpPost("import/doi")]

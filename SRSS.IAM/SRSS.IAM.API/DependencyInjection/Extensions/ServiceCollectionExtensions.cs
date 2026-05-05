@@ -116,6 +116,7 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
 
             // Parser abstraction layer
             services.AddScoped<IRisParser, RisFileParser>();
+            services.AddScoped<IBibTexParser, BibTexFileParser>();
             services.AddScoped<IDoiParser, CrossrefDoiParser>();
             services.AddScoped<IApiParser<CrossrefQueryParameters>, CrossrefApiParser>();
             services.AddScoped<ISystematicReviewProjectService, SystematicReviewProjectService>();

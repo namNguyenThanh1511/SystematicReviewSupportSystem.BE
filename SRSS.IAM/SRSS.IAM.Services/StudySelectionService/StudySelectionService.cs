@@ -3452,7 +3452,7 @@ namespace SRSS.IAM.Services.StudySelectionService
                 {
                     item.FullTextStatus = new PhaseStatusResponse { Status = "NOT_REACHED" };
                     item.FinalDecision = "EXCLUDED";
-                    
+
                     var exclusionReasonId = taResolution?.ExclusionReasonId ?? taDecisions?.FirstOrDefault(d => d.Decision == ScreeningDecisionType.Exclude)?.ExclusionReasonId;
                     if (exclusionReasonId != null && reasonMap.TryGetValue(exclusionReasonId.Value, out var reason))
                     {

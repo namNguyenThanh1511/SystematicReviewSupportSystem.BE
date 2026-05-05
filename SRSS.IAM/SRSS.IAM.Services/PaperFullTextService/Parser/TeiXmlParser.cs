@@ -47,7 +47,8 @@ namespace SRSS.IAM.Services.PaperFullTextService.Parser
                             abstractSection.Paragraphs.Add(new ParsedParagraphDto
                             {
                                 Order = pOrder++,
-                                Text = text
+                                Text = text,
+                                Coordinates = p.Attribute("coords")?.Value
                             });
                         }
                     }
@@ -65,12 +66,15 @@ namespace SRSS.IAM.Services.PaperFullTextService.Parser
                 {
                     foreach (var div in body.Elements(ns + "div"))
                     {
-                        var title = div.Element(ns + "head")?.Value?.Trim() ?? "Untitled";
+                        var headNode = div.Element(ns + "head");
+                        var title = headNode?.Value?.Trim() ?? "Untitled";
+                        
                         var section = new ParsedSectionDto
                         {
                             Order = globalSectionOrder,
                             SectionTitle = title,
-                            SectionType = DetermineSectionType(title)
+                            SectionType = DetermineSectionType(title),
+                            Coordinates = headNode?.Attribute("coords")?.Value
                         };
 
                         int pOrder = 1;
@@ -82,7 +86,8 @@ namespace SRSS.IAM.Services.PaperFullTextService.Parser
                                 section.Paragraphs.Add(new ParsedParagraphDto
                                 {
                                     Order = pOrder++,
-                                    Text = text
+                                    Text = text,
+                                    Coordinates = p.Attribute("coords")?.Value
                                 });
                             }
                         }

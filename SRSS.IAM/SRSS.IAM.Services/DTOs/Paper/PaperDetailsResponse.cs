@@ -1,5 +1,6 @@
 using SRSS.IAM.Repositories.Entities.Enums;
 using SRSS.IAM.Services.DTOs.StudySelection;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 
 namespace SRSS.IAM.Services.DTOs.Paper
 {
@@ -48,6 +49,9 @@ namespace SRSS.IAM.Services.DTOs.Paper
         public FullTextRetrievalStatus FullTextRetrievalStatus { get; set; }
         public string FullTextRetrievalStatusText { get; set; } = string.Empty;
         public bool? FullTextAvailable { get; set; }
+
+        public List<ParsedSectionDto> FullTextSections { get; set; } = new();
+
         // Audit
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset ModifiedAt { get; set; }

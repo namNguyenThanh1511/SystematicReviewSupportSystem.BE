@@ -6,6 +6,7 @@ using SRSS.IAM.Repositories.UnitOfWork;
 using SRSS.IAM.Services.GrobidClient;
 using SRSS.IAM.Services.SupabaseService;
 using SRSS.IAM.Services.PaperFullTextService.Parser;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 using System;
 using System.Linq;
 using System.IO;
@@ -248,6 +249,7 @@ namespace SRSS.IAM.Services.PaperFullTextService
                     Order = sectionDto.Order,
                     SectionTitle = sectionDto.SectionTitle,
                     SectionType = sectionDto.SectionType,
+                    Coordinates = sectionDto.Coordinates,
                     CreatedAt = DateTimeOffset.UtcNow,
                     ModifiedAt = DateTimeOffset.UtcNow
                 };
@@ -260,6 +262,7 @@ namespace SRSS.IAM.Services.PaperFullTextService
                         SectionId = sectionEntity.Id,
                         Order = paraDto.Order,
                         Text = paraDto.Text,
+                        Coordinates = paraDto.Coordinates,
                         CreatedAt = DateTimeOffset.UtcNow,
                         ModifiedAt = DateTimeOffset.UtcNow
                     });
@@ -281,6 +284,41 @@ namespace SRSS.IAM.Services.PaperFullTextService
             _logger.LogInformation("Successfully parsed and replaced full-text for PaperPdf {PaperPdfId}. " +
                 "Summary: PaperFullTextId={PaperFullTextId}, AbstractFound={AbstractFound}, SectionsAdd={SectionCount}, ParagraphsAdd={ParaCount}",
                 paperPdfId, refreshedFullText.Id, abstractFound, newSectionsCount, newParaCount);
+        }
+
+        public async Task<ParsedPaperFullTextDto> GetParsedFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default)
+        {
+            var fullText = await _unitOfWork.PaperFullTexts.GetQueryable(ft => ft.PaperPdfId == paperPdfId, isTracking: false)
+                .Include(ft => ft.ParsedSections)
+                    .ThenInclude(s => s.Paragraphs)
+                .OrderByDescending(ft => ft.ModifiedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (fullText == null)
+            {
+                return new ParsedPaperFullTextDto();
+            }
+
+            var result = new ParsedPaperFullTextDto();
+            foreach (var section in fullText.ParsedSections.OrderBy(s => s.Order))
+            {
+                var sectionDto = new ParsedSectionDto
+                {
+                    Order = section.Order,
+                    SectionTitle = section.SectionTitle,
+                    SectionType = section.SectionType,
+                    Coordinates = section.Coordinates,
+                    Paragraphs = section.Paragraphs.OrderBy(p => p.Order).Select(p => new ParsedParagraphDto
+                    {
+                        Order = p.Order,
+                        Text = p.Text,
+                        Coordinates = p.Coordinates
+                    }).ToList()
+                };
+                result.Sections.Add(sectionDto);
+            }
+
+            return result;
         }
     }
 }

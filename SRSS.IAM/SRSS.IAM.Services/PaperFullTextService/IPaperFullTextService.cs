@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using SRSS.IAM.Services.DTOs.PaperFullText;
 
 namespace SRSS.IAM.Services.PaperFullTextService
 {
@@ -13,6 +14,7 @@ namespace SRSS.IAM.Services.PaperFullTextService
                 /// <param name="cancellationToken">Cancellation token.</param>
                 Task ExtractAndStoreFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default);
                 Task ParseFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default);
+                Task<ParsedPaperFullTextDto> GetParsedFullTextAsync(Guid paperPdfId, CancellationToken cancellationToken = default);
 
                 /// <summary>
                 /// Extracts full-text using a versioned work item so stale jobs can be rejected.

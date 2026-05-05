@@ -8,6 +8,7 @@ namespace SRSS.IAM.Repositories.Entities
         public int Order { get; set; }
         public string SectionTitle { get; set; } = string.Empty;
         public string? SectionType { get; set; } // e.g., Abstract, Introduction, Methods, Results, Discussion, Conclusion, Other
+        public string? Coordinates { get; set; }
 
         public virtual PaperFullText? PaperFullText { get; set; }
         public virtual ICollection<PaperFullTextParsedParagraph> Paragraphs { get; set; } = new List<PaperFullTextParsedParagraph>();

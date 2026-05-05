@@ -30,6 +30,14 @@ namespace SRSS.IAM.Services.IdentificationService
             Guid projectId,
             CancellationToken cancellationToken = default);
 
+        /// <summary>Parses a BibTeX file stream and runs the full import pipeline.</summary>
+        Task<RisImportResultDto> ImportBibTexFileAsync(
+            Stream fileStream,
+            string fileName,
+            Guid? searchSourceId,
+            Guid projectId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>Resolves a single DOI via Crossref and runs the full import pipeline.</summary>
         Task<RisImportResultDto> ImportFromDoiAsync(
             string doi,

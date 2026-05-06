@@ -165,6 +165,20 @@ namespace SRSS.IAM.Services.AiSetupService
             - The output MUST be written entirely in: {request.Language}
             - Do NOT mix languages.
             
+            ### ANNOTATION REQUIREMENT
+            1. Each Research Question MUST explicitly include PICO-C annotations.
+            2. Use inline tags:
+            - (P: ...) for Population
+            - (I: ...) for Intervention
+            - (C: ...) for Comparator
+            - (O: ...) for Outcome
+            - (Ctx: ...) for Context
+            3. The tags MUST appear directly after the relevant phrase in the question.
+            4. Each question MUST contain at least (P) and (I). Other elements are optional but encouraged.
+
+            ### EXAMPLE
+            ""What are the effects of (I: deep learning techniques) on (O: diagnostic accuracy) for (P: lung cancer patients) compared to (C: traditional methods) in (Ctx: clinical settings)?""
+            
             ### OUTPUT FORMAT REQUIREMENT
             1. The output MUST be a valid JSON object.
             2. The JSON MUST follow this exact structure:

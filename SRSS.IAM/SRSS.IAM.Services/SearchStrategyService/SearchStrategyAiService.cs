@@ -31,33 +31,85 @@ namespace SRSS.IAM.Services.SearchStrategyService
             }
 
             var prompt = $@"
-Analyze the following PICOC elements for a Systematic Literature Review and break them down into a structured list of key terms (synonyms, related terms, and keywords).
-Additionally, generate a comprehensive Boolean search query specifically tailored for the database: {sourceName}.
+            Analyze the following PICOC elements for a Systematic Literature Review and generate a concise, executable Boolean search query.
 
-Input PICOC:
-- Population: {request.Population}
-- Intervention: {request.Intervention}
-- Comparator: {request.Comparator}
-- Outcome: {request.Outcome}
-- Context: {request.Context}
+            ### INPUT PICOC
+            - Population: {request.Population}
+            - Intervention: {request.Intervention}
+            - Comparator: {request.Comparator}
+            - Outcome: {request.Outcome}
+            - Context: {request.Context}
 
-Target Database: {sourceName}
+            Target Database: {sourceName}
 
-Requirements:
-1. Identify 5-10 highly relevant keywords or synonyms for each PICOC element.
-2. Generate a valid Boolean search query (using AND, OR, and appropriate nesting with parentheses) adapted to the specific syntax and search fields of {sourceName}.
-3. If {sourceName} is a well-known database like PubMed, Scopus, IEEE, Web of Science, or ACM, use its specific field tags (e.g., [MeSH], [Title/Abstract], TITLE-ABS-KEY, etc.) if applicable.
-4. Return ONLY a valid JSON object.
+            ---
 
-Expected JSON Format:
-{{
-  ""population"": [""term1"", ""term2"", ...],
-  ""intervention"": [""term1"", ""term2"", ...],
-  ""comparison"": [""term1"", ""term2"", ...],
-  ""outcome"": [""term1"", ""term2"", ...],
-  ""context"": [""term1"", ""term2"", ...],
-  ""generatedQuery"": ""(term1 OR term2) AND (term3 OR term4) ...""
-}}";
+            ### REQUIREMENTS
+
+            ## 1. KEYWORD SELECTION (STRICT)
+            - Select ONLY 3-5 most important keywords for each PICOC element.
+            - DO NOT generate long synonym lists.
+            - Prefer widely used academic terms.
+            - Use truncation (*) to shorten terms (e.g., ""diagnos*"" instead of ""diagnosis OR diagnosing"").
+            - Use quotation marks for exact phrases when necessary.
+
+            ## 2. QUERY GENERATION (CRITICAL)
+            - Generate ONLY ONE Boolean query.
+            - The query MUST be SHORT, SIMPLE, and EXECUTABLE.
+
+            - Use structure:
+            (Population) AND (Intervention) AND (Outcome)
+
+            - Comparator:
+                - Include ONLY as keywords list
+                - DO NOT include in main query unless essential
+
+            - Context:
+                - Include ONLY as keywords list
+                - DO NOT include in main query unless essential
+
+            ## 3. OPTIMIZATION RULES (VERY IMPORTANT)
+            - Limit each group to MAX 2-4 terms.
+            - Limit total terms in query to ~12 keywords.
+            - Avoid long OR chains.
+            - Avoid deep nesting.
+            - If query becomes too long → REMOVE least important terms automatically.
+            - Ensure parentheses are correct and minimal.
+
+            ## 4. DATABASE ADAPTATION
+            Adapt syntax based on database:
+
+            - IEEE Xplore:
+            (""All Metadata"": (...))
+
+            - Scopus:
+            TITLE-ABS-KEY(...)
+
+            - Web of Science:
+            TS=(...)
+
+            - Google Scholar:
+            - Use simple Boolean only
+            - NO complex nesting
+            - NO field tags
+
+            - Others:
+            Use standard Boolean without field tags
+
+            ## 5. OUTPUT FORMAT (STRICT)
+            Return ONLY a valid JSON object:
+
+            {{
+            ""population"": [""term1"", ""term2""],
+            ""intervention"": [""term1"", ""term2""],
+            ""comparison"": [""term1"", ""term2""],
+            ""outcome"": [""term1"", ""term2""],
+            ""context"": [""term1"", ""term2""],
+            ""generatedQuery"": ""short optimized Boolean query for {sourceName}""
+            }}
+
+            DO NOT include explanation outside JSON.
+            ";
 
             return await _openRouterService.GenerateStructuredContentAsync<PicocAnalysisResponse>(prompt);
         }

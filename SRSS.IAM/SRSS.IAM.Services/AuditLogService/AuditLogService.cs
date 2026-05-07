@@ -110,7 +110,8 @@ namespace SRSS.IAM.Services.AuditLogService
         }
 
         public async Task<PaginatedResponse<AuditLogResponse>> GetProjectLeaderLogsAsync(
-            Guid projectId,
+            Guid? projectId = null,
+            Guid? reviewProcessId = null,
             string? searchTerm = null,
             string? user = null,
             string? actionType = null,
@@ -124,9 +125,27 @@ namespace SRSS.IAM.Services.AuditLogService
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
-
-            var query = _unitOfWork.AuditLogs.GetQueryable()
-                .Where(log => !AdminLogEntities.Contains(log.ResourceType) && log.ProjectId == projectId);
+            IQueryable<AuditLog> query = _unitOfWork.AuditLogs.GetQueryable();
+            
+            // Priority to filter by reviewProcessId
+            if (reviewProcessId.HasValue)
+            {
+                query = query.Where(log => log.ReviewProcessId == reviewProcessId.Value);
+            }
+            else if (projectId.HasValue)
+            {
+                query = query.Where(log => log.ProjectId == projectId.Value);
+            }
+            else 
+            {
+                return new PaginatedResponse<AuditLogResponse>
+                {
+                    Items = new List<AuditLogResponse>(),
+                    TotalCount = 0,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            }
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
@@ -200,7 +219,8 @@ namespace SRSS.IAM.Services.AuditLogService
             string resourceId, 
             object? oldValue = null, 
             object? newValue = null, 
-            List<string>? affectedColumns = null)
+            List<string>? affectedColumns = null,
+            Guid? reviewProcessId = null)
         {
             var userId = _currentUserService.GetUserId();
             var userName = "System";
@@ -227,7 +247,8 @@ namespace SRSS.IAM.Services.AuditLogService
                 OldValue = oldValue != null ? JsonSerializer.Serialize(oldValue) : null,
                 NewValue = newValue != null ? JsonSerializer.Serialize(newValue) : null,
                 AffectedColumns = JsonSerializer.Serialize(affectedColumns ?? new List<string>()),
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                ReviewProcessId = reviewProcessId
             };
 
             await _unitOfWork.AuditLogs.AddAsync(auditLog);

@@ -22,7 +22,8 @@ namespace SRSS.IAM.Services.AuditLogService
             CancellationToken cancellationToken = default);
             
         Task<PaginatedResponse<AuditLogResponse>> GetProjectLeaderLogsAsync(
-            Guid projectId,
+            Guid? projectId = null,
+            Guid? reviewProcessId = null,
             string? searchTerm = null,
             string? user = null,
             string? actionType = null,
@@ -42,7 +43,8 @@ namespace SRSS.IAM.Services.AuditLogService
             string resourceId, 
             object? oldValue = null, 
             object? newValue = null, 
-            List<string>? affectedColumns = null);
+            List<string>? affectedColumns = null,
+            Guid? reviewProcessId = null);
 
         void IgnoreTable(string tableName);
     }

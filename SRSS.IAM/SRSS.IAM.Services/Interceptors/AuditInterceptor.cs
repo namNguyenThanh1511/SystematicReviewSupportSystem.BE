@@ -22,6 +22,17 @@ namespace SRSS.IAM.Services.Interceptors
         private readonly AsyncLocal<List<AuditEntry>?> _auditEntries = new();
         private static readonly AsyncLocal<HashSet<string>?> _ignoredTables = new();
 
+        // Maps sub-process FK property names to their parent process entity types
+        // so we can look up ReviewProcessId from the parent
+        private static readonly Dictionary<string, Type> SubProcessFkToParentType = new()
+        {
+            { "StudySelectionProcessId", typeof(StudySelectionProcess) },
+            { "QualityAssessmentProcessId", typeof(QualityAssessmentProcess) },
+            { "DataExtractionProcessId", typeof(DataExtractionProcess) },
+            { "SynthesisProcessId", typeof(SynthesisProcess) },
+            { "IdentificationProcessId", typeof(IdentificationProcess) },
+        };
+
         public AuditInterceptor(ICurrentUserService currentUserService)
         {
             _currentUserService = currentUserService;
@@ -100,6 +111,12 @@ namespace SRSS.IAM.Services.Interceptors
                         auditEntry.ProjectId = projectId;
                     }
 
+                    // Resolve ReviewProcessId from the entity's own ReviewProcessId property
+                    if (propertyName == "ReviewProcessId" && property.CurrentValue is Guid reviewProcessId)
+                    {
+                        auditEntry.ReviewProcessId = reviewProcessId;
+                    }
+
                     switch (entry.State)
                     {
                         case EntityState.Added:
@@ -121,6 +138,19 @@ namespace SRSS.IAM.Services.Interceptors
                             break;
                     }
                 }
+
+                // If the entity IS a ReviewProcess, use its own Id as the ReviewProcessId
+                if (entry.Entity is ReviewProcess)
+                {
+                    auditEntry.ReviewProcessId = Guid.TryParse(auditEntry.ResourceId, out var rpId) ? rpId : null;
+                }
+
+                // If ReviewProcessId was not resolved yet (child entity without direct ReviewProcessId),
+                // try to resolve it via sub-process FK navigation
+                if (auditEntry.ReviewProcessId == null)
+                {
+                    TryResolveReviewProcessIdFromSubProcessFk(entry, auditEntry, dbContext);
+                }
             }
 
             if (auditEntries.Any())
@@ -129,6 +159,100 @@ namespace SRSS.IAM.Services.Interceptors
             }
 
             return base.SavingChangesAsync(eventData, result, cancellationToken);
+        }
+
+        /// <summary>
+        /// For child entities (e.g., ScreeningDecision -> StudySelectionProcessId,
+        /// QualityAssessmentDecision -> QualityAssessmentProcessId, etc.),
+        /// resolve ReviewProcessId by looking up the parent sub-process entity in the DbContext.
+        /// </summary>
+        private void TryResolveReviewProcessIdFromSubProcessFk(
+            Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry,
+            AuditEntry auditEntry,
+            DbContext dbContext)
+        {
+            foreach (var property in entry.Properties)
+            {
+                string propertyName = property.Metadata.Name;
+
+                if (!SubProcessFkToParentType.TryGetValue(propertyName, out var parentType))
+                    continue;
+
+                var fkValue = property.CurrentValue ?? property.OriginalValue;
+                if (fkValue is not Guid subProcessId)
+                    continue;
+
+                // Look up the parent sub-process entity in the change tracker first (avoid DB hit)
+                var parentEntry = dbContext.ChangeTracker.Entries()
+                    .FirstOrDefault(e => e.Entity.GetType() == parentType && HasMatchingId(e, subProcessId));
+
+                if (parentEntry != null)
+                {
+                    var reviewProcessIdProp = parentEntry.Properties
+                        .FirstOrDefault(p => p.Metadata.Name == "ReviewProcessId");
+                    if (reviewProcessIdProp?.CurrentValue is Guid rpId)
+                    {
+                        auditEntry.ReviewProcessId = rpId;
+                        return;
+                    }
+                }
+
+                // If not in change tracker, query from database
+                var reviewProcessId = ResolveReviewProcessIdFromDb(dbContext, parentType, subProcessId);
+                if (reviewProcessId.HasValue)
+                {
+                    auditEntry.ReviewProcessId = reviewProcessId.Value;
+                    return;
+                }
+            }
+        }
+
+        private static bool HasMatchingId(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry, Guid targetId)
+        {
+            var pkProp = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+            return pkProp?.CurrentValue is Guid id && id == targetId;
+        }
+
+        private static Guid? ResolveReviewProcessIdFromDb(DbContext dbContext, Type parentType, Guid subProcessId)
+        {
+            // Use raw SQL or switch on type to query the ReviewProcessId
+            if (parentType == typeof(StudySelectionProcess))
+            {
+                return dbContext.Set<StudySelectionProcess>()
+                    .Where(e => e.Id == subProcessId)
+                    .Select(e => (Guid?)e.ReviewProcessId)
+                    .FirstOrDefault();
+            }
+            if (parentType == typeof(QualityAssessmentProcess))
+            {
+                return dbContext.Set<QualityAssessmentProcess>()
+                    .Where(e => e.Id == subProcessId)
+                    .Select(e => (Guid?)e.ReviewProcessId)
+                    .FirstOrDefault();
+            }
+            if (parentType == typeof(DataExtractionProcess))
+            {
+                return dbContext.Set<DataExtractionProcess>()
+                    .Where(e => e.Id == subProcessId)
+                    .Select(e => (Guid?)e.ReviewProcessId)
+                    .FirstOrDefault();
+            }
+            if (parentType == typeof(SynthesisProcess))
+            {
+                return dbContext.Set<SynthesisProcess>()
+                    .Where(e => e.Id == subProcessId)
+                    .Select(e => (Guid?)e.ReviewProcessId)
+                    .FirstOrDefault();
+            }
+            if (parentType == typeof(IdentificationProcess))
+            {
+                return dbContext.Set<IdentificationProcess>()
+                    .Where(e => e.Id == subProcessId)
+                    .Select(e => (Guid?)e.ReviewProcessId)
+                    .FirstOrDefault();
+            }
+
+            return null;
         }
 
         public override async ValueTask<int> SavedChangesAsync(

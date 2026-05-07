@@ -26,5 +26,6 @@ namespace SRSS.IAM.Services.DTOs.AuditLog
         public object? AffectedColumns { get; set; }
         public DateTime Timestamp { get; set; }
         public Guid? ProjectId { get; set; }
+        public Guid? ReviewProcessId { get; set; }
     }
 }

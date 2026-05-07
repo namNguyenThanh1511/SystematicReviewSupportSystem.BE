@@ -26,7 +26,8 @@ namespace SRSS.IAM.Services.Mappers
                 NewValue = ParseJsonValue(entity.NewValue),
                 AffectedColumns = ParseJsonValue(entity.AffectedColumns),
                 Timestamp = entity.Timestamp,
-                ProjectId = entity.ProjectId
+                ProjectId = entity.ProjectId,
+                ReviewProcessId = entity.ReviewProcessId
             };
         }
 

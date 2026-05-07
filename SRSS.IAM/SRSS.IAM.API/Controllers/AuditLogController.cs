@@ -43,11 +43,12 @@ namespace SRSS.IAM.API.Controllers
             return Ok(logs, "Admin audit logs retrieved successfully");
         }
 
-        // GET: api/auditlog/project-leader/{projectId}
-        [HttpGet("project-leader/{projectId}")]
+        // GET: api/auditlog/project-leader
+        [HttpGet("project-leader")]
         [Authorize] // Or any relevant authorization mechanism
         public async Task<ActionResult<ApiResponse<PaginatedResponse<AuditLogResponse>>>> GetProjectLeaderLogs(
-            Guid projectId,
+            [FromQuery] Guid? projectId,
+            [FromQuery] Guid? reviewProcessId = null,
             [FromQuery] string? searchTerm = null,
             [FromQuery] string? user = null,
             [FromQuery] string? actionType = null,
@@ -60,7 +61,7 @@ namespace SRSS.IAM.API.Controllers
         {
             // Ideally, here you would check if the currentUser is actually the leader of projectId
             var logs = await _auditLogService.GetProjectLeaderLogsAsync(
-                projectId, searchTerm, user, actionType, status, startDate, endDate, pageNumber, pageSize, cancellationToken);
+                projectId, reviewProcessId, searchTerm, user, actionType, status, startDate, endDate, pageNumber, pageSize, cancellationToken);
             return Ok(logs, "Project leader audit logs retrieved successfully");
         }
     }

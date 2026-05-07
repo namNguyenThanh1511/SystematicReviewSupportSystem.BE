@@ -13,7 +13,7 @@ namespace SRSS.IAM.Services.Mappers
             {
                 Id = entity.Id,
                 UserId = entity.UserId,
-                UserName = entity.UserName,
+                User = entity.UserName,
                 Action = entity.Action,
                 ActionType = entity.ActionType,
                 ResourceType = entity.ResourceType,

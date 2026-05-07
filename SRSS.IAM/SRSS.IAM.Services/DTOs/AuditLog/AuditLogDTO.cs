@@ -7,7 +7,7 @@ namespace SRSS.IAM.Services.DTOs.AuditLog
     {
         public Guid Id { get; set; }
         public string UserId { get; set; } = string.Empty;
-        public string UserName { get; set; } = string.Empty;
+        public string User { get; set; } = string.Empty;
         
         public string Action { get; set; } = string.Empty;
         public string ActionType { get; set; } = string.Empty;

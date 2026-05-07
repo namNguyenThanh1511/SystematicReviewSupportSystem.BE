@@ -54,8 +54,8 @@ namespace SRSS.IAM.Services.Interceptors
         }
 
         public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
-            DbContextEventData eventData, 
-            InterceptionResult<int> result, 
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
             CancellationToken cancellationToken = default)
         {
             var dbContext = eventData.Context;
@@ -91,7 +91,7 @@ namespace SRSS.IAM.Services.Interceptors
                 {
                     ResourceType = tableName
                 };
-                
+
                 auditEntries.Add(auditEntry);
 
                 foreach (var property in entry.Properties)
@@ -105,6 +105,11 @@ namespace SRSS.IAM.Services.Interceptors
                         auditEntry.ResourceId = property.CurrentValue?.ToString() ?? string.Empty;
                         continue;
                     }
+
+                    // if (propertyName == "CreatedAt" || propertyName == "ModifiedAt")
+                    // {
+                    //     continue;
+                    // }
 
                     if (propertyName == "ProjectId" && property.CurrentValue is Guid projectId)
                     {
@@ -256,8 +261,8 @@ namespace SRSS.IAM.Services.Interceptors
         }
 
         public override async ValueTask<int> SavedChangesAsync(
-            SaveChangesCompletedEventData eventData, 
-            int result, 
+            SaveChangesCompletedEventData eventData,
+            int result,
             CancellationToken cancellationToken = default)
         {
             var auditEntries = _auditEntries.Value;
@@ -266,6 +271,7 @@ namespace SRSS.IAM.Services.Interceptors
             if (auditEntries != null && auditEntries.Any() && dbContext != null)
             {
                 var userId = _currentUserService.GetUserId();
+                var userName = _currentUserService.GetUserName();
 
                 foreach (var auditEntry in auditEntries)
                 {
@@ -278,11 +284,11 @@ namespace SRSS.IAM.Services.Interceptors
                         }
                     }
 
-                    dbContext.Set<AuditLog>().Add(auditEntry.ToAuditLog(userId));
+                    dbContext.Set<AuditLog>().Add(auditEntry.ToAuditLog(userId, userName));
                 }
 
                 // Clear to prevent loops since we are calling SaveChangesAsync again
-                _auditEntries.Value = null; 
+                _auditEntries.Value = null;
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
 

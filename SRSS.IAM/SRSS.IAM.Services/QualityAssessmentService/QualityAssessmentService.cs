@@ -1103,6 +1103,20 @@ Here is the paper in TEI XML format (with `coords` attributes for bounding boxes
                 throw new Exception("AI failed to generate assessment.");
             }
 
+            // Extract page dimensions if missing
+            if (!paperPdf!.PageWidth.HasValue || !paperPdf.PageHeight.HasValue)
+            {
+                var (pageWidth, pageHeight) = GrobidTeiParser.ParseSurfaceSize(paperPdf.PaperFullText!.RawXml);
+                if (pageWidth.HasValue)
+                    paperPdf.PageWidth = pageWidth.Value;
+                if (pageHeight.HasValue)
+                    paperPdf.PageHeight = pageHeight.Value;
+
+                paperPdf.ModifiedAt = DateTimeOffset.UtcNow;
+                await _unitOfWork.PaperPdfs.UpdateAsync(paperPdf);
+                await _unitOfWork.SaveChangesAsync();
+            }
+
             await _auditLogService.AppendCustomAuditLogAsync(
                 projectId: reviewProcess.ProjectId,
                 action: "AI Automated Quality Assessment executed",

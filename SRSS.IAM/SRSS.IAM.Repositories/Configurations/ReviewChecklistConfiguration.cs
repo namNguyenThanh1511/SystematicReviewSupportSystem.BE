@@ -39,6 +39,12 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(x => x.PdfUrl)
                 .HasColumnName("pdf_url");
 
+            builder.Property(x => x.PageWidth)
+                .HasColumnName("page_width");
+
+            builder.Property(x => x.PageHeight)
+                .HasColumnName("page_height");
+
             builder.Property(x => x.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();

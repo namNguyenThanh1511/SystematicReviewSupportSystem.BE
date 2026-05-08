@@ -39,6 +39,8 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public int? TotalItems { get; set; }
         public int? MappedItems { get; set; }
         public string? PdfUrl { get; set; }
+        public double? PageWidth { get; set; }
+        public double? PageHeight { get; set; }
         public DateTimeOffset Timestamp { get; set; }
     }
 

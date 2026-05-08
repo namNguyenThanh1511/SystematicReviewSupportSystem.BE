@@ -500,6 +500,11 @@ namespace SRSS.IAM.Services.ChecklistService
                 throw new InvalidOperationException("Failed to extract text from PDF via GROBID.");
             }
             var fullText = teiXml;
+            
+            // Extract and save PDF dimensions
+            var (pageWidth, pageHeight) = GrobidTeiParser.ParseSurfaceSize(teiXml);
+            checklist.PageWidth = pageWidth;
+            checklist.PageHeight = pageHeight;
 
             await SendAutoFillStatus(userId, checkListId, AutoFillStatus.TextExtracted, "Text extracted successfully. Preparing AI analysis...");
 
@@ -615,6 +620,8 @@ Return the results as an array containing objects with 'itemNumber', 'location',
                 TotalItems = respondableItems.Count,
                 MappedItems = aiResponse.Mappings.Count,
                 PdfUrl = pdfUrl,
+                PageWidth = checklist.PageWidth,
+                PageHeight = checklist.PageHeight,
                 Timestamp = DateTimeOffset.UtcNow
             });
         }
@@ -730,6 +737,8 @@ Return the results as an array containing objects with 'itemNumber', 'location',
                 CompletionPercentage = checklist.CompletionPercentage,
                 LastUpdatedAt = checklist.LastUpdatedAt,
                 PdfUrl = checklist.PdfUrl,
+                PageWidth = checklist.PageWidth,
+                PageHeight = checklist.PageHeight,
                 Sections = sections,
                 Items = items
             };

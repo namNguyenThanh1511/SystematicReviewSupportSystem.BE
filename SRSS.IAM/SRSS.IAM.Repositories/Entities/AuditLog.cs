@@ -24,5 +24,6 @@ namespace SRSS.IAM.Repositories.Entities
         public string AffectedColumns { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public Guid? ProjectId { get; set; }
+        public Guid? ReviewProcessId { get; set; }
     }
 }

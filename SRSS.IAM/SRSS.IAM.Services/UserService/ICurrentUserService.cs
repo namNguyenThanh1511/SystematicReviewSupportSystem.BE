@@ -4,6 +4,7 @@
     {
         (string userId, string userRole) GetCurrentUser();
         string GetUserId();
+        string GetUserName();
         string GetUserRole();
         bool IsAdmin();
     }

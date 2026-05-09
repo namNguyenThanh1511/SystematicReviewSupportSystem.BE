@@ -30,6 +30,12 @@ namespace SRSS.IAM.Services.UserService
             return _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
         }
 
+        public string GetUserName()
+        {
+            return _httpContextAccessor.HttpContext?.User?.FindFirstValue("FullName") 
+                   ?? string.Empty;
+        }
+
         public string GetUserRole()
         {
             return _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Role)?.Value ?? string.Empty;

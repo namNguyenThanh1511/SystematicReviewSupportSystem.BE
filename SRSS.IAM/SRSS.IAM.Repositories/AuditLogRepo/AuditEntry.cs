@@ -17,6 +17,7 @@ namespace SRSS.IAM.Repositories.AuditLogRepo
         public string ActionType { get; set; } = string.Empty;
         public string Action { get; set; } = string.Empty;
         public Guid? ProjectId { get; set; }
+        public Guid? ReviewProcessId { get; set; }
 
         public AuditEntry(EntityEntry entry)
         {
@@ -42,7 +43,8 @@ namespace SRSS.IAM.Repositories.AuditLogRepo
                 OldValue = OldValue.Count == 0 ? null : JsonSerializer.Serialize(OldValue),
                 NewValue = NewValue.Count == 0 ? null : JsonSerializer.Serialize(NewValue),
                 AffectedColumns = ChangedColumns.Count == 0 ? string.Empty : JsonSerializer.Serialize(ChangedColumns),
-                ProjectId = ProjectId
+                ProjectId = ProjectId,
+                ReviewProcessId = ReviewProcessId
             };
 
             return auditLog;

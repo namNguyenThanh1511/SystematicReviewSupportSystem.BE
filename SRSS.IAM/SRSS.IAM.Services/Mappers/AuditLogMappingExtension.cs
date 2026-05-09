@@ -13,7 +13,7 @@ namespace SRSS.IAM.Services.Mappers
             {
                 Id = entity.Id,
                 UserId = entity.UserId,
-                UserName = entity.UserName,
+                User = entity.UserName,
                 Action = entity.Action,
                 ActionType = entity.ActionType,
                 ResourceType = entity.ResourceType,
@@ -26,7 +26,8 @@ namespace SRSS.IAM.Services.Mappers
                 NewValue = ParseJsonValue(entity.NewValue),
                 AffectedColumns = ParseJsonValue(entity.AffectedColumns),
                 Timestamp = entity.Timestamp,
-                ProjectId = entity.ProjectId
+                ProjectId = entity.ProjectId,
+                ReviewProcessId = entity.ReviewProcessId
             };
         }
 

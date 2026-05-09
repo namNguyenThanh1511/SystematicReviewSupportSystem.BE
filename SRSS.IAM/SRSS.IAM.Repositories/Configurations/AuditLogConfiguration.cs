@@ -26,6 +26,7 @@ namespace SRSS.IAM.Repositories.Configurations
             builder.Property(a => a.AffectedColumns).HasColumnName("affected_columns");
             builder.Property(a => a.Timestamp).HasColumnName("timestamp");
             builder.Property(a => a.ProjectId).HasColumnName("project_id");
+            builder.Property(a => a.ReviewProcessId).HasColumnName("review_process_id");
             builder.Property(a => a.CreatedAt).HasColumnName("created_at");
             builder.Property(a => a.ModifiedAt).HasColumnName("modified_at");
         }

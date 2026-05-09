@@ -10,6 +10,7 @@ using SRSS.IAM.Services.ProjectMemberInvitationService;
 using SRSS.IAM.Services.DTOs.ProjectMemberInvitation;
 using SRSS.IAM.Services.UserService;
 using SRSS.IAM.Services.DTOs.ResearchQuestion;
+using SRSS.IAM.Services.ProjectExportService;
 
 
 namespace SRSS.IAM.API.Controllers
@@ -24,15 +25,18 @@ namespace SRSS.IAM.API.Controllers
         private readonly ISystematicReviewProjectService _projectService;
         private readonly IProjectInvitationService _invitationService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IProjectExportService _projectExportService;
 
         public SystematicReviewProjectController(
             ISystematicReviewProjectService projectService,
             IProjectInvitationService invitationService,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IProjectExportService projectExportService)
         {
             _projectService = projectService;
             _invitationService = invitationService;
             _currentUserService = currentUserService;
+            _projectExportService = projectExportService;
         }
 
         /// <summary>
@@ -84,6 +88,19 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _projectService.GetProjectsAsync(status, pageNumber, pageSize, cancellationToken);
             return Ok(result, "Projects retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Export all projects to an Excel file.
+        /// </summary>
+        /// <param name="request">Export parameters</param>
+        /// <returns>Excel file (.xlsx)</returns>
+        [HttpGet("export/excel")]
+        public async Task<IActionResult> ExportToExcel([FromQuery] ProjectExportRequest request)
+        {
+            var fileBytes = await _projectExportService.ExportProjectsToExcelAsync(request);
+            var fileName = $"projects-export-{DateTimeOffset.UtcNow:yyyy-MM-dd}.xlsx";
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         /// <summary>

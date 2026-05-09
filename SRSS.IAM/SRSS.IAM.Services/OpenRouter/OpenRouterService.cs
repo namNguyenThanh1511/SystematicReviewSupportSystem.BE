@@ -139,6 +139,11 @@ public class OpenRouterService : IOpenRouterService
 
     public async Task<T> GenerateStructuredContentAsync<T>(string prompt, string? model = null, double temperature = 0.7, CancellationToken ct = default)
     {
+        var schema = GenerateJsonSchema(typeof(T));
+        
+        // Log the schema for debugging
+        _logger.LogInformation("Generated JSON Schema for {Type}: {Schema}", typeof(T).Name, JsonSerializer.Serialize(schema));
+
         var request = new OpenRouterChatRequest(
             Model: model ?? _options.DefaultModel,
             Messages: new[] { new OpenRouterMessage("user", prompt) },
@@ -151,7 +156,7 @@ public class OpenRouterService : IOpenRouterService
                 {
                     Name = typeof(T).Name.ToLowerInvariant(),
                     Strict = true,
-                    Schema = GenerateJsonSchema(typeof(T))
+                    Schema = schema ?? new { type = "object", additionalProperties = false }
                 }
             }
         );
@@ -172,7 +177,16 @@ public class OpenRouterService : IOpenRouterService
             }
 
             // BƯỚC 2: Deserialize từ chuỗi rawJsonResponse (KHÔNG dùng ReadFromJsonAsync ở đây)
-            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                NumberHandling = JsonNumberHandling.AllowReadingFromString
+            };
+            options.Converters.Add(new FlexibleStringConverter());
+            options.Converters.Add(new FlexibleGuidConverter());
+
             var result = JsonSerializer.Deserialize<OpenRouterChatResponse>(rawJsonResponse, options);
 
             var content = result?.Choices?.FirstOrDefault()?.Message?.Content;
@@ -182,36 +196,8 @@ public class OpenRouterService : IOpenRouterService
                 throw new InvalidOperationException("OpenRouter returned an empty response.");
             }
 
-            // // ROBUST CLEANING: Extract only the JSON part
-            // var cleanedContent = CleanJsonString(content);
-            // _logger.LogInformation("Cleaned Content for Deserialization: {Content}", cleanedContent);
-
-            // // BƯỚC 3: Deserialize nội dung AI vào kiểu T (ví dụ: GenerateRqsResponse)
-            // var deserializedOptions = new JsonSerializerOptions
-            // {
-            //     PropertyNameCaseInsensitive = true,
-            //     AllowTrailingCommas = true,
-            //     ReadCommentHandling = JsonCommentHandling.Skip,
-            //     NumberHandling = JsonNumberHandling.AllowReadingFromString
-            // };
-            // deserializedOptions.Converters.Add(new FlexibleStringConverter());
-            // deserializedOptions.Converters.Add(new FlexibleGuidConverter());
-
-            // try
-            // {
-            //     var deserialized = JsonSerializer.Deserialize<T>(cleanedContent, deserializedOptions);
-            //     return deserialized ?? throw new InvalidOperationException($"Failed to deserialize to type {typeof(T).Name}");
-            // }
-            // catch (JsonException jex)
-            // {
-            //     _logger.LogError(jex, "Failed to map JSON to type {Type}. JSON Content: {Json}", typeof(T).Name, cleanedContent);
-            //     throw new InvalidOperationException($"Mapping error for {typeof(T).Name}: {jex.Message}");
-            // }
-
-            return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            })!;
+            // BƯỚC 3: Deserialize nội dung AI vào kiểu T
+            return JsonSerializer.Deserialize<T>(content, options)!;
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
@@ -220,8 +206,10 @@ public class OpenRouterService : IOpenRouterService
         }
     }
 
-    private static object GenerateJsonSchema(System.Type type)
+    private static object? GenerateJsonSchema(System.Type type, HashSet<Type>? seenTypes = null)
     {
+        seenTypes ??= new HashSet<Type>();
+        
         var underlyingType = Nullable.GetUnderlyingType(type);
         var actualType = underlyingType ?? type;
 
@@ -233,24 +221,59 @@ public class OpenRouterService : IOpenRouterService
 
         if (typeof(System.Collections.IEnumerable).IsAssignableFrom(actualType) && actualType != typeof(string))
         {
-            var elementType = actualType.IsArray ? actualType.GetElementType() : actualType.GetGenericArguments()[0];
+            Type? elementType = null;
+            if (actualType.IsArray)
+            {
+                elementType = actualType.GetElementType();
+            }
+            else if (actualType.IsGenericType)
+            {
+                elementType = actualType.GetGenericArguments()[0];
+            }
+            else
+            {
+                elementType = typeof(object);
+            }
+
+            // Detect recursion in collections
+            if (elementType != null && seenTypes.Contains(elementType))
+            {
+                return null; // Skip recursive collection
+            }
+
+            var itemSchema = GenerateJsonSchema(elementType ?? typeof(object), new HashSet<Type>(seenTypes));
+            if (itemSchema == null) return null;
+
             return new
             {
                 type = "array",
-                items = GenerateJsonSchema(elementType)
+                items = itemSchema
             };
         }
 
+        if (seenTypes.Contains(actualType))
+        {
+            return null; // Recursion detected
+        }
+
+        var newSeenTypes = new HashSet<Type>(seenTypes) { actualType };
         var properties = new Dictionary<string, object>();
         var required = new List<string>();
 
         foreach (var prop in actualType.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
-            var attr = prop.GetCustomAttribute<JsonPropertyNameAttribute>();
-            string propName = attr?.Name ?? char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1);
+            // Skip properties that might cause issues or are ignored by JSON
+            if (prop.GetCustomAttribute<JsonIgnoreAttribute>() != null) continue;
 
-            properties[propName] = GenerateJsonSchema(prop.PropertyType);
-            required.Add(propName);
+            var propSchema = GenerateJsonSchema(prop.PropertyType, newSeenTypes);
+            if (propSchema != null)
+            {
+                var attr = prop.GetCustomAttribute<JsonPropertyNameAttribute>();
+                string propName = attr?.Name ?? char.ToLowerInvariant(prop.Name[0]) + prop.Name.Substring(1);
+
+                properties[propName] = propSchema;
+                required.Add(propName);
+            }
         }
 
         return new

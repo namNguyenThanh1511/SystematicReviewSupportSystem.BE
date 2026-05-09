@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Hosting;
@@ -124,6 +124,19 @@ namespace SRSS.IAM.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var result = await _authService.GetUserProfileAsync(userId);
             return Ok(result, "Lấy thông tin người dùng thành công");
+        }
+
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<AuthMeResponse>>> GetAuthMe()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+            {
+                throw new UnauthorizedAccessException("Unauthorized");
+            }
+            var result = await _authService.GetAuthMeAsync(userId);
+            return Ok(result, "Check user login status successfully.");
         }
 
         private async Task IssueRefreshTokenAsync(Guid userId)

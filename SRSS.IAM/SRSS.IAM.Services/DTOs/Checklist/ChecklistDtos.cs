@@ -174,6 +174,8 @@ namespace SRSS.IAM.Services.DTOs.Checklist
         public bool IsCompleted { get; set; }
         public double CompletionPercentage { get; set; }
         public string? PdfUrl { get; set; }
+        public double? PageWidth { get; set; }
+        public double? PageHeight { get; set; }
         public DateTimeOffset LastUpdatedAt { get; set; }
         public List<ChecklistSectionDto> Sections { get; set; } = new();
         public List<ChecklistItemResponseDto> Items { get; set; } = new();

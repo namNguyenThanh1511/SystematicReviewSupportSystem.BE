@@ -1,4 +1,4 @@
-﻿using SRSS.IAM.Services.DTOs.Auth;
+using SRSS.IAM.Services.DTOs.Auth;
 using SRSS.IAM.Services.DTOs.User;
 
 namespace SRSS.IAM.Services.AuthService
@@ -12,5 +12,6 @@ namespace SRSS.IAM.Services.AuthService
         Task<LoginResponse> RefreshAsync(Guid userId);
         Task LogoutAsync(string userId, string accessToken, TimeSpan accessTokenTtl);
         Task<UserProfileResponse> GetUserProfileAsync(string userId);
+        Task<AuthMeResponse> GetAuthMeAsync(string userId);
     }
 }

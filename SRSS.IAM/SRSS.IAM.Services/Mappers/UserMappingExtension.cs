@@ -1,4 +1,5 @@
-﻿using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Repositories.Entities;
+using SRSS.IAM.Services.DTOs.Auth;
 using SRSS.IAM.Services.DTOs.User;
 
 namespace SRSS.IAM.Services.Mappers
@@ -28,8 +29,15 @@ namespace SRSS.IAM.Services.Mappers
                 Role = user.Role.ToString()
             };
         }
-
-
-
+        public static AuthMeResponse ToAuthMeResponse(this User user)
+        {
+            return new AuthMeResponse
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Name = user.FullName,
+                Role = user.Role.ToString().ToLower()
+            };
+        }
     }
 }

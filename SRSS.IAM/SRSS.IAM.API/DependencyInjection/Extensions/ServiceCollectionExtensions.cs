@@ -57,6 +57,7 @@ using SRSS.IAM.Services.AdminMasterSourceService;
 using SRSS.IAM.Services.Crossref;
 using SRSS.IAM.Services.Parsers;
 using SRSS.IAM.Services.DTOs.Crossref;
+using Microsoft.Extensions.Options;
 using SRSS.IAM.Services.PaperFullTextService.Parser;
 using SRSS.IAM.Services.PaperFullTextService.Chunking;
 using SRSS.IAM.Services.PaperFullTextService.Embedding;
@@ -73,6 +74,7 @@ using SmartComponents.LocalEmbeddings;
 using SRSS.IAM.Services.SynthesisExecutionService;
 using SRSS.IAM.Services.ChecklistService;
 using SRSS.IAM.Services.StudySelectionChecklists;
+using SRSS.IAM.Services.SemanticScholar;
 using SRSS.IAM.Services.Interceptors;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
@@ -178,6 +180,40 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
                 .HandleTransientHttpError()
                 .OrResult(msg => msg.StatusCode == HttpStatusCode.TooManyRequests)
                 .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            services.AddMemoryCache();
+
+            // Semantic Scholar Advanced Rate-Limited Proxy Layer
+            services.AddSingleton<SemanticScholarMetrics>();
+            services.AddSingleton<SemanticScholarTaskQueue>();
+            services.AddHostedService<SemanticScholarBackgroundWorker>();
+
+            services.Configure<SemanticScholarSettings>(options =>
+            {
+                configuration.GetSection(SemanticScholarSettings.SectionName).Bind(options);
+                var envKey = configuration["SEMANTIC_SCHOLAR_API_KEY"];
+                if (!string.IsNullOrEmpty(envKey))
+                {
+                    options.ApiKey = envKey;
+                }
+                var envUrl = configuration["SEMANTIC_SCHOLAR_URL"];
+                if (!string.IsNullOrEmpty(envUrl))
+                {
+                    options.BaseUrl = envUrl;
+                }
+            });
+
+            services.AddHttpClient<ISemanticScholarApiClient, SemanticScholarApiClient>((sp, client) =>
+            {
+                var settings = sp.GetRequiredService<IOptions<SemanticScholarSettings>>().Value;
+                client.BaseAddress = new Uri(settings.BaseUrl);
+            })
+            .AddPolicyHandler(HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrResult(msg => msg.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
+
+            services.AddScoped<ISemanticScholarService, SemanticScholarService>();
 
             // Paper enrichment (OpenAlex metadata)
             services.AddScoped<IPaperEnrichmentService, PaperEnrichmentService>();

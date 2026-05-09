@@ -1,4 +1,4 @@
-﻿using Shared.Repositories;
+using Shared.Repositories;
 using SRSS.IAM.Repositories.Entities;
 using SRSS.IAM.Repositories.UserRepo.DTOs;
 
@@ -41,6 +41,21 @@ namespace SRSS.IAM.Repositories.UserRepo
             int pageNumber,
             int pageSize)
         {
+            var query = GetUsersQuery(search, isActive);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderBy(u => u.Username)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return (items, totalCount);
+        }
+
+        private IQueryable<User> GetUsersQuery(string? search, bool? isActive)
+        {
             var query = _context.Users.AsNoTracking();
 
             // Search by Email, FullName, or Username
@@ -58,15 +73,7 @@ namespace SRSS.IAM.Repositories.UserRepo
                 query = query.Where(u => u.IsActive == isActive.Value);
             }
 
-            var totalCount = await query.CountAsync();
-
-            var items = await query
-                .OrderBy(u => u.Username)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (items, totalCount);
+            return query;
         }
     }
 }

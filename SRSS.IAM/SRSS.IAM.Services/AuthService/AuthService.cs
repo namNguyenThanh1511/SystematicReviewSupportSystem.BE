@@ -1,4 +1,4 @@
-﻿using Google.Apis.Auth;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Shared.Cache;
@@ -213,6 +213,17 @@ namespace SRSS.IAM.Services.AuthService
             }
             return user.ToUserProfileResponse();
 
+        }
+
+        public async Task<AuthMeResponse> GetAuthMeAsync(string userId)
+        {
+            var userGuid = Guid.Parse(userId);
+            var user = await _unitOfWork.Users.FindSingleAsync(u => u.Id == userGuid);
+            if (user == null)
+            {
+                throw new NotFoundException("Người dùng không tồn tại");
+            }
+            return user.ToAuthMeResponse();
         }
 
         private LoginResponse CreateLoginResponse(User user, string accessToken)

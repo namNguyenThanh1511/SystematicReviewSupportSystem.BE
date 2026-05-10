@@ -213,11 +213,18 @@ public class OpenRouterService : IOpenRouterService
         var underlyingType = Nullable.GetUnderlyingType(type);
         var actualType = underlyingType ?? type;
 
-        if (actualType == typeof(string) || actualType == typeof(Guid)) return new { type = "string" };
-        if (actualType == typeof(int) || actualType == typeof(long) || actualType == typeof(short)) return new { type = "integer" };
-        if (actualType.IsEnum) return new { type = "integer" };
-        if (actualType == typeof(float) || actualType == typeof(double) || actualType == typeof(decimal)) return new { type = "number" };
-        if (actualType == typeof(bool)) return new { type = "boolean" };
+        var isNullable = underlyingType != null || !type.IsValueType;
+        
+        if (actualType == typeof(string) || actualType == typeof(Guid)) 
+            return new { type = isNullable ? new[] { "string", "null" } : (object)"string" };
+        if (actualType == typeof(int) || actualType == typeof(long) || actualType == typeof(short)) 
+            return new { type = isNullable ? new[] { "integer", "null" } : (object)"integer" };
+        if (actualType.IsEnum) 
+            return new { type = isNullable ? new[] { "integer", "null" } : (object)"integer" };
+        if (actualType == typeof(float) || actualType == typeof(double) || actualType == typeof(decimal)) 
+            return new { type = isNullable ? new[] { "number", "null" } : (object)"number" };
+        if (actualType == typeof(bool)) 
+            return new { type = isNullable ? new[] { "boolean", "null" } : (object)"boolean" };
 
         if (typeof(System.Collections.IEnumerable).IsAssignableFrom(actualType) && actualType != typeof(string))
         {

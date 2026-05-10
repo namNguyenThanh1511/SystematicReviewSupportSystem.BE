@@ -11,6 +11,7 @@ namespace SRSS.IAM.Services.DTOs.DataExtraction
         [JsonPropertyName("ExtractedData")]
         public List<ExtractedValueDto> ExtractedData { get; set; } = new();
 
+        [JsonIgnore]
         [JsonPropertyName("results")]
         public List<ExtractedValueDto> Results { get => ExtractedData; set => ExtractedData = value; }
     }

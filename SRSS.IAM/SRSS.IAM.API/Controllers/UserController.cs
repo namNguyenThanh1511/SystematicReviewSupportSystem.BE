@@ -5,6 +5,7 @@ using Shared.Models;
 using SRSS.IAM.Services.DTOs.Common;
 using SRSS.IAM.Services.DTOs.User;
 using SRSS.IAM.Services.UserService;
+using SRSS.IAM.Services.UserExportService;
 
 namespace SRSS.IAM.API.Controllers
 {
@@ -15,11 +16,13 @@ namespace SRSS.IAM.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IUserExportService _userExportService;
 
-        public UserController(IUserService userService, ICurrentUserService currentUserService)
+        public UserController(IUserService userService, ICurrentUserService currentUserService, IUserExportService userExportService)
         {
             _userService = userService;
             _currentUserService = currentUserService;
+            _userExportService = userExportService;
         }
 
         /// <summary>
@@ -73,6 +76,19 @@ namespace SRSS.IAM.API.Controllers
         {
             var result = await _userService.GetUsersAsync(request);
             return Ok(result, "Users retrieved successfully.");
+        }
+
+        /// <summary>
+        /// Export all user accounts to an Excel file.
+        /// </summary>
+        /// <param name="request">Export parameters</param>
+        /// <returns>Excel file (.xlsx)</returns>
+        [HttpGet("export/excel")]
+        public async Task<IActionResult> ExportToExcel([FromQuery] UserExportRequest request)
+        {
+            var fileBytes = await _userExportService.ExportUsersToExcelAsync(request);
+            var fileName = $"user-accounts-export-{DateTimeOffset.UtcNow:yyyy-MM-dd}.xlsx";
+            return File(fileBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         /// <summary>

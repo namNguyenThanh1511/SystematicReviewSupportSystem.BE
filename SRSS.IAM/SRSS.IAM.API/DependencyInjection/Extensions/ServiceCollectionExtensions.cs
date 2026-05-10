@@ -76,6 +76,8 @@ using SRSS.IAM.Services.ChecklistService;
 using SRSS.IAM.Services.StudySelectionChecklists;
 using SRSS.IAM.Services.SemanticScholar;
 using SRSS.IAM.Services.Interceptors;
+using SRSS.IAM.Services.UserExportService;
+using SRSS.IAM.Services.ProjectExportService;
 
 namespace SRSS.IAM.API.DependencyInjection.Extensions
 {
@@ -134,6 +136,8 @@ namespace SRSS.IAM.API.DependencyInjection.Extensions
             services.AddScoped<IStudySelectionAIResultService, StudySelectionAIResultService>();
             services.AddScoped<IStudySelectionProcessPaperService, StudySelectionProcessPaperService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IUserExportService, UserExportService>();
+            services.AddScoped<IProjectExportService, ProjectExportService>();
             services.AddScoped<ICitationService, CitationService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IProjectInvitationService, ProjectInvitationService>();
